@@ -103,62 +103,52 @@
 .brief .bcard.k-x::before    { background: linear-gradient(180deg, var(--x), #0c7abf); }
 .brief .bcard.k-regulatory::before { background: linear-gradient(180deg, var(--reg), #1e40af); }
 
-.brief .bcard > summary {
-  display: grid; grid-template-columns: 44px 1fr auto 18px; gap: 8px 16px;
-  align-items: start; padding: 18px 18px 18px 22px;
-}
+/* full-width, single-column card: rank lives ONLY on row 1; the why / bar /
+   metrics / faces / chevron all run the full card width below it (matches native) */
+.brief .bcard > summary { display: block; padding: 16px 18px 12px 20px; }
+
+.brief .bc-row1 { display: flex; align-items: flex-start; gap: 12px; }
 .brief .bc-rank {
-  font-size: 20px; font-weight: 800; color: var(--ink-a);
-  font-variant-numeric: tabular-nums; opacity: 0.55; padding-top: 2px;
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px;
+  background: var(--wash); color: var(--ink-a);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;
 }
-.brief .bc-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-.brief .bc-drug { font-size: 22px; font-weight: 750; letter-spacing: -0.02em; color: var(--ink); line-height: 1.1; }
-.brief .bc-brand { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-a); background: var(--wash); padding: 2px 7px; border-radius: 5px; }
+.brief .bc-head { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding-top: 2px; }
+.brief .bc-drug { font-size: 19px; font-weight: 750; letter-spacing: -0.02em; color: var(--ink); line-height: 1.15; }
+.brief .bc-brand { font-size: 13px; font-weight: 500; color: var(--ink-3); }
 .brief .bc-co { font-size: 13px; color: var(--ink-3); }
+.brief .bc-delta { font-size: 12.5px; font-weight: 700; }
+.brief .bc-delta.up { color: var(--up); }
+.brief .bc-delta.down { color: var(--down); }
 
-.brief .bc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-.brief .bc-pill { font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
-.brief .bc-pill-reg  { background: #e6efff; color: #1d4fd7; }
-.brief .bc-pill-up   { background: #dcfce7; color: #15803d; }
-.brief .bc-pill-down { background: #fef3d6; color: #b45309; }
+/* compact score, top-right of row 1 (no more big gradient badge) */
+.brief .bc-score { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; }
+.brief .bc-score-n { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink-a); font-variant-numeric: tabular-nums; line-height: 1; }
+.brief .bc-score-l { margin-top: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
 
-.brief .bc-why { margin: 11px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.brief .bc-eventchip { display: inline-block; margin-top: 11px; font-size: 11.5px; font-weight: 700; color: var(--ink-a); background: var(--wash); border-radius: 6px; padding: 3px 8px; }
+.brief .bc-why { margin: 11px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--ink); }
 
-/* face-pile — the real oncologists talking, the card's signature image element */
-.brief .bc-pile { display: flex; align-items: center; gap: 11px; margin-top: 14px; }
-.brief .bc-faces { display: flex; }
-.brief .bc-face { width: 38px; height: 38px; border-radius: 50%; margin-left: -11px; box-shadow: 0 0 0 2.5px var(--card); background: var(--card); }
-.brief .bc-face:first-child { margin-left: 0; }
-.brief .bc-face.bc-more { display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--a1), var(--a2)); }
-.brief .bc-pile-label { font-size: 13px; color: var(--ink-3); }
-.brief .bc-pile-label b { color: var(--ink); font-weight: 700; }
-.brief .bc-shows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-.brief .bc-showtag { font-size: 11.5px; color: var(--pod); background: #f1ecfe; border-radius: 6px; padding: 3px 8px; font-weight: 600; }
-
-/* colored podcast↔X signal bar */
-.brief .bc-signal { margin-top: 14px; }
-.brief .bc-bar { display: flex; height: 8px; border-radius: 5px; overflow: hidden; background: #eef0f3; }
+/* colored podcast↔X↔paper signal bar + single metrics line + faces */
+.brief .bc-bar { display: flex; height: 8px; border-radius: 5px; overflow: hidden; background: #eef0f3; margin-top: 14px; }
 .brief .bc-bar-pod { background: linear-gradient(90deg, var(--pod), #a78bfa); }
 .brief .bc-bar-x { background: linear-gradient(90deg, #38b0f5, var(--x)); }
-.brief .bc-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }
-.brief .bc-leg { display: inline-flex; align-items: center; gap: 6px; }
-.brief .bc-leg i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
-.brief .bc-leg-pod i { background: var(--pod); }
-.brief .bc-leg-x i { background: var(--x); }
-.brief .bc-leg-heart { color: #e0245e; font-weight: 600; }
+.brief .bc-metrics { margin-top: 9px; font-size: 12.5px; color: var(--ink-3); }
+.brief .bc-faces { display: flex; margin-top: 11px; }
+.brief .bc-face { width: 26px; height: 26px; border-radius: 50%; margin-left: -8px; box-shadow: 0 0 0 2px var(--card); background: var(--card); }
+.brief .bc-face:first-child { margin-left: 0; }
+.brief .bc-face .av { width: 100%; height: 100%; font-size: 10px; }
 
-/* bold score badge */
-.brief .bc-score { text-align: center; align-self: center; }
-.brief .bc-score-n {
-  display: block; min-width: 58px; padding: 8px 6px;
-  font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: #fff;
-  border-radius: 14px; background: linear-gradient(140deg, var(--a1), var(--a2));
-  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--a1) 75%, black);
-  font-variant-numeric: tabular-nums;
+/* expand affordance: a centered chevron at the BOTTOM, so it reads as "opens down" */
+.brief .bc-chev { display: flex; justify-content: center; margin-top: 12px; height: 11px; }
+.brief .bc-chev::before {
+  content: ""; width: 10px; height: 10px;
+  border-right: 2px solid #c8ccd4; border-bottom: 2px solid #c8ccd4;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.25s, border-color 0.15s;
 }
-.brief .bc-score-l { display: block; margin-top: 5px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
-.brief .bc-caret { align-self: center; font-size: 22px; color: #c4c8d0; transition: transform 0.25s, color 0.15s; }
-.brief .bcard[open] .bc-caret { transform: rotate(90deg); color: var(--ink-a); }
+.brief .bcard[open] .bc-chev::before { transform: rotate(225deg) translate(-2px, -2px); border-color: var(--ink-a); }
 
 /* ---- expanded drawer ---- */
 .brief .bc-open { padding: 4px 22px 22px 22px; display: grid; gap: 22px; border-top: 1px solid var(--hair); margin: 2px 0 0; background: linear-gradient(180deg, color-mix(in srgb, var(--wash) 40%, #fff), #fff); }
@@ -320,12 +310,14 @@
 .brief .b-recap-more { font: inherit; font-size: 0.72em; font-weight: 700; color: #fff; text-decoration: underline; background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap; }
 
 @media (max-width: 720px) {
-  .brief .briefwrap { padding: 14px 16px 90px; }
+  .brief .briefwrap { padding: 14px 14px 90px; }
   .brief .kol-stat { display: none; }
   .brief .trial-cta { display: none; }
-  .brief .bcard > summary { grid-template-columns: 30px 1fr auto; gap: 6px 12px; padding: 16px 14px; }
-  .brief .bc-caret { display: none; }
-  .brief .bc-open { padding: 4px 16px 18px; }
-  .brief .bc-drug { font-size: 20px; }
+  .brief .bcard > summary { padding: 15px 15px 11px; }
+  .brief .bc-row1 { gap: 10px; }
+  .brief .bc-open { padding: 4px 15px 18px; }
+  .brief .bc-drug { font-size: 18px; }
+  .brief .b-hero { padding: 22px 20px 20px; border-radius: 18px; }
+  .brief .bk-take { padding: 13px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .brief * { transition: none !important; } }

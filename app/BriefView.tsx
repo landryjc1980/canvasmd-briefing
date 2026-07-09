@@ -21,52 +21,36 @@ const prettyStatus = (s: string | null): string =>
 
 // ---- who covered this drug: X clinician faces + podcast show artwork ---------
 // X people fill first; podcast show artwork fills the rest so a podcast-only mover
-// still shows real imagery instead of a blank row.
+// still shows real imagery instead of a blank row. Faces only — the counts live on
+// the metrics line below the bar (matches the native card).
 function FacePile({ m }: { m: BriefingMover }) {
   const people = m.posts.slice(0, 6).map((s) => ({ src: s.avatar, name: s.name, show: false }));
   const art = m.showArt.slice(0, Math.max(0, 6 - people.length)).map((src) => ({ src, name: "", show: true }));
   const faces = [...people, ...art];
   if (faces.length === 0) return null;
-  const parts: string[] = [];
-  if (m.xSharers > 0) parts.push(`${m.xSharers} on X`);
-  if (m.podConvs > 0) parts.push(`${m.podConvs} podcast${m.podConvs === 1 ? "" : "s"}`);
-  if (m.articleCount > 0) parts.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
   return (
-    <div className="bc-pile">
-      <div className="bc-faces">
-        {faces.map((f, i) => (
-          <span className={`bc-face${f.show ? " is-show" : ""}`} key={i} style={{ zIndex: faces.length - i }} title={f.name}>
-            <Avatar name={f.name} src={f.src} />
-          </span>
-        ))}
-      </div>
-      <span className="bc-pile-label">{parts.join(" · ")}</span>
+    <div className="bc-faces">
+      {faces.map((f, i) => (
+        <span className={`bc-face${f.show ? " is-show" : ""}`} key={i} style={{ zIndex: faces.length - i }} title={f.name}>
+          <Avatar name={f.name} src={f.src} />
+        </span>
+      ))}
     </div>
   );
 }
 
-// ---- the colored podcast↔X signal bar ---------------------------------------
+// ---- the colored podcast↔X↔paper signal bar (bar only) ----------------------
 function SignalBar({ m }: { m: BriefingMover }) {
-  const hasPod = m.podConvs > 0, hasX = m.xSharers > 0, hasArt = m.articleCount > 0;
-  const empty = !hasPod && !hasX && !hasArt; // regulatory-only, no chatter yet
+  const empty = m.podConvs === 0 && m.xSharers === 0 && m.articleCount === 0; // regulatory-only
   return (
-    <div className="bc-signal">
-      <div className={`bc-bar${empty ? " is-empty" : ""}`}>
-        {!empty && (
-          <>
-            <span className="bc-bar-pod" style={{ width: `${m.podPct}%` }} />
-            <span className="bc-bar-x" style={{ width: `${m.xPct}%` }} />
-            <span className="bc-bar-art" style={{ width: `${m.articlePct}%` }} />
-          </>
-        )}
-      </div>
-      <div className="bc-legend">
-        {hasPod && <span className="bc-leg bc-leg-pod"><i /> {m.podConvs} podcast{m.podConvs === 1 ? "" : "s"}</span>}
-        {hasX && <span className="bc-leg bc-leg-x"><i /> {m.xSharers} on X</span>}
-        {hasArt && <span className="bc-leg bc-leg-art"><i /> {m.articleCount} paper{m.articleCount === 1 ? "" : "s"}</span>}
-        {m.topLikes > 0 && <span className="bc-leg bc-leg-heart">♥ {kfmt(m.topLikes)}</span>}
-        {empty && <span className="bc-leg bc-leg-quiet">Just approved — no chatter yet</span>}
-      </div>
+    <div className={`bc-bar${empty ? " is-empty" : ""}`}>
+      {!empty && (
+        <>
+          <span className="bc-bar-pod" style={{ width: `${m.podPct}%` }} />
+          <span className="bc-bar-x" style={{ width: `${m.xPct}%` }} />
+          <span className="bc-bar-art" style={{ width: `${m.articlePct}%` }} />
+        </>
+      )}
     </div>
   );
 }
@@ -112,29 +96,37 @@ function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
   const convs = m.podcast.slice(0, 3);
   const rising = m.delta > 0;
   const cardKind = m.signalShape; // both | pods | x | regulatory → colors the accents
+  const metrics: string[] = [];
+  if (m.podConvs > 0) metrics.push(`${m.podConvs} conversation${m.podConvs === 1 ? "" : "s"}`);
+  if (m.xSharers > 0) metrics.push(`${m.xSharers} on X`);
+  if (m.articleCount > 0) metrics.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
+  const quiet = metrics.length === 0; // regulatory-only mover, no chatter yet
   return (
     <details className={`bcard k-${cardKind}`} id={`drug-${m.drugId}`}>
       <summary>
-        <span className="bc-rank">{String(rank).padStart(2, "0")}</span>
-        <div className="bc-main">
+        {/* row 1: rank + name — everything else spans the full card width below */}
+        <div className="bc-row1">
+          <span className="bc-rank">{String(rank).padStart(2, "0")}</span>
           <div className="bc-head">
             <span className="bc-drug">{m.drug}</span>
             {m.brand && <span className="bc-brand">{m.brand}</span>}
             {m.company && <span className="bc-co">{m.company}</span>}
+            {m.delta !== 0 && <span className={`bc-delta ${rising ? "up" : "down"}`}>{rising ? "▲" : "▼"} {Math.abs(m.delta)}</span>}
           </div>
-          <div className="bc-chips">
-            {m.eventChip && <span className="bc-pill bc-pill-reg">✦ {m.eventChip}</span>}
-            {m.delta !== 0 && <span className={`bc-pill ${rising ? "bc-pill-up" : "bc-pill-down"}`}>{rising ? "▲ rising" : "▼ cooling"}</span>}
+          <div className="bc-score">
+            <span className="bc-score-n">{m.score}</span>
+            <span className="bc-score-l">signal</span>
           </div>
-          {m.why && <p className="bc-why">{clip(m.why, 120)}</p>}
-          <FacePile m={m} />
-          <SignalBar m={m} />
         </div>
-        <div className="bc-score">
-          <span className="bc-score-n">{m.score}</span>
-          <span className="bc-score-l">signal</span>
+        {m.eventChip && <span className="bc-eventchip">✦ {m.eventChip}</span>}
+        {m.why && <p className="bc-why">{clip(m.why, 220)}</p>}
+        <SignalBar m={m} />
+        <div className="bc-metrics">
+          {quiet ? "Just approved — no chatter yet" : metrics.join(" · ")}
+          {!quiet && m.topLikes > 0 ? ` · ♥ ${kfmt(m.topLikes)}` : ""}
         </div>
-        <span className="bc-caret" aria-hidden>›</span>
+        <FacePile m={m} />
+        <span className="bc-chev" aria-hidden />
       </summary>
       <div className="bc-open">
         {convs.length > 0 && (
