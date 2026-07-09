@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BriefingData, BriefingMover, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial } from "@/lib/types";
+import { BriefingData, BriefingMover, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial, BriefingPod } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, Avatar, kfmt, ago, clip, weekOf } from "./ui";
 
@@ -92,6 +92,43 @@ function Abstract({ text }: { text: string | null }) {
   );
 }
 
+// A podcast/tweet gloss that clamps to 3 lines and expands on tap (matches native).
+function Gloss({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const long = (text?.length ?? 0) > 170;
+  return (
+    <>
+      <p className={`bk-gloss${open || !long ? " is-open" : ""}`}>{text}</p>
+      {long && <button className="bk-more bk-gloss-more" onClick={() => setOpen(!open)}>{open ? "Show less" : "Show more"}</button>}
+    </>
+  );
+}
+
+// One podcast conversation — show artwork + show/episode title INLINE on the top row,
+// then the gloss FULL WIDTH below, then the inline listen-at-the-moment player.
+function PodConv({ c }: { c: BriefingPod }) {
+  return (
+    <div className="bk-conv">
+      <div className="bk-conv-head">
+        {c.showArt
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img className="bk-showart" src={c.showArt} alt="" loading="lazy" />
+          : <span className="bk-showart bk-showart-ph" aria-hidden>🎙</span>}
+        <div className="bk-conv-meta">
+          <span className="bk-conv-show">{c.show}</span>
+          <span className="bk-conv-ep">{c.episodeTitle ? `${c.episodeTitle} · ` : ""}{ago(c.publishedAt)}</span>
+        </div>
+      </div>
+      <Gloss text={c.gloss} />
+      {c.audioUrl && (
+        <div className="bk-listen">
+          <AudioQuote audioUrl={c.audioUrl} startMs={c.startMs} label={null} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
   const convs = m.podcast.slice(0, 3);
   const rising = m.delta > 0;
@@ -119,7 +156,7 @@ function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
           </div>
         </div>
         {m.eventChip && <span className="bc-eventchip">✦ {m.eventChip}</span>}
-        {m.why && <p className="bc-why">{clip(m.why, 220)}</p>}
+        {m.why && <p className="bc-why">{m.why}</p>}
         <SignalBar m={m} />
         <div className="bc-metrics">
           {quiet ? "Just approved — no chatter yet" : metrics.join(" · ")}
@@ -131,24 +168,8 @@ function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
       <div className="bc-open">
         {convs.length > 0 && (
           <div className="bk-said">
-            <span className="bk-eyebrow">🎙 What was said</span>
-            {convs.map((c, i) => (
-              <div className="bk-conv" key={i}>
-                {c.showArt
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img className="bk-showart" src={c.showArt} alt="" loading="lazy" />
-                  : <span className="bk-showart bk-showart-ph" aria-hidden>🎙</span>}
-                <div className="bk-conv-main">
-                  <p className="bk-gloss">{c.gloss}</p>
-                  {c.audioUrl && (
-                    <div className="bk-listen">
-                      <AudioQuote audioUrl={c.audioUrl} startMs={c.startMs} label={null} />
-                      <span className="bk-src">{c.show} · {ago(c.publishedAt)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+            <span className="bk-eyebrow">🎙 On the podcasts ({m.podcast.length})</span>
+            {convs.map((c, i) => <PodConv c={c} key={i} />)}
             {m.podcast.length > 3 && <div className="bk-morecount">+{m.podcast.length - 3} more conversation{m.podcast.length - 3 === 1 ? "" : "s"} this week</div>}
           </div>
         )}
@@ -303,23 +324,7 @@ function TrialRow({ t }: { t: BriefingTrial }) {
         {t.pods.length > 0 && (
           <div className="bk-said">
             <span className="bk-eyebrow">🎙 On the podcasts</span>
-            {t.pods.map((c, i) => (
-              <div className="bk-conv" key={i}>
-                {c.showArt
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img className="bk-showart" src={c.showArt} alt="" loading="lazy" />
-                  : <span className="bk-showart bk-showart-ph" aria-hidden>🎙</span>}
-                <div className="bk-conv-main">
-                  <p className="bk-gloss">{c.gloss}</p>
-                  {c.audioUrl && (
-                    <div className="bk-listen">
-                      <AudioQuote audioUrl={c.audioUrl} startMs={c.startMs} label={null} />
-                      <span className="bk-src">{c.show} · {ago(c.publishedAt)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+            {t.pods.map((c, i) => <PodConv c={c} key={i} />)}
           </div>
         )}
         {t.posts.length > 0 && (
