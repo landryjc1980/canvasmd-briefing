@@ -616,38 +616,96 @@ a {
 .srclink:hover {
   color: var(--terracotta);
 }
-.audioq {
-  margin-top: 9px;
-}
-.audiorow {
+/* Custom inline podcast player (see components/AudioQuote.tsx). Accent comes from
+   --ink-a inside .brief (per-area), falling back to terracotta elsewhere. */
+.aq {
+  --aq-accent: var(--ink-a, #c0532b);
+  --aq-track: rgba(0, 0, 0, 0.11);
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px -12px rgba(0, 0, 0, 0.5);
 }
-.listenbtn {
-  border: 1px solid var(--line);
-  background: var(--paper-2);
-  color: var(--terracotta);
-  font-weight: 600;
-  font-size: 12px;
-  padding: 4px 11px;
+.aq-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--aq-accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: filter 0.15s, transform 0.1s;
+}
+.aq-btn:hover { filter: brightness(1.08); }
+.aq-btn:active { transform: scale(0.94); }
+.aq-btn svg { margin-left: 1px; } /* optically center the play triangle */
+.aq-spin {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: aq-spin 0.7s linear infinite;
+}
+@keyframes aq-spin { to { transform: rotate(360deg); } }
+.aq-body { flex: 1; min-width: 0; }
+.aq-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
   border-radius: 999px;
   cursor: pointer;
+  background: linear-gradient(
+    to right,
+    var(--aq-accent) var(--pct, 0%),
+    var(--aq-track) var(--pct, 0%)
+  );
 }
-.listenbtn:hover {
-  border-color: var(--terracotta-soft);
+.aq-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--aq-accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
-.audiosrc {
-  font-size: 11px;
-  color: var(--ink-faint);
+.aq-range::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--aq-accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
-.audioel {
-  display: block;
-  margin-top: 9px;
-  width: 100%;
-  height: 36px;
+.aq-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--ink-3, #767b86);
+  font-variant-numeric: tabular-nums;
 }
+.aq-label { color: var(--ink-3, #767b86); }
+.aq-moment {
+  color: var(--aq-accent);
+  font-weight: 600;
+  margin-left: auto;
+}
+.aq-dur { margin-left: auto; }
+.aq-moment ~ .aq-dur { margin-left: 8px; } /* when the moment chip is present it takes the auto-margin */
 
 /* Consensus & open questions */
 .areapills {
