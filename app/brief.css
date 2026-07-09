@@ -1,0 +1,331 @@
+/* The "Brief" rendering — the VISUAL, colored, image-forward counterpart to the
+   Broadsheet's journal look. Built around real clinician faces + color, not text.
+   Everything is namespaced under .brief. Each tumor area carries its own accent
+   (set via .area-XX) that runs through the gradient hero, chips and score badges. */
+
+.brief {
+  /* default (GU) accent — overridden per area below */
+  --a1: #0ea5e9; --a2: #0284c7; --wash: #d7edfb; --ink-a: #0369a1;
+  --pod: #8b5cf6; --x: #1d9bf0; --art: #10b981; --up: #16a34a; --down: #d97706; --reg: #2563eb;
+  --ink: #16181d; --ink-2: #494d57; --ink-3: #767b86;
+  --hair: rgba(0, 0, 0, 0.07); --card: #ffffff;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(1100px 460px at 80% -8%, var(--wash), transparent 70%),
+    linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
+}
+/* accents lean on each area's real-world awareness color where one is unambiguous
+   (breast=pink, heme=red, GU=light-blue for prostate, gyn=teal for ovarian/cervical).
+   Lung's actual ribbon is pearl/white, which doesn't read as an accent on a white
+   card, so it gets a slate stand-in. GI has no single agreed color across
+   colorectal/gastric/pancreatic, so it keeps a distinct warm orange. */
+.brief.area-GU     { --a1: #0ea5e9; --a2: #0284c7; --wash: #d7edfb; --ink-a: #0369a1; }
+.brief.area-Breast { --a1: #ec4899; --a2: #db2777; --wash: #fbdaea; --ink-a: #be185d; }
+.brief.area-Lung   { --a1: #64748b; --a2: #475569; --wash: #e2e8f0; --ink-a: #334155; }
+.brief.area-GI     { --a1: #ea8016; --a2: #d9660b; --wash: #fde6cc; --ink-a: #b5620e; }
+.brief.area-Heme   { --a1: #e11d2e; --a2: #c1121f; --wash: #fbd5d8; --ink-a: #9b0f18; }
+.brief.area-Gyn    { --a1: #0d9488; --a2: #0f766e; --wash: #ccebe6; --ink-a: #0d6b5f; }
+
+.brief .briefwrap { max-width: 880px; margin: 0 auto; padding: 18px 22px 110px; }
+.brief a { color: var(--ink-a); text-decoration: none; }
+.brief a:hover { text-decoration: underline; }
+.brief summary { list-style: none; cursor: pointer; }
+.brief summary::-webkit-details-marker { display: none; }
+
+/* ============================ gradient hero ============================ */
+.brief .b-hero {
+  position: relative; overflow: hidden;
+  border-radius: 22px;
+  padding: 26px 28px 22px;
+  color: #fff;
+  background: linear-gradient(125deg, var(--a1) 0%, var(--a2) 100%);
+  box-shadow: 0 16px 40px -18px color-mix(in srgb, var(--a1) 70%, black);
+}
+.brief .b-hero::after { /* soft light bloom, top-right */
+  content: ""; position: absolute; top: -40%; right: -10%;
+  width: 380px; height: 380px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 62%);
+  pointer-events: none;
+}
+.brief .b-eyebrow {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82); margin: 0 0 10px;
+}
+.brief .b-title { margin: 0; font-size: clamp(26px, 3.4vw, 36px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+.brief .b-recap { margin: 12px 0 0; font-size: 16px; line-height: 1.5; color: rgba(255, 255, 255, 0.92); max-width: 60ch; }
+.brief .b-stats { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; position: relative; }
+.brief .b-stat {
+  background: rgba(255, 255, 255, 0.16); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 12px;
+  padding: 8px 13px; font-size: 12.5px; color: rgba(255, 255, 255, 0.9);
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.brief .b-stat b { font-size: 19px; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+
+/* ======================= regulatory pill rail ======================= */
+.brief .b-reg { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 4px; }
+.brief .b-reg-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--card); border: 1px solid var(--hair); border-radius: 999px;
+  padding: 6px 13px 6px 10px; font-size: 13px; color: var(--ink-2);
+  box-shadow: 0 2px 8px -5px rgba(0, 0, 0, 0.3);
+}
+.brief .b-reg-ic {
+  width: 18px; height: 18px; border-radius: 50%; background: var(--reg); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0;
+}
+.brief .b-reg-pill b { color: var(--ink); font-weight: 700; }
+.brief .b-reg-what { color: var(--ink-3); }
+.brief .b-reg-when { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.brief .b-reg-ahead { font-size: 12.5px; color: var(--ink-3); align-self: center; font-style: italic; }
+
+/* ============================== cards ============================== */
+.brief .b-cards { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
+.brief .bcard {
+  position: relative; overflow: hidden;
+  background: var(--card); border-radius: 18px;
+  border: 1px solid var(--hair);
+  box-shadow: 0 10px 30px -22px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.brief .bcard:hover { box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.4); transform: translateY(-1px); }
+.brief .bcard::before { /* left accent rail, colored by signal kind */
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  background: linear-gradient(180deg, var(--a1), var(--a2));
+}
+.brief .bcard.k-pods::before { background: linear-gradient(180deg, var(--pod), #6d28d9); }
+.brief .bcard.k-x::before    { background: linear-gradient(180deg, var(--x), #0c7abf); }
+.brief .bcard.k-regulatory::before { background: linear-gradient(180deg, var(--reg), #1e40af); }
+
+.brief .bcard > summary {
+  display: grid; grid-template-columns: 44px 1fr auto 18px; gap: 8px 16px;
+  align-items: start; padding: 18px 18px 18px 22px;
+}
+.brief .bc-rank {
+  font-size: 20px; font-weight: 800; color: var(--ink-a);
+  font-variant-numeric: tabular-nums; opacity: 0.55; padding-top: 2px;
+}
+.brief .bc-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.brief .bc-drug { font-size: 22px; font-weight: 750; letter-spacing: -0.02em; color: var(--ink); line-height: 1.1; }
+.brief .bc-brand { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-a); background: var(--wash); padding: 2px 7px; border-radius: 5px; }
+.brief .bc-co { font-size: 13px; color: var(--ink-3); }
+
+.brief .bc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.brief .bc-pill { font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+.brief .bc-pill-reg  { background: #e6efff; color: #1d4fd7; }
+.brief .bc-pill-up   { background: #dcfce7; color: #15803d; }
+.brief .bc-pill-down { background: #fef3d6; color: #b45309; }
+
+.brief .bc-why { margin: 11px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+
+/* face-pile — the real oncologists talking, the card's signature image element */
+.brief .bc-pile { display: flex; align-items: center; gap: 11px; margin-top: 14px; }
+.brief .bc-faces { display: flex; }
+.brief .bc-face { width: 38px; height: 38px; border-radius: 50%; margin-left: -11px; box-shadow: 0 0 0 2.5px var(--card); background: var(--card); }
+.brief .bc-face:first-child { margin-left: 0; }
+.brief .bc-face.bc-more { display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--a1), var(--a2)); }
+.brief .bc-pile-label { font-size: 13px; color: var(--ink-3); }
+.brief .bc-pile-label b { color: var(--ink); font-weight: 700; }
+.brief .bc-shows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.brief .bc-showtag { font-size: 11.5px; color: var(--pod); background: #f1ecfe; border-radius: 6px; padding: 3px 8px; font-weight: 600; }
+
+/* colored podcast↔X signal bar */
+.brief .bc-signal { margin-top: 14px; }
+.brief .bc-bar { display: flex; height: 8px; border-radius: 5px; overflow: hidden; background: #eef0f3; }
+.brief .bc-bar-pod { background: linear-gradient(90deg, var(--pod), #a78bfa); }
+.brief .bc-bar-x { background: linear-gradient(90deg, #38b0f5, var(--x)); }
+.brief .bc-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }
+.brief .bc-leg { display: inline-flex; align-items: center; gap: 6px; }
+.brief .bc-leg i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.brief .bc-leg-pod i { background: var(--pod); }
+.brief .bc-leg-x i { background: var(--x); }
+.brief .bc-leg-heart { color: #e0245e; font-weight: 600; }
+
+/* bold score badge */
+.brief .bc-score { text-align: center; align-self: center; }
+.brief .bc-score-n {
+  display: block; min-width: 58px; padding: 8px 6px;
+  font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: #fff;
+  border-radius: 14px; background: linear-gradient(140deg, var(--a1), var(--a2));
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--a1) 75%, black);
+  font-variant-numeric: tabular-nums;
+}
+.brief .bc-score-l { display: block; margin-top: 5px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.brief .bc-caret { align-self: center; font-size: 22px; color: #c4c8d0; transition: transform 0.25s, color 0.15s; }
+.brief .bcard[open] .bc-caret { transform: rotate(90deg); color: var(--ink-a); }
+
+/* ---- expanded drawer ---- */
+.brief .bc-open { padding: 4px 22px 22px 22px; display: grid; gap: 22px; border-top: 1px solid var(--hair); margin: 2px 0 0; background: linear-gradient(180deg, color-mix(in srgb, var(--wash) 40%, #fff), #fff); }
+.brief .bk-eyebrow { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-a); margin: 16px 0 12px; }
+.brief .bk-conv { margin-bottom: 18px; }
+.brief .bk-conv:last-child { margin-bottom: 0; }
+.brief .bk-gloss { margin: 0 0 11px; font-size: 15.5px; line-height: 1.55; color: var(--ink); text-wrap: pretty; max-width: 64ch; }
+.brief .bk-listen { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.brief .bk-src { font-size: 12px; color: var(--ink-3); }
+
+.brief .bk-heard .bk-take { margin-bottom: 10px; }
+.brief .bk-heard .bk-take:last-child { margin-bottom: 0; }
+.brief .bk-take { border: 1px solid var(--hair); border-radius: 15px; padding: 15px 17px; background: #fff; max-width: 580px; box-shadow: 0 6px 18px -14px rgba(0, 0, 0, 0.4); }
+.brief .bk-take-top { display: flex; align-items: center; gap: 11px; }
+.brief .bk-take-name { font-size: 14px; font-weight: 700; color: var(--ink); display: flex; align-items: baseline; gap: 6px; flex: 1; min-width: 0; }
+.brief .bk-take-h { font-weight: 400; color: var(--ink-3); font-size: 13px; }
+.brief .bk-take-likes { font-size: 12px; color: #e0245e; font-weight: 600; flex-shrink: 0; }
+.brief .bk-take-text { margin: 9px 0 7px; font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.brief .bk-more { border: 0; background: none; padding: 0; color: var(--ink-a); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.brief .bk-take-link { font-size: 13px; color: var(--x); font-weight: 600; }
+.brief .bk-morecount { margin-top: 12px; font-size: 13px; color: var(--ink-3); }
+.brief .bk-empty { font-size: 15px; color: var(--ink-3); padding: 8px 0 4px; }
+
+/* shared journal papers */
+.brief .bk-paper { display: block; padding: 11px 14px; border: 1px solid var(--hair); border-radius: 12px; background: #fff; margin-bottom: 8px; text-decoration: none; box-shadow: 0 4px 12px -12px rgba(0, 0, 0, 0.4); }
+.brief .bk-paper:last-child { margin-bottom: 0; }
+.brief .bk-paper:hover { text-decoration: none; border-color: rgba(0, 0, 0, 0.16); }
+.brief .bk-paper-title { display: block; font-size: 14.5px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+.brief .bk-paper-meta { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-3); }
+
+/* avatars (scoped — .wb .av rules don't reach here) */
+.brief .av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--a1), var(--a2)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; object-fit: cover; }
+.brief img.av { display: block; }
+.brief .bc-face .av { width: 100%; height: 100%; }
+.brief .av.sm { width: 34px; height: 34px; font-size: 12px; }
+
+/* states + footer */
+.brief .b-empty { padding: 44px 0; text-align: center; font-size: 15px; color: var(--ink-3); }
+.brief .b-foot { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--hair); font-size: 12.5px; color: var(--ink-3); text-align: center; }
+
+/* ===================== multi-lens sections ===================== */
+.brief .b-secbar { margin: 34px 2px 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.brief .b-sec { margin-top: 36px; }
+.brief .b-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.brief .b-sec-ic { width: 27px; height: 27px; border-radius: 8px; background: linear-gradient(135deg, var(--a1), var(--a2)); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.brief .b-sec-title { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0; color: var(--ink); }
+.brief .b-sec-count { font-size: 12px; font-weight: 700; color: var(--ink-3); background: #eef0f3; border-radius: 999px; padding: 2px 9px; }
+.brief .b-sec-body { display: flex; flex-direction: column; gap: 8px; }
+.brief .b-sec-more { margin-top: 12px; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-a); background: var(--wash); border: 0; border-radius: 10px; padding: 9px 16px; cursor: pointer; transition: filter 0.15s; }
+.brief .b-sec-more:hover { filter: brightness(0.96); }
+
+/* rows shared shell */
+.brief .kol, .brief .art, .brief .trial { display: flex; align-items: center; gap: 13px; padding: 12px 15px; background: #fff; border: 1px solid var(--hair); border-radius: 14px; text-decoration: none; box-shadow: 0 6px 16px -14px rgba(0, 0, 0, 0.4); transition: transform 0.15s, box-shadow 0.15s; }
+.brief a.kol:hover, .brief a.art:hover, .brief a.trial:hover { text-decoration: none; transform: translateY(-1px); box-shadow: 0 12px 24px -16px rgba(0, 0, 0, 0.42); }
+
+/* Most active on X */
+.brief .kol-body { flex: 1; min-width: 0; }
+.brief .kol-name { font-size: 15px; font-weight: 700; color: var(--ink); display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.brief .kol-h { font-weight: 400; font-size: 13px; color: var(--ink-3); }
+.brief .kol-drugs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.brief .kol-chip { font-size: 11px; font-weight: 600; color: var(--ink-a); background: var(--wash); border-radius: 6px; padding: 2px 7px; }
+.brief .kol-stat { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.brief .kol-stat b { color: var(--ink); font-weight: 700; }
+.brief .kol-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(0, 0, 0, 0.2); display: inline-block; }
+
+/* What the field is reading */
+.brief .art-main { flex: 1; min-width: 0; }
+.brief .art-title { font-size: 14.5px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+.brief .art-src { margin-top: 3px; font-size: 11.5px; font-weight: 700; color: var(--ink-a); text-transform: uppercase; letter-spacing: 0.02em; }
+.brief .art-side { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.brief .art-faces { display: flex; }
+.brief .art-faces .av { margin-left: -8px; box-shadow: 0 0 0 2px #fff; }
+.brief .art-faces .av:first-child { margin-left: 0; }
+.brief .art-count { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.brief .art-count b { color: var(--ink); font-weight: 700; }
+.brief .art { flex-direction: column; align-items: stretch; gap: 9px; }
+.brief .art-top { display: flex; align-items: center; gap: 13px; }
+.brief a.art-title { color: var(--ink); text-decoration: none; }
+.brief a.art-title:hover, .brief a.bk-paper-title:hover { text-decoration: underline; }
+
+/* reading-list row → expand to the clinicians' actual tweets about the paper */
+.brief details.art-posts { margin: 0; }
+.brief .art-see { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--ink-a); user-select: none; }
+.brief .art-see::-webkit-details-marker { display: none; }
+.brief .art-see-caret { font-size: 17px; color: var(--ink-a); transition: transform 0.25s; }
+.brief details.art-posts[open] .art-see-caret { transform: rotate(90deg); }
+.brief .art-takes { margin-top: 10px; display: grid; gap: 10px; }
+
+/* PubMed abstract — expandable read under a paper / reading-list row */
+.brief .bk-abstract { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+
+/* Trials moving */
+.brief .trial-phase { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; color: #fff; background: linear-gradient(135deg, var(--a1), var(--a2)); border-radius: 8px; padding: 5px 9px; min-width: 60px; text-align: center; }
+.brief .trial-body { flex: 1; min-width: 0; }
+.brief .trial-title { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+.brief .trial-meta { margin-top: 3px; font-size: 12px; color: var(--ink-3); }
+.brief .trial-results { flex-shrink: 0; font-size: 11px; font-weight: 700; color: #15803d; background: #dcfce7; border-radius: 999px; padding: 3px 9px; }
+
+.brief .av.lg { width: 44px; height: 44px; font-size: 15px; }
+
+/* ---- podcast artwork in the clip row (expand) ---- */
+.brief .bk-conv { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 18px; }
+.brief .bk-conv:last-child { margin-bottom: 0; }
+.brief .bk-conv-main { flex: 1; min-width: 0; }
+.brief .bk-showart { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: #e8e8ed; box-shadow: 0 2px 8px -5px rgba(0, 0, 0, 0.45); }
+.brief .bk-showart-ph { display: inline-flex; align-items: center; justify-content: center; font-size: 20px; background: var(--wash); }
+
+/* ---- clickable approval pill ---- */
+.brief .b-reg-pill.is-link { cursor: pointer; font: inherit; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+.brief .b-reg-pill.is-link:hover { border-color: rgba(0, 0, 0, 0.22); box-shadow: 0 5px 14px -7px rgba(0, 0, 0, 0.4); transform: translateY(-1px); }
+.brief .b-reg-go { color: var(--ink-3); font-size: 15px; margin-left: 1px; }
+
+/* ---- trials: provenance note, drug chips, reason, cta ---- */
+.brief .b-sec-note { margin: -6px 0 14px; font-size: 12.5px; color: var(--ink-3); }
+.brief .trial-drugs { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 5px; }
+.brief .trial-drug { font-size: 11px; font-weight: 600; color: var(--ink-a); background: var(--wash); border-radius: 6px; padding: 2px 7px; }
+.brief .trial-reason { font-weight: 600; color: var(--ink-2); }
+.brief .trial-reason.is-fresh { color: #15803d; }
+.brief .trial-phase.is-fresh { background: linear-gradient(135deg, #16a34a, #15803d); }
+.brief .trial-cta { flex-shrink: 0; align-self: center; font-size: 12px; font-weight: 600; color: var(--x); white-space: nowrap; }
+
+/* ---- 3rd bar signal: articles + empty regulatory state ---- */
+.brief .bc-bar-art { background: linear-gradient(90deg, #34d399, var(--art)); }
+.brief .bc-leg-art i { background: var(--art); }
+.brief .bc-bar.is-empty { background: #eef0f3; }
+.brief .bc-leg-quiet { color: var(--ink-3); font-style: italic; }
+
+/* ---- expandable KOL card (Most active on X) ---- */
+.brief details.kol { display: block; align-items: initial; padding: 0; cursor: default; }
+.brief details.kol > summary { display: flex; align-items: center; gap: 13px; padding: 12px 15px; cursor: pointer; list-style: none; }
+.brief details.kol > summary::-webkit-details-marker { display: none; }
+.brief .kol-caret { font-size: 20px; color: #c4c8d0; transition: transform 0.25s, color 0.15s; flex-shrink: 0; }
+.brief details.kol[open] .kol-caret { transform: rotate(90deg); color: var(--ink-3); }
+.brief .kol-open { padding: 4px 15px 15px; border-top: 1px solid var(--hair); display: grid; gap: 10px; background: linear-gradient(180deg, color-mix(in srgb, var(--wash) 35%, #fff), #fff); }
+.brief .kol-open .bk-take { max-width: none; }
+.brief .kol-arts { margin-top: 2px; }
+.brief .kol-art { display: block; padding: 9px 12px; border: 1px solid var(--hair); border-radius: 10px; background: #fff; margin-bottom: 6px; text-decoration: none; }
+.brief .kol-art:last-child { margin-bottom: 0; }
+.brief .kol-art:hover { border-color: rgba(0, 0, 0, 0.16); text-decoration: none; }
+.brief .kol-art-title { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+.brief .kol-art-journal { font-size: 11px; font-weight: 700; color: var(--ink-a); text-transform: uppercase; letter-spacing: 0.02em; }
+.brief .kol-profile { font-size: 13px; font-weight: 600; color: var(--x); }
+
+/* ---- trials: acronym badge + mention breakdown ---- */
+.brief .trial-acr { font-weight: 800; color: var(--ink); margin-right: 6px; }
+.brief .trial-fresh { color: #15803d; font-weight: 700; }
+
+/* ---- expandable trial card (mirrors the drug card's evidence drawer) ---- */
+.brief details.trial { display: block; align-items: initial; padding: 0; cursor: default; }
+.brief details.trial > summary { display: flex; align-items: center; gap: 13px; padding: 12px 15px; cursor: pointer; list-style: none; }
+.brief details.trial > summary::-webkit-details-marker { display: none; }
+.brief .trial-caret { font-size: 20px; color: #c4c8d0; transition: transform 0.25s, color 0.15s; flex-shrink: 0; }
+.brief details.trial[open] .trial-caret { transform: rotate(90deg); color: var(--ink-3); }
+.brief .trial-open { padding: 4px 16px 16px; border-top: 1px solid var(--hair); display: grid; gap: 20px; background: linear-gradient(180deg, color-mix(in srgb, var(--wash) 30%, #fff), #fff); }
+.brief .trial-open .bk-take { max-width: none; }
+.brief .trial-ctgov { font-size: 13px; font-weight: 600; color: var(--x); }
+
+/* ---- expandable recap (white text on the gradient hero) ---- */
+.brief .b-recap-more { font: inherit; font-size: 0.72em; font-weight: 700; color: #fff; text-decoration: underline; background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .brief .briefwrap { padding: 14px 16px 90px; }
+  .brief .kol-stat { display: none; }
+  .brief .trial-cta { display: none; }
+  .brief .bcard > summary { grid-template-columns: 30px 1fr auto; gap: 6px 12px; padding: 16px 14px; }
+  .brief .bc-caret { display: none; }
+  .brief .bc-open { padding: 4px 16px 18px; }
+  .brief .bc-drug { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .brief * { transition: none !important; } }
