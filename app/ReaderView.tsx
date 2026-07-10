@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, metricsLine, clipTs, heroSplit, heroStats, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, metricsLine, clipTs, heroStats, UP, DOWN } from "./briefVM";
+import RecapBlock from "./RecapBlock";
 
 // "The Reader" — the desktop Weekly Brief: a single centered 690px editorial column
 // on the area's solid dark accent-bg. No dashboard panels; evidence expands inline
@@ -88,7 +89,6 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
   const [openId, setOpenId] = useState<string | null>(null);
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
   const stats = heroStats(data);
-  const hero = heroSplit(data.recap);
   const tog = (id: string) => (openId === id ? "Hide ↑" : "Evidence ↓");
 
   return (
@@ -109,8 +109,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
         {/* hero */}
         <div style={{ textAlign: "center", marginTop: 40 }}>
           <div style={{ font: "600 11px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>
-          {hero.lead && <h1 style={{ font: "400 34px/1.18 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "16px 0 0", letterSpacing: "-.01em" }}>{hero.lead}</h1>}
-          {hero.rest && <p style={{ font: "400 18px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3", margin: "20px auto 0", maxWidth: 560 }}>{hero.rest}</p>}
+          <RecapBlock text={data.recap} accent={pal.accent} size={25} lines={3} centered />
           <div style={{ display: "flex", justifyContent: "center", gap: 26, marginTop: 26 }}>
             <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.moverCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>movers</span></div>
             <div style={{ width: 1, background: "rgba(255,255,255,.12)" }} />

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, metricsLine, clipTs, heroSplit, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, metricsLine, clipTs, UP, DOWN } from "./briefVM";
+import RecapBlock from "./RecapBlock";
 import "./design.css";
 
 // "The 90-Second Brief" — the mobile Weekly Brief as a full-screen swipeable story
@@ -59,7 +60,6 @@ function PaperCard({ title, journal, meta }: { title: string; journal: string | 
 
 export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
-  const hero = heroSplit(data.recap);
 
   // Build the ordered screen list (skip empty sections).
   const screens: Screen[] = [{ kind: "intro", chapter: "Intro" }];
@@ -161,8 +161,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>
             <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>{data.windowDays}-day window</div>
-            {hero.lead && <h1 style={{ font: "400 34px/1.16 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: "20px 0 0", letterSpacing: "-.01em" }}>{hero.lead}</h1>}
-            {hero.rest && <p style={{ font: "400 16px/1.5 system-ui", color: "rgba(255,255,255,.62)", margin: "16px 0 0" }}>{hero.rest}</p>}
+            <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={6} />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 24 }} onClick={stop}>
               {areas.map((a) => {
                 const on = a === area;
