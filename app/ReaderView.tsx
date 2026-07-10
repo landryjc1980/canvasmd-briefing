@@ -29,9 +29,9 @@ const ini = (s: string) =>
   (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
 function Delta({ delta }: { delta: number }) {
-  if (!delta) return null;
+  if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
+  return <span title="Net change in evidence (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
 }
 
 function Bar({ m, accent }: { m: BriefingMover; accent: string }) {
@@ -145,7 +145,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
           {data.headline && <h1 style={{ font: "400 38px/1.15 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "14px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
           <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={3} centered />
           <div style={{ display: "flex", justifyContent: "center", gap: 26, marginTop: 26 }}>
-            <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.moverCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>movers</span></div>
+            <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.moverCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>mover{stats.moverCount === 1 ? "" : "s"}</span></div>
             <div style={{ width: 1, background: "rgba(255,255,255,.12)" }} />
             <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.postCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>KOL posts</span></div>
             <div style={{ width: 1, background: "rgba(255,255,255,.12)" }} />
@@ -176,6 +176,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>
                     <div style={{ font: "500 34px/1 'Newsreader',Georgia,serif", color: pal.accent, letterSpacing: "-.01em" }}>{m.score}</div>
+                    <div style={{ font: "600 9px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "#6f727c", marginTop: 4 }}>signal · {area}-rel.</div>
                     <div style={{ marginTop: 6 }}><Delta delta={m.delta} /></div>
                   </div>
                 </div>
@@ -200,7 +201,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                 head={
                   <div style={{ display: "flex", alignItems: "center", gap: 15, padding: "16px 2px" }}>
                     <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}</div><div style={{ font: "400 12.5px system-ui", color: "#7c7f88", marginTop: 2 }}>{k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "")}</div></div>
+                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}{k.institution ? <span style={{ font: "400 12.5px system-ui", color: "#7c7f88" }}>{"  ·  " + k.institution}</span> : ""}</div><div style={{ font: "400 12.5px system-ui", color: "#7c7f88", marginTop: 2 }}>{k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "")}</div></div>
                     <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                   </div>
                 }>
