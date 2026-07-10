@@ -73,13 +73,13 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const go = (dir: number) => { setSheet(null); setIdx((i) => Math.max(0, Math.min(screens.length - 1, i + dir))); };
   const jump = (i: number) => { setSheet(null); setIdx(i); };
 
-  // autoplay
+  // autoplay — paused while the sheet is open OR a podcast clip is actively playing
   useEffect(() => {
-    if (!playing || sheet) return;
+    if (!playing || sheet || clipOn) return;
     if (idx >= screens.length - 1) { setPlaying(false); return; }
     const t = setTimeout(() => setIdx((i) => i + 1), DWELL);
     return () => clearTimeout(t);
-  }, [idx, playing, sheet, screens.length]);
+  }, [idx, playing, sheet, clipOn, screens.length]);
 
   // keyboard
   useEffect(() => {
@@ -109,10 +109,66 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const cur = screens[idx];
   const chapters = ["Events", "Movers", "KOLs", "Papers", "Trials", "Recap"].filter((c) => screens.some((s) => s.chapter === c));
 
+  // ---- card renderers (closures: use the shared player + stop) ----
+  const clipBtn = (url: string, startMs: number | null, id: string) => {
+    const active = clipId === id;
+    const at = startMs != null ? Math.floor(startMs / 1000) : 0;
+    const pct = active && clipDur > 0 ? Math.min(100, (clipCur / clipDur) * 100) : 0;
+    return (
+      <div onClick={(e) => { stop(e); playClip(url, startMs, id); }} style={{ display: "flex", alignItems: "center", gap: 11, background: "rgba(255,255,255,.06)", borderRadius: 11, padding: "8px 12px", cursor: "pointer" }}>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: pal.accent, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+          {active && clipOn
+            ? <span style={{ display: "flex", gap: 2.5 }}><span style={{ width: 3, height: 11, background: "#101018", borderRadius: 1 }} /><span style={{ width: 3, height: 11, background: "#101018", borderRadius: 1 }} /></span>
+            : <span style={{ width: 0, height: 0, borderLeft: "9px solid #101018", borderTop: "6px solid transparent", borderBottom: "6px solid transparent", marginLeft: 2 }} />}
+        </div>
+        <div style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,.16)" }}><div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: pal.accent }} /></div>
+        <span style={{ font: "600 11px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{active && clipDur > 0 ? `${fmtT(clipCur)} / ${fmtT(clipDur)}` : `clip @ ${fmtT(at)}`}</span>
+      </div>
+    );
+  };
+  const podCard = (p: BriefingPod, key: number | string) => (
+    <div key={key} onClick={stop} style={cardBox}>
+      <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{ini(p.show)}</div>
+        <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div></div>
+      </div>
+      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
+      {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`) : <div style={{ font: "600 11px system-ui", color: pal.accent }}>clip {clipTs(p.startMs)}</div>}
+    </div>
+  );
+  const tweetCard = (t: BriefingSharer, key: number) => {
+    const body = (<>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#f4f7ff", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}</div>
+        <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: "#7c7f88" }}>@{t.handle}</span>}</div>
+        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
+      </div>
+      {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
+    </>);
+    return t.tweetUrl
+      ? <a key={key} href={t.tweetUrl} target="_blank" rel="noopener noreferrer" onClick={stop} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
+      : <div key={key} onClick={stop} style={cardBox}>{body}</div>;
+  };
+  const paperCard = (title: string, journal: string | null, meta: string | undefined, url: string | undefined, key: number) => {
+    const body = (<>
+      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}{url ? " ↗" : ""}</div>
+      {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
+    </>);
+    return url
+      ? <a key={key} href={url} target="_blank" rel="noopener noreferrer" onClick={stop} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
+      : <div key={key} onClick={stop} style={cardBox}>{body}</div>;
+  };
+
   return (
     <div onClick={tap} onTouchStart={tStart} onTouchEnd={tEnd}
       style={{ position: "fixed", inset: 0, background: pal.bg, overflow: "hidden", userSelect: "none", cursor: "pointer", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .4s ease" }}>
       <div style={{ position: "absolute", top: -70, left: "calc(50% - 220px)", width: 300, height: 300, background: pal.accent, opacity: .16, filter: "blur(80px)", borderRadius: "50%", pointerEvents: "none" }} />
+
+      {/* persistent clip player — survives sheet close + screen changes */}
+      <audio ref={audioRef} preload="none"
+        onLoadedMetadata={(e) => setClipDur(e.currentTarget.duration || 0)}
+        onTimeUpdate={(e) => setClipCur(e.currentTarget.currentTime)}
+        onPlay={() => setClipOn(true)} onPause={() => setClipOn(false)} onEnded={() => setClipOn(false)} />
 
       {/* centered phone-width column so mid/tablet widths read as a floating story, not full-bleed */}
       <div style={{ position: "relative", height: "100%", width: "min(100vw, 440px)", margin: "0 auto" }}>
@@ -124,8 +180,8 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             <div key={i} onClick={() => jump(i)} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,.28)", overflow: "hidden", cursor: "pointer" }}>
               <div style={{ height: "100%", background: "#fff", borderRadius: 2, transformOrigin: "left",
                 transform: i < idx ? "scaleX(1)" : i > idx ? "scaleX(0)" : undefined,
-                animation: i === idx && playing && !sheet ? `wbxgrow ${DWELL}ms linear forwards` : undefined,
-                ...(i === idx && (!playing || sheet) ? { transform: "scaleX(.35)" } : {}) }} />
+                animation: i === idx && playing && !sheet && !clipOn ? `wbxgrow ${DWELL}ms linear forwards` : undefined,
+                ...(i === idx && (!playing || sheet || clipOn) ? { transform: "scaleX(.35)" } : {}) }} />
             </div>
           ))}
         </div>
@@ -159,7 +215,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               })}
             </div>
             <div style={{ marginTop: "auto" }}>
-              <div onClick={(e) => { stop(e); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
+              <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
                 <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{data.movers.length} movers · {data.topKols.length} KOLs</div></div>
               </div>
@@ -204,7 +260,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.52)", marginTop: 9 }}>{metricsLine(m)}</div>
               {m.why && <p style={{ font: "400 18px/1.36 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "15px 0 0" }}>{m.why}</p>}
               <div style={{ marginTop: "auto" }}>
-                {m.podcast[0] && <PodCard p={m.podcast[0]} accent={pal.accent} />}
+                {m.podcast[0] && podCard(m.podcast[0], "mv")}
                 {(m.podcast.length + m.posts.length + m.papers.length) > 0 && (
                   <div onClick={(e) => { stop(e); setSheet(m); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
                     <span>See all evidence</span><span>→</span>
@@ -286,9 +342,9 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             <div style={{ width: 38, height: 4, borderRadius: 2, background: "rgba(255,255,255,.25)", margin: "0 auto 16px" }} />
             <div style={{ font: "600 20px 'Newsreader',Georgia,serif", color: "#f4f7ff", marginBottom: 4 }}>{sheet.drug}</div>
             <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginBottom: 18 }}>{metricsLine(sheet)}</div>
-            {sheet.podcast.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-            {sheet.posts.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {sheet.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{sheet.papers.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} />)}</div>}
+            {sheet.podcast.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcast.map((p, j) => podCard(p, j))}</div>}
+            {sheet.posts.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => tweetCard(t, j))}</div>}
+            {sheet.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{sheet.papers.map((p: BriefingPaper, j) => paperCard(p.title, p.journal, `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, p.url, j))}</div>}
             <div onClick={() => setSheet(null)} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent }}>Close</div>
           </div>
         </div>
