@@ -34,6 +34,24 @@ const ago = (iso: string) => {
   return d === 1 ? "yesterday" : `${d}d ago`;
 };
 
+// A paper card that expands INLINE to reveal the abstract (so readers don't have to
+// leave for the journal). The ↗ still opens the source for those who want the full text.
+function PaperCard({ title, journal, meta, url, abstract, accent }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; accent: string }) {
+  const [open, setOpen] = useState(false);
+  const hasAbs = !!(abstract && abstract.trim());
+  return (
+    <div onClick={(e) => e.stopPropagation()} style={cardBox}>
+      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
+      {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
+      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
+      <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
+        {hasAbs && <button onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent }}>{open ? "Hide abstract" : "Read abstract"}</button>}
+        {url && <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
+      </div>
+    </div>
+  );
+}
+
 export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
 
@@ -142,7 +160,9 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const podCard = (p: BriefingPod, key: number | string, compact = false) => (
     <div key={key} onClick={stop} style={cardBox}>
       <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{ini(p.show)}</div>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
+          {p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.show}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div></div>
       </div>
       {/* on the mover screen we skip the gloss (the "why" above already sums it up); full gloss lives in the evidence sheet */}
@@ -165,16 +185,6 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       ? <a key={key} href={t.tweetUrl} target="_blank" rel="noopener noreferrer" onClick={stop} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
       : <div key={key} onClick={stop} style={cardBox}>{body}</div>;
   };
-  const paperCard = (title: string, journal: string | null, meta: string | undefined, url: string | undefined, key: number) => {
-    const body = (<>
-      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}{url ? " ↗" : ""}</div>
-      {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
-    </>);
-    return url
-      ? <a key={key} href={url} target="_blank" rel="noopener noreferrer" onClick={stop} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
-      : <div key={key} onClick={stop} style={cardBox}>{body}</div>;
-  };
-
   return (
     <div onClick={tap} onTouchStart={tStart} onTouchEnd={tEnd}
       style={{ position: "fixed", inset: 0, background: pal.bg, overflow: "hidden", userSelect: "none", cursor: "pointer", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .4s ease", touchAction: "pan-y", overscrollBehavior: "none" }}>
@@ -255,9 +265,10 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       <div key={idx} style={{ position: "absolute", inset: 0, padding: `calc(env(safe-area-inset-top) + 100px) 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
         {cur.kind === "intro" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>
+            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
             <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>Updated {ago(data.generatedAt)}</div>
-            <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={6} />
+            {data.headline && <h1 style={{ font: "400 33px/1.14 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: "18px 0 0", letterSpacing: "-.01em" }}>{data.headline}</h1>}
+            <RecapBlock text={data.recap} accent={pal.accent} size={17} lines={5} />
             <div style={{ marginTop: "auto" }}>
               <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
@@ -289,11 +300,11 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           return (
             <>
               <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 92px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.mi! + 1}</div>
-              <div style={{ position: "relative" }}>
-                <span style={{ font: "700 31px/1.12 system-ui", color: "#f4f7ff", letterSpacing: "-.01em" }}>{m.drug}</span>
-                {m.delta !== 0 && <span style={{ marginLeft: 10, verticalAlign: "3px", display: "inline-flex" }}><Delta delta={m.delta} /></span>}
+              <div style={{ font: "700 31px/1.12 system-ui", color: "#f4f7ff", letterSpacing: "-.01em", position: "relative" }}>{m.drug}</div>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 7 }}>
+                <span style={{ font: "500 14px system-ui", color: "rgba(255,255,255,.6)" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
+                {m.delta !== 0 && <Delta delta={m.delta} />}
               </div>
-              <div style={{ font: "500 14px system-ui", color: "rgba(255,255,255,.6)", marginTop: 6 }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 16 }}>
                 <span style={{ font: "700 64px/0.8 system-ui", color: pal.accent, letterSpacing: "-.03em" }}>{m.score}</span>
                 <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
@@ -339,13 +350,8 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>What&rsquo;s being read</div>
             <h1 style={{ font: "600 30px/1.1 system-ui", color: "#f4f7ff", margin: "14px 0 20px" }}>Papers clinicians shared</h1>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {data.topArticles.slice(0, 8).map((a, i) => (
-                <div key={i} style={{ borderTop: "1px solid rgba(255,255,255,.1)", paddingTop: 13 }}>
-                  <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{a.title}</div>
-                  <div style={{ font: "400 12px system-ui", color: "rgba(255,255,255,.5)", marginTop: 5 }}>{[a.journal || a.domain, `shared by ${a.sharers}`].filter(Boolean).join(" · ")}</div>
-                </div>
-              ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {data.topArticles.slice(0, 8).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal || a.domain} meta={`shared by ${a.sharers}`} url={a.url} abstract={a.abstract} accent={pal.accent} />)}
             </div>
           </>
         )}
@@ -392,7 +398,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginBottom: 18 }}>{metricsLine(sheet)}</div>
             {sheet.podcast.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcast.map((p, j) => podCard(p, j))}</div>}
             {sheet.posts.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => tweetCard(t, j))}</div>}
-            {sheet.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{sheet.papers.map((p: BriefingPaper, j) => paperCard(p.title, p.journal, `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, p.url, j))}</div>}
+            {sheet.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{sheet.papers.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} accent={pal.accent} />)}</div>}
             <div onClick={() => setSheet(null)} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent }}>Close</div>
           </div>
         </div>

@@ -729,6 +729,7 @@ export type BriefingData = {
   windowDays: number;
   generatedAt: string;
   recap: string | null; // editorial "the week in a sentence" (AI, grounded in movers + events)
+  headline: string | null; // short 3-6 word editorial cover line (AI)
   events: BriefingEvent[]; // regulatory rail (approvals)
   movers: BriefingMover[]; // the ranked drug spine
   topKols: BriefingKol[]; // "Most active on X" section
