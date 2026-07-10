@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
-import { palOf, barSegments, metricsLine, clipTs, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, metricsLine, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import "./design.css";
 
@@ -40,6 +40,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false); // autoplay is OFF until "Start the brief" / play
   const [hint, setHint] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
   const [sheet, setSheet] = useState<BriefingMover | null>(null);
   const touchX = useRef<number | null>(null);
 
@@ -176,8 +177,42 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       {/* centered phone-width column so mid/tablet widths read as a floating story, not full-bleed */}
       <div style={{ position: "relative", height: "100%", width: "min(100vw, 440px)", margin: "0 auto" }}>
 
-      {/* top overlay: progress + chapters + controls */}
+      {/* dismiss backdrop for the area dropdown (below the header, above content) */}
+      {menuOpen && <div onClick={(e) => { stop(e); setMenuOpen(false); }} style={{ position: "absolute", inset: 0, zIndex: 14 }} />}
+
+      {/* top overlay: header + progress + chapters + controls */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15, padding: "max(12px, env(safe-area-inset-top)) 16px 0" }} onClick={stop}>
+        {/* header — persists on every screen */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div onClick={(e) => { stop(e); jump(0); }} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+            <svg width="25" height="25" viewBox="0 0 25 25" style={{ flex: "none" }}>
+              <rect width="25" height="25" rx="7.5" fill={pal.accent} />
+              <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div style={{ font: "700 15.5px system-ui", color: "#fff", letterSpacing: "-.01em" }}>Readout<span style={{ color: pal.accent, fontWeight: 600 }}>MD</span></div>
+          </div>
+          <div style={{ position: "relative" }}>
+            <div onClick={(e) => { stop(e); setMenuOpen((o) => !o); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 2px", cursor: "pointer" }}>
+              <span style={{ font: "600 14.5px system-ui", color: "#fff" }}>{AREA_FULL[area] ?? area}</span>
+              <span style={{ font: "700 15px system-ui", color: "rgba(255,255,255,.75)", lineHeight: 1 }}>▾</span>
+            </div>
+            {menuOpen && (
+              <div style={{ position: "absolute", top: 38, right: 0, width: 196, background: "rgba(16,18,26,.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, boxShadow: "0 20px 44px rgba(0,0,0,.4)", padding: 8, zIndex: 18 }}>
+                <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
+                {areas.map((a) => {
+                  const on = a === area;
+                  return (
+                    <div key={a} onClick={(e) => { stop(e); setMenuOpen(false); if (a !== area) onArea(a); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
+                      <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.75)" }}>{AREA_FULL[a] ?? a}</span>
+                      {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 4 }}>
           {screens.map((s, i) => (
             <div key={i} onClick={() => jump(i)} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,.28)", overflow: "hidden", cursor: "pointer" }}>
@@ -205,7 +240,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       </div>
 
       {/* screen body */}
-      <div key={idx} style={{ position: "absolute", inset: 0, padding: `104px 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
+      <div key={idx} style={{ position: "absolute", inset: 0, padding: `150px 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
         {cur.kind === "intro" && (
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>

@@ -16,6 +16,16 @@ export const PALETTE: Record<string, Pal> = {
 };
 export const palOf = (area: string): Pal => PALETTE[area] ?? PALETTE.GU;
 
+// Full tumor-area names for the header switcher (the compact "GU" codes are for chips).
+export const AREA_FULL: Record<string, string> = {
+  GU: "Genitourinary",
+  Breast: "Breast",
+  Lung: "Lung",
+  GI: "Gastrointestinal",
+  Heme: "Hematologic",
+  Gyn: "Gynecologic",
+};
+
 // Momentum pill colors (constant across areas).
 export const UP = { fg: "#74E6A8", bg: "rgba(116,230,168,.16)" };
 export const DOWN = { fg: "#FF9B8F", bg: "rgba(255,155,143,.18)" };
