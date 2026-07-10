@@ -47,15 +47,16 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   // clip keeps playing when you close the sheet or move between screens.
   const audioRef = useRef<HTMLAudioElement>(null);
   const [clipId, setClipId] = useState<string | null>(null);
+  const [clipLabel, setClipLabel] = useState<string>("");
   const [clipOn, setClipOn] = useState(false);
   const [clipCur, setClipCur] = useState(0);
   const [clipDur, setClipDur] = useState(0);
-  const playClip = (url: string, startMs: number | null, id: string) => {
+  const playClip = (url: string, startMs: number | null, id: string, label: string) => {
     const el = audioRef.current;
     if (!el) return;
     const at = startMs != null ? Math.max(0, Math.floor(startMs / 1000)) : 0;
     if (clipId === id) { el.paused ? el.play().catch(() => {}) : el.pause(); return; } // same clip → toggle
-    setClipId(id); setClipCur(0); setClipDur(0);
+    setClipId(id); setClipLabel(label); setClipCur(0); setClipDur(0);
     el.src = at > 0 ? `${url}#t=${at}` : url;
     el.load();
     const seekPlay = () => {
@@ -65,6 +66,8 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
     };
     el.addEventListener("loadedmetadata", seekPlay);
   };
+  const toggleClip = () => { const el = audioRef.current; if (el) el.paused ? el.play().catch(() => {}) : el.pause(); };
+  const stopClip = () => { const el = audioRef.current; if (el) { el.pause(); el.removeAttribute("src"); el.load(); } setClipId(null); setClipOn(false); setClipCur(0); setClipDur(0); };
 
   // reset when the area (data) changes
   useEffect(() => { setIdx(0); setSheet(null); setPlaying(false); }, [area]);
@@ -110,12 +113,12 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const chapters = ["Events", "Movers", "KOLs", "Papers", "Trials", "Recap"].filter((c) => screens.some((s) => s.chapter === c));
 
   // ---- card renderers (closures: use the shared player + stop) ----
-  const clipBtn = (url: string, startMs: number | null, id: string) => {
+  const clipBtn = (url: string, startMs: number | null, id: string, label: string) => {
     const active = clipId === id;
     const at = startMs != null ? Math.floor(startMs / 1000) : 0;
     const pct = active && clipDur > 0 ? Math.min(100, (clipCur / clipDur) * 100) : 0;
     return (
-      <div onClick={(e) => { stop(e); playClip(url, startMs, id); }} style={{ display: "flex", alignItems: "center", gap: 11, background: "rgba(255,255,255,.06)", borderRadius: 11, padding: "8px 12px", cursor: "pointer" }}>
+      <div onClick={(e) => { stop(e); playClip(url, startMs, id, label); }} style={{ display: "flex", alignItems: "center", gap: 11, background: "rgba(255,255,255,.06)", borderRadius: 11, padding: "8px 12px", cursor: "pointer" }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: pal.accent, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
           {active && clipOn
             ? <span style={{ display: "flex", gap: 2.5 }}><span style={{ width: 3, height: 11, background: "#101018", borderRadius: 1 }} /><span style={{ width: 3, height: 11, background: "#101018", borderRadius: 1 }} /></span>
@@ -133,7 +136,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
         <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div></div>
       </div>
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
-      {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`) : <div style={{ font: "600 11px system-ui", color: pal.accent }}>clip {clipTs(p.startMs)}</div>}
+      {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`, p.show) : <div style={{ font: "600 11px system-ui", color: pal.accent }}>clip {clipTs(p.startMs)}</div>}
     </div>
   );
   const tweetCard = (t: BriefingSharer, key: number) => {
@@ -161,7 +164,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
   return (
     <div onClick={tap} onTouchStart={tStart} onTouchEnd={tEnd}
-      style={{ position: "fixed", inset: 0, background: pal.bg, overflow: "hidden", userSelect: "none", cursor: "pointer", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .4s ease" }}>
+      style={{ position: "fixed", inset: 0, background: pal.bg, overflow: "hidden", userSelect: "none", cursor: "pointer", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .4s ease", touchAction: "pan-y", overscrollBehavior: "none" }}>
       <div style={{ position: "absolute", top: -70, left: "calc(50% - 220px)", width: 300, height: 300, background: pal.accent, opacity: .16, filter: "blur(80px)", borderRadius: "50%", pointerEvents: "none" }} />
 
       {/* persistent clip player — survives sheet close + screen changes */}
@@ -202,7 +205,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       </div>
 
       {/* screen body */}
-      <div key={idx} style={{ position: "absolute", inset: 0, padding: "104px 24px calc(28px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto" }} className="wbx-noscroll">
+      <div key={idx} style={{ position: "absolute", inset: 0, padding: `104px 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
         {cur.kind === "intro" && (
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>
@@ -347,6 +350,23 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             {sheet.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{sheet.papers.map((p: BriefingPaper, j) => paperCard(p.title, p.journal, `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, p.url, j))}</div>}
             <div onClick={() => setSheet(null)} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent }}>Close</div>
           </div>
+        </div>
+      )}
+
+      {/* persistent now-playing bar — pause / stop the clip from any screen */}
+      {clipId && (
+        <div onClick={stop} style={{ position: "absolute", left: 12, right: 12, bottom: "calc(14px + env(safe-area-inset-bottom))", zIndex: 22, display: "flex", alignItems: "center", gap: 11, background: "rgba(14,17,26,.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 15, padding: "9px 10px 9px 9px", boxShadow: "0 12px 34px rgba(0,0,0,.45)" }}>
+          <div onClick={(e) => { stop(e); toggleClip(); }} style={{ width: 34, height: 34, borderRadius: "50%", background: pal.accent, display: "flex", alignItems: "center", justifyContent: "center", flex: "none", cursor: "pointer" }}>
+            {clipOn
+              ? <span style={{ display: "flex", gap: 2.5 }}><span style={{ width: 3, height: 12, background: "#101018", borderRadius: 1 }} /><span style={{ width: 3, height: 12, background: "#101018", borderRadius: 1 }} /></span>
+              : <span style={{ width: 0, height: 0, borderLeft: "10px solid #101018", borderTop: "6px solid transparent", borderBottom: "6px solid transparent", marginLeft: 2 }} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ font: "600 12.5px system-ui", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clipLabel || "Now playing"}</div>
+            <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,.18)", marginTop: 5 }}><div style={{ width: `${clipDur > 0 ? Math.min(100, (clipCur / clipDur) * 100) : 0}%`, height: "100%", borderRadius: 2, background: pal.accent }} /></div>
+          </div>
+          <span style={{ font: "600 10.5px system-ui", color: "rgba(255,255,255,.5)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmtT(clipCur)}</span>
+          <div onClick={(e) => { stop(e); stopClip(); }} style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", cursor: "pointer", color: "#fff", font: "600 13px system-ui" }}>✕</div>
         </div>
       )}
 
