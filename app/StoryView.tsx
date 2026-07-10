@@ -365,7 +365,15 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               </div>
               {m.why && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{m.why}</p>}
               <div style={{ marginTop: "auto", paddingTop: 16 }}>
-                {m.podcast[0] && podCard(m.podcast[0], "mv", true)}
+                {/* lead evidence on the main screen: podcast clip if any, else the top
+                    paper, else the loudest tweet — so an X-only mover never shows blank */}
+                {m.podcast[0]
+                  ? podCard(m.podcast[0], "mv", true)
+                  : m.papers[0]
+                    ? <PaperCard title={m.papers[0].title} journal={m.papers[0].journal} meta={`shared by ${m.papers[0].sharers.length}${m.papers[0].topLikes ? ` · ♥ ${m.papers[0].topLikes}` : ""}`} url={m.papers[0].url} abstract={m.papers[0].abstract} posts={m.papers[0].sharers} accent={pal.accent} />
+                    : m.posts[0]
+                      ? <TweetCard t={m.posts[0]} />
+                      : null}
                 {hasEv && (
                   <div onClick={(e) => { stop(e); setSheet(moverEv(m)); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
                     <span>See all evidence</span><span>→</span>
