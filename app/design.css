@@ -1,0 +1,18 @@
+/* Animations + a couple of things inline styles can't express, for the new
+   story/reader Weekly Brief designs. Scoped by class so nothing leaks. */
+
+@keyframes wbxgrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes wbxhint {
+  0% { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+}
+@keyframes wbxsheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes wbxfade { from { opacity: 0; } to { opacity: 1; } }
+
+.wbx-noscroll::-webkit-scrollbar { width: 0; height: 0; }
+.wbx-noscroll { scrollbar-width: none; }
+
+/* Load the Newsreader serif the mocks use (via a stylesheet <link> is added in layout;
+   this is a fallback @import so the font is present even if the link is absent). */
