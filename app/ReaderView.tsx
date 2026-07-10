@@ -143,7 +143,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
         <div style={{ textAlign: "center", marginTop: 40 }}>
           <div style={{ font: "600 11px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
           {data.headline && <h1 style={{ font: "400 38px/1.15 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "14px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
-          <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={3} centered />
+          <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={5} centered />
           <div style={{ display: "flex", justifyContent: "center", gap: 26, marginTop: 26 }}>
             <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.moverCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>mover{stats.moverCount === 1 ? "" : "s"}</span></div>
             <div style={{ width: 1, background: "rgba(255,255,255,.12)" }} />

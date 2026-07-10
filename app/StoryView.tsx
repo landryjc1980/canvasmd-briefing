@@ -60,9 +60,15 @@ function PaperCard({ title, journal, meta, url, abstract, posts, accent, publish
   const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
   return (
     <div onClick={(e) => e.stopPropagation()} style={cardBox}>
-      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
-      {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
-      {!!publishers?.length && <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "3px 10px" }}><span style={{ font: "600 9px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{publishers.join(" · ")}</span></div>}
+      {/* whole header taps to expand (was a dead zone — abstract hid behind a tiny link) */}
+      <div onClick={(e) => { if (canExpand) { e.stopPropagation(); setOpen((o) => !o); } }} style={{ cursor: canExpand ? "pointer" : "default", display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
+          {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
+        </div>
+        {canExpand && <span style={{ font: "700 13px system-ui", color: accent, flex: "none", transform: open ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>}
+      </div>
+      {!!publishers?.length && <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "3px 10px" }}><span style={{ font: "600 10px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{publishers.join(" · ")}</span></div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
