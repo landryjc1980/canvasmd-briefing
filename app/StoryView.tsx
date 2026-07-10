@@ -281,13 +281,12 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           const m = data.movers[cur.mi!];
           return (
             <>
-              <div style={{ position: "absolute", top: 92, right: -8, font: "800 220px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.mi! + 1}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
-                <span style={{ font: "600 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>Mover {String(cur.mi! + 1).padStart(2, "0")}</span>
-                <Delta delta={m.delta} />
+              <div style={{ position: "absolute", top: 132, right: -8, font: "800 200px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.mi! + 1}</div>
+              <div style={{ position: "relative" }}>
+                <span style={{ font: "700 31px/1.12 system-ui", color: "#f4f7ff", letterSpacing: "-.01em" }}>{m.drug}</span>
+                {m.delta !== 0 && <span style={{ marginLeft: 10, verticalAlign: "3px", display: "inline-flex" }}><Delta delta={m.delta} /></span>}
               </div>
-              <div style={{ font: "700 31px/1.05 system-ui", color: "#f4f7ff", marginTop: 12, letterSpacing: "-.01em", position: "relative" }}>{m.drug}</div>
-              <div style={{ font: "500 14px system-ui", color: "rgba(255,255,255,.6)", marginTop: 5 }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</div>
+              <div style={{ font: "500 14px system-ui", color: "rgba(255,255,255,.6)", marginTop: 6 }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 16 }}>
                 <span style={{ font: "700 64px/0.8 system-ui", color: pal.accent, letterSpacing: "-.03em" }}>{m.score}</span>
                 <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
