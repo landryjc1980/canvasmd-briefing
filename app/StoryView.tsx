@@ -17,9 +17,9 @@ const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filt
 type Screen = { kind: "intro" | "events" | "mover" | "kols" | "papers" | "trials" | "index"; mi?: number; chapter: string };
 
 function Delta({ delta }: { delta: number }) {
-  if (!delta) return null;
+  if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 10px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 10px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
+  return <span title="Net change in evidence (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 10px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
 }
 const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 13, padding: 14, marginBottom: 9 };
 const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
@@ -320,7 +320,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             <div style={{ marginTop: "auto" }}>
               <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
-                <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{data.movers.length} movers · {data.topKols.length} KOLs</div></div>
+                <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{data.movers.length} mover{data.movers.length === 1 ? "" : "s"} · {data.topKols.length} KOL{data.topKols.length === 1 ? "" : "s"}</div></div>
               </div>
             </div>
           </>
@@ -354,7 +354,10 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 16 }}>
                 <span style={{ font: "700 64px/0.8 system-ui", color: pal.accent, letterSpacing: "-.03em" }}>{m.score}</span>
-                <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
+                  <span style={{ font: "500 10px system-ui", color: "rgba(255,255,255,.38)" }}>#{cur.mi! + 1} in {AREA_FULL[area] ?? area} this week</span>
+                </div>
               </div>
               <div style={{ width: "100%", maxWidth: 240, height: 6, borderRadius: 4, display: "flex", gap: 2, overflow: "hidden", marginTop: 16 }}>
                 {barSegments(m).map((s, i) => <div key={i} style={{ flex: s.flex, background: pal.accent, opacity: s.opacity, borderRadius: 4 }} />)}

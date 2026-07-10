@@ -528,6 +528,7 @@ export type BriefingKol = {
   name: string;
   handle: string | null;
   avatar: string | null;
+  institution: string | null; // primary institution (Dana-Farber…) — the "who are they at?" answer
   tweets: number; // count of their in-area tweets this window
   drugs: string[]; // distinct drugs they discussed (up to a few)
   peakLikes: number;
