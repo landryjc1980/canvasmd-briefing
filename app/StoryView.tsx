@@ -34,23 +34,59 @@ const ago = (iso: string) => {
   return d === 1 ? "yesterday" : `${d}d ago`;
 };
 
-// A paper card that expands INLINE to reveal the abstract (so readers don't have to
-// leave for the journal). The ↗ still opens the source for those who want the full text.
-function PaperCard({ title, journal, meta, url, abstract, accent }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; accent: string }) {
+// One KOL tweet — links to X if we have the url. Self-contained (stops its own
+// propagation) so it works inside the sheet, paper expansions, etc.
+function TweetCard({ t }: { t: BriefingSharer }) {
+  const body = (<>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#f4f7ff", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}</div>
+      <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: "#7c7f88" }}>@{t.handle}</span>}</div>
+      {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
+    </div>
+    {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
+  </>);
+  return t.tweetUrl
+    ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
+    : <div onClick={(e) => e.stopPropagation()} style={cardBox}>{body}</div>;
+}
+
+// A paper card that expands INLINE to reveal the abstract AND the clinicians' tweets
+// about it (so readers don't have to leave). The ↗ still opens the source.
+function PaperCard({ title, journal, meta, url, abstract, posts, accent }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent: string }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
+  const hasPosts = !!(posts && posts.length);
+  const canExpand = hasAbs || hasPosts;
+  const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
   return (
     <div onClick={(e) => e.stopPropagation()} style={cardBox}>
       <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
       {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
+      {open && hasPosts && <div style={{ marginTop: 12 }}>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
+        {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
+      </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
-        {hasAbs && <button onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent }}>{open ? "Hide abstract" : "Read abstract"}</button>}
+        {canExpand && <button onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent }}>{toggleLabel}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
   );
 }
+
+// The evidence sheet is generic: movers, KOLs, and trials all open it with their own
+// bundle of podcasts / tweets / papers.
+type SheetEv = {
+  title: string; sub?: string;
+  podcasts?: BriefingPod[]; posts?: BriefingSharer[];
+  papers?: { title: string; journal: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[] }[];
+};
+const moverEv = (m: BriefingMover): SheetEv => ({
+  title: m.drug, sub: metricsLine(m),
+  podcasts: m.podcast, posts: m.posts,
+  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers })),
+});
 
 export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
@@ -68,7 +104,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const [playing, setPlaying] = useState(false); // autoplay is OFF until "Start the brief" / play
   const [hint, setHint] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
-  const [sheet, setSheet] = useState<BriefingMover | null>(null);
+  const [sheet, setSheet] = useState<SheetEv | null>(null);
   const touchX = useRef<number | null>(null);
 
   // ONE persistent <audio> for the whole story (mounted at the root, below), so a
@@ -172,22 +208,10 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       </div>
     </div>
   );
-  const tweetCard = (t: BriefingSharer, key: number) => {
-    const body = (<>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#f4f7ff", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: "#7c7f88" }}>@{t.handle}</span>}</div>
-        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
-      </div>
-      {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
-    </>);
-    return t.tweetUrl
-      ? <a key={key} href={t.tweetUrl} target="_blank" rel="noopener noreferrer" onClick={stop} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
-      : <div key={key} onClick={stop} style={cardBox}>{body}</div>;
-  };
+  const sectionHead = (label: string) => <div style={{ font: "600 20px/1.2 system-ui", color: "#f4f7ff", letterSpacing: "-.01em", margin: "6px 0 20px" }}>{label}</div>;
   return (
     <div onClick={tap} onTouchStart={tStart} onTouchEnd={tEnd}
-      style={{ position: "fixed", inset: 0, background: pal.bg, overflow: "hidden", userSelect: "none", cursor: "pointer", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .4s ease", touchAction: "pan-y", overscrollBehavior: "none" }}>
+      style={{ position: "fixed", inset: 0, background: pal.bg, overflow: "hidden", userSelect: "none", cursor: "pointer", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .4s ease", overscrollBehavior: "none" }}>
       <div style={{ position: "absolute", top: -70, left: "calc(50% - 220px)", width: 300, height: 300, background: pal.accent, opacity: .16, filter: "blur(80px)", borderRadius: "50%", pointerEvents: "none" }} />
 
       {/* persistent clip player — survives sheet close + screen changes */}
@@ -202,8 +226,9 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       {/* dismiss backdrop for the area dropdown (below the header, above content) */}
       {menuOpen && <div onClick={(e) => { stop(e); setMenuOpen(false); }} style={{ position: "absolute", inset: 0, zIndex: 14 }} />}
 
-      {/* top overlay: header + progress + chapters + controls */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15, padding: "max(12px, env(safe-area-inset-top)) 16px 0" }} onClick={stop}>
+      {/* top overlay: header + progress + chapters + controls. Stops clicks AND touches
+          so the chrome (esp. the scrollable chapter bar) never triggers page navigation. */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15, padding: "max(12px, env(safe-area-inset-top)) 16px 0" }} onClick={stop} onTouchStart={stop} onTouchEnd={stop} onTouchMove={stop}>
         {/* header — persists on every screen */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <div onClick={(e) => { stop(e); jump(0); }} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
@@ -246,7 +271,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           ))}
         </div>
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-          <div className="wbx-noscroll" style={{ flex: 1, minWidth: 0, display: "flex", gap: 6, overflowX: "auto" }}>
+          <div className="wbx-noscroll" style={{ flex: 1, minWidth: 0, display: "flex", gap: 6, overflowX: "auto", touchAction: "pan-x" }}>
             {chapters.map((c) => {
               const target = screens.findIndex((s) => s.chapter === c);
               const on = cur.chapter === c;
@@ -280,9 +305,8 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
         {cur.kind === "events" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>What happened</div>
-            <h1 style={{ font: "600 30px/1.1 system-ui", color: "#f4f7ff", margin: "14px 0 0" }}>Regulatory moves this week</h1>
-            <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+            {sectionHead("What happened")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {data.events.map((e, i) => (
                 <div key={i} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, padding: 16 }}>
                   <div style={{ font: "600 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: pal.accent }}>{e.type.replace(/_/g, " ")}</div>
@@ -313,7 +337,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
                 {barSegments(m).map((s, i) => <div key={i} style={{ flex: s.flex, background: pal.accent, opacity: s.opacity, borderRadius: 4 }} />)}
               </div>
               {/* metrics → tap to open the full evidence sheet */}
-              <div onClick={(e) => { if (hasEv) { stop(e); setSheet(m); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: 10, cursor: hasEv ? "pointer" : "default" }}>
+              <div onClick={(e) => { if (hasEv) { stop(e); setSheet(moverEv(m)); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: 10, cursor: hasEv ? "pointer" : "default" }}>
                 <span>{metricsLine(m)}</span>
                 {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1 }}>›</span>}
               </div>
@@ -321,7 +345,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               <div style={{ marginTop: "auto", paddingTop: 16 }}>
                 {m.podcast[0] && podCard(m.podcast[0], "mv", true)}
                 {hasEv && (
-                  <div onClick={(e) => { stop(e); setSheet(m); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
+                  <div onClick={(e) => { stop(e); setSheet(moverEv(m)); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
                     <span>See all evidence</span><span>→</span>
                   </div>
                 )}
@@ -332,16 +356,22 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
         {cur.kind === "kols" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>Most active on X</div>
-            <h1 style={{ font: "600 30px/1.1 system-ui", color: "#f4f7ff", margin: "14px 0 20px" }}>The voices this week</h1>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {data.topKols.slice(0, 8).map((k, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}</div><div style={{ font: "400 12px system-ui", color: "rgba(255,255,255,.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.drugs.slice(0, 3).join(" · ")}</div></div>
-                  <div style={{ font: "600 12px system-ui", color: pal.accent, flex: "none" }}>{k.tweets} post{k.tweets === 1 ? "" : "s"}</div>
-                </div>
-              ))}
+            {sectionHead("Most active on X")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {data.topKols.slice(0, 10).map((k, i) => {
+                const hasEv = k.posts.length + k.articles.length > 0;
+                return (
+                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: k.name, sub: k.handle ? `@${k.handle}` : undefined, posts: k.posts, papers: k.articles.map((a) => ({ title: a.title, journal: a.journal, url: a.url })) }); } }}
+                    style={{ display: "flex", alignItems: "center", gap: 13, padding: "9px 0", cursor: hasEv ? "pointer" : "default" }}>
+                    <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}</div><div style={{ font: "400 12px system-ui", color: "rgba(255,255,255,.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.drugs.slice(0, 3).join(" · ")}</div></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "none" }}>
+                      <span style={{ font: "600 12px system-ui", color: pal.accent }}>{k.tweets} post{k.tweets === 1 ? "" : "s"}</span>
+                      {hasEv && <span style={{ font: "700 13px system-ui", color: pal.accent, lineHeight: 1 }}>›</span>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
