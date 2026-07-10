@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
-import AudioQuote from "@/components/AudioQuote";
 import { palOf, barSegments, metricsLine, clipTs, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import "./design.css";
@@ -24,39 +23,7 @@ function Delta({ delta }: { delta: number }) {
 }
 const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 13, padding: 14, marginBottom: 9 };
 const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
-
-function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
-  return (
-    <div style={cardBox}>
-      <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{ini(p.show)}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div></div>
-      </div>
-      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
-      {p.audioUrl ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label={`clip ${clipTs(p.startMs)}`} accent={accent} tone="dark" /> : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
-    </div>
-  );
-}
-function TweetCard({ t }: { t: BriefingSharer }) {
-  return (
-    <div style={cardBox}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#f4f7ff", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: "#7c7f88" }}>@{t.handle}</span>}</div>
-        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
-      </div>
-      {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
-    </div>
-  );
-}
-function PaperCard({ title, journal, meta }: { title: string; journal: string | null; meta?: string }) {
-  return (
-    <div style={cardBox}>
-      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
-      {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
-    </div>
-  );
-}
+const fmtT = (s: number) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
 export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
@@ -71,13 +38,36 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   screens.push({ kind: "index", chapter: "Recap" });
 
   const [idx, setIdx] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false); // autoplay is OFF until "Start the brief" / play
   const [hint, setHint] = useState(true);
   const [sheet, setSheet] = useState<BriefingMover | null>(null);
   const touchX = useRef<number | null>(null);
 
+  // ONE persistent <audio> for the whole story (mounted at the root, below), so a
+  // clip keeps playing when you close the sheet or move between screens.
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [clipId, setClipId] = useState<string | null>(null);
+  const [clipOn, setClipOn] = useState(false);
+  const [clipCur, setClipCur] = useState(0);
+  const [clipDur, setClipDur] = useState(0);
+  const playClip = (url: string, startMs: number | null, id: string) => {
+    const el = audioRef.current;
+    if (!el) return;
+    const at = startMs != null ? Math.max(0, Math.floor(startMs / 1000)) : 0;
+    if (clipId === id) { el.paused ? el.play().catch(() => {}) : el.pause(); return; } // same clip → toggle
+    setClipId(id); setClipCur(0); setClipDur(0);
+    el.src = at > 0 ? `${url}#t=${at}` : url;
+    el.load();
+    const seekPlay = () => {
+      try { if (Math.abs(el.currentTime - at) > 1.5) el.currentTime = at; } catch { /* no range support */ }
+      el.play().catch(() => {});
+      el.removeEventListener("loadedmetadata", seekPlay);
+    };
+    el.addEventListener("loadedmetadata", seekPlay);
+  };
+
   // reset when the area (data) changes
-  useEffect(() => { setIdx(0); setSheet(null); setPlaying(true); }, [area]);
+  useEffect(() => { setIdx(0); setSheet(null); setPlaying(false); }, [area]);
   useEffect(() => { const t = setTimeout(() => setHint(false), 3500); return () => clearTimeout(t); }, []);
 
   const go = (dir: number) => { setSheet(null); setIdx((i) => Math.max(0, Math.min(screens.length - 1, i + dir))); };
