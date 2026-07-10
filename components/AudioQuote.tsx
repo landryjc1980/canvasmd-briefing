@@ -23,10 +23,14 @@ export default function AudioQuote({
   audioUrl,
   startMs,
   label,
+  accent,
+  tone = "light",
 }: {
   audioUrl: string;
   startMs: number | null;
   label?: string | null;
+  accent?: string; // override the accent (button / scrubber / clip label) — e.g. the tumor color
+  tone?: "light" | "dark"; // "dark" = translucent chrome for use on a dark card
 }) {
   const ref = useRef<HTMLAudioElement>(null);
   const atSec = startMs != null ? Math.max(0, Math.floor(startMs / 1000)) : 0;
@@ -83,7 +87,7 @@ export default function AudioQuote({
   const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
 
   return (
-    <div className="aq">
+    <div className={`aq${tone === "dark" ? " aq-dark" : ""}`} style={accent ? ({ ["--aq-accent" as string]: accent }) : undefined}>
       <audio
         ref={ref}
         src={src}

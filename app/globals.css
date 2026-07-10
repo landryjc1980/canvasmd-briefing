@@ -707,6 +707,24 @@ a {
 .aq-dur { margin-left: auto; }
 .aq-moment ~ .aq-dur { margin-left: 8px; } /* when the moment chip is present it takes the auto-margin */
 
+/* Dark-card variant (the story/reader Weekly Brief): translucent chrome instead of
+   the white pill, so the tumor accent reads correctly on the dark background. The
+   play glyph goes dark (not white) because the area accents are light pastels — a
+   white triangle on a light-blue button would vanish. */
+.aq-dark {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  --aq-track: rgba(255, 255, 255, 0.18);
+}
+.aq-dark .aq-btn { color: #121620; }
+.aq-dark .aq-spin { border-color: rgba(18, 22, 32, 0.35); border-top-color: #121620; }
+.aq-dark .aq-times,
+.aq-dark .aq-label,
+.aq-dark .aq-cur { color: rgba(255, 255, 255, 0.5); }
+.aq-dark .aq-range::-webkit-slider-thumb { border-color: rgba(20, 24, 34, 0.9); }
+.aq-dark .aq-range::-moz-range-thumb { border-color: rgba(20, 24, 34, 0.9); }
+
 /* Consensus & open questions */
 .areapills {
   display: flex;
