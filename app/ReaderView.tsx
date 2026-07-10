@@ -223,7 +223,13 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
                 head={
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 15, padding: "16px 2px" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{a.title}</div><div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 5 }}>{[a.journal || a.domain, `shared by ${a.sharers}`].filter(Boolean).join(" · ")}</div></div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{a.title}</div>
+                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 5 }}>
+                        <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[a.journal || a.domain, a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+                        {!!a.publishers?.length && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "2px 9px" }}><span style={{ font: "600 8.5px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{a.publishers.join(" · ")}</span></span>}
+                      </div>
+                    </div>
                     <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap", flex: "none" }}>{tog(id)}</span>
                   </div>
                 }>

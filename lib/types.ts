@@ -542,8 +542,10 @@ export type BriefingArticle = {
   journal: string | null;
   domain: string | null;
   abstract: string | null; // PubMed abstract, for the expandable read
-  sharers: number; // distinct KOL accounts that shared it
-  faces: string[]; // up to 5 sharer avatar urls
+  sharers: number; // distinct accounts total (KOL + publisher)
+  kolSharers: number; // distinct KOL (verified-clinician) accounts that shared it
+  publishers: string[]; // institutional/journal/news accounts that posted it (OncLive, NEJM…) — the "via" badge
+  faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
 };
