@@ -378,25 +378,35 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
         {cur.kind === "papers" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>What&rsquo;s being read</div>
-            <h1 style={{ font: "600 30px/1.1 system-ui", color: "#f4f7ff", margin: "14px 0 20px" }}>Papers clinicians shared</h1>
+            {sectionHead("What’s being read")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {data.topArticles.slice(0, 8).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal || a.domain} meta={`shared by ${a.sharers}`} url={a.url} abstract={a.abstract} accent={pal.accent} />)}
+              {data.topArticles.slice(0, 10).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal || a.domain} meta={`shared by ${a.sharers}`} url={a.url} abstract={a.abstract} posts={a.posts} accent={pal.accent} />)}
             </div>
           </>
         )}
 
         {cur.kind === "trials" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>Trials being discussed</div>
-            <h1 style={{ font: "600 30px/1.1 system-ui", color: "#f4f7ff", margin: "14px 0 20px" }}>On the field&rsquo;s radar</h1>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {data.trials.slice(0, 8).map((t, i) => (
-                <div key={i} style={{ borderTop: "1px solid rgba(255,255,255,.1)", paddingTop: 13 }}>
-                  <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || t.nctId}</div>
-                  <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginTop: 3 }}>{t.title}</div>
-                </div>
-              ))}
+            {sectionHead("Trials being discussed")}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {data.trials.slice(0, 10).map((t, i) => {
+                const hasEv = t.pods.length + t.posts.length + t.articles.length > 0;
+                const parts: string[] = [];
+                if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
+                if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
+                if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
+                return (
+                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: t.acronym || t.nctId, sub: t.title, podcasts: t.pods, posts: t.posts, papers: t.articles.map((p) => ({ title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length}`, posts: p.sharers })) }); } }}
+                    style={{ borderTop: "1px solid rgba(255,255,255,.1)", padding: "13px 0", display: "flex", alignItems: "flex-start", gap: 10, cursor: hasEv ? "pointer" : "default" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || t.nctId}</div>
+                      <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginTop: 3 }}>{t.title}</div>
+                      {parts.length > 0 && <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)", marginTop: 4 }}>discussed in {parts.join(" · ")}</div>}
+                    </div>
+                    {hasEv && <span style={{ font: "700 13px system-ui", color: pal.accent, lineHeight: 1, marginTop: 4, flex: "none" }}>›</span>}
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
@@ -424,12 +434,12 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
         <div onClick={(e) => { stop(e); setSheet(null); }} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-end" }}>
           <div onClick={stop} className="wbx-noscroll" style={{ width: "100%", maxHeight: "88%", overflowY: "auto", background: pal.bg, borderRadius: "22px 22px 0 0", padding: "10px 20px calc(24px + env(safe-area-inset-bottom))", animation: "wbxsheet .3s ease", boxShadow: "0 -20px 60px rgba(0,0,0,.5)" }}>
             <div style={{ width: 38, height: 4, borderRadius: 2, background: "rgba(255,255,255,.25)", margin: "0 auto 16px" }} />
-            <div style={{ font: "600 20px 'Newsreader',Georgia,serif", color: "#f4f7ff", marginBottom: 4 }}>{sheet.drug}</div>
-            <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginBottom: 18 }}>{metricsLine(sheet)}</div>
-            {sheet.podcast.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcast.map((p, j) => podCard(p, j))}</div>}
-            {sheet.posts.length > 0 && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => tweetCard(t, j))}</div>}
-            {sheet.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{sheet.papers.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} accent={pal.accent} />)}</div>}
-            <div onClick={() => setSheet(null)} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent }}>Close</div>
+            <div style={{ font: "600 20px 'Newsreader',Georgia,serif", color: "#f4f7ff", marginBottom: sheet.sub ? 4 : 16 }}>{sheet.title}</div>
+            {sheet.sub && <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginBottom: 18 }}>{sheet.sub}</div>}
+            {!!sheet.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcasts.map((p, j) => podCard(p, j))}</div>}
+            {!!sheet.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+            <div onClick={(e) => { stop(e); setSheet(null); }} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent, cursor: "pointer" }}>Close</div>
           </div>
         </div>
       )}
