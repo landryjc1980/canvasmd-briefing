@@ -3,12 +3,22 @@
 import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, metricsLine, clipTs, heroStats, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, metricsLine, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 
 // "The Reader" — the desktop Weekly Brief: a single centered 690px editorial column
 // on the area's solid dark accent-bg. No dashboard panels; evidence expands inline
 // as an accordion under whatever you click. Fed by the real BriefingData.
+
+const ago = (iso: string) => {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "yesterday" : `${d}d ago`;
+};
 
 const prettyPhase = (p: string | null): string => {
   if (!p) return "Trial";
@@ -39,7 +49,7 @@ function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
       <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{ini(p.show)}</div>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div>
           <div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div>
@@ -67,14 +77,29 @@ function TweetCard({ t }: { t: BriefingSharer }) {
     ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
     : <div style={cardBox}>{body}</div>;
 }
-function PaperCard({ title, journal, meta, url }: { title: string; journal: string | null; meta?: string; url?: string }) {
-  const body = (<>
-      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}{url ? " ↗" : ""}</div>
+// Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
+// the mobile story), so readers stay on the page. The ↗ still opens the source.
+function PaperCard({ title, journal, meta, url, abstract, posts, accent }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string }) {
+  const [open, setOpen] = useState(false);
+  const hasAbs = !!(abstract && abstract.trim());
+  const hasPosts = !!(posts && posts.length);
+  const canExpand = hasAbs || hasPosts;
+  const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
+  return (
+    <div style={cardBox}>
+      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
       {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
-    </>);
-  return url
-    ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
-    : <div style={cardBox}>{body}</div>;
+      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
+      {open && hasPosts && <div style={{ marginTop: 12 }}>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
+        {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
+      </div>}
+      <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
+        {canExpand && <button onClick={() => setOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{toggleLabel}</button>}
+        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
+      </div>
+    </div>
+  );
 }
 
 function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
@@ -96,10 +121,16 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
   return (
     <div style={{ minHeight: "100vh", background: pal.bg, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .45s ease" }}>
       <div style={{ maxWidth: 690, margin: "0 auto", padding: "52px 30px 120px" }}>
-        {/* masthead */}
-        <div style={{ textAlign: "center" }}>
-          <div style={{ font: "600 12px system-ui", letterSpacing: ".36em", textTransform: "uppercase", color: "#c9ccd4", paddingBottom: 15, borderBottom: "1px solid rgba(255,255,255,.14)", paddingLeft: ".36em" }}>The Weekly Brief</div>
-          <div style={{ font: "500 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", marginTop: 13 }}>{area} Oncology · {data.windowDays}-day window</div>
+        {/* masthead — ReadoutMD wordmark (matches the mobile header) */}
+        <div style={{ textAlign: "center", paddingBottom: 15, borderBottom: "1px solid rgba(255,255,255,.14)" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 11 }}>
+            <svg width="30" height="30" viewBox="0 0 25 25" style={{ flex: "none" }}>
+              <rect width="25" height="25" rx="7.5" fill={pal.accent} />
+              <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div style={{ font: "700 22px system-ui", color: "#fff", letterSpacing: "-.01em" }}>Readout<span style={{ color: pal.accent, fontWeight: 600 }}>MD</span></div>
+          </div>
+          <div style={{ font: "500 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", marginTop: 12 }}>The Weekly Brief · Updated {ago(data.generatedAt)}</div>
         </div>
         {/* area links */}
         <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 26px", marginTop: 20, paddingBottom: 26, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
@@ -110,7 +141,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
         </div>
         {/* hero */}
         <div style={{ textAlign: "center", marginTop: 40 }}>
-          <div style={{ font: "600 11px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>
+          <div style={{ font: "600 11px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
           {data.headline && <h1 style={{ font: "400 38px/1.15 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "14px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
           <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={3} centered />
           <div style={{ display: "flex", justifyContent: "center", gap: 26, marginTop: 26 }}>
@@ -152,7 +183,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
               <div style={{ marginLeft: 50 }}>
                 {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                 {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} />)}</div>}
+                {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
               </div>
             </Row>
           );
@@ -161,7 +192,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
 
         {/* KOLs */}
         {data.topKols.length > 0 && <>
-          <SectionHead>Most active KOLs</SectionHead>
+          <SectionHead>Most active on X</SectionHead>
           {data.topKols.map((k, i) => {
             const id = "k:" + i;
             return (
@@ -175,7 +206,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                 }>
                 <div style={{ marginLeft: 55 }}>
                   {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Posts on X · {k.posts.length}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                  {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Articles shared · {k.articles.length}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} url={a.url} />)}</div>}
+                  {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Articles shared · {k.articles.length}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} url={a.url} accent={pal.accent} />)}</div>}
                 </div>
               </Row>
             );
@@ -224,7 +255,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                 }>
                 {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                 {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length}`} url={p.url} />)}</div>}
+                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
                 <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
               </Row>
             );

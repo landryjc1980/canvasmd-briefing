@@ -106,6 +106,10 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
   const [sheet, setSheet] = useState<SheetEv | null>(null);
   const touchX = useRef<number | null>(null);
+  // swipe-down-to-dismiss for the evidence sheet (only when its content is scrolled to top)
+  const sheetScrollRef = useRef<HTMLDivElement>(null);
+  const sheetTouchY = useRef<number | null>(null);
+  const [sheetDrag, setSheetDrag] = useState(0);
 
   // ONE persistent <audio> for the whole story (mounted at the root, below), so a
   // clip keeps playing when you close the sheet or move between screens.
@@ -135,6 +139,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
   // reset when the area (data) changes
   useEffect(() => { setIdx(0); setSheet(null); setPlaying(false); }, [area]);
+  useEffect(() => { setSheetDrag(0); }, [sheet]);
   useEffect(() => { const t = setTimeout(() => setHint(false), 3500); return () => clearTimeout(t); }, []);
 
   const go = (dir: number) => { setSheet(null); setIdx((i) => Math.max(0, Math.min(screens.length - 1, i + dir))); };
@@ -172,6 +177,23 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
     if (Math.abs(dx) > 45) { setHint(false); go(dx < 0 ? 1 : -1); }
   };
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
+  // sheet swipe-down: track vertical drag; only "pull" the sheet when its scroll is at the
+  // top so normal content scrolling still works. Release past a threshold → dismiss.
+  const sheetTStart = (e: React.TouchEvent) => { e.stopPropagation(); sheetTouchY.current = e.touches[0].clientY; };
+  const sheetTMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (sheetTouchY.current == null) return;
+    const dy = e.touches[0].clientY - sheetTouchY.current;
+    if (dy > 0 && (sheetScrollRef.current?.scrollTop ?? 0) <= 0) setSheetDrag(dy);
+    else if (sheetDrag !== 0) setSheetDrag(0);
+  };
+  const sheetTEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    const dy = sheetDrag;
+    sheetTouchY.current = null;
+    if (dy > 90) setSheet(null); else setSheetDrag(0);
+  };
 
   const cur = screens[idx];
   const chapters = ["Events", "Movers", "KOLs", "Papers", "Trials", "Recap"].filter((c) => screens.some((s) => s.chapter === c));
@@ -432,8 +454,13 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       {/* bottom sheet: full evidence */}
       {sheet && (
         <div onClick={(e) => { stop(e); setSheet(null); }} style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-end" }}>
-          <div onClick={stop} className="wbx-noscroll" style={{ width: "100%", maxHeight: "88%", overflowY: "auto", background: pal.bg, borderRadius: "22px 22px 0 0", padding: "10px 20px calc(24px + env(safe-area-inset-bottom))", animation: "wbxsheet .3s ease", boxShadow: "0 -20px 60px rgba(0,0,0,.5)" }}>
-            <div style={{ width: 38, height: 4, borderRadius: 2, background: "rgba(255,255,255,.25)", margin: "0 auto 16px" }} />
+          <div ref={sheetScrollRef} onClick={stop} onTouchStart={sheetTStart} onTouchMove={sheetTMove} onTouchEnd={sheetTEnd} className="wbx-noscroll"
+            style={{ position: "relative", width: "100%", maxHeight: "88%", overflowY: "auto", overscrollBehavior: "contain", background: pal.bg, borderRadius: "22px 22px 0 0", padding: "0 20px calc(24px + env(safe-area-inset-bottom))", animation: sheetDrag ? undefined : "wbxsheet .3s ease", boxShadow: "0 -20px 60px rgba(0,0,0,.5)", transform: sheetDrag ? `translateY(${sheetDrag}px)` : undefined, transition: sheetDrag ? "none" : "transform .25s ease" }}>
+            {/* sticky grabber + close — pinned so the ✕ is always reachable while scrolling */}
+            <div style={{ position: "sticky", top: 0, zIndex: 3, background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", margin: "0 -20px", }}>
+              <div style={{ width: 38, height: 4, borderRadius: 2, background: "rgba(255,255,255,.25)" }} />
+              <div onClick={(e) => { stop(e); setSheet(null); }} aria-label="Close" style={{ position: "absolute", right: 14, top: 6, width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", font: "600 14px system-ui" }}>✕</div>
+            </div>
             <div style={{ font: "600 20px 'Newsreader',Georgia,serif", color: "#f4f7ff", marginBottom: sheet.sub ? 4 : 16 }}>{sheet.title}</div>
             {sheet.sub && <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginBottom: 18 }}>{sheet.sub}</div>}
             {!!sheet.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcasts.map((p, j) => podCard(p, j))}</div>}
