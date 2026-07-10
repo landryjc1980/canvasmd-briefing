@@ -24,6 +24,15 @@ function Delta({ delta }: { delta: number }) {
 const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 13, padding: 14, marginBottom: 9 };
 const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 const fmtT = (s: number) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const ago = (iso: string) => {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "yesterday" : `${d}d ago`;
+};
 
 export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
@@ -130,14 +139,17 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       </div>
     );
   };
-  const podCard = (p: BriefingPod, key: number | string) => (
+  const podCard = (p: BriefingPod, key: number | string, compact = false) => (
     <div key={key} onClick={stop} style={cardBox}>
       <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
         <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{ini(p.show)}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div></div>
+        <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.show}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div></div>
       </div>
-      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
-      {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`, p.show) : <div style={{ font: "600 11px system-ui", color: pal.accent }}>clip {clipTs(p.startMs)}</div>}
+      {/* on the mover screen we skip the gloss (the "why" above already sums it up); full gloss lives in the evidence sheet */}
+      {!compact && <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>}
+      <div style={{ marginTop: compact ? 11 : 0 }}>
+        {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`, p.show) : <div style={{ font: "600 11px system-ui", color: pal.accent }}>clip {clipTs(p.startMs)}</div>}
+      </div>
     </div>
   );
   const tweetCard = (t: BriefingSharer, key: number) => {
@@ -240,18 +252,12 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       </div>
 
       {/* screen body */}
-      <div key={idx} style={{ position: "absolute", inset: 0, padding: `150px 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
+      <div key={idx} style={{ position: "absolute", inset: 0, padding: `calc(env(safe-area-inset-top) + 100px) 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
         {cur.kind === "intro" && (
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {area}</div>
-            <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>{data.windowDays}-day window</div>
+            <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>Updated {ago(data.generatedAt)}</div>
             <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={6} />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 24 }} onClick={stop}>
-              {areas.map((a) => {
-                const on = a === area;
-                return <div key={a} onClick={() => onArea(a)} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "600 12.5px system-ui", padding: "8px 13px", borderRadius: 20, cursor: "pointer", color: on ? pal.bg : "#fff", background: on ? "#fff" : "rgba(255,255,255,.1)", border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}` }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent }} />{a}</div>;
-              })}
-            </div>
             <div style={{ marginTop: "auto" }}>
               <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
@@ -279,9 +285,10 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
         {cur.kind === "mover" && (() => {
           const m = data.movers[cur.mi!];
+          const hasEv = m.podcast.length + m.posts.length + m.papers.length > 0;
           return (
             <>
-              <div style={{ position: "absolute", top: 132, right: -8, font: "800 200px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.mi! + 1}</div>
+              <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 92px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.mi! + 1}</div>
               <div style={{ position: "relative" }}>
                 <span style={{ font: "700 31px/1.12 system-ui", color: "#f4f7ff", letterSpacing: "-.01em" }}>{m.drug}</span>
                 {m.delta !== 0 && <span style={{ marginLeft: 10, verticalAlign: "3px", display: "inline-flex" }}><Delta delta={m.delta} /></span>}
@@ -294,12 +301,16 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               <div style={{ width: "100%", maxWidth: 240, height: 6, borderRadius: 4, display: "flex", gap: 2, overflow: "hidden", marginTop: 16 }}>
                 {barSegments(m).map((s, i) => <div key={i} style={{ flex: s.flex, background: pal.accent, opacity: s.opacity, borderRadius: 4 }} />)}
               </div>
-              <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.52)", marginTop: 9 }}>{metricsLine(m)}</div>
-              {m.why && <p style={{ font: "400 18px/1.36 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "15px 0 0" }}>{m.why}</p>}
-              <div style={{ marginTop: "auto" }}>
-                {m.podcast[0] && podCard(m.podcast[0], "mv")}
-                {(m.podcast.length + m.posts.length + m.papers.length) > 0 && (
-                  <div onClick={(e) => { stop(e); setSheet(m); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
+              {/* metrics → tap to open the full evidence sheet */}
+              <div onClick={(e) => { if (hasEv) { stop(e); setSheet(m); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: 10, cursor: hasEv ? "pointer" : "default" }}>
+                <span>{metricsLine(m)}</span>
+                {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1 }}>›</span>}
+              </div>
+              {m.why && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{m.why}</p>}
+              <div style={{ marginTop: "auto", paddingTop: 16 }}>
+                {m.podcast[0] && podCard(m.podcast[0], "mv", true)}
+                {hasEv && (
+                  <div onClick={(e) => { stop(e); setSheet(m); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
                     <span>See all evidence</span><span>→</span>
                   </div>
                 )}
