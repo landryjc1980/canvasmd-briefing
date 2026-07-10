@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { BriefingData, BriefingMover, BriefingEvent, BriefingSharer } from "@/lib/types";
+import { BriefingData, BriefingMover, BriefingEvent, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, SHAPE, Avatar, Chevron, kfmt, ago, clip, weekOf } from "./ui";
+
+const prettyPhase = (p: string | null): string => {
+  if (!p) return "";
+  const nums = p.split("/").map((x) => x.replace(/[^0-9]/g, "")).filter(Boolean);
+  return nums.length ? `Phase ${nums.join("/")}` : p.replace(/_/g, " ").toLowerCase();
+};
 
 // The "Broadsheet" rendering — the serif/petrol clinical-journal look. One editorial
 // page per tumor area: a regulatory rail up top, then a ranked spine of moving drugs,
@@ -147,6 +153,161 @@ function Mover({ m, rank }: { m: BriefingMover; rank: number }) {
   );
 }
 
+// Expandable abstract, broadsheet-styled.
+function Abstract({ text }: { text: string | null }) {
+  const [open, setOpen] = useState(false);
+  if (!text) return null;
+  const long = text.length > 260;
+  const body = open || !long ? text : text.slice(0, 260).trimEnd() + "…";
+  return (
+    <p className="bs-abstract">
+      {body}
+      {long && <button className="bs-more" onClick={(e) => { e.preventDefault(); setOpen(!open); }}>{open ? " less" : " more"}</button>}
+    </p>
+  );
+}
+
+// A collapsible broadsheet section with a show-all toggle (mirrors the Brief's
+// section list, styled as journal columns).
+function Section<T>({ title, note, items, initial, render }: {
+  title: string; note: string; items: T[]; initial: number; render: (it: T, i: number) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!items.length) return null;
+  const shown = open ? items : items.slice(0, initial);
+  return (
+    <section>
+      <div className="sec-head">
+        <h2>{title}</h2>
+        <div className="rule" />
+        <span className="count">{note}</span>
+      </div>
+      {shown.map(render)}
+      {items.length > initial && (
+        <button className="bs-secmore" onClick={() => setOpen(!open)}>{open ? "Show less" : `Show all ${items.length}`}</button>
+      )}
+    </section>
+  );
+}
+
+// "The voices" — most active clinicians on X this week.
+function VoiceRow({ k }: { k: BriefingKol }) {
+  return (
+    <details className="bvoice">
+      <summary>
+        <Avatar name={k.name} src={k.avatar} cls="sm" />
+        <div className="bvoice-main">
+          <div className="bvoice-name">{k.name}{k.handle && <span className="bvoice-h">@{k.handle}</span>}</div>
+          <div className="bvoice-drugs">{k.drugs.map((d, i) => <span className="bvoice-chip" key={i}>{d}</span>)}</div>
+        </div>
+        <div className="bvoice-stat">
+          <b>{k.tweets}</b> post{k.tweets === 1 ? "" : "s"} · <b>{k.drugs.length}</b> drug{k.drugs.length === 1 ? "" : "s"}
+          {k.peakLikes > 0 && <> · ♥ {kfmt(k.peakLikes)}</>}
+        </div>
+        <span className="m-open"><Chevron /></span>
+      </summary>
+      <div className="bvoice-open">
+        {k.posts.map((s, i) => <XTake key={i} s={s} />)}
+        {k.articles.length > 0 && (
+          <div className="dpapers">
+            <div className="dpapers-head">Papers they shared</div>
+            {k.articles.map((a, i) => (
+              <div className="dpaper" key={i}>
+                <a className="dpaper-title" href={a.url} target="_blank" rel="noopener noreferrer">{a.title} ↗</a>
+                {a.journal && <span className="dpaper-journal">{a.journal}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {k.handle && <a className="dtweet-link" href={`https://x.com/${k.handle}`} target="_blank" rel="noopener noreferrer">See @{k.handle} on X ↗</a>}
+      </div>
+    </details>
+  );
+}
+
+// "What the field is reading" — top papers clinicians shared.
+function ReadingRow({ a }: { a: BriefingArticle }) {
+  const hasPosts = (a.posts?.length ?? 0) > 0;
+  return (
+    <div className="bread">
+      <div className="bread-top">
+        <div className="bread-main">
+          <a className="bread-title" href={a.url} target="_blank" rel="noopener noreferrer">{a.title} ↗</a>
+          {(a.journal || a.domain) && <div className="bread-src">{a.journal || a.domain}</div>}
+        </div>
+        <div className="bread-side">
+          {a.faces.length > 0 && <div className="bread-faces">{a.faces.map((f, i) => <Avatar key={i} name="" src={f} cls="sm" />)}</div>}
+          <span className="bread-count"><b>{a.sharers}</b> shared{a.topLikes > 0 ? ` · ♥ ${kfmt(a.topLikes)}` : ""}</span>
+        </div>
+      </div>
+      <Abstract text={a.abstract} />
+      {hasPosts && (
+        <details className="bread-posts">
+          <summary className="bread-see">See what {a.posts.length === 1 ? "the clinician" : `${a.posts.length} clinicians`} said<Chevron /></summary>
+          <div className="bread-takes">{a.posts.map((s, i) => <XTake key={i} s={s} />)}</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// "Trials in discussion" — mention-ranked, expanding to the receipts.
+function TrialRow({ t }: { t: BriefingTrial }) {
+  const drugs = t.interventions
+    .filter((d) => !/placebo|surgery|observation|best supportive|dissection|cystectomy|nephrectomy|radiation|radiotherapy|resection/i.test(d))
+    .slice(0, 4);
+  const parts: string[] = [];
+  if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
+  if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
+  if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
+  return (
+    <details className="btrial">
+      <summary>
+        <span className={`btrial-phase${t.resultsFresh ? " is-fresh" : ""}`}>{prettyPhase(t.phase) || "Trial"}</span>
+        <div className="btrial-body">
+          <div className="btrial-title">{t.acronym && <span className="btrial-acr">{t.acronym}</span>}{clip(t.title, 84)}</div>
+          {drugs.length > 0 && <div className="btrial-drugs">{drugs.map((d, i) => <span className="btrial-drug" key={i}>{d}</span>)}</div>}
+          <div className="btrial-meta">discussed in {parts.join(" · ")}{t.resultsFresh && <span className="btrial-fresh"> · ✦ results out</span>}</div>
+        </div>
+        <span className="m-open"><Chevron /></span>
+      </summary>
+      <div className="drawer">
+        {t.pods.length > 0 && (
+          <div className="dcol">
+            <div className="dcol-head">On the podcasts</div>
+            {t.pods.map((c, i) => (
+              <div className="dconv" key={i}>
+                <p className="dconv-gloss">{c.gloss}</p>
+                <div className="dconv-meta"><b>{c.show}</b> · {ago(c.publishedAt)}</div>
+                {c.audioUrl && <AudioQuote audioUrl={c.audioUrl} startMs={c.startMs} label={null} />}
+              </div>
+            ))}
+          </div>
+        )}
+        {(t.posts.length > 0 || t.articles.length > 0) && (
+          <div className="dcol">
+            {t.posts.length > 0 && <div className="dcol-head">On X</div>}
+            {t.posts.map((s, i) => <XTake key={i} s={s} />)}
+            {t.articles.length > 0 && (
+              <div className="dpapers">
+                <div className="dpapers-head">In the papers</div>
+                {t.articles.map((p, i) => (
+                  <div className="dpaper" key={i}>
+                    <a className="dpaper-title" href={p.url} target="_blank" rel="noopener noreferrer">{p.title} ↗</a>
+                    {p.journal && <span className="dpaper-journal">{p.journal}</span>}
+                    <Abstract text={p.abstract} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <a className="dtweet-link btrial-ctgov" href={t.url} target="_blank" rel="noopener noreferrer">View on ClinicalTrials.gov ↗</a>
+      </div>
+    </details>
+  );
+}
+
 export default function BroadsheetView({ data, area }: { data: BriefingData; area: string }) {
   const meta = AREA_META[area] ?? AREA_META.GU;
   const podTotal = data.movers.reduce((n, m) => n + m.podConvs, 0);
@@ -189,6 +350,15 @@ export default function BroadsheetView({ data, area }: { data: BriefingData; are
             data.movers.map((m, i) => <Mover key={m.drugId} m={m} rank={i + 1} />)
           )}
         </section>
+
+        <Section title="The voices" note="most active clinicians on X" items={data.topKols} initial={5}
+          render={(k, i) => <VoiceRow key={i} k={k} />} />
+
+        <Section title="What the field is reading" note="papers clinicians shared" items={data.topArticles} initial={5}
+          render={(a, i) => <ReadingRow key={i} a={a} />} />
+
+        <Section title="Trials in discussion" note="matched across podcasts, X &amp; papers" items={data.trials} initial={4}
+          render={(t, i) => <TrialRow key={i} t={t} />} />
 
         {data.recap && (
           <div className="recap">
