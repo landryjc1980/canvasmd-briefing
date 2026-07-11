@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
-import { palOf, barSegments, metricsLine, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
+import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import "./design.css";
 
@@ -14,7 +14,7 @@ import "./design.css";
 const DWELL = 6000;
 const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
-type Screen = { kind: "intro" | "events" | "mover" | "kols" | "papers" | "trials" | "index"; mi?: number; chapter: string };
+type Screen = { kind: "intro" | "events" | "story" | "kols" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
 
 function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 10px", borderRadius: 20 }}>— flat</span>;
@@ -94,18 +94,32 @@ const moverEv = (m: BriefingMover): SheetEv => ({
   podcasts: m.podcast, posts: m.posts,
   papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers })),
 });
+// The evidence sheet for ANY story atom (drug | paper | topic) — same generic bundle.
+const storyEv = (s: BriefingStory): SheetEv => ({
+  title: s.headline, sub: storyMetricLine(s),
+  podcasts: s.podcast, posts: s.posts,
+  papers: s.papers.map((p) => {
+    const shared = p.sharers.length || p.posts?.length || 0;
+    return { title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers };
+  }),
+});
 
 export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
 
-  // Build the ordered screen list (skip empty sections).
+  // Top Stories = the atom-agnostic hero (drug|paper|topic); falls back to drug movers so
+  // the hero always renders even on an old snapshot without topStories.
+  const stories = storiesOf(data);
+
+  // Build the ordered screen list (skip empty sections). "Drugs" is the relocated ranked
+  // movers board — a sibling to Trials, so the full drug overview isn't lost.
   const screens: Screen[] = [{ kind: "intro", chapter: "Intro" }];
   if (data.events.length) screens.push({ kind: "events", chapter: "Events" });
-  data.movers.forEach((_, i) => screens.push({ kind: "mover", mi: i, chapter: "Movers" }));
+  stories.forEach((_, i) => screens.push({ kind: "story", si: i, chapter: "Top Stories" }));
   if (data.topKols.length) screens.push({ kind: "kols", chapter: "KOLs" });
   if (data.topArticles.length) screens.push({ kind: "papers", chapter: "Papers" });
   if (data.trials.length) screens.push({ kind: "trials", chapter: "Trials" });
-  screens.push({ kind: "index", chapter: "Recap" });
+  if (data.movers.length) screens.push({ kind: "drugs", chapter: "Drugs" });
 
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false); // autoplay is OFF until "Start the brief" / play
@@ -203,7 +217,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   };
 
   const cur = screens[idx];
-  const chapters = ["Events", "Movers", "KOLs", "Papers", "Trials", "Recap"].filter((c) => screens.some((s) => s.chapter === c));
+  const chapters = ["Events", "Top Stories", "KOLs", "Papers", "Trials", "Drugs"].filter((c) => screens.some((s) => s.chapter === c));
 
   // ---- card renderers (closures: use the shared player + stop) ----
   const clipBtn = (url: string, startMs: number | null, id: string, label: string) => {
@@ -304,7 +318,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             {chapters.map((c) => {
               const target = screens.findIndex((s) => s.chapter === c);
               const on = cur.chapter === c;
-              return <div key={c} onClick={() => jump(target)} style={{ flex: "none", font: "600 11px system-ui", padding: "5px 11px", borderRadius: 20, whiteSpace: "nowrap", cursor: "pointer", color: on ? pal.bg : "#fff", background: on ? "#fff" : "rgba(255,255,255,.14)" }}>{c === "Movers" ? `Movers` : c}</div>;
+              return <div key={c} onClick={() => jump(target)} style={{ flex: "none", font: "600 11px system-ui", padding: "5px 11px", borderRadius: 20, whiteSpace: "nowrap", cursor: "pointer", color: on ? pal.bg : "#fff", background: on ? "#fff" : "rgba(255,255,255,.14)" }}>{c}</div>;
             })}
           </div>
           <div onClick={() => setPlaying((p) => !p)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
@@ -326,7 +340,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             <div style={{ marginTop: "auto" }}>
               <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
-                <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{data.movers.length} mover{data.movers.length === 1 ? "" : "s"} · {data.topKols.length} KOL{data.topKols.length === 1 ? "" : "s"}</div></div>
+                <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{stories.length} stor{stories.length === 1 ? "y" : "ies"} · {data.topKols.length} KOL{data.topKols.length === 1 ? "" : "s"}</div></div>
               </div>
             </div>
           </>
@@ -347,45 +361,58 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           </>
         )}
 
-        {cur.kind === "mover" && (() => {
-          const m = data.movers[cur.mi!];
-          const hasEv = m.podcast.length + m.posts.length + m.papers.length > 0;
+        {/* ONE reusable story card — same shell for every atom. Only the metric line
+            (drug = score + 3-channel bar; paper/topic = text) and the lead evidence adapt. */}
+        {cur.kind === "story" && (() => {
+          const s = stories[cur.si!];
+          const isDrug = s.kind === "drug";
+          const hasEv = s.podcast.length + s.posts.length + s.papers.length > 0;
+          const rank = s.drugId ? data.movers.findIndex((m) => m.drugId === s.drugId) + 1 : 0;
+          const paperLead = (p: BriefingPaper) => (
+            <PaperCard title={p.title} journal={p.journal}
+              meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined}
+              url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} publishers={p.publishers} />
+          );
+          // lead evidence: a PAPER story leads with a clinician's take (the headline already IS
+          // the paper); drug/topic lead with podcast clip → top paper → loudest tweet.
+          const lead = s.kind === "paper"
+            ? (s.posts[0] ? <TweetCard t={s.posts[0]} /> : s.papers[0] ? paperLead(s.papers[0]) : null)
+            : (s.podcast[0] ? podCard(s.podcast[0], "st", true) : s.papers[0] ? paperLead(s.papers[0]) : s.posts[0] ? <TweetCard t={s.posts[0]} /> : null);
           return (
             <>
-              <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 92px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.mi! + 1}</div>
-              <div style={{ font: "700 31px/1.12 system-ui", color: "#f4f7ff", letterSpacing: "-.01em", position: "relative" }}>{m.drug}</div>
-              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 7 }}>
-                <span style={{ font: "500 14px system-ui", color: "rgba(255,255,255,.6)" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
-                {m.delta !== 0 && <Delta delta={m.delta} />}
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 16 }}>
-                <span style={{ font: "700 64px/0.8 system-ui", color: pal.accent, letterSpacing: "-.03em" }}>{m.score}</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
-                  <span style={{ font: "500 10px system-ui", color: "rgba(255,255,255,.38)" }}>#{cur.mi! + 1} in {AREA_FULL[area] ?? area} this week</span>
+              <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 92px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.si! + 1}</div>
+              <div style={{ font: "600 10px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent, position: "relative" }}>{storyKicker(s)}</div>
+              <div style={{ font: isDrug ? "700 31px/1.12 system-ui" : "500 27px/1.2 'Newsreader',Georgia,serif", color: "#f4f7ff", letterSpacing: "-.01em", position: "relative", marginTop: 9 }}>{s.headline}</div>
+              {(s.subtitle || (isDrug && s.delta !== 0)) && (
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 7 }}>
+                  {s.subtitle && <span style={{ font: "500 14px system-ui", color: "rgba(255,255,255,.6)" }}>{s.subtitle}</span>}
+                  {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                 </div>
-              </div>
-              <div style={{ width: "100%", maxWidth: 240, height: 6, borderRadius: 4, display: "flex", gap: 2, overflow: "hidden", marginTop: 16 }}>
-                {barSegments(m).map((s, i) => <div key={i} style={{ flex: s.flex, background: pal.accent, opacity: s.opacity, borderRadius: 4 }} />)}
-              </div>
-              {/* metrics → tap to open the full evidence sheet */}
-              <div onClick={(e) => { if (hasEv) { stop(e); setSheet(moverEv(m)); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: 10, cursor: hasEv ? "pointer" : "default" }}>
-                <span>{metricsLine(m)}</span>
+              )}
+              {isDrug && (
+                <>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 16 }}>
+                    <span style={{ font: "700 64px/0.8 system-ui", color: pal.accent, letterSpacing: "-.03em" }}>{s.score}</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
+                      {rank > 0 && <span style={{ font: "500 10px system-ui", color: "rgba(255,255,255,.38)" }}>#{rank} in {AREA_FULL[area] ?? area} this week</span>}
+                    </div>
+                  </div>
+                  <div style={{ width: "100%", maxWidth: 240, height: 6, borderRadius: 4, display: "flex", gap: 2, overflow: "hidden", marginTop: 16 }}>
+                    {barSegmentsRaw(s.bar).map((seg, i) => <div key={i} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 4 }} />)}
+                  </div>
+                </>
+              )}
+              {/* metric line → tap to open the full evidence sheet */}
+              <div onClick={(e) => { if (hasEv) { stop(e); setSheet(storyEv(s)); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, cursor: hasEv ? "pointer" : "default" }}>
+                <span>{storyMetricLine(s)}</span>
                 {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1 }}>›</span>}
               </div>
-              {m.why && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{m.why}</p>}
+              {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
               <div style={{ marginTop: "auto", paddingTop: 16 }}>
-                {/* lead evidence on the main screen: podcast clip if any, else the top
-                    paper, else the loudest tweet — so an X-only mover never shows blank */}
-                {m.podcast[0]
-                  ? podCard(m.podcast[0], "mv", true)
-                  : m.papers[0]
-                    ? <PaperCard title={m.papers[0].title} journal={m.papers[0].journal} meta={`shared by ${m.papers[0].sharers.length}${m.papers[0].topLikes ? ` · ♥ ${m.papers[0].topLikes}` : ""}`} url={m.papers[0].url} abstract={m.papers[0].abstract} posts={m.papers[0].sharers} accent={pal.accent} />
-                    : m.posts[0]
-                      ? <TweetCard t={m.posts[0]} />
-                      : null}
+                {lead}
                 {hasEv && (
-                  <div onClick={(e) => { stop(e); setSheet(moverEv(m)); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
+                  <div onClick={(e) => { stop(e); setSheet(storyEv(s)); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
                     <span>See all evidence</span><span>→</span>
                   </div>
                 )}
@@ -451,19 +478,28 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           </>
         )}
 
-        {cur.kind === "index" && (
+        {/* Drugs — the full ranked drug board, relocated so the drug overview isn't lost.
+            Each row opens that drug's evidence sheet. */}
+        {cur.kind === "drugs" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>The week, ranked</div>
-            <h1 style={{ font: "400 28px/1.15 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: "14px 0 18px" }}>{area} · this week&rsquo;s movers</h1>
+            {sectionHead("Drugs")}
+            <div style={{ font: "400 13px system-ui", color: "rgba(255,255,255,.5)", margin: "-14px 0 18px" }}>The full ranked drug board · {AREA_FULL[area] ?? area}</div>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              {data.movers.map((m, i) => (
-                <div key={i} onClick={(e) => { stop(e); jump(screens.findIndex((s) => s.kind === "mover" && s.mi === i)); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: "1px solid rgba(255,255,255,.09)", cursor: "pointer" }}>
-                  <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#6f727c", width: 22, flex: "none" }}>{i + 1}</span>
-                  <span style={{ flex: 1, minWidth: 0, font: "500 16px system-ui", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.drug}</span>
-                  <span style={{ font: "700 18px system-ui", color: pal.accent }}>{m.score}</span>
-                  <Delta delta={m.delta} />
-                </div>
-              ))}
+              {data.movers.map((m, i) => {
+                const hasEv = m.podcast.length + m.posts.length + m.papers.length > 0;
+                return (
+                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet(moverEv(m)); } }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0", borderTop: "1px solid rgba(255,255,255,.09)", cursor: hasEv ? "pointer" : "default" }}>
+                    <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#6f727c", width: 22, flex: "none" }}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: "500 16px system-ui", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.drug}</div>
+                      {metricsLine(m) && <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.42)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{metricsLine(m)}</div>}
+                    </div>
+                    <span style={{ font: "700 18px system-ui", color: pal.accent, flex: "none" }}>{m.score}</span>
+                    <Delta delta={m.delta} />
+                    {hasEv && <span style={{ font: "700 13px system-ui", color: pal.accent, lineHeight: 1, flex: "none" }}>›</span>}
+                  </div>
+                );
+              })}
             </div>
           </>
         )}

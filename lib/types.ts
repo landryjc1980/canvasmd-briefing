@@ -475,6 +475,8 @@ export type BriefingPaper = {
   abstract: string | null; // PubMed abstract (structured sections joined), for the expandable read
   sharers: BriefingSharer[];
   topLikes: number;
+  posts?: BriefingSharer[]; // the clinicians' actual tweets about the paper (expandable "what they said")
+  publishers?: string[]; // institutional/journal/news accounts that posted it (the "via" badge)
 };
 // One podcast conversation about a mover drug — the AI gloss of what was SAID,
 // seekable to the moment.
@@ -726,6 +728,44 @@ export type TrialDetail = {
   url: string; // clinicaltrials.gov permalink
 };
 
+// A TOPIC atom — a cluster of this-area papers/discussion on a subtype, biomarker, or
+// procedure that names no single tracked drug (the non-drug depth the drug-mover threshold
+// hides: colorectal, ctDNA, CAR-T…). Area-precedence + peer-vetted (verified physician) gated.
+export type BriefingTopic = {
+  key: string;
+  label: string; // "Colorectal cancer"
+  paperCount: number;
+  doctorCount: number; // distinct verified clinicians who shared its papers
+  topLikes: number;
+  why: string | null; // AI takeaway (the theme the field engaged with)
+  papers: BriefingPaper[];
+  posts: BriefingSharer[];
+  podcast: BriefingPod[];
+};
+// An atom-agnostic STORY — the best thing happening this week whether its atom is a DRUG
+// (reuse the mover), a highly-shared PAPER, or a TOPIC cluster. Same card shell as the drug
+// card (headline → description → metric line → one lead evidence → see all); only the metric
+// line + lead evidence adapt by `kind`.
+export type BriefingStory = {
+  kind: "drug" | "paper" | "topic";
+  id: string; // drugId | paper:<key> | topic:<key>
+  headline: string;
+  subtitle: string | null; // drug: "brand · company"; paper: journal/domain; topic: "N papers · M doctors"
+  description: string | null; // AI why/takeaway
+  score: number | null; // drug only (the area-relative fusion score)
+  delta: number; // drug momentum (0 otherwise)
+  bar: [number, number, number] | null; // drug 3-channel signal bar [pod%, x%, article%]
+  podConvs: number;
+  xSharers: number;
+  articleCount: number; // drug: papers; topic: papers in the cluster
+  clinicianCount: number; // paper: distinct clinicians who shared; topic: distinct doctors
+  topLikes: number;
+  podcast: BriefingPod[]; // evidence — the web derives the ONE lead card from these; sheet shows all
+  posts: BriefingSharer[];
+  papers: BriefingPaper[];
+  drugId: string | null; // drug stories → the Drugs board row
+};
+
 export type BriefingData = {
   area: string;
   areas: string[]; // switcher options
@@ -734,8 +774,10 @@ export type BriefingData = {
   recap: string | null; // editorial "the week in a sentence" (AI, grounded in movers + events)
   headline: string | null; // short 3-6 word editorial cover line (AI)
   events: BriefingEvent[]; // regulatory rail (approvals)
-  movers: BriefingMover[]; // the ranked drug spine
+  movers: BriefingMover[]; // the ranked drug spine (the "Drugs" tab)
   topKols: BriefingKol[]; // "Most active on X" section
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
+  topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
+  topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
 };

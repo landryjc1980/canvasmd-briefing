@@ -2,7 +2,7 @@
 // (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
-import { BriefingMover, BriefingData } from "@/lib/types";
+import { BriefingMover, BriefingData, BriefingStory } from "@/lib/types";
 
 // Dark jewel-tone palette, one color per tumor area (from the design handoff).
 export type Pal = { bg: string; accent: string; soft: string };
@@ -68,4 +68,52 @@ export function heroStats(data: BriefingData) {
   const talkCount = data.movers.reduce((n, m) => n + m.podConvs, 0);
   const postCount = data.topKols.reduce((n, k) => n + k.tweets, 0);
   return { moverCount: data.movers.length, postCount, talkCount };
+}
+
+// ---- Top Stories (atom-agnostic) view-model --------------------------------
+// The same 3-segment monochrome bar, but from a story's explicit [pod%, x%, article%].
+export function barSegmentsRaw(bar: [number, number, number] | null): { flex: number; opacity: number }[] {
+  if (!bar) return [];
+  const ops = [1, 0.5, 0.24];
+  return bar.map((f, i) => ({ flex: Math.max(f, 0), opacity: ops[i] })).filter((s) => s.flex > 0);
+}
+
+// The metric line adapts by atom: drug = the 3-way count line; paper = "N clinicians shared ·
+// ♥"; topic = "N papers · M doctors".
+export function storyMetricLine(s: BriefingStory): string {
+  if (s.kind === "drug") {
+    const parts: string[] = [];
+    if (s.podConvs) parts.push(`${s.podConvs} conversation${s.podConvs === 1 ? "" : "s"}`);
+    if (s.xSharers) parts.push(`${s.xSharers} on X`);
+    if (s.articleCount) parts.push(`${s.articleCount} paper${s.articleCount === 1 ? "" : "s"}`);
+    if (s.topLikes) parts.push(`♥ ${s.topLikes}`);
+    return parts.join(" · ");
+  }
+  if (s.kind === "paper") {
+    const base = `${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} shared`;
+    return s.topLikes ? `${base} · ♥ ${s.topLikes}` : base;
+  }
+  // topic
+  return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} doctor${s.clinicianCount === 1 ? "" : "s"}`;
+}
+
+// Small uppercase kicker naming the atom kind on the story card.
+export const storyKicker = (s: BriefingStory): string =>
+  s.kind === "drug" ? "Trending drug" : s.kind === "paper" ? "Most-shared paper" : "In focus";
+
+// Map a drug mover onto the story shape — the fallback so the hero always renders even when
+// an old snapshot (or the native/pharma callers) hasn't got topStories yet.
+export function moverToStory(m: BriefingMover): BriefingStory {
+  return {
+    kind: "drug", id: m.drugId, headline: m.drug,
+    subtitle: [m.brand, m.company].filter(Boolean).join(" · ") || null,
+    description: m.why, score: m.score, delta: m.delta, bar: [m.podPct, m.xPct, m.articlePct],
+    podConvs: m.podConvs, xSharers: m.xSharers, articleCount: m.articleCount, clinicianCount: 0, topLikes: m.topLikes,
+    podcast: m.podcast, posts: m.posts, papers: m.papers, drugId: m.drugId,
+  };
+}
+
+// The Top Stories to render: the real topStories if present, else drug movers as stories.
+export function storiesOf(data: BriefingData): BriefingStory[] {
+  return data.topStories && data.topStories.length ? data.topStories : data.movers.map(moverToStory);
 }

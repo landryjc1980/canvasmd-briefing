@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, metricsLine, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 
 // "The Reader" — the desktop Weekly Brief: a single centered 690px editorial column
@@ -116,6 +116,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
   const [openId, setOpenId] = useState<string | null>(null);
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
   const stats = heroStats(data);
+  const stories = storiesOf(data); // atom-agnostic hero; falls back to drug movers
   const tog = (id: string) => (openId === id ? "Hide ↑" : "Evidence ↓");
 
   return (
@@ -153,38 +154,49 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
           </div>
         </div>
 
-        {/* movers */}
-        <SectionHead>This week&rsquo;s movers</SectionHead>
-        {data.movers.map((m, i) => {
-          const id = "m:" + m.drugId;
+        {/* Top Stories — the atom-agnostic hero (drug | paper | topic). ONE story card,
+            same shell; only the metric line (drug = score + bar; paper/topic = text) and the
+            lead evidence adapt by kind. */}
+        <SectionHead>Top stories</SectionHead>
+        {stories.map((s, i) => {
+          const id = "s:" + s.id;
+          const isDrug = s.kind === "drug";
+          const rank = s.drugId ? data.movers.findIndex((m) => m.drugId === s.drugId) + 1 : 0;
           return (
             <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
               head={
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "22px 2px" }}>
                   <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ font: "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent, marginBottom: 8 }}>{storyKicker(s)}</div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                      <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{m.drug}</span>
-                      <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
+                      <span style={{ font: isDrug ? "500 22px/1.15 'Newsreader',Georgia,serif" : "500 20px/1.3 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{s.headline}</span>
+                      {s.subtitle && <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{s.subtitle}</span>}
                     </div>
-                    {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
-                    <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14 }}>
-                      <Bar m={m} accent={pal.accent} />
-                      <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{metricsLine(m)}</span>
+                    {s.description && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{s.description}</p>}
+                    <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                      {isDrug && s.bar && (
+                        <div style={{ width: 132, height: 4, borderRadius: 3, display: "flex", gap: 2, overflow: "hidden" }}>
+                          {barSegmentsRaw(s.bar).map((seg, k) => <div key={k} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 3 }} />)}
+                        </div>
+                      )}
+                      <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{storyMetricLine(s)}</span>
                       <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                     </div>
                   </div>
-                  <div style={{ textAlign: "right", flex: "none" }}>
-                    <div style={{ font: "500 34px/1 'Newsreader',Georgia,serif", color: pal.accent, letterSpacing: "-.01em" }}>{m.score}</div>
-                    <div style={{ font: "600 9px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "#6f727c", marginTop: 4 }}>signal · {area}-rel.</div>
-                    <div style={{ marginTop: 6 }}><Delta delta={m.delta} /></div>
-                  </div>
+                  {isDrug && (
+                    <div style={{ textAlign: "right", flex: "none" }}>
+                      <div style={{ font: "500 34px/1 'Newsreader',Georgia,serif", color: pal.accent, letterSpacing: "-.01em" }}>{s.score}</div>
+                      <div style={{ font: "600 9px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "#6f727c", marginTop: 4 }}>{rank > 0 ? `#${rank} · ${area}-rel.` : `signal · ${area}-rel.`}</div>
+                      <div style={{ marginTop: 6 }}><Delta delta={s.delta} /></div>
+                    </div>
+                  )}
                 </div>
               }>
               <div style={{ marginLeft: 50 }}>
-                {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-                {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
+                {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
+                {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
               </div>
             </Row>
           );
@@ -264,6 +276,47 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                 {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
                 <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
+              </Row>
+            );
+          })}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
+        </>}
+
+        {/* Drugs — the full ranked drug board, relocated so the drug overview isn't lost
+            (unchanged rendering, sibling to Trials). */}
+        {data.movers.length > 0 && <>
+          <SectionHead>Drugs</SectionHead>
+          {data.movers.map((m, i) => {
+            const id = "m:" + m.drugId;
+            return (
+              <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+                head={
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "22px 2px" }}>
+                    <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                        <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{m.drug}</span>
+                        <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
+                      </div>
+                      {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
+                      <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14 }}>
+                        <Bar m={m} accent={pal.accent} />
+                        <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{metricsLine(m)}</span>
+                        <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flex: "none" }}>
+                      <div style={{ font: "500 34px/1 'Newsreader',Georgia,serif", color: pal.accent, letterSpacing: "-.01em" }}>{m.score}</div>
+                      <div style={{ font: "600 9px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "#6f727c", marginTop: 4 }}>signal · {area}-rel.</div>
+                      <div style={{ marginTop: 6 }}><Delta delta={m.delta} /></div>
+                    </div>
+                  </div>
+                }>
+                <div style={{ marginLeft: 50 }}>
+                  {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
+                  {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                  {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
+                </div>
               </Row>
             );
           })}
