@@ -93,8 +93,8 @@ export function storyMetricLine(s: BriefingStory): string {
     const base = `${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} shared`;
     return s.topLikes ? `${base} · ♥ ${s.topLikes}` : base;
   }
-  // topic
-  return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} doctor${s.clinicianCount === 1 ? "" : "s"}`;
+  // topic — "clinicians" (engaged = sharers ∪ commenters), not "doctors" which read as "only N people"
+  return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} engaged`;
 }
 
 // Small uppercase kicker naming the atom kind on the story card.
