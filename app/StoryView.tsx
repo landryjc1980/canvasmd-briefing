@@ -412,8 +412,8 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               <div style={{ marginTop: "auto", paddingTop: 16 }}>
                 {lead}
                 {hasEv && (
-                  <div onClick={(e) => { stop(e); setSheet(storyEv(s)); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 4px 2px", cursor: "pointer", font: "600 13px system-ui", color: pal.accent }}>
-                    <span>See all evidence</span><span>→</span>
+                  <div onClick={(e) => { stop(e); setSheet(storyEv(s)); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, padding: "14px 18px", borderRadius: 13, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", cursor: "pointer", font: "700 15.5px system-ui", color: "#fff" }}>
+                    <span>See all evidence</span><span style={{ color: pal.accent, font: "700 16px system-ui" }}>→</span>
                   </div>
                 )}
               </div>
