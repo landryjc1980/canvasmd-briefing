@@ -330,7 +330,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
       </div>
 
       {/* screen body */}
-      <div key={idx} style={{ position: "absolute", inset: 0, padding: `calc(env(safe-area-inset-top) + 100px) 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
+      <div key={idx} style={{ position: "absolute", inset: 0, padding: `calc(env(safe-area-inset-top) + 128px) 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
         {cur.kind === "intro" && (
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
@@ -380,7 +380,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             : (s.podcast[0] ? podCard(s.podcast[0], "st", true) : s.papers[0] ? paperLead(s.papers[0]) : s.posts[0] ? <TweetCard t={s.posts[0]} /> : null);
           return (
             <>
-              <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 92px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.si! + 1}</div>
+              <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 120px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.si! + 1}</div>
               <div style={{ font: "600 10px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent, position: "relative" }}>{storyKicker(s)}</div>
               <div style={{ font: isDrug ? "700 31px/1.12 system-ui" : "500 27px/1.2 'Newsreader',Georgia,serif", color: "#f4f7ff", letterSpacing: "-.01em", position: "relative", marginTop: 9 }}>{s.headline}</div>
               {(s.subtitle || (isDrug && s.delta !== 0)) && (
