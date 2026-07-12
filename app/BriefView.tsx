@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial, BriefingPod } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, Avatar, kfmt, ago, clip, weekOf } from "./ui";
+import { podConvLabel, podEpisodeCount } from "./briefVM";
 
 const prettyPhase = (p: string | null): string => {
   if (!p) return "";
@@ -134,7 +135,8 @@ function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
   const rising = m.delta > 0;
   const cardKind = m.signalShape; // both | pods | x | regulatory → colors the accents
   const metrics: string[] = [];
-  if (m.podConvs > 0) metrics.push(`${m.podConvs} conversation${m.podConvs === 1 ? "" : "s"}`);
+  const conv = podConvLabel(podEpisodeCount(m), m.podcast?.length ?? m.podConvs);
+  if (conv) metrics.push(conv);
   if (m.xSharers > 0) metrics.push(`${m.xSharers} on X`);
   if (m.articleCount > 0) metrics.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
   const quiet = metrics.length === 0; // regulatory-only mover, no chatter yet
@@ -170,7 +172,7 @@ function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
           <div className="bk-said">
             <span className="bk-eyebrow">🎙 On the podcasts ({m.podcast.length})</span>
             {convs.map((c, i) => <PodConv c={c} key={i} />)}
-            {m.podcast.length > 3 && <div className="bk-morecount">+{m.podcast.length - 3} more conversation{m.podcast.length - 3 === 1 ? "" : "s"} this week</div>}
+            {m.podcast.length > 3 && <div className="bk-morecount">+{m.podcast.length - 3} more clip{m.podcast.length - 3 === 1 ? "" : "s"} this week</div>}
           </div>
         )}
         {m.posts.length > 0 && (
@@ -361,7 +363,7 @@ export default function BriefView({ data, area }: { data: BriefingData; area: st
     const el = document.getElementById(`drug-${drugId}`) as HTMLDetailsElement | null;
     if (el) { el.open = true; el.scrollIntoView({ behavior: "smooth", block: "center" }); }
   };
-  const podTotal = data.movers.reduce((n, m) => n + m.podConvs, 0);
+  const podTotal = data.movers.reduce((n, m) => n + podEpisodeCount(m), 0);
   const xTotal = data.movers.reduce((n, m) => n + m.xSharers, 0);
   return (
     <div className={`brief area-${area}`}>

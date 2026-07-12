@@ -2,7 +2,7 @@
 // (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
-import { BriefingMover, BriefingData, BriefingStory } from "@/lib/types";
+import { BriefingMover, BriefingData, BriefingStory, BriefingPod } from "@/lib/types";
 
 // Dark jewel-tone palette, one color per tumor area (from the design handoff).
 export type Pal = { bg: string; accent: string; soft: string };
@@ -38,10 +38,26 @@ export function barSegments(m: BriefingMover): { flex: number; opacity: number }
   return raw.map((f, i) => ({ flex: Math.max(f, 0), opacity: ops[i] })).filter((s) => s.flex > 0);
 }
 
+// A "conversation" = one episode's discussion of the drug. Five clips of one Oncology
+// Brothers episode are ONE conversation (a deep dive), not five — so the caption counts
+// distinct EPISODES, and flags a single richly-clipped episode as "in-depth" rather than
+// inflating the number. Falls back to deriving episodes from the pod evidence when an older
+// snapshot predates the podEpisodes field.
+export function podEpisodeCount(x: { podEpisodes?: number; podcast?: BriefingPod[] }): number {
+  if (typeof x.podEpisodes === "number") return x.podEpisodes;
+  return new Set((x.podcast ?? []).map((p) => p.episodeId).filter(Boolean)).size;
+}
+export function podConvLabel(episodes: number, segments: number): string | null {
+  if (!episodes) return null;
+  if (episodes === 1) return segments >= 3 ? "1 in-depth conversation" : "1 conversation";
+  return `${episodes} conversations`;
+}
+
 // "4 conversations · 2 on X · 3 papers · ♥ 214" — zeros omitted.
 export function metricsLine(m: BriefingMover): string {
   const parts: string[] = [];
-  if (m.podConvs) parts.push(`${m.podConvs} conversation${m.podConvs === 1 ? "" : "s"}`);
+  const conv = podConvLabel(podEpisodeCount(m), m.podcast?.length ?? m.podConvs);
+  if (conv) parts.push(conv);
   if (m.xSharers) parts.push(`${m.xSharers} on X`);
   if (m.articleCount) parts.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
   if (m.topLikes) parts.push(`♥ ${m.topLikes}`);
@@ -65,7 +81,7 @@ export function heroSplit(recap: string | null): { lead: string; rest: string } 
 
 // Aggregate stats for the hero row.
 export function heroStats(data: BriefingData) {
-  const talkCount = data.movers.reduce((n, m) => n + m.podConvs, 0);
+  const talkCount = data.movers.reduce((n, m) => n + podEpisodeCount(m), 0);
   const postCount = data.topKols.reduce((n, k) => n + k.tweets, 0);
   return { moverCount: data.movers.length, postCount, talkCount };
 }
@@ -83,7 +99,8 @@ export function barSegmentsRaw(bar: [number, number, number] | null): { flex: nu
 export function storyMetricLine(s: BriefingStory): string {
   if (s.kind === "drug") {
     const parts: string[] = [];
-    if (s.podConvs) parts.push(`${s.podConvs} conversation${s.podConvs === 1 ? "" : "s"}`);
+    const conv = podConvLabel(podEpisodeCount(s), s.podcast?.length ?? s.podConvs);
+    if (conv) parts.push(conv);
     if (s.xSharers) parts.push(`${s.xSharers} on X`);
     if (s.articleCount) parts.push(`${s.articleCount} paper${s.articleCount === 1 ? "" : "s"}`);
     if (s.topLikes) parts.push(`♥ ${s.topLikes}`);
@@ -108,7 +125,7 @@ export function moverToStory(m: BriefingMover): BriefingStory {
     kind: "drug", id: m.drugId, headline: m.drug,
     subtitle: [m.brand, m.company].filter(Boolean).join(" · ") || null,
     description: m.why, score: m.score, delta: m.delta, bar: [m.podPct, m.xPct, m.articlePct],
-    podConvs: m.podConvs, xSharers: m.xSharers, articleCount: m.articleCount, clinicianCount: 0, topLikes: m.topLikes,
+    podConvs: m.podConvs, podEpisodes: m.podEpisodes, podShows: m.podShows, xSharers: m.xSharers, articleCount: m.articleCount, clinicianCount: 0, topLikes: m.topLikes,
     podcast: m.podcast, posts: m.posts, papers: m.papers, drugId: m.drugId,
   };
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingEvent, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, SHAPE, Avatar, Chevron, kfmt, ago, clip, weekOf } from "./ui";
+import { podEpisodeCount } from "./briefVM";
 
 const prettyPhase = (p: string | null): string => {
   if (!p) return "";
@@ -133,9 +134,9 @@ function Mover({ m, rank }: { m: BriefingMover; rank: number }) {
               <span className="bar-art" style={{ width: `${m.articlePct}%` }} />
             </div>
             <span className="m-metrics">
-              {m.podConvs > 0 && <><b>{m.podConvs}</b> podcast{m.podConvs === 1 ? "" : "s"}</>}
-              {m.xSharers > 0 && <>{m.podConvs > 0 ? " · " : ""}<b>{m.xSharers}</b> on X</>}
-              {m.articleCount > 0 && <>{m.podConvs > 0 || m.xSharers > 0 ? " · " : ""}<b>{m.articleCount}</b> paper{m.articleCount === 1 ? "" : "s"}</>}
+              {podEpisodeCount(m) > 0 && <><b>{podEpisodeCount(m)}</b> conversation{podEpisodeCount(m) === 1 ? "" : "s"}</>}
+              {m.xSharers > 0 && <>{podEpisodeCount(m) > 0 ? " · " : ""}<b>{m.xSharers}</b> on X</>}
+              {m.articleCount > 0 && <>{podEpisodeCount(m) > 0 || m.xSharers > 0 ? " · " : ""}<b>{m.articleCount}</b> paper{m.articleCount === 1 ? "" : "s"}</>}
               {m.topLikes > 0 && <> · ♥ {kfmt(m.topLikes)}</>}
               {m.eventChip && <span className="m-eventchip">{m.eventChip}</span>}
             </span>
@@ -310,7 +311,7 @@ function TrialRow({ t }: { t: BriefingTrial }) {
 
 export default function BroadsheetView({ data, area }: { data: BriefingData; area: string }) {
   const meta = AREA_META[area] ?? AREA_META.GU;
-  const podTotal = data.movers.reduce((n, m) => n + m.podConvs, 0);
+  const podTotal = data.movers.reduce((n, m) => n + podEpisodeCount(m), 0);
   const xTotal = data.movers.reduce((n, m) => n + m.xSharers, 0);
   return (
     <div className="wb">

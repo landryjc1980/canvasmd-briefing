@@ -484,6 +484,7 @@ export type BriefingPod = {
   gloss: string;
   mentionCount: number;
   startMs: number | null;
+  episodeId: string; // real episodes.id UUID — used to count distinct episodes ("N conversations")
   episodeTitle: string;
   show: string;
   showArt: string | null; // podcast show artwork, shown next to the clip
@@ -508,7 +509,9 @@ export type BriefingMover = {
   score: number;
   signalShape: "both" | "pods" | "x" | "regulatory";
   delta: number; // momentum: this week's total activity (convos + X + papers) minus the prior 2 weeks' (▲/▼)
-  podConvs: number; // distinct this-week conversations
+  podConvs: number; // intra-episode SEGMENTS (depth) — not the headline count
+  podEpisodes: number; // distinct EPISODES = the honest "N conversations" count
+  podShows: number; // distinct shows across those episodes (breadth)
   xSharers: number; // distinct this-week clinician sharers (tweet takes)
   articleCount: number; // distinct shared journal articles about this drug (title+abstract match)
   podPct: number; // 0..100 podcast share of the 3-way signal bar
@@ -755,7 +758,9 @@ export type BriefingStory = {
   score: number | null; // drug only (the area-relative fusion score)
   delta: number; // drug momentum (0 otherwise)
   bar: [number, number, number] | null; // drug 3-channel signal bar [pod%, x%, article%]
-  podConvs: number;
+  podConvs: number; // intra-episode SEGMENTS (depth)
+  podEpisodes: number; // distinct EPISODES = the honest "N conversations" count
+  podShows: number; // distinct shows across those episodes
   xSharers: number;
   articleCount: number; // drug: papers; topic: papers in the cluster
   clinicianCount: number; // paper: distinct clinicians who shared; topic: distinct doctors
