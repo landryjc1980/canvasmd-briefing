@@ -424,7 +424,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
                 {hasEv && (
                   <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, padding: "14px 18px", borderRadius: 13, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", cursor: "pointer", font: "700 15.5px system-ui", color: "#fff" }}>
                     <span>{expanded ? "Hide evidence" : "See all evidence"}</span>
-                    <span style={{ color: pal.accent, font: "700 16px system-ui" }}>{expanded ? "↑" : "→"}</span>
+                    <span style={{ color: pal.accent, font: "700 17px system-ui", lineHeight: 1, display: "inline-block", transform: expanded ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>
                   </div>
                 )}
                 {expanded && (() => {
