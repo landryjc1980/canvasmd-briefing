@@ -126,7 +126,9 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const [hint, setHint] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
   const [sheet, setSheet] = useState<SheetEv | null>(null);
+  const [expanded, setExpanded] = useState(false); // story evidence expanded inline (replaces the sheet on story screens)
   const touchX = useRef<number | null>(null);
+  const touchY = useRef<number | null>(null); // for swipe axis-lock so vertical scroll of expanded evidence never advances
   // swipe-down-to-dismiss for the evidence sheet (only when its content is scrolled to top)
   const sheetScrollRef = useRef<HTMLDivElement>(null);
   const sheetTouchY = useRef<number | null>(null);
@@ -161,18 +163,20 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   // reset when the area (data) changes
   useEffect(() => { setIdx(0); setSheet(null); setPlaying(false); }, [area]);
   useEffect(() => { setSheetDrag(0); }, [sheet]);
+  useEffect(() => { setExpanded(false); }, [idx]); // collapse inline evidence when the screen changes
   useEffect(() => { const t = setTimeout(() => setHint(false), 3500); return () => clearTimeout(t); }, []);
 
   const go = (dir: number) => { setSheet(null); setIdx((i) => Math.max(0, Math.min(screens.length - 1, i + dir))); };
   const jump = (i: number) => { setSheet(null); setIdx(i); };
 
-  // autoplay — paused while the sheet is open OR a podcast clip is actively playing
+  // autoplay — paused while the sheet is open, a clip is playing, OR the story's evidence is
+  // expanded inline (so the 6s timer never yanks you off a card you're reading)
   useEffect(() => {
-    if (!playing || sheet || clipOn) return;
+    if (!playing || sheet || clipOn || expanded) return;
     if (idx >= screens.length - 1) { setPlaying(false); return; }
     const t = setTimeout(() => setIdx((i) => i + 1), DWELL);
     return () => clearTimeout(t);
-  }, [idx, playing, sheet, clipOn, screens.length]);
+  }, [idx, playing, sheet, clipOn, expanded, screens.length]);
 
   // keyboard
   useEffect(() => {
@@ -187,15 +191,19 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
   const tap = (e: React.MouseEvent) => {
     setHint(false);
+    if (expanded) return; // reading inline evidence — a stray tap must not advance the story
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     (e.clientX - r.left) < r.width * 0.3 ? go(-1) : go(1);
   };
-  const tStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
+  const tStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; touchY.current = e.touches[0].clientY; };
   const tEnd = (e: React.TouchEvent) => {
     if (touchX.current == null) return;
     const dx = e.changedTouches[0].clientX - touchX.current;
-    touchX.current = null;
-    if (Math.abs(dx) > 45) { setHint(false); go(dx < 0 ? 1 : -1); }
+    const dy = touchY.current == null ? 0 : e.changedTouches[0].clientY - touchY.current;
+    touchX.current = null; touchY.current = null;
+    // axis-lock: only a decisively HORIZONTAL swipe navigates, so scrolling the expanded
+    // evidence (a vertical drag with slight horizontal drift) never advances the story.
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) { setHint(false); go(dx < 0 ? 1 : -1); }
   };
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -271,7 +279,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
       {/* top overlay: header + progress + chapters + controls. Stops clicks AND touches
           so the chrome (esp. the scrollable chapter bar) never triggers page navigation. */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15, padding: "max(12px, env(safe-area-inset-top)) 16px 0" }} onClick={stop} onTouchStart={stop} onTouchEnd={stop} onTouchMove={stop}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15, padding: "max(12px, env(safe-area-inset-top)) 16px 14px", background: `linear-gradient(to bottom, ${pal.bg} 78%, ${pal.bg}00)` }} onClick={stop} onTouchStart={stop} onTouchEnd={stop} onTouchMove={stop}>
         {/* header — persists on every screen */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <div onClick={(e) => { stop(e); jump(0); }} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
@@ -308,8 +316,8 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             <div key={i} onClick={() => jump(i)} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,.28)", overflow: "hidden", cursor: "pointer" }}>
               <div style={{ height: "100%", background: "#fff", borderRadius: 2, transformOrigin: "left",
                 transform: i < idx ? "scaleX(1)" : i > idx ? "scaleX(0)" : undefined,
-                animation: i === idx && playing && !sheet && !clipOn ? `wbxgrow ${DWELL}ms linear forwards` : undefined,
-                ...(i === idx && (!playing || sheet || clipOn) ? { transform: "scaleX(.35)" } : {}) }} />
+                animation: i === idx && playing && !sheet && !clipOn && !expanded ? `wbxgrow ${DWELL}ms linear forwards` : undefined,
+                ...(i === idx && (!playing || sheet || clipOn || expanded) ? { transform: "scaleX(.35)" } : {}) }} />
             </div>
           ))}
         </div>
@@ -403,19 +411,32 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
                   </div>
                 </>
               )}
-              {/* metric line → tap to open the full evidence sheet */}
-              <div onClick={(e) => { if (hasEv) { stop(e); setSheet(storyEv(s)); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, cursor: hasEv ? "pointer" : "default" }}>
+              {/* metric line → tap to expand the full evidence inline */}
+              <div onClick={(e) => { if (hasEv) { stop(e); setExpanded((v) => !v); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, cursor: hasEv ? "pointer" : "default" }}>
                 <span>{storyMetricLine(s)}</span>
-                {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1 }}>›</span>}
+                {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1, transform: expanded ? "rotate(90deg)" : undefined, transition: "transform .2s", display: "inline-block" }}>›</span>}
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
-              <div style={{ marginTop: "auto", paddingTop: 16 }}>
-                {lead}
+              {/* evidence: the lead card when collapsed; the full, grouped evidence inline when
+                  expanded (autoplay + progress pause while open, so you can read it). No sheet. */}
+              <div style={{ marginTop: expanded ? 18 : "auto", paddingTop: 16 }}>
+                {!expanded && lead}
                 {hasEv && (
-                  <div onClick={(e) => { stop(e); setSheet(storyEv(s)); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, padding: "14px 18px", borderRadius: 13, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", cursor: "pointer", font: "700 15.5px system-ui", color: "#fff" }}>
-                    <span>See all evidence</span><span style={{ color: pal.accent, font: "700 16px system-ui" }}>→</span>
+                  <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, padding: "14px 18px", borderRadius: 13, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", cursor: "pointer", font: "700 15.5px system-ui", color: "#fff" }}>
+                    <span>{expanded ? "Hide evidence" : "See all evidence"}</span>
+                    <span style={{ color: pal.accent, font: "700 16px system-ui" }}>{expanded ? "↑" : "→"}</span>
                   </div>
                 )}
+                {expanded && (() => {
+                  const ev = storyEv(s);
+                  return (
+                    <div style={{ marginTop: 14 }}>
+                      {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
+                      {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+                    </div>
+                  );
+                })()}
               </div>
             </>
           );
