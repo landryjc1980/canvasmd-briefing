@@ -12,6 +12,7 @@ import "./design.css";
 // Fed by the real BriefingData. Renders on phones (page.tsx picks by viewport).
 
 const DWELL = 6000;
+const PEEK_H = 176; // collapsed story evidence peeks this tall — a real chunk of the top card(s), fading out
 const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
 type Screen = { kind: "intro" | "events" | "story" | "kols" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
@@ -375,16 +376,6 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           const s = stories[cur.si!];
           const isDrug = s.kind === "drug";
           const hasEv = s.podcast.length + s.posts.length + s.papers.length > 0;
-          const paperLead = (p: BriefingPaper) => (
-            <PaperCard title={p.title} journal={p.journal}
-              meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined}
-              url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} publishers={p.publishers} />
-          );
-          // lead evidence: a PAPER story leads with a clinician's take (the headline already IS
-          // the paper); drug/topic lead with podcast clip → top paper → loudest tweet.
-          const lead = s.kind === "paper"
-            ? (s.posts[0] ? <TweetCard t={s.posts[0]} /> : s.papers[0] ? paperLead(s.papers[0]) : null)
-            : (s.podcast[0] ? podCard(s.podcast[0], "st", true) : s.papers[0] ? paperLead(s.papers[0]) : s.posts[0] ? <TweetCard t={s.posts[0]} /> : null);
           return (
             <>
               <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 120px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.si! + 1}</div>
@@ -410,29 +401,33 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
                 {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1, transform: expanded ? "rotate(90deg)" : undefined, transition: "transform .2s", display: "inline-block" }}>›</span>}
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
-              {/* evidence: the lead card when collapsed; the full, grouped evidence inline when
-                  expanded (autoplay + progress pause while open, so you can read it). No sheet. */}
-              <div style={{ marginTop: expanded ? 18 : "auto", paddingTop: 16 }}>
-                {!expanded && lead}
-                {hasEv && (
-                  <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, padding: "14px 18px", borderRadius: 13, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", cursor: "pointer", font: "700 15.5px system-ui", color: "#fff" }}>
-                    <span>{expanded ? "Hide evidence" : "See all evidence"}</span>
-                    <svg width="14" height="14" viewBox="0 0 14 14" style={{ flex: "none", transform: expanded ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>
-                      <path d="M2.5 5 L7 9.5 L11.5 5" stroke={pal.accent} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                )}
-                {expanded && (() => {
-                  const ev = storyEv(s);
-                  return (
-                    <div style={{ marginTop: 14 }}>
+              {/* Evidence as ONE continuous stack. Collapsed = a peek: clipped to PEEK_H with a
+                  fade to the screen bg + a "what's here" row. Tapping grows the SAME stack, so the
+                  cropped top card un-crops in place and the rest flows in. (autoplay + progress
+                  pause while expanded so you can read it — no sheet.) */}
+              {hasEv && (() => {
+                const ev = storyEv(s);
+                const more: string[] = [];
+                if (ev.podcasts?.length) more.push(`${ev.podcasts.length} clip${ev.podcasts.length === 1 ? "" : "s"}`);
+                if (ev.posts?.length) more.push(`${ev.posts.length} take${ev.posts.length === 1 ? "" : "s"}`);
+                if (ev.papers?.length) more.push(`${ev.papers.length} paper${ev.papers.length === 1 ? "" : "s"}`);
+                return (
+                  <div style={{ marginTop: expanded ? 18 : "auto", paddingTop: 16 }}>
+                    <div onClick={(e) => { if (!expanded) { stop(e); setExpanded(true); } }} style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden", cursor: expanded ? undefined : "pointer" }}>
                       {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
                       {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                       {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+                      {!expanded && <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 58, background: `linear-gradient(to bottom, ${pal.bg}00, ${pal.bg})`, pointerEvents: "none" }} />}
                     </div>
-                  );
-                })()}
-              </div>
+                    <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, padding: "12px 18px", borderRadius: 12, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", cursor: "pointer", font: "700 13px system-ui", color: expanded ? "#fff" : pal.accent }}>
+                      <span>{expanded ? "Hide evidence" : (more.join(" · ") || "See all evidence")}</span>
+                      <svg width="13" height="13" viewBox="0 0 14 14" style={{ flex: "none", transform: expanded ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>
+                        <path d="M2.5 5 L7 9.5 L11.5 5" stroke={expanded ? "#fff" : pal.accent} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           );
         })()}
