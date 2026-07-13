@@ -447,10 +447,12 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                   {barSegmentsRaw(s.bar).map((seg, i) => <div key={i} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 4 }} />)}
                 </div>
               )}
-              {/* metric line → tap to expand the full evidence inline */}
-              <div onClick={(e) => { if (hasEv) { stop(e); setExpanded((v) => !v); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, cursor: hasEv ? "pointer" : "default" }}>
+              {/* metric line — INFORMATIONAL ONLY. It used to toggle expand, but as an inline-flex
+                  element sitting in the card's tap-to-advance flow (right above the description) its
+                  hit-box clipped advance taps "sometimes" → accidental expand. Evidence now opens
+                  solely via the dedicated summary-row button below, so every card-body tap navigates. */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, pointerEvents: "none" }}>
                 <span>{storyMetricLine(s)}</span>
-                {hasEv && <span style={{ color: pal.accent, font: "700 13px system-ui", lineHeight: 1, transform: expanded ? "rotate(90deg)" : undefined, transition: "transform .2s", display: "inline-block" }}>›</span>}
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
               {/* Evidence as ONE continuous stack. Collapsed = a peek: clipped to PEEK_H with a
