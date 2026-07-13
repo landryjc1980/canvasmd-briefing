@@ -34,6 +34,13 @@ const ago = (iso: string) => {
   const d = Math.floor(h / 24);
   return d === 1 ? "yesterday" : `${d}d ago`;
 };
+// Day-granular relative age for the regulatory log (events carry a date-only occurredOn),
+// so a 12-day-old approval reads "12d ago" instead of a bare date the user has to decode.
+const agoDay = (ymd?: string | null) => {
+  if (!ymd) return "";
+  const d = Math.round((Date.now() - new Date(`${ymd.slice(0, 10)}T00:00:00Z`).getTime()) / 86400_000);
+  return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d}d ago`;
+};
 
 // One KOL tweet — links to X if we have the url. Self-contained (stops its own
 // propagation) so it works inside the sheet, paper expansions, etc.
@@ -115,8 +122,10 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   // Build the ordered screen list (skip empty sections). "Drugs" is the relocated ranked
   // movers board — a sibling to Trials, so the full drug overview isn't lost.
   const screens: Screen[] = [{ kind: "intro", chapter: "Intro" }];
-  if (data.events.length) screens.push({ kind: "events", chapter: "Events" });
   stories.forEach((_, i) => screens.push({ kind: "story", si: i, chapter: "Top Stories" }));
+  // Regulatory log sits AFTER the stories — it's reference (approvals/trial updates up to 30d),
+  // not the freshest headline, so it must not be the first thing a user swipes into.
+  if (data.events.length) screens.push({ kind: "events", chapter: "Updates" });
   if (data.topKols.length) screens.push({ kind: "kols", chapter: "KOLs" });
   if (data.topArticles.length) screens.push({ kind: "papers", chapter: "Papers" });
   if (data.trials.length) screens.push({ kind: "trials", chapter: "Trials" });
@@ -226,7 +235,7 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   };
 
   const cur = screens[idx];
-  const chapters = ["Events", "Top Stories", "KOLs", "Papers", "Trials", "Drugs"].filter((c) => screens.some((s) => s.chapter === c));
+  const chapters = ["Top Stories", "KOLs", "Papers", "Trials", "Drugs", "Updates"].filter((c) => screens.some((s) => s.chapter === c));
 
   // ---- card renderers (closures: use the shared player + stop) ----
   const clipBtn = (url: string, startMs: number | null, id: string, label: string) => {
@@ -357,13 +366,13 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
 
         {cur.kind === "events" && (
           <>
-            {sectionHead("What happened")}
+            {sectionHead("Approvals & trial updates")}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {data.events.map((e, i) => (
                 <div key={i} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, padding: 16 }}>
                   <div style={{ font: "600 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: pal.accent }}>{e.type.replace(/_/g, " ")}</div>
                   <div style={{ font: "600 17px/1.28 system-ui", color: "#f4f7ff", margin: "9px 0 6px" }}>{e.title}</div>
-                  <div style={{ font: "400 13px system-ui", color: "rgba(255,255,255,.5)" }}>{[e.drug, e.company, e.occurredOn?.slice(0, 10)].filter(Boolean).join(" · ")}</div>
+                  <div style={{ font: "400 13px system-ui", color: "rgba(255,255,255,.5)" }}>{[e.drug, e.company, agoDay(e.occurredOn)].filter(Boolean).join(" · ")}</div>
                 </div>
               ))}
             </div>
