@@ -161,7 +161,6 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
         {stories.map((s, i) => {
           const id = "s:" + s.id;
           const isDrug = s.kind === "drug";
-          const rank = s.drugId ? data.movers.findIndex((m) => m.drugId === s.drugId) + 1 : 0;
           return (
             <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
               head={
@@ -172,6 +171,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                       <span style={{ font: isDrug ? "500 22px/1.15 'Newsreader',Georgia,serif" : "500 20px/1.3 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{s.headline}</span>
                       {s.subtitle && <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{s.subtitle}</span>}
+                      {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                     </div>
                     {s.description && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{s.description}</p>}
                     <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -184,13 +184,9 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                       <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                     </div>
                   </div>
-                  {isDrug && (
-                    <div style={{ textAlign: "right", flex: "none" }}>
-                      <div style={{ font: "500 34px/1 'Newsreader',Georgia,serif", color: pal.accent, letterSpacing: "-.01em" }}>{s.score}</div>
-                      <div style={{ font: "600 9px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "#6f727c", marginTop: 4 }}>{rank > 0 ? `#${rank} · ${area}-rel.` : `signal · ${area}-rel.`}</div>
-                      <div style={{ marginTop: 6 }}><Delta delta={s.delta} /></div>
-                    </div>
-                  )}
+                  {/* Score + area-rank removed from Top Stories — they live on the Drugs board where
+                      ranking is the point; only drug atoms have them and "#N" clashed with deck order.
+                      The momentum arrow moved up beside the subtitle. */}
                 </div>
               }>
               <div style={{ marginLeft: 50 }}>
