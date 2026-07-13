@@ -134,3 +134,36 @@ export function moverToStory(m: BriefingMover): BriefingStory {
 export function storiesOf(data: BriefingData): BriefingStory[] {
   return data.topStories && data.topStories.length ? data.topStories : data.movers.map(moverToStory);
 }
+
+// ---- "Since your last read" partition ------------------------------------------------------
+// Honest-repeat handling for the 14-day window: a returning reader sees NEW/UPDATED stories
+// first, then a "you're caught up" divider, then the ones they've already read. Rules:
+//  • NEW      = story id the reader has never viewed
+//  • UPDATED  = viewed before, but the evidence fingerprint changed since (facts developed)
+//  • seen     = viewed AND fingerprint unchanged — cosmetic drift (likes/counts) is NOT news
+//  • order INSIDE each partition stays editorial (importance), never chronological
+//  • the frame is SUPPRESSED (mode "plain") when it wouldn't partition anything: signed-out /
+//    first visit / everything-new (long absence) — no header over a full deck of NEW chips.
+//  • everything seen+unchanged → mode "caughtup": normal order + a slim caught-up note only.
+export type StoryStatus = "new" | "updated" | "seen";
+export type StoryPartition = {
+  mode: "plain" | "split" | "caughtup";
+  ordered: BriefingStory[];               // the deck order to render
+  status: Map<string, StoryStatus>;       // story.id -> chip
+  freshCount: number;                     // NEW + UPDATED (0 in plain/caughtup)
+};
+export function partitionStories(stories: BriefingStory[], seen: Record<string, string> | null | undefined): StoryPartition {
+  const status = new Map<string, StoryStatus>();
+  const plain: StoryPartition = { mode: "plain", ordered: stories, status, freshCount: 0 };
+  if (!seen || Object.keys(seen).length === 0) return plain;           // signed-out / first visit
+  if (stories.some((s) => !s.fp)) return plain;                        // old snapshot without fps — can't be honest, so don't pretend
+  for (const s of stories) {
+    const prior = seen[s.id];
+    status.set(s.id, prior === undefined ? "new" : prior === s.fp ? "seen" : "updated");
+  }
+  const fresh = stories.filter((s) => status.get(s.id) !== "seen");
+  const old = stories.filter((s) => status.get(s.id) === "seen");
+  if (old.length === 0) return plain;                                  // everything new (long absence) — no frame
+  if (fresh.length === 0) return { mode: "caughtup", ordered: stories, status, freshCount: 0 };
+  return { mode: "split", ordered: [...fresh, ...old], status, freshCount: fresh.length };
+}

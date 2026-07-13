@@ -26,21 +26,27 @@ export default function BriefingPage() {
   const [classic, setClassic] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [data, setData] = useState<BriefingData | null>(null);
+  const [seen, setSeen] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Client-side cache: keep every area we've already fetched in memory so switching
   // tumor tabs is INSTANT (no blank flash, no round-trip). The server snapshot cache
   // makes each area ~160ms, but without this the browser re-fetched on every switch.
-  const cacheRef = useRef<Record<string, BriefingData>>({});
+  // Alongside the payload we fetch the reader's per-area SEEN map once per session —
+  // captured at load and held stable, so the deck never re-shuffles mid-visit (this
+  // visit's views only affect the NEXT visit).
+  const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string> }>>({});
   const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
   const load = useCallback((a: string): Promise<void> => {
     if (cacheRef.current[a]) return Promise.resolve();
     const pending = inflightRef.current[a];
     if (pending) return pending;
-    const p = fetch(`/api/briefing?area=${a}`)
-      .then((r) => r.json())
-      .then((j) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = j.briefing; })
+    const p = Promise.all([
+      fetch(`/api/briefing?area=${a}`).then((r) => r.json()),
+      fetch(`/api/brief-seen?area=${a}`).then((r) => r.json()).catch(() => ({ seen: {} })),
+    ])
+      .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {} }; })
       .finally(() => { delete inflightRef.current[a]; });
     inflightRef.current[a] = p;
     return p;
@@ -65,11 +71,11 @@ export default function BriefingPage() {
   useEffect(() => {
     if (!area) return;
     const cached = cacheRef.current[area];
-    if (cached) { setData(cached); setError(null); setLoading(false); return; }
+    if (cached) { setData(cached.briefing); setSeen(cached.seen); setError(null); setLoading(false); return; }
     let cancelled = false;
     setLoading(true); setError(null); setData(null);
     load(area)
-      .then(() => { if (!cancelled) { setData(cacheRef.current[area]); setError(null); } })
+      .then(() => { if (!cancelled) { const c = cacheRef.current[area]; setData(c.briefing); setSeen(c.seen); setError(null); } })
       .catch((e) => { if (!cancelled) setError(String(e?.message ?? e)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -123,6 +129,6 @@ export default function BriefingPage() {
     );
   }
   return isMobile
-    ? <StoryView data={data} area={area} areas={AREAS} onArea={pickArea} />
-    : <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} />;
+    ? <StoryView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} />
+    : <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} />;
 }

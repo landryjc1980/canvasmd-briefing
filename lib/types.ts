@@ -769,6 +769,7 @@ export type BriefingStory = {
   posts: BriefingSharer[];
   papers: BriefingPaper[];
   drugId: string | null; // drug stories → the Drugs board row
+  fp?: string; // evidence fingerprint (identities only) — powers "Since your last read" NEW/UPDATED
 };
 
 export type BriefingData = {
@@ -785,4 +786,9 @@ export type BriefingData = {
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
+  proseFp?: string; // ADDITIVE — area-level evidence fingerprint (prose stability)
 };
+
+// Per-reader seen-state for "Since your last read": storyId -> the evidence fingerprint that
+// was on the story when the reader last actually viewed it (screen shown / scrolled into view).
+export type SeenMap = Record<string, string>;

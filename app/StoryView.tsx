@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
-import { shareBrief } from "./gateClient";
+import { shareBrief, logStorySeen } from "./gateClient";
 import "./design.css";
 
 // "The 90-Second Brief" — the mobile Weekly Brief as a full-screen swipeable story
@@ -16,7 +16,7 @@ const DWELL = 6000;
 const PEEK_H = 176; // collapsed story evidence peeks this tall — a real chunk of the top card(s), fading out
 const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
-type Screen = { kind: "intro" | "events" | "story" | "kols" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
+type Screen = { kind: "intro" | "events" | "story" | "caughtup" | "kols" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
 
 function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 10px", borderRadius: 20 }}>— flat</span>;
@@ -113,17 +113,23 @@ const storyEv = (s: BriefingStory): SheetEv => ({
   }),
 });
 
-export default function StoryView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
+export default function StoryView({ data, area, areas, onArea, seen }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string> }) {
   const pal = palOf(area);
 
   // Top Stories = the atom-agnostic hero (drug|paper|topic); falls back to drug movers so
   // the hero always renders even on an old snapshot without topStories.
-  const stories = storiesOf(data);
+  // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
+  // interstitial, then the ones they've already read (editorial order inside each half).
+  const part = partitionStories(storiesOf(data), seen);
+  const stories = part.ordered;
 
   // Build the ordered screen list (skip empty sections). "Drugs" is the relocated ranked
   // movers board — a sibling to Trials, so the full drug overview isn't lost.
   const screens: Screen[] = [{ kind: "intro", chapter: "Intro" }];
-  stories.forEach((_, i) => screens.push({ kind: "story", si: i, chapter: "Top Stories" }));
+  stories.forEach((_, i) => {
+    if (part.mode === "split" && i === part.freshCount) screens.push({ kind: "caughtup", chapter: "Top Stories" });
+    screens.push({ kind: "story", si: i, chapter: "Top Stories" });
+  });
   // Regulatory log sits AFTER the stories — it's reference (approvals/trial updates up to 30d),
   // not the freshest headline, so it must not be the first thing a user swipes into.
   if (data.events.length) screens.push({ kind: "events", chapter: "Updates" });
@@ -242,6 +248,13 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   };
 
   const cur = screens[idx];
+
+  // Story impression — a story counts as SEEN when its screen is actually shown (each story is
+  // a full screen here, so screen change = impression). Feeds Since-your-last-read next visit.
+  useEffect(() => {
+    if (cur?.kind === "story") { const s = stories[cur.si!]; if (s) logStorySeen(area, s.id, s.fp); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, area]);
   const chapters = ["Top Stories", "KOLs", "Papers", "Trials", "Drugs", "Updates"].filter((c) => screens.some((s) => s.chapter === c));
 
   // ---- card renderers (closures: use the shared player + stop) ----
@@ -364,6 +377,18 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
             <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>Updated {ago(data.generatedAt)}</div>
+            {part.mode === "split" && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 12, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 20, padding: "6px 13px", font: "600 12.5px system-ui", color: "#fff" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: pal.accent }} />
+                {part.freshCount} stor{part.freshCount === 1 ? "y" : "ies"} new since your last read
+              </div>
+            )}
+            {part.mode === "caughtup" && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 12, font: "500 12.5px system-ui", color: "rgba(255,255,255,.65)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
+                You&rsquo;re all caught up — nothing new since your last read
+              </div>
+            )}
             {data.headline && <h1 style={{ font: "400 33px/1.14 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: "18px 0 0", letterSpacing: "-.01em" }}>{data.headline}</h1>}
             <RecapBlock text={data.recap} accent={pal.accent} size={17} lines={5} />
             <div style={{ marginTop: "auto" }}>
@@ -396,10 +421,17 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           const s = stories[cur.si!];
           const isDrug = s.kind === "drug";
           const hasEv = s.podcast.length + s.posts.length + s.papers.length > 0;
+          // NEW / UPDATED chip — only in split mode (a returning reader with a real partition)
+          const chip = part.mode === "split" ? part.status.get(s.id) : undefined;
           return (
             <>
               <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top) + 120px)", right: -8, font: "800 190px/0.72 system-ui", color: "rgba(255,255,255,.05)", pointerEvents: "none" }}>{cur.si! + 1}</div>
-              <div style={{ font: "600 10px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent, position: "relative" }}>{storyKicker(s)}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+                {(chip === "new" || chip === "updated") && (
+                  <span style={{ font: "800 9px system-ui", letterSpacing: ".1em", color: pal.bg, background: chip === "new" ? pal.accent : "#fff", borderRadius: 5, padding: "3px 7px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
+                )}
+                <span style={{ font: "600 10px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>{storyKicker(s)}</span>
+              </div>
               <div style={{ font: isDrug ? "700 31px/1.12 system-ui" : "500 27px/1.2 'Newsreader',Georgia,serif", color: "#f4f7ff", letterSpacing: "-.01em", position: "relative", marginTop: 9 }}>{s.headline}</div>
               {(s.subtitle || (isDrug && s.delta !== 0)) && (
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 7 }}>
@@ -451,6 +483,20 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
             </>
           );
         })()}
+
+        {/* caught-up interstitial — the honest divider between what's new for THIS reader and
+            the stories they've already read (which follow, so completists can continue). */}
+        {cur.kind === "caughtup" && (
+          <div style={{ margin: "auto 0", textAlign: "center", padding: "0 8px" }}>
+            <div style={{ width: 54, height: 54, borderRadius: "50%", background: "rgba(255,255,255,.1)", border: `2px solid ${pal.accent}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
+            </div>
+            <div style={{ font: "500 24px/1.2 'Newsreader',Georgia,serif", color: "#f4f7ff", marginTop: 20 }}>You&rsquo;re all caught up</div>
+            <div style={{ font: "400 14.5px/1.5 system-ui", color: "rgba(255,255,255,.6)", marginTop: 10 }}>
+              {stories.length - part.freshCount} stor{stories.length - part.freshCount === 1 ? "y" : "ies"} you&rsquo;ve already read {stories.length - part.freshCount === 1 ? "is" : "are"} next — plus the rest of the brief.
+            </div>
+          </div>
+        )}
 
         {cur.kind === "kols" && (
           <>

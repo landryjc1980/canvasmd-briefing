@@ -86,6 +86,22 @@ export async function logEvent(e: { contactId: string; kind: string; area?: stri
   });
 }
 
+// Latest story_view fingerprint per story for one contact+area — the reader's "seen" state.
+// meta.fp is the story's evidence fingerprint AT VIEW TIME, so a story whose evidence changed
+// since the reader saw it shows fp-mismatch -> "UPDATED" in Since-your-last-read.
+export async function seenStories(contactId: string, area: string): Promise<Record<string, string>> {
+  const rows = await pg<{ story_id: string | null; meta: any; ts: string }[]>(
+    `brief_events?contact_id=eq.${contactId}&kind=eq.story_view&area=eq.${encodeURIComponent(area)}&select=story_id,meta,ts&order=ts.desc&limit=500`,
+    { method: "GET", headers: headers() },
+  );
+  const seen: Record<string, string> = {};
+  for (const r of rows) {
+    if (!r.story_id || seen[r.story_id] !== undefined) continue; // rows are ts-desc → first hit = latest view
+    seen[r.story_id] = typeof r.meta?.fp === "string" ? r.meta.fp : "";
+  }
+  return seen;
+}
+
 // ---- invites (colleague share -> referral graph) -----------------------------------------
 export type Invite = { id: string; code: string; inviter_id: string | null; org_id: string | null; max_uses: number; uses: number; expires_at: string | null };
 export async function createInvite(inviterId: string, orgId: string | null, code: string, maxUses = 3, ttlDays = 30): Promise<Invite> {

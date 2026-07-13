@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
-import { shareBrief } from "./gateClient";
+import { shareBrief, logStorySeen } from "./gateClient";
 
 // "The Reader" — the desktop Weekly Brief: a single centered 690px editorial column
 // on the area's solid dark accent-bg. No dashboard panels; evidence expands inline
@@ -112,7 +112,7 @@ function Row({ open, onToggle, accent, head, children }: { open: boolean; onTogg
   );
 }
 
-export default function ReaderView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
+export default function ReaderView({ data, area, areas, onArea, seen }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string> }) {
   const pal = palOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
@@ -123,8 +123,33 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
   const stats = heroStats(data);
-  const stories = storiesOf(data); // atom-agnostic hero; falls back to drug movers
+  // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
+  // divider, then the ones they've already read (editorial order inside each half).
+  const part = partitionStories(storiesOf(data), seen);
+  const stories = part.ordered;
   const tog = (id: string) => (openId === id ? "Hide ↑" : "Evidence ↓");
+
+  // Story impression — a story counts as SEEN when its card actually scrolls into view (≥45%
+  // visible). Logged once per story per page load (logStorySeen dedupes); feeds
+  // Since-your-last-read next visit. Plain rect-check on scroll instead of
+  // IntersectionObserver: IO callbacks are suppressed in embedded/backgrounded webviews
+  // (verified in the in-app preview), and a rAF-throttled check over ≤7 cards is free.
+  useEffect(() => {
+    const check = () => {
+      const vh = window.innerHeight;
+      document.querySelectorAll<HTMLElement>("[data-sid]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const visible = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+        if (visible >= r.height * 0.45 && el.dataset.sid) logStorySeen(area, el.dataset.sid, el.dataset.sfp || undefined);
+      });
+    };
+    check(); // whatever is visible on load counts as seen
+    let raf = 0;
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [area]);
 
   return (
     <div style={{ minHeight: "100vh", background: pal.bg, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .45s ease" }}>
@@ -172,17 +197,40 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
         {/* Top Stories — the atom-agnostic hero (drug | paper | topic). ONE story card,
             same shell; only the metric line (drug = score + bar; paper/topic = text) and the
             lead evidence adapt by kind. */}
-        <SectionHead>Top stories</SectionHead>
+        <SectionHead>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+        {part.mode === "caughtup" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "-14px 0 10px", font: "500 13px system-ui", color: "#8b93a4" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
+            You&rsquo;re all caught up — nothing new since your last read.
+          </div>
+        )}
         {stories.map((s, i) => {
           const id = "s:" + s.id;
           const isDrug = s.kind === "drug";
+          const chip = part.mode === "split" ? part.status.get(s.id) : undefined;
           return (
-            <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+            <div key={id} data-sid={s.id} data-sfp={s.fp ?? ""}>
+              {part.mode === "split" && i === part.freshCount && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "26px 0 10px" }}>
+                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "600 12px system-ui", color: "#8b93a4", whiteSpace: "nowrap" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
+                    You&rsquo;re caught up — {stories.length - part.freshCount} stor{stories.length - part.freshCount === 1 ? "y" : "ies"} you&rsquo;ve already read
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
+                </div>
+              )}
+            <Row open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
               head={
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "22px 2px" }}>
                   <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ font: "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent, marginBottom: 8 }}>{storyKicker(s)}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      {(chip === "new" || chip === "updated") && (
+                        <span style={{ font: "800 8.5px system-ui", letterSpacing: ".08em", color: pal.bg, background: chip === "new" ? pal.accent : "#fff", borderRadius: 4, padding: "2.5px 6px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
+                      )}
+                      <span style={{ font: "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>{storyKicker(s)}</span>
+                    </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                       <span style={{ font: isDrug ? "500 22px/1.15 'Newsreader',Georgia,serif" : "500 20px/1.3 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{s.headline}</span>
                       {s.subtitle && <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{s.subtitle}</span>}
@@ -210,6 +258,7 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
                 {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
               </div>
             </Row>
+            </div>
           );
         })}
         <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
