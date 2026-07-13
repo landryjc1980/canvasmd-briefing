@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BriefingData } from "@/lib/types";
 import { AREAS } from "./ui";
 import BroadsheetView from "./BroadsheetView";
@@ -28,6 +28,23 @@ export default function BriefingPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Client-side cache: keep every area we've already fetched in memory so switching
+  // tumor tabs is INSTANT (no blank flash, no round-trip). The server snapshot cache
+  // makes each area ~160ms, but without this the browser re-fetched on every switch.
+  const cacheRef = useRef<Record<string, BriefingData>>({});
+  const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
+  const load = useCallback((a: string): Promise<void> => {
+    if (cacheRef.current[a]) return Promise.resolve();
+    const pending = inflightRef.current[a];
+    if (pending) return pending;
+    const p = fetch(`/api/briefing?area=${a}`)
+      .then((r) => r.json())
+      .then((j) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = j.briefing; })
+      .finally(() => { delete inflightRef.current[a]; });
+    inflightRef.current[a] = p;
+    return p;
+  }, []);
+
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     setArea(AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : "GU");
@@ -46,13 +63,23 @@ export default function BriefingPage() {
 
   useEffect(() => {
     if (!area) return;
+    const cached = cacheRef.current[area];
+    if (cached) { setData(cached); setError(null); setLoading(false); return; }
+    let cancelled = false;
     setLoading(true); setError(null); setData(null);
-    fetch(`/api/briefing?area=${area}`)
-      .then((r) => r.json())
-      .then((j) => (j.error ? setError(j.error) : setData(j.briefing)))
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, [area]);
+    load(area)
+      .then(() => { if (!cancelled) { setData(cacheRef.current[area]); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(String(e?.message ?? e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [area, load]);
+
+  // Warm the other areas in the background once we know the current one, so the first
+  // visit to each tab is already cached and switches feel instant.
+  useEffect(() => {
+    if (!area) return;
+    for (const a of AREAS) if (a !== area) load(a).catch(() => {});
+  }, [area, load]);
 
   const sync = (next: Record<string, string>) => {
     const u = new URL(window.location.href);
