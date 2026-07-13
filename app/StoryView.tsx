@@ -454,9 +454,12 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
               {/* Evidence as ONE continuous stack. Collapsed = a peek: clipped to PEEK_H with a
-                  fade to the screen bg + a "what's here" row. Tapping grows the SAME stack, so the
-                  cropped top card un-crops in place and the rest flows in. (autoplay + progress
-                  pause while expanded so you can read it — no sheet.) */}
+                  fade to the screen bg + a "what's here" row. Expanding happens ONLY via the two
+                  explicit affordances (metric-line chevron + the summary row below) — the peek
+                  container itself must NOT capture taps, or tap-to-advance dies on evidence-heavy
+                  cards (the peek owns the bottom third of the screen). Card taps (clip/link/
+                  abstract) stopPropagation themselves; dead-space taps bubble to the nav zones.
+                  (autoplay + progress pause while expanded so you can read it — no sheet.) */}
               {hasEv && (() => {
                 const ev = storyEv(s);
                 const more: string[] = [];
@@ -465,7 +468,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                 if (ev.papers?.length) more.push(`${ev.papers.length} paper${ev.papers.length === 1 ? "" : "s"}`);
                 return (
                   <div style={{ marginTop: expanded ? 18 : "auto", paddingTop: 16 }}>
-                    <div onClick={(e) => { if (!expanded) { stop(e); setExpanded(true); } }} style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden", cursor: expanded ? undefined : "pointer" }}>
+                    <div style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden" }}>
                       {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
                       {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                       {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}

@@ -136,9 +136,13 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
   // (verified in the in-app preview), and a rAF-throttled check over ≤7 cards is free.
   useEffect(() => {
     const check = () => {
+      // Zero-rect guard: a hidden/display:none/transitioning layout reports all-zero rects,
+      // and `0 >= 0*0.45` would mass-log EVERY story as seen without the reader seeing any.
       const vh = window.innerHeight;
+      if (vh <= 0 || document.hidden) return;
       document.querySelectorAll<HTMLElement>("[data-sid]").forEach((el) => {
         const r = el.getBoundingClientRect();
+        if (r.height <= 0) return;
         const visible = Math.min(r.bottom, vh) - Math.max(r.top, 0);
         if (visible >= r.height * 0.45 && el.dataset.sid) logStorySeen(area, el.dataset.sid, el.dataset.sfp || undefined);
       });
