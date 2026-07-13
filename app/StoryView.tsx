@@ -375,7 +375,6 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
           const s = stories[cur.si!];
           const isDrug = s.kind === "drug";
           const hasEv = s.podcast.length + s.posts.length + s.papers.length > 0;
-          const rank = s.drugId ? data.movers.findIndex((m) => m.drugId === s.drugId) + 1 : 0;
           const paperLead = (p: BriefingPaper) => (
             <PaperCard title={p.title} journal={p.journal}
               meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined}
@@ -397,19 +396,13 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
                   {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                 </div>
               )}
+              {/* Score + area-rank live on the Drugs board (where the ranking is the point), NOT
+                  here — a numeric "#1" on a mid-deck Top Story conflicts with the swipe position and
+                  only drug atoms have it. The evidence-mix bar stays (it pairs with the metric line). */}
               {isDrug && (
-                <>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 16 }}>
-                    <span style={{ font: "700 64px/0.8 system-ui", color: pal.accent, letterSpacing: "-.03em" }}>{s.score}</span>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span style={{ font: "600 11px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>signal</span>
-                      {rank > 0 && <span style={{ font: "500 10px system-ui", color: "rgba(255,255,255,.38)" }}>#{rank} in {AREA_FULL[area] ?? area} this week</span>}
-                    </div>
-                  </div>
-                  <div style={{ width: "100%", maxWidth: 240, height: 6, borderRadius: 4, display: "flex", gap: 2, overflow: "hidden", marginTop: 16 }}>
-                    {barSegmentsRaw(s.bar).map((seg, i) => <div key={i} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 4 }} />)}
-                  </div>
-                </>
+                <div style={{ width: "100%", maxWidth: 240, height: 6, borderRadius: 4, display: "flex", gap: 2, overflow: "hidden", marginTop: 16 }}>
+                  {barSegmentsRaw(s.bar).map((seg, i) => <div key={i} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 4 }} />)}
+                </div>
               )}
               {/* metric line → tap to expand the full evidence inline */}
               <div onClick={(e) => { if (hasEv) { stop(e); setExpanded((v) => !v); } }} style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, cursor: hasEv ? "pointer" : "default" }}>
