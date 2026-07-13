@@ -8,6 +8,7 @@ import BriefView from "./BriefView";
 import StoryView from "./StoryView";
 import ReaderView from "./ReaderView";
 import { palOf } from "./briefVM";
+import { logSignal } from "./gateClient";
 import "./briefing.css";
 import "./brief.css";
 
@@ -80,6 +81,9 @@ export default function BriefingPage() {
     if (!area) return;
     for (const a of AREAS) if (a !== area) load(a).catch(() => {});
   }, [area, load]);
+
+  // Signal: log a view per area shown (no-ops server-side if the reader isn't identified).
+  useEffect(() => { if (area) logSignal("view", area); }, [area]);
 
   const sync = (next: Record<string, string>) => {
     const u = new URL(window.location.href);

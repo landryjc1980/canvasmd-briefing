@@ -5,6 +5,7 @@ import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
+import { shareBrief } from "./gateClient";
 
 // "The Reader" — the desktop Weekly Brief: a single centered 690px editorial column
 // on the area's solid dark accent-bg. No dashboard panels; evidence expands inline
@@ -114,6 +115,12 @@ function Row({ open, onToggle, accent, head, children }: { open: boolean; onTogg
 export default function ReaderView({ data, area, areas, onArea }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void }) {
   const pal = palOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [shareMsg, setShareMsg] = useState("");
+  const doShare = async () => {
+    const r = await shareBrief();
+    setShareMsg(r === "copied" ? "Link copied — send it to a colleague" : r === "error" ? "Couldn't create a link" : "Shared");
+    setTimeout(() => setShareMsg(""), 2600);
+  };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
   const stats = heroStats(data);
   const stories = storiesOf(data); // atom-agnostic hero; falls back to drug movers
@@ -121,6 +128,14 @@ export default function ReaderView({ data, area, areas, onArea }: { data: Briefi
 
   return (
     <div style={{ minHeight: "100vh", background: pal.bg, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .45s ease" }}>
+      {/* share with a colleague — spreads the brief inside the account (referral graph) */}
+      <div style={{ position: "fixed", top: 18, right: 18, zIndex: 20, display: "flex", alignItems: "center", gap: 10 }}>
+        {shareMsg && <span style={{ font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 11px" }}>{shareMsg}</span>}
+        <button onClick={doShare} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", color: "#fff", font: "600 13px system-ui", borderRadius: 20, padding: "8px 15px", cursor: "pointer" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+          Share
+        </button>
+      </div>
       <div style={{ maxWidth: 690, margin: "0 auto", padding: "52px 30px 120px" }}>
         {/* masthead — ReadoutMD wordmark (matches the mobile header) */}
         <div style={{ textAlign: "center", paddingBottom: 15, borderBottom: "1px solid rgba(255,255,255,.14)" }}>

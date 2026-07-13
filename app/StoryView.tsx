@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
+import { shareBrief } from "./gateClient";
 import "./design.css";
 
 // "The 90-Second Brief" — the mobile Weekly Brief as a full-screen swipeable story
@@ -135,6 +136,12 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
   const [playing, setPlaying] = useState(false); // autoplay is OFF until "Start the brief" / play
   const [hint, setHint] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
+  const [shareMsg, setShareMsg] = useState(""); // transient "Link copied" toast after a share
+  const doShare = async () => {
+    const r = await shareBrief();
+    setShareMsg(r === "copied" ? "Link copied — send it to a colleague" : r === "error" ? "Couldn't create a share link" : "");
+    if (r !== "shared") setTimeout(() => setShareMsg(""), 2600);
+  };
   const [sheet, setSheet] = useState<SheetEv | null>(null);
   const [expanded, setExpanded] = useState(false); // story evidence expanded inline (replaces the sheet on story screens)
   const touchX = useRef<number | null>(null);
@@ -344,7 +351,11 @@ export default function StoryView({ data, area, areas, onArea }: { data: Briefin
               : <span style={{ width: 0, height: 0, borderLeft: "9px solid #fff", borderTop: "6px solid transparent", borderBottom: "6px solid transparent", marginLeft: 2 }} />}
           </div>
           <div onClick={() => jump(0)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", font: "600 15px system-ui", color: "#fff", flex: "none" }}>↺</div>
+          <div onClick={(e) => { stop(e); doShare(); }} title="Share with a colleague" style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+          </div>
         </div>
+        {shareMsg && <div style={{ marginTop: 8, font: "600 12px system-ui", color: pal.bg, background: "#fff", borderRadius: 10, padding: "7px 12px", display: "inline-block" }}>{shareMsg}</div>}
       </div>
 
       {/* screen body */}
