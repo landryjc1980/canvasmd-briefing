@@ -126,8 +126,16 @@ export function moverToStory(m: BriefingMover): BriefingStory {
     subtitle: [m.brand, m.company].filter(Boolean).join(" · ") || null,
     description: m.why, score: m.score, delta: m.delta, bar: [m.podPct, m.xPct, m.articlePct],
     podConvs: m.podConvs, podEpisodes: m.podEpisodes, podShows: m.podShows, xSharers: m.xSharers, articleCount: m.articleCount, clinicianCount: 0, topLikes: m.topLikes,
-    podcast: m.podcast, posts: m.posts, papers: m.papers, drugId: m.drugId,
+    podcast: m.podcast, posts: m.posts, papers: m.papers, drugId: m.drugId, stance: m.stance ?? null,
   };
+}
+
+// "How the field is reacting" — the counts line for a drug's stance. Honest split, never a
+// hollow %. Returns null when there's no stance (thin signal / non-drug), so the card stays clean.
+export function stanceParts(s: import("@/lib/types").BriefingStance | null | undefined):
+  { favorable: number; skeptical: number; mixed: number; total: number; axis: string | null; quote: string } | null {
+  if (!s || s.total < 4) return null;
+  return { favorable: s.favorable, skeptical: s.skeptical, mixed: s.mixed, total: s.total, axis: s.axis, quote: s.quote };
 }
 
 // The Top Stories to render: the real topStories if present, else drug movers as stories.

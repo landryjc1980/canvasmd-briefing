@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, stanceParts, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
 import "./design.css";

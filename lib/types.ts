@@ -501,6 +501,16 @@ export type BriefingEvent = {
   ahead: boolean; // true = upcoming congress, false = already happened
   drugId: string | null; // anchors a jump to the mover row
 };
+// How the field is REACTING to a drug (from pharma_stance) — voiced opinions only, ≥4 or null.
+export type BriefingStance = {
+  total: number; // voiced opinions (excludes 'unclear' backbone/comparator mentions)
+  favorable: number; // enthusiastic + favorable
+  skeptical: number; // skeptical + negative
+  mixed: number; // equipoise
+  quote: string; // one traceable evidence line (prefers a practice-changing take)
+  practiceChanging: boolean;
+  axis: string | null; // dominant stance axis (efficacy | safety | access | sequencing | …)
+};
 export type BriefingMover = {
   drugId: string;
   drug: string; // canonical name
@@ -521,6 +531,7 @@ export type BriefingMover = {
   why: string | null; // the single highest-mention gloss, verbatim (the row's one-liner)
   eventChip: string | null; // e.g. "FDA approval · 3d ago"
   stanceChip: string | null; // only when clearly practice-changing/favorable
+  stance?: BriefingStance | null; // field reception; null when opinion signal is too thin
   avatars: string[]; // up to 4 X sharer avatar urls for the collapsed row
   showArt: string[]; // up to 4 podcast show artwork urls (fills the pile when X is sparse)
   shows: string[]; // up to 3 podcast show names for the collapsed row
@@ -769,6 +780,7 @@ export type BriefingStory = {
   posts: BriefingSharer[];
   papers: BriefingPaper[];
   drugId: string | null; // drug stories → the Drugs board row
+  stance?: BriefingStance | null; // drug stories only: how the field is reacting (null / thin otherwise)
   fp?: string; // evidence fingerprint (identities only) — powers "Since your last read" NEW/UPDATED
 };
 
