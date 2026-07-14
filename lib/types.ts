@@ -550,7 +550,7 @@ export type BriefingKol = {
   drugs: string[]; // distinct drugs they discussed (up to a few)
   peakLikes: number;
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
-  articles: { title: string; url: string; journal: string | null }[]; // articles they shared
+  articles: { title: string; url: string; journal: string | null; domain: string | null }[]; // articles they shared
 };
 // A journal article the field shared this week (the "what's being read" lens — includes
 // the many papers whose titles never name a drug, so they're invisible in the drug spine).
