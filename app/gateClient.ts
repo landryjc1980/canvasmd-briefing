@@ -32,7 +32,7 @@ export async function shareBrief(): Promise<"shared" | "copied" | "error"> {
     const r = await fetch("/api/brief-share", { method: "POST" });
     const j = await r.json();
     if (!r.ok || !j.ok || !j.url) return "error";
-    const data = { title: "ReadoutMD — The Weekly Brief", text: "This week's oncology brief:", url: j.url };
+    const data = { title: "The Readout — from CanvasMD", text: "This week's oncology brief:", url: j.url };
     if (typeof navigator !== "undefined" && (navigator as any).share) {
       try { await (navigator as any).share(data); return "shared"; } catch { /* user cancelled → fall through to copy */ }
     }
