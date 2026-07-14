@@ -81,7 +81,9 @@ function PaperCard({ title, journal, meta, url, abstract, posts, accent, publish
         </div>
         {canExpand && <span style={{ font: "700 13px system-ui", color: accent, flex: "none", transform: open ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>}
       </div>
-      {!!publishers?.length && <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "3px 10px" }}><span style={{ font: "600 10px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{publishers.join(" · ")}</span></div>}
+      {/* "via <publisher>" names the org account that shared a JOURNAL paper; redundant for news
+          (the outlet is already the source), so suppress it there. */}
+      {!news && !!publishers?.length && <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "3px 10px" }}><span style={{ font: "600 10px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{publishers.join(" · ")}</span></div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
