@@ -161,7 +161,9 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
       // usually EXPIRES across the awaited fetch above (share/clipboard then throw NotAllowedError),
       // so we always fall through to clipboard and, failing that, surface the link itself — the
       // reader can long-press to copy. Guarantees the button never silently does nothing.
-      if (nav.share) { try { await nav.share({ title: "The Readout — from CanvasMD", text: "This week's oncology brief:", url: j.url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
+      // Share the URL ONLY — iMessage/Mail render a rich link card from the page's OG tags; adding
+      // `text`/`title` posts a SECOND plain bubble on top of the card (ugly). URL alone = just the card.
+      if (nav.share) { try { await nav.share({ url: j.url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
       let copied = false;
       try { await navigator.clipboard.writeText(j.url); copied = true; } catch { /* activation lost */ }
       setShareMsg(copied ? "Link copied — send it to a colleague" : j.url);

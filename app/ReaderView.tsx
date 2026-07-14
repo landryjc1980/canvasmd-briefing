@@ -128,7 +128,9 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
       const j = await r.json();
       if (!r.ok || !j.ok || !j.url) { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); return; }
       const nav = navigator as any;
-      if (nav.share) { try { await nav.share({ title: "The Readout — from CanvasMD", text: "This week's oncology brief:", url: j.url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
+      // URL only — iMessage/Mail build a rich card from OG tags; adding text/title posts a second
+      // plain bubble on top (ugly). URL alone = just the card.
+      if (nav.share) { try { await nav.share({ url: j.url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
       let copied = false;
       try { await navigator.clipboard.writeText(j.url); copied = true; } catch { /* activation lost */ }
       setShareMsg(copied ? "Link copied — send it to a colleague" : j.url);
