@@ -342,6 +342,10 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             )}
           </div>
         </div>
+        {/* progress bar + chapter chips + play controls are the mid-brief HUD — hidden on the
+            COVER (intro) so it reads as a magazine front, not a dashboard; they appear once you
+            tap "Start the brief". */}
+        {cur.kind !== "intro" && (<>
         <div style={{ display: "flex", gap: 4 }}>
           {screens.map((s, i) => (
             <div key={i} onClick={() => jump(i)} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,.28)", overflow: "hidden", cursor: "pointer" }}>
@@ -370,35 +374,41 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           </div>
         </div>
         {shareMsg && <div style={{ marginTop: 8, font: "600 12px system-ui", color: pal.bg, background: "#fff", borderRadius: 10, padding: "7px 12px", display: "inline-block" }}>{shareMsg}</div>}
+        </>)}
       </div>
 
-      {/* screen body */}
-      <div key={idx} style={{ position: "absolute", inset: 0, padding: `calc(env(safe-area-inset-top) + 128px) 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
+      {/* screen body — the cover (intro) needs less top padding since its HUD is hidden */}
+      <div key={idx} style={{ position: "absolute", inset: 0, padding: `calc(env(safe-area-inset-top) + ${cur.kind === "intro" ? 70 : 128}px) 24px calc(${clipId ? 92 : 28}px + env(safe-area-inset-bottom))`, display: "flex", flexDirection: "column", animation: "wbxfade .3s ease", overflowY: "auto", overflowX: "hidden" }} className="wbx-noscroll">
         {cur.kind === "intro" && (
           <>
-            <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
-            <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>Updated {ago(data.generatedAt)}</div>
-            {/* the credibility promise — stated ONCE here (not per-card): the signal below comes from
-                identified oncology clinicians + expert physician-led podcasts, not bots/anon accounts. */}
-            <div style={{ font: "400 12px/1.45 system-ui", color: "rgba(255,255,255,.4)", marginTop: 10 }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
+            {/* COVER — area-led. The tumor area is the display title (was a whispered 11px kicker);
+                the story-player chrome is gone; credibility drops to a quiet footer. */}
+            <div style={{ font: "700 11.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in</div>
+            <div style={{ font: "400 46px/1.02 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.02em", marginTop: 7 }}>{AREA_FULL[area] ?? area}</div>
+            <div style={{ height: 1, background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}00)`, opacity: .5, margin: "20px 0 0" }} />
             {part.mode === "split" && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 12, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 20, padding: "6px 13px", font: "600 12.5px system-ui", color: "#fff" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 18, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 20, padding: "6px 13px", font: "600 12.5px system-ui", color: "#fff", alignSelf: "flex-start" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: pal.accent }} />
                 {part.freshCount} stor{part.freshCount === 1 ? "y" : "ies"} new since your last read
               </div>
             )}
             {part.mode === "caughtup" && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 12, font: "500 12.5px system-ui", color: "rgba(255,255,255,.65)" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 18, font: "500 12.5px system-ui", color: "rgba(255,255,255,.6)", alignSelf: "flex-start" }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
-                You&rsquo;re all caught up — nothing new since your last read
+                You&rsquo;re all caught up
               </div>
             )}
-            {data.headline && <h1 style={{ font: "400 33px/1.14 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: "18px 0 0", letterSpacing: "-.01em" }}>{data.headline}</h1>}
-            <RecapBlock text={data.recap} accent={pal.accent} size={17} lines={5} />
+            {data.headline && <h1 style={{ font: "400 31px/1.15 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: `${part.mode === "plain" ? 20 : 20}px 0 0`, letterSpacing: "-.01em" }}>{data.headline}</h1>}
+            <RecapBlock text={data.recap} accent={pal.accent} size={16.5} lines={4} />
             <div style={{ marginTop: "auto" }}>
               <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
                 <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{stories.length} stor{stories.length === 1 ? "y" : "ies"} · {data.topKols.length} KOL{data.topKols.length === 1 ? "" : "s"}</div></div>
+              </div>
+              {/* credibility → quiet footer (was a 3-line gray paragraph up top) */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 15, font: "500 11.5px system-ui", color: "rgba(255,255,255,.42)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
+                Verified voices only · Updated {ago(data.generatedAt)}
               </div>
             </div>
           </>

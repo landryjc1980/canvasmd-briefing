@@ -205,7 +205,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
             lead evidence adapt by kind. */}
         <SectionHead>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
         {part.mode === "caughtup" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "-14px 0 10px", font: "500 13px system-ui", color: "#8b93a4" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "0 0 22px", font: "500 13px system-ui", color: "#8b93a4" }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
             You&rsquo;re all caught up — nothing new since your last read.
           </div>
