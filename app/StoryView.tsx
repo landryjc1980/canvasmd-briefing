@@ -319,15 +319,17 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15, padding: "max(12px, env(safe-area-inset-top)) 16px 14px", background: `linear-gradient(to bottom, ${pal.bg} 78%, ${pal.bg}00)` }} onClick={stop} onTouchStart={stop} onTouchEnd={stop} onTouchMove={stop}>
         {/* header — persists on every screen */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div onClick={(e) => { stop(e); jump(0); }} style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-              <svg width="25" height="25" viewBox="0 0 25 25" style={{ flex: "none" }}>
-                <rect width="25" height="25" rx="7.5" fill={pal.accent} />
-                <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span style={{ font: "500 20px 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+          <div onClick={(e) => { stop(e); jump(0); }} style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer" }}>
+            {/* icon centers on the 20px WORDMARK line (top-aligned row, -2.5px nudge), not the taller
+                wordmark+kicker column; the kicker centers under the wordmark */}
+            <svg width="25" height="25" viewBox="0 0 25 25" style={{ flex: "none", marginTop: -2.5 }}>
+              <rect width="25" height="25" rx="7.5" fill={pal.accent} />
+              <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <span style={{ font: "500 20px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+              <span style={{ font: "600 7.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", marginTop: 4 }}>by CanvasMD</span>
             </div>
-            <span style={{ font: "600 7.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", marginTop: 3, marginLeft: 34 }}>by CanvasMD</span>
           </div>
           <div style={{ position: "relative" }}>
             <div onClick={(e) => { stop(e); setMenuOpen((o) => !o); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 2px", cursor: "pointer" }}>
