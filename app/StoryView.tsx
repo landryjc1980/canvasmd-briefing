@@ -5,7 +5,7 @@ import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod
 import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
-import { shareBrief, logStorySeen } from "./gateClient";
+import { logStorySeen } from "./gateClient";
 import "./design.css";
 
 // "The 90-Second Brief" — the mobile Weekly Brief as a full-screen swipeable story deck:
@@ -152,9 +152,21 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
   const [shareMsg, setShareMsg] = useState(""); // transient "Link copied" toast after a share
   const doShare = async () => {
-    const r = await shareBrief();
-    setShareMsg(r === "copied" ? "Link copied — send it to a colleague" : r === "error" ? "Couldn't create a share link" : "");
-    if (r !== "shared") setTimeout(() => setShareMsg(""), 2600);
+    try {
+      const r = await fetch("/api/brief-share", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.ok || !j.url) { setShareMsg("Couldn't create a share link"); setTimeout(() => setShareMsg(""), 3000); return; }
+      const nav = navigator as any;
+      // Native share sheet where it holds the tap's user-activation. On iOS Safari that activation
+      // usually EXPIRES across the awaited fetch above (share/clipboard then throw NotAllowedError),
+      // so we always fall through to clipboard and, failing that, surface the link itself — the
+      // reader can long-press to copy. Guarantees the button never silently does nothing.
+      if (nav.share) { try { await nav.share({ title: "The Readout — from CanvasMD", text: "This week's oncology brief:", url: j.url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
+      let copied = false;
+      try { await navigator.clipboard.writeText(j.url); copied = true; } catch { /* activation lost */ }
+      setShareMsg(copied ? "Link copied — send it to a colleague" : j.url);
+      setTimeout(() => setShareMsg(""), copied ? 2800 : 6000);
+    } catch { setShareMsg("Couldn't create a share link"); setTimeout(() => setShareMsg(""), 3000); }
   };
   const [sheet, setSheet] = useState<SheetEv | null>(null);
   const [expanded, setExpanded] = useState(false); // story evidence expanded inline (replaces the sheet on story screens)
@@ -213,7 +225,9 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
   const tap = (e: React.MouseEvent) => {
     setHint(false);
-    if (expanded) return; // reading inline evidence — a stray tap must not advance the story
+    // Edge taps advance even while evidence is expanded (navigating auto-collapses via the [idx]
+    // effect); the evidence cards themselves stopPropagation, so tapping a card never advances —
+    // only the side gutters do. Fixes "can't go next until I shrink the evidence".
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     (e.clientX - r.left) < r.width * 0.3 ? go(-1) : go(1);
   };
@@ -362,12 +376,12 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
               return <div key={c} onClick={() => jump(target)} style={{ flex: "none", font: "600 11px system-ui", padding: "5px 11px", borderRadius: 20, whiteSpace: "nowrap", cursor: "pointer", color: on ? pal.bg : "#fff", background: on ? "#fff" : "rgba(255,255,255,.14)" }}>{c}</div>;
             })}
           </div>
-          <div onClick={() => jump(0)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", font: "600 15px system-ui", color: "#fff", flex: "none" }}>↺</div>
+          {/* replay removed — tapping the wordmark already restarts; chips + swipe cover the rest */}
           <div onClick={(e) => { stop(e); doShare(); }} title="Share with a colleague" style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </div>
         </div>
-        {shareMsg && <div style={{ marginTop: 8, font: "600 12px system-ui", color: pal.bg, background: "#fff", borderRadius: 10, padding: "7px 12px", display: "inline-block" }}>{shareMsg}</div>}
+        {shareMsg && <div style={{ marginTop: 8, font: "600 12px system-ui", color: pal.bg, background: "#fff", borderRadius: 10, padding: "7px 12px", display: "block", wordBreak: "break-all" }}>{shareMsg}</div>}
         </>)}
       </div>
 
