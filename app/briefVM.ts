@@ -130,6 +130,38 @@ export function moverToStory(m: BriefingMover): BriefingStory {
   };
 }
 
+// ---- article source labeling -------------------------------------------------------------
+// Trade-media articles (OncLive, Healio, …) have no journal, so the card showed a raw domain
+// (or nothing). Map the domain to a clean publication name, flag it as News (vs a peer-reviewed
+// journal), and strip the redundant "… | OncLive" suffix these outlets put in their titles.
+const MEDIA_SOURCE: Record<string, string> = {
+  "onclive.com": "OncLive", "targetedonc.com": "Targeted Oncology", "cancernetwork.com": "Cancer Network",
+  "healio.com": "Healio", "oncodaily.com": "OncoDaily", "urotoday.com": "UroToday", "ascopost.com": "The ASCO Post",
+  "cancertherapyadvisor.com": "Cancer Therapy Advisor", "medscape.com": "Medscape", "medpagetoday.com": "MedPage Today",
+  "vjoncology.com": "VJOncology", "guoncologynow.com": "GU Oncology Now", "oncologynexus.com": "Oncology Nexus",
+  "bloodcancerstoday.com": "Blood Cancers Today", "lungcancerstoday.com": "Lung Cancers Today", "cancerletter.com": "The Cancer Letter",
+};
+const baseDomain = (d?: string | null) => (d || "").toLowerCase().replace(/^www\./, "");
+const mediaName = (domain?: string | null): string | null => {
+  const d = baseDomain(domain); if (!d) return null;
+  const k = Object.keys(MEDIA_SOURCE).find((m) => d === m || d.endsWith("." + m));
+  return k ? MEDIA_SOURCE[k] : null;
+};
+export const isNewsDomain = (domain?: string | null): boolean => !!mediaName(domain);
+// The source shown on an article card: the journal if we have one, else a clean media name, else
+// the bare domain (last resort). News outlets never masquerade as a journal name.
+export function articleSource(journal?: string | null, domain?: string | null): string | null {
+  if (journal) return journal;
+  return mediaName(domain) ?? (baseDomain(domain) || null);
+}
+// Strip a trailing "… | OncLive" / "… - Healio" ONLY when the suffix is a known media name — safe
+// against clipping a real subtitle ("… - A Review"), which we never touch.
+const MEDIA_SUFFIX_RE = new RegExp(`\\s*[|\\u2013\\u2014-]\\s*(${Object.values(MEDIA_SOURCE).map((n) => n.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")).join("|")})\\s*$`, "i");
+export function cleanArticleTitle(title?: string | null): string {
+  const t = (title || "").trim();
+  return t.replace(MEDIA_SUFFIX_RE, "").trim() || t;
+}
+
 // "How the field is reacting" — the counts line for a drug's stance. Honest split, never a
 // hollow %. Returns null when there's no stance (thin signal / non-drug), so the card stays clean.
 export function stanceParts(s: BriefingStance | null | undefined):

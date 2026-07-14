@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
@@ -81,7 +81,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-function PaperCard({ title, journal, meta, url, abstract, posts, accent }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string }) {
+function PaperCard({ title, journal, meta, url, abstract, posts, accent, news }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; news?: boolean }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -89,8 +89,11 @@ function PaperCard({ title, journal, meta, url, abstract, posts, accent }: { tit
   const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
   return (
     <div style={cardBox}>
-      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
-      {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
+      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>
+      {(journal || meta || news) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
+        {news && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".1em", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 5, padding: "2px 6px" }}>NEWS</span>}
+        <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[journal, meta].filter(Boolean).join(" · ")}</span>
+      </div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
@@ -304,9 +307,10 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 head={
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 15, padding: "16px 2px" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{a.title}</div>
+                      <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(a.title)}</div>
                       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 5 }}>
-                        <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[a.journal || a.domain, a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+                        {isNewsDomain(a.domain) && !a.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".1em", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 5, padding: "2px 6px" }}>NEWS</span>}
+                        <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
                         {!!a.publishers?.length && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "2px 9px" }}><span style={{ font: "600 8.5px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{a.publishers.join(" · ")}</span></span>}
                       </div>
                     </div>

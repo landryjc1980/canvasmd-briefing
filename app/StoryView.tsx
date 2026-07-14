@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper, BriefingStance } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
@@ -62,7 +62,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 
 // A paper card that expands INLINE to reveal the abstract AND the clinicians' tweets
 // about it (so readers don't have to leave). The ↗ still opens the source.
-function PaperCard({ title, journal, meta, url, abstract, posts, accent, publishers }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent: string; publishers?: string[] }) {
+function PaperCard({ title, journal, meta, url, abstract, posts, accent, publishers, news }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent: string; publishers?: string[]; news?: boolean }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -73,8 +73,11 @@ function PaperCard({ title, journal, meta, url, abstract, posts, accent, publish
       {/* whole header taps to expand (was a dead zone — abstract hid behind a tiny link) */}
       <div onClick={(e) => { if (canExpand) { e.stopPropagation(); setOpen((o) => !o); } }} style={{ cursor: canExpand ? "pointer" : "default", display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{title}</div>
-          {(journal || meta) && <div style={{ font: "400 12px system-ui", color: "#7c7f88", marginTop: 7 }}>{[journal, meta].filter(Boolean).join(" · ")}</div>}
+          <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>
+          {(journal || meta || news) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
+            {news && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".1em", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.09)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 5, padding: "2px 6px" }}>NEWS</span>}
+            <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[journal, meta].filter(Boolean).join(" · ")}</span>
+          </div>}
         </div>
         {canExpand && <span style={{ font: "700 13px system-ui", color: accent, flex: "none", transform: open ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>}
       </div>
@@ -545,7 +548,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             {sectionHead("What’s being read")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal || a.domain} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} accent={pal.accent} publishers={a.publishers} />)}
+              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={articleSource(a.journal, a.domain)} news={isNewsDomain(a.domain) && !a.journal} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} accent={pal.accent} publishers={a.publishers} />)}
             </div>
           </>
         )}
