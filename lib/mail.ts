@@ -4,8 +4,8 @@
 
 const RESEND_KEY = process.env.RESEND_API_KEY ?? "";
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "";
-const FROM_NAME = process.env.BRIEF_FROM_NAME ?? "ReadoutMD";
-const PHYSICAL = process.env.MAIL_PHYSICAL_ADDRESS ?? "ReadoutMD";
+const FROM_NAME = process.env.BRIEF_FROM_NAME ?? "The Readout";
+const PHYSICAL = process.env.MAIL_PHYSICAL_ADDRESS ?? "CanvasMD";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
