@@ -148,11 +148,34 @@ const mediaName = (domain?: string | null): string | null => {
   return k ? MEDIA_SOURCE[k] : null;
 };
 export const isNewsDomain = (domain?: string | null): boolean => !!mediaName(domain);
-// The source shown on an article card: the journal if we have one, else a clean media name, else
-// the bare domain (last resort). News outlets never masquerade as a journal name.
+// Peer-reviewed journal / publisher domains — used ONLY to prettify the source label when we
+// couldn't attach a journal name (so "euoncology.europeanurology.com" reads "European Urology",
+// not a raw host). These are NOT news, so they never get a "News" badge (isNewsDomain stays
+// media-only). Suffix-matched, so subdomains resolve.
+const JOURNAL_DOMAIN: Record<string, string> = {
+  "europeanurology.com": "European Urology", "ascopubs.org": "ASCO Journals", "nejm.org": "NEJM",
+  "thelancet.com": "The Lancet", "jamanetwork.com": "JAMA", "nature.com": "Nature", "annalsofoncology.org": "Annals of Oncology",
+  "aacrjournals.org": "AACR Journals", "cell.com": "Cell Press", "bmj.com": "BMJ", "sciencedirect.com": "ScienceDirect",
+  "academic.oup.com": "Oxford Academic", "oup.com": "Oxford Academic", "wiley.com": "Wiley", "onlinelibrary.wiley.com": "Wiley",
+  "springer.com": "Springer", "link.springer.com": "Springer", "tandfonline.com": "Taylor & Francis", "nature.nature.com": "Nature",
+};
+const journalDomainName = (domain?: string | null): string | null => {
+  const d = baseDomain(domain); if (!d) return null;
+  const k = Object.keys(JOURNAL_DOMAIN).find((m) => d === m || d.endsWith("." + m));
+  return k ? JOURNAL_DOMAIN[k] : null;
+};
+// Last-resort prettifier: strip a leading subdomain and the TLD so an unknown host at least reads
+// as its registrable name ("euoncology.europeanurology.com" → "europeanurology") rather than a URL.
+const prettyDomain = (domain?: string | null): string | null => {
+  const d = baseDomain(domain); if (!d) return null;
+  const parts = d.split(".").filter(Boolean);
+  return parts.length >= 2 ? parts[parts.length - 2] : d;
+};
+// The source shown on an article card: the journal if we have one, else a clean media name, else a
+// known journal-publisher name, else the registrable host. News outlets never masquerade as a journal.
 export function articleSource(journal?: string | null, domain?: string | null): string | null {
   if (journal) return journal;
-  return mediaName(domain) ?? (baseDomain(domain) || null);
+  return mediaName(domain) ?? journalDomainName(domain) ?? prettyDomain(domain);
 }
 // Strip a trailing "… | OncLive" / "… - Healio" ONLY when the suffix is a known media name — safe
 // against clipping a real subtitle ("… - A Review"), which we never touch.
