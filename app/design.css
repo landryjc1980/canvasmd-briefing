@@ -1,7 +1,6 @@
 /* Animations + a couple of things inline styles can't express, for the new
    story/reader Weekly Brief designs. Scoped by class so nothing leaks. */
 
-@keyframes wbxgrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes wbxhint {
   0% { opacity: 0; transform: translateX(-50%) translateY(6px); }
   12% { opacity: 1; transform: translateX(-50%) translateY(0); }

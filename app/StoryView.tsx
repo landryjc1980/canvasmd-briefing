@@ -8,12 +8,12 @@ import StanceBlock from "./StanceBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
 import "./design.css";
 
-// "The 90-Second Brief" — the mobile Weekly Brief as a full-screen swipeable story
-// (Instagram-Stories mechanics): one drug per screen, segmented autoplay progress,
-// tap sides / swipe to navigate, chapter chips, a bottom sheet for full evidence.
+// "The 90-Second Brief" — the mobile Weekly Brief as a full-screen swipeable story deck:
+// one drug per screen, a passive segmented progress bar (wayfinding, NOT a timer — no
+// autoplay; dense clinical text is read at the reader's own pace), tap sides / swipe to
+// navigate, chapter chips, a bottom sheet for full evidence.
 // Fed by the real BriefingData. Renders on phones (page.tsx picks by viewport).
 
-const DWELL = 6000;
 const PEEK_H = 176; // collapsed story evidence peeks this tall — a real chunk of the top card(s), fading out
 const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
@@ -395,8 +395,9 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             {data.headline && <h1 style={{ font: "400 31px/1.15 'Newsreader',Georgia,serif", color: "#f4f7ff", margin: `${part.mode === "plain" ? 20 : 20}px 0 0`, letterSpacing: "-.01em" }}>{data.headline}</h1>}
             <RecapBlock text={data.recap} accent={pal.accent} size={16.5} lines={4} />
             <div style={{ marginTop: "auto" }}>
-              <div onClick={(e) => { stop(e); setPlaying(true); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><div style={{ width: 0, height: 0, borderLeft: "12px solid #fff", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", marginLeft: 3 }} /></div>
+              <div onClick={(e) => { stop(e); go(1); }} style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", borderRadius: 18, padding: "15px 20px", cursor: "pointer" }}>
+                {/* arrow, not a play triangle — the deck is read at your own pace, nothing auto-plays */}
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: pal.bg, display: "flex", alignItems: "center", justifyContent: "center", flex: "none", font: "600 19px system-ui", color: "#fff" }}>→</div>
                 <div><div style={{ font: "700 17px system-ui", color: pal.bg }}>Start the brief</div><div style={{ font: "500 12px system-ui", color: "#7a869e" }}>{stories.length} stor{stories.length === 1 ? "y" : "ies"} · {data.topKols.length} KOL{data.topKols.length === 1 ? "" : "s"}</div></div>
               </div>
               {/* credibility → quiet footer (was a 3-line gray paragraph up top) */}
@@ -470,8 +471,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                   explicit affordances (metric-line chevron + the summary row below) — the peek
                   container itself must NOT capture taps, or tap-to-advance dies on evidence-heavy
                   cards (the peek owns the bottom third of the screen). Card taps (clip/link/
-                  abstract) stopPropagation themselves; dead-space taps bubble to the nav zones.
-                  (autoplay + progress pause while expanded so you can read it — no sheet.) */}
+                  abstract) stopPropagation themselves; dead-space taps bubble to the nav zones. */}
               {hasEv && (() => {
                 const ev = storyEv(s);
                 const more: string[] = [];
