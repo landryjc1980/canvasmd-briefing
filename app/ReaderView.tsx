@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, stanceParts, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
+import StanceBlock from "./StanceBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
 
 // "The Reader" — the desktop Weekly Brief: a single centered 690px editorial column
@@ -242,22 +243,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                       {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                     </div>
                     {s.description && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{s.description}</p>}
-                    {(() => {
-                      const st = stanceParts(s.stance);
-                      if (!st) return null;
-                      return (
-                        <div style={{ marginTop: 14, padding: "12px 15px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12 }}>
-                          <div style={{ font: "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent, marginBottom: 8 }}>How the field is reacting{st.axis ? ` · on ${st.axis}` : ""}</div>
-                          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
-                            <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
-                            {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
-                            {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
-                            <span style={{ color: "rgba(255,255,255,.38)", font: "400 12px system-ui" }}>of {st.total} voiced opinions</span>
-                          </div>
-                          {st.quote && <p style={{ font: "400 15px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", fontStyle: "italic", margin: "10px 0 0" }}>&ldquo;{st.quote}&rdquo;</p>}
-                        </div>
-                      );
-                    })()}
+                    <StanceBlock stance={s.stance} accent={pal.accent} style={{ marginTop: 14 }} />
                     <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                       {isDrug && s.bar && (
                         <div style={{ width: 132, height: 4, borderRadius: 3, display: "flex", gap: 2, overflow: "hidden" }}>
@@ -394,6 +380,8 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                   </div>
                 }>
                 <div style={{ marginLeft: 50 }}>
+                  {/* the field's read at the TOP of the drug's evidence drawer (self-suppresses if thin) */}
+                  <StanceBlock stance={m.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
                   {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                   {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                   {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}

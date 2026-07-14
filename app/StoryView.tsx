@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, stanceParts, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
+import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper, BriefingStance } from "@/lib/types";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
+import StanceBlock from "./StanceBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
 import "./design.css";
 
@@ -94,12 +95,12 @@ function PaperCard({ title, journal, meta, url, abstract, posts, accent, publish
 // The evidence sheet is generic: movers, KOLs, and trials all open it with their own
 // bundle of podcasts / tweets / papers.
 type SheetEv = {
-  title: string; sub?: string;
+  title: string; sub?: string; stance?: BriefingStance | null;
   podcasts?: BriefingPod[]; posts?: BriefingSharer[];
   papers?: { title: string; journal: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[] }[];
 };
 const moverEv = (m: BriefingMover): SheetEv => ({
-  title: m.drug, sub: metricsLine(m),
+  title: m.drug, sub: metricsLine(m), stance: m.stance ?? null,
   podcasts: m.podcast, posts: m.posts,
   papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers })),
 });
@@ -458,24 +459,8 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                 <span>{storyMetricLine(s)}</span>
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
-              {/* How the field is reacting — voiced opinions only, honest split, one traceable quote.
-                  Renders only for drug stories with ≥4 opinions (stanceParts self-gates → clean cards). */}
-              {(() => {
-                const st = stanceParts(s.stance);
-                if (!st) return null;
-                return (
-                  <div style={{ marginTop: 16, padding: "13px 15px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 13 }}>
-                    <div style={{ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: pal.accent, marginBottom: 9 }}>How the field is reacting{st.axis ? ` · on ${st.axis}` : ""}</div>
-                    <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
-                      <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
-                      {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
-                      {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
-                      <span style={{ color: "rgba(255,255,255,.38)", font: "400 11.5px system-ui" }}>of {st.total} voiced opinions</span>
-                    </div>
-                    {st.quote && <p style={{ font: "400 14px/1.42 'Newsreader',Georgia,serif", color: "#c9d2e6", fontStyle: "italic", margin: "11px 0 0" }}>&ldquo;{st.quote}&rdquo;</p>}
-                  </div>
-                );
-              })()}
+              {/* How the field is reacting — shared component; self-suppresses under 4 opinions. */}
+              <StanceBlock stance={s.stance} accent={pal.accent} style={{ marginTop: 16 }} />
               {/* Evidence as ONE continuous stack. Collapsed = a peek: clipped to PEEK_H with a
                   fade to the screen bg + a "what's here" row. Expanding happens ONLY via the two
                   explicit affordances (metric-line chevron + the summary row below) — the peek
@@ -620,6 +605,8 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             </div>
             <div style={{ font: "600 20px 'Newsreader',Georgia,serif", color: "#f4f7ff", marginBottom: sheet.sub ? 4 : 16 }}>{sheet.title}</div>
             {sheet.sub && <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginBottom: 18 }}>{sheet.sub}</div>}
+            {/* stance at the TOP of the drug evidence — the field's read before the raw evidence */}
+            <StanceBlock stance={sheet.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
             {!!sheet.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcasts.map((p, j) => podCard(p, j))}</div>}
             {!!sheet.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
