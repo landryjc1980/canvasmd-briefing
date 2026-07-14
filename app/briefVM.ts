@@ -2,7 +2,7 @@
 // (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
-import { BriefingMover, BriefingData, BriefingStory, BriefingPod } from "@/lib/types";
+import { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance } from "@/lib/types";
 
 // Dark jewel-tone palette, one color per tumor area (from the design handoff).
 export type Pal = { bg: string; accent: string; soft: string };
@@ -132,7 +132,7 @@ export function moverToStory(m: BriefingMover): BriefingStory {
 
 // "How the field is reacting" — the counts line for a drug's stance. Honest split, never a
 // hollow %. Returns null when there's no stance (thin signal / non-drug), so the card stays clean.
-export function stanceParts(s: import("@/lib/types").BriefingStance | null | undefined):
+export function stanceParts(s: BriefingStance | null | undefined):
   { favorable: number; skeptical: number; mixed: number; total: number; axis: string | null; quote: string } | null {
   if (!s || s.total < 4) return null;
   return { favorable: s.favorable, skeptical: s.skeptical, mixed: s.mixed, total: s.total, axis: s.axis, quote: s.quote };
