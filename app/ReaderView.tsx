@@ -319,6 +319,9 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 }>
                 {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{a.abstract}</p>}
                 {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>What clinicians said · {a.posts.length}</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {/* link to the source — also guarantees the expand is never empty (news items carry
+                    no abstract/posts, which previously made the last row look like it didn't open). */}
+                {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: pal.accent, textDecoration: "none" }}>Open article ↗</a>}
               </Row>
             );
           })}
