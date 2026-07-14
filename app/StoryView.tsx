@@ -62,28 +62,29 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 
 // A paper card that expands INLINE to reveal the abstract AND the clinicians' tweets
 // about it (so readers don't have to leave). The ↗ still opens the source.
-function PaperCard({ title, journal, meta, url, abstract, posts, accent, publishers, news }: { title: string; journal: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent: string; publishers?: string[]; news?: boolean }) {
+function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent: string }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
   const canExpand = hasAbs || hasPosts;
   const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
+  // Source line: journal if we have one, else the news outlet's clean name; a small "News" badge
+  // marks a non-journal outlet. No "via <publisher>" — the source name already answers "from where".
+  const src = articleSource(journal, domain);
+  const isNews = isNewsDomain(domain) && !journal;
   return (
     <div onClick={(e) => e.stopPropagation()} style={cardBox}>
       {/* whole header taps to expand (was a dead zone — abstract hid behind a tiny link) */}
       <div onClick={(e) => { if (canExpand) { e.stopPropagation(); setOpen((o) => !o); } }} style={{ cursor: canExpand ? "pointer" : "default", display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>
-          {(journal || meta || news) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
-            {news && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".1em", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.09)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 5, padding: "2px 6px" }}>NEWS</span>}
-            <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[journal, meta].filter(Boolean).join(" · ")}</span>
+          {(src || meta) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
+            <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[src, meta].filter(Boolean).join(" · ")}</span>
+            {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
           </div>}
         </div>
         {canExpand && <span style={{ font: "700 13px system-ui", color: accent, flex: "none", transform: open ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>}
       </div>
-      {/* "via <publisher>" names the org account that shared a JOURNAL paper; redundant for news
-          (the outlet is already the source), so suppress it there. */}
-      {!news && !!publishers?.length && <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 20, padding: "3px 10px" }}><span style={{ font: "600 10px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>via</span><span style={{ font: "600 11px system-ui", color: "#c8cad2" }}>{publishers.join(" · ")}</span></div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
@@ -102,12 +103,12 @@ function PaperCard({ title, journal, meta, url, abstract, posts, accent, publish
 type SheetEv = {
   title: string; sub?: string; stance?: BriefingStance | null;
   podcasts?: BriefingPod[]; posts?: BriefingSharer[];
-  papers?: { title: string; journal: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[] }[];
+  papers?: { title: string; journal: string | null; domain?: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[] }[];
 };
 const moverEv = (m: BriefingMover): SheetEv => ({
   title: m.drug, sub: metricsLine(m), stance: m.stance ?? null,
   podcasts: m.podcast, posts: m.posts,
-  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers })),
+  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers })),
 });
 // The evidence sheet for ANY story atom (drug | paper | topic) — same generic bundle.
 const storyEv = (s: BriefingStory): SheetEv => ({
@@ -115,7 +116,7 @@ const storyEv = (s: BriefingStory): SheetEv => ({
   podcasts: s.podcast, posts: s.posts,
   papers: s.papers.map((p) => {
     const shared = p.sharers.length || p.posts?.length || 0;
-    return { title: p.title, journal: p.journal, url: p.url, abstract: p.abstract, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers };
+    return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers };
   }),
 });
 
@@ -494,7 +495,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                     <div style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden" }}>
                       {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
                       {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
                       {!expanded && <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 58, background: `linear-gradient(to bottom, ${pal.bg}00, ${pal.bg})`, pointerEvents: "none" }} />}
                     </div>
                     <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, padding: "12px 18px", borderRadius: 12, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", cursor: "pointer", font: "700 13px system-ui", color: expanded ? "#fff" : pal.accent }}>

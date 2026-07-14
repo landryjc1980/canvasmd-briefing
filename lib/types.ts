@@ -472,6 +472,7 @@ export type BriefingPaper = {
   title: string;
   url: string;
   journal: string | null;
+  domain: string | null; // article host — lets us show a clean news-outlet source + "News" badge when there's no journal
   abstract: string | null; // PubMed abstract (structured sections joined), for the expandable read
   sharers: BriefingSharer[];
   topLikes: number;
