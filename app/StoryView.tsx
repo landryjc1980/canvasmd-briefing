@@ -146,7 +146,8 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   if (data.movers.length) screens.push({ kind: "drugs", chapter: "Drugs" });
 
   const [idx, setIdx] = useState(0);
-  const [playing, setPlaying] = useState(false); // autoplay is OFF until "Start the brief" / play
+  // NO autoplay: this is dense clinical text, not photos — readers set their own pace. The deck
+  // is manual (tap sides / swipe / chips); the segmented bar is passive wayfinding only.
   const [hint, setHint] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false); // header area-switcher dropdown
   const [shareMsg, setShareMsg] = useState(""); // transient "Link copied" toast after a share
@@ -191,7 +192,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   const stopClip = () => { const el = audioRef.current; if (el) { el.pause(); el.removeAttribute("src"); el.load(); } setClipId(null); setClipOn(false); setClipCur(0); setClipDur(0); };
 
   // reset when the area (data) changes
-  useEffect(() => { setIdx(0); setSheet(null); setPlaying(false); }, [area]);
+  useEffect(() => { setIdx(0); setSheet(null); }, [area]);
   useEffect(() => { setSheetDrag(0); }, [sheet]);
   useEffect(() => { setExpanded(false); }, [idx]); // collapse inline evidence when the screen changes
   useEffect(() => { const t = setTimeout(() => setHint(false), 3500); return () => clearTimeout(t); }, []);
@@ -199,21 +200,12 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   const go = (dir: number) => { setSheet(null); setIdx((i) => Math.max(0, Math.min(screens.length - 1, i + dir))); };
   const jump = (i: number) => { setSheet(null); setIdx(i); };
 
-  // autoplay — paused while the sheet is open, a clip is playing, OR the story's evidence is
-  // expanded inline (so the 6s timer never yanks you off a card you're reading)
-  useEffect(() => {
-    if (!playing || sheet || clipOn || expanded) return;
-    if (idx >= screens.length - 1) { setPlaying(false); return; }
-    const t = setTimeout(() => setIdx((i) => i + 1), DWELL);
-    return () => clearTimeout(t);
-  }, [idx, playing, sheet, clipOn, expanded, screens.length]);
-
   // keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") go(1);
       else if (e.key === "ArrowLeft") go(-1);
-      else if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
+      else if (e.key === " ") { e.preventDefault(); go(1); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -356,10 +348,9 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
         <div style={{ display: "flex", gap: 4 }}>
           {screens.map((s, i) => (
             <div key={i} onClick={() => jump(i)} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,.28)", overflow: "hidden", cursor: "pointer" }}>
+              {/* passive wayfinding: read + past segments filled, current shown as a partial tick */}
               <div style={{ height: "100%", background: "#fff", borderRadius: 2, transformOrigin: "left",
-                transform: i < idx ? "scaleX(1)" : i > idx ? "scaleX(0)" : undefined,
-                animation: i === idx && playing && !sheet && !clipOn && !expanded ? `wbxgrow ${DWELL}ms linear forwards` : undefined,
-                ...(i === idx && (!playing || sheet || clipOn || expanded) ? { transform: "scaleX(.35)" } : {}) }} />
+                transform: i < idx ? "scaleX(1)" : i > idx ? "scaleX(0)" : "scaleX(.35)" }} />
             </div>
           ))}
         </div>
@@ -370,10 +361,6 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
               const on = cur.chapter === c;
               return <div key={c} onClick={() => jump(target)} style={{ flex: "none", font: "600 11px system-ui", padding: "5px 11px", borderRadius: 20, whiteSpace: "nowrap", cursor: "pointer", color: on ? pal.bg : "#fff", background: on ? "#fff" : "rgba(255,255,255,.14)" }}>{c}</div>;
             })}
-          </div>
-          <div onClick={() => setPlaying((p) => !p)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-            {playing ? <span style={{ display: "flex", gap: 3 }}><span style={{ width: 3, height: 11, background: "#fff", borderRadius: 1 }} /><span style={{ width: 3, height: 11, background: "#fff", borderRadius: 1 }} /></span>
-              : <span style={{ width: 0, height: 0, borderLeft: "9px solid #fff", borderTop: "6px solid transparent", borderBottom: "6px solid transparent", marginLeft: 2 }} />}
           </div>
           <div onClick={() => jump(0)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", font: "600 15px system-ui", color: "#fff", flex: "none" }}>↺</div>
           <div onClick={(e) => { stop(e); doShare(); }} title="Share with a colleague" style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
