@@ -762,7 +762,7 @@ export type BriefingTopic = {
 // card (headline → description → metric line → one lead evidence → see all); only the metric
 // line + lead evidence adapt by `kind`.
 export type BriefingStory = {
-  kind: "drug" | "paper" | "topic";
+  kind: "drug" | "paper" | "topic" | "trial";
   id: string; // drugId | paper:<key> | topic:<key>
   headline: string;
   subtitle: string | null; // drug: "brand · company"; paper: journal/domain; topic: "N papers · M doctors"

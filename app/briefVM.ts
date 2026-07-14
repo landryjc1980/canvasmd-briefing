@@ -110,13 +110,22 @@ export function storyMetricLine(s: BriefingStory): string {
     const base = `${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} shared`;
     return s.topLikes ? `${base} · ♥ ${s.topLikes}` : base;
   }
-  // topic — "clinicians" (engaged = sharers ∪ commenters), not "doctors" which read as "only N people"
+  if (s.kind === "trial") {
+    // The corroboration behind the trial event: podcasts that discussed it + X + papers.
+    const parts: string[] = [];
+    const conv = podConvLabel(podEpisodeCount(s), s.podcast?.length ?? s.podConvs);
+    if (conv) parts.push(conv);
+    if (s.xSharers) parts.push(`${s.xSharers} on X`);
+    if (s.articleCount) parts.push(`${s.articleCount} paper${s.articleCount === 1 ? "" : "s"}`);
+    return parts.join(" · ") || "discussed this week";
+  }
+  // topic (legacy snapshots only) — "clinicians" (engaged = sharers ∪ commenters)
   return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} engaged`;
 }
 
 // Small uppercase kicker naming the atom kind on the story card.
 export const storyKicker = (s: BriefingStory): string =>
-  s.kind === "drug" ? "Trending drug" : s.kind === "paper" ? "Most-shared paper" : "In focus";
+  s.kind === "drug" ? "Trending drug" : s.kind === "paper" ? "Most-shared paper" : s.kind === "trial" ? "Trial in discussion" : "In focus";
 
 // Map a drug mover onto the story shape — the fallback so the hero always renders even when
 // an old snapshot (or the native/pharma callers) hasn't got topStories yet.
