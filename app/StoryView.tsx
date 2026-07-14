@@ -377,6 +377,9 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             <div style={{ font: "600 11px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
             <div style={{ font: "500 13px system-ui", color: "rgba(255,255,255,.5)", marginTop: 6 }}>Updated {ago(data.generatedAt)}</div>
+            {/* the credibility promise — stated ONCE here (not per-card): the signal below comes from
+                identified oncology clinicians + expert physician-led podcasts, not bots/anon accounts. */}
+            <div style={{ font: "400 12px/1.45 system-ui", color: "rgba(255,255,255,.4)", marginTop: 10 }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
             {part.mode === "split" && (
               <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 12, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 20, padding: "6px 13px", font: "600 12.5px system-ui", color: "#fff" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: pal.accent }} />
@@ -455,6 +458,24 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                 <span>{storyMetricLine(s)}</span>
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
+              {/* How the field is reacting — voiced opinions only, honest split, one traceable quote.
+                  Renders only for drug stories with ≥4 opinions (stanceParts self-gates → clean cards). */}
+              {(() => {
+                const st = stanceParts(s.stance);
+                if (!st) return null;
+                return (
+                  <div style={{ marginTop: 16, padding: "13px 15px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 13 }}>
+                    <div style={{ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: pal.accent, marginBottom: 9 }}>How the field is reacting{st.axis ? ` · on ${st.axis}` : ""}</div>
+                    <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
+                      <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
+                      {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
+                      {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
+                      <span style={{ color: "rgba(255,255,255,.38)", font: "400 11.5px system-ui" }}>of {st.total} voiced opinions</span>
+                    </div>
+                    {st.quote && <p style={{ font: "400 14px/1.42 'Newsreader',Georgia,serif", color: "#c9d2e6", fontStyle: "italic", margin: "11px 0 0" }}>&ldquo;{st.quote}&rdquo;</p>}
+                  </div>
+                );
+              })()}
               {/* Evidence as ONE continuous stack. Collapsed = a peek: clipped to PEEK_H with a
                   fade to the screen bg + a "what's here" row. Expanding happens ONLY via the two
                   explicit affordances (metric-line chevron + the summary row below) — the peek

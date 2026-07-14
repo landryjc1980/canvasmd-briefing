@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, stanceParts, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import { shareBrief, logStorySeen } from "./gateClient";
 
@@ -176,6 +176,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
             <div style={{ font: "700 22px system-ui", color: "#fff", letterSpacing: "-.01em" }}>Readout<span style={{ color: pal.accent, fontWeight: 600 }}>MD</span></div>
           </div>
           <div style={{ font: "500 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", marginTop: 12 }}>The Weekly Brief · Updated {ago(data.generatedAt)}</div>
+          <div style={{ font: "400 12px/1.45 system-ui", color: "rgba(255,255,255,.4)", marginTop: 10, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
         </div>
         {/* area links */}
         <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 26px", marginTop: 20, paddingBottom: 26, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
@@ -241,6 +242,22 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                       {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                     </div>
                     {s.description && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{s.description}</p>}
+                    {(() => {
+                      const st = stanceParts(s.stance);
+                      if (!st) return null;
+                      return (
+                        <div style={{ marginTop: 14, padding: "12px 15px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12 }}>
+                          <div style={{ font: "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent, marginBottom: 8 }}>How the field is reacting{st.axis ? ` · on ${st.axis}` : ""}</div>
+                          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
+                            <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
+                            {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
+                            {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
+                            <span style={{ color: "rgba(255,255,255,.38)", font: "400 12px system-ui" }}>of {st.total} voiced opinions</span>
+                          </div>
+                          {st.quote && <p style={{ font: "400 15px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", fontStyle: "italic", margin: "10px 0 0" }}>&ldquo;{st.quote}&rdquo;</p>}
+                        </div>
+                      );
+                    })()}
                     <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                       {isDrug && s.bar && (
                         <div style={{ width: 132, height: 4, borderRadius: 3, display: "flex", gap: 2, overflow: "hidden" }}>
