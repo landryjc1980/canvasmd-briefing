@@ -179,9 +179,9 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
               <rect width="25" height="25" rx="7.5" fill={pal.accent} />
               <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <div style={{ display: "inline-flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ font: "500 24px 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
-              <span style={{ font: "600 10px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>by CanvasMD</span>
+            <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
+              <span style={{ font: "500 30px 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+              <span style={{ font: "600 9.5px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", marginTop: 6 }}>by CanvasMD</span>
             </div>
           </div>
           <div style={{ font: "500 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", marginTop: 12 }}>The Weekly Brief · Updated {ago(data.generatedAt)}</div>

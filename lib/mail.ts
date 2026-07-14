@@ -18,7 +18,7 @@ function magicHtml(opts: { name: string | null; link: string; unsubUrl: string; 
     <tr><td align="center">
       <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%">
         <tr><td style="padding:0 28px">
-          <div style="letter-spacing:-.01em"><span style="font-family:Georgia,serif;font-weight:bold;font-size:22px;color:#fff">The Readout</span> <span style="font-size:9px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#9aa6c0">by CanvasMD</span></div>
+          <div style="letter-spacing:-.01em;line-height:1.05"><div style="font-family:Georgia,serif;font-weight:bold;font-size:24px;color:#fff">The Readout</div><div style="font-size:9px;font-weight:bold;letter-spacing:.16em;text-transform:uppercase;color:#9aa6c0;margin-top:5px">by CanvasMD</div></div>
           <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6f7684;margin-top:6px">The Weekly Brief</div>
           <div style="height:1px;background:rgba(255,255,255,.12);margin:22px 0"></div>
           <p style="font-size:15px;line-height:1.55;color:#cfd6e6;margin:0 0 14px">${hi}</p>
