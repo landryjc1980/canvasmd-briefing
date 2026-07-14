@@ -36,7 +36,10 @@ export default function Welcome() {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#0e1524", color: "#e9edf6", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ fontWeight: 700, fontSize: 22, color: "#fff", letterSpacing: "-.01em" }}>Readout<span style={{ color: "#7aa2ff", fontWeight: 600 }}>MD</span></div>
+        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 9 }}>
+          <span style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 500, fontSize: 24, color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+          <span style={{ fontWeight: 600, fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>by CanvasMD</span>
+        </div>
         <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: "#6f7684", marginTop: 8 }}>The Weekly Brief</div>
 
         {state === "sent" ? (
