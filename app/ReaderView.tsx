@@ -172,14 +172,17 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         </button>
       </div>
       <div style={{ maxWidth: 690, margin: "0 auto", padding: "52px 30px 120px" }}>
-        {/* masthead — ReadoutMD wordmark (matches the mobile header) */}
+        {/* masthead — "The Readout · by CanvasMD" one-line lockup (matches the mobile header) */}
         <div style={{ textAlign: "center", paddingBottom: 15, borderBottom: "1px solid rgba(255,255,255,.14)" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 11 }}>
             <svg width="30" height="30" viewBox="0 0 25 25" style={{ flex: "none" }}>
               <rect width="25" height="25" rx="7.5" fill={pal.accent} />
               <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <div style={{ font: "700 22px system-ui", color: "#fff", letterSpacing: "-.01em" }}>Readout<span style={{ color: pal.accent, fontWeight: 600 }}>MD</span></div>
+            <div style={{ display: "inline-flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ font: "500 24px 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+              <span style={{ font: "600 10px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>by CanvasMD</span>
+            </div>
           </div>
           <div style={{ font: "500 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", marginTop: 12 }}>The Weekly Brief · Updated {ago(data.generatedAt)}</div>
           <div style={{ font: "400 12px/1.45 system-ui", color: "rgba(255,255,255,.4)", marginTop: 10, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>

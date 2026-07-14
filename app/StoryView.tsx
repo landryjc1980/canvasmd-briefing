@@ -324,7 +324,10 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
               <rect width="25" height="25" rx="7.5" fill={pal.accent} />
               <path d="M4.5 12.5 h3.2 l2 -5 l3 10 l2 -5 h5.3" stroke={pal.bg} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <div style={{ font: "700 15.5px system-ui", color: "#fff", letterSpacing: "-.01em" }}>Readout<span style={{ color: pal.accent, fontWeight: 600 }}>MD</span></div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+              <span style={{ font: "600 8.5px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "rgba(255,255,255,.5)" }}>by CanvasMD</span>
+            </div>
           </div>
           <div style={{ position: "relative" }}>
             <div onClick={(e) => { stop(e); setMenuOpen((o) => !o); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 2px", cursor: "pointer" }}>
