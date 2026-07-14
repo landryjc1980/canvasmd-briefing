@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const ok = await doUnsub(req.nextUrl.searchParams.get("c"));
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;background:#0e1524;color:#e9edf6;font-family:-apple-system,Segoe UI,Roboto,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:24px">
-  <div><div style="font-weight:700;font-size:18px;color:#fff">Readout<span style="color:#7aa2ff">MD</span></div>
+  <div><div><span style="font-family:Georgia,serif;font-weight:bold;font-size:20px;color:#fff">The Readout</span> <span style="font-size:9px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#9aa6c0">by CanvasMD</span></div>
   <p style="color:#cfd6e6;font-size:15px;margin-top:18px">${ok ? "You've been unsubscribed from the Weekly Brief. You won't receive further emails." : "This unsubscribe link is invalid or has expired."}</p></div></body>`;
   return new NextResponse(html, { headers: { "content-type": "text/html; charset=utf-8" } });
 }
