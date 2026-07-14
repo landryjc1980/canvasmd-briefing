@@ -499,7 +499,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                       {!expanded && <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 58, background: `linear-gradient(to bottom, ${pal.bg}00, ${pal.bg})`, pointerEvents: "none" }} />}
                     </div>
                     <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, padding: "12px 18px", borderRadius: 12, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", cursor: "pointer", font: "700 13px system-ui", color: expanded ? "#fff" : pal.accent }}>
-                      <span>{expanded ? "Hide evidence" : (more.join(" · ") || "See all evidence")}</span>
+                      <span>{expanded ? "Hide" : (more.join(" · ") || "The signal")}</span>
                       <svg width="13" height="13" viewBox="0 0 14 14" style={{ flex: "none", transform: expanded ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>
                         <path d="M2.5 5 L7 9.5 L11.5 5" stroke={expanded ? "#fff" : pal.accent} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>

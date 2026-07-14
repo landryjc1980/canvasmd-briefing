@@ -133,7 +133,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
   // divider, then the ones they've already read (editorial order inside each half).
   const part = partitionStories(storiesOf(data), seen);
   const stories = part.ordered;
-  const tog = (id: string) => (openId === id ? "Hide ↑" : "Evidence ↓");
+  const tog = (id: string) => (openId === id ? "Hide ↑" : "The signal ↓");
 
   // Story impression — a story counts as SEEN when its card actually scrolls into view (≥45%
   // visible). Logged once per story per page load (logStorySeen dedupes); feeds
