@@ -140,7 +140,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   // Regulatory log sits AFTER the stories — it's reference (approvals/trial updates up to 30d),
   // not the freshest headline, so it must not be the first thing a user swipes into.
   if (data.events.length) screens.push({ kind: "events", chapter: "Updates" });
-  if (data.topKols.length) screens.push({ kind: "kols", chapter: "KOLs" });
+  if (data.topKols.length || data.guests?.length) screens.push({ kind: "kols", chapter: "KOLs" });
   if (data.topArticles.length) screens.push({ kind: "papers", chapter: "Papers" });
   if (data.trials.length) screens.push({ kind: "trials", chapter: "Trials" });
   if (data.movers.length) screens.push({ kind: "drugs", chapter: "Drugs" });
@@ -531,6 +531,27 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
         {cur.kind === "kols" && (
           <>
+            {!!data.guests?.length && <div style={{ marginBottom: 24 }}>
+              {sectionHead("This week's guests")}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {data.guests.slice(0, 10).map((g, i) => (
+                  <div key={"g" + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>{g.name}{g.verified && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "1.5px 4px", textTransform: "uppercase" }}>✓</span>}</div>
+                      {g.affiliation && <div style={{ font: "400 11px system-ui", color: "rgba(255,255,255,.42)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.affiliation}</div>}
+                      <div style={{ marginTop: 4, display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
+                        {g.episodes[0]?.audioUrl && <a href={g.episodes[0].audioUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => stop(e)} style={{ font: "600 11px system-ui", color: pal.accent, textDecoration: "none", flex: "none" }}>▸ Listen</a>}
+                        {g.shows[0] && <span style={{ font: "400 11px system-ui", color: "rgba(255,255,255,.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.shows[0]}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flex: "none", textAlign: "center" }}>
+                      <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Wk</div></div>
+                      <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Career</div></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>}
             {sectionHead("Most active on X")}
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {data.topKols.slice(0, 10).map((k, i) => {

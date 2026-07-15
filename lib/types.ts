@@ -785,6 +785,18 @@ export type BriefingStory = {
   fp?: string; // evidence fingerprint (identities only) — powers "Since your last read" NEW/UPDATED
 };
 
+// "This week's guests" — clinicians the field invited onto podcasts. Box score: recent form
+// (thisWeek) beside lifetime career appearances in this area, deduped across syndicated feeds.
+export type BriefingGuest = {
+  name: string;
+  affiliation: string | null;
+  verified: boolean; // identified US clinician (has NPI)
+  thisWeek: number;
+  career: number;
+  shows: string[];
+  episodes: { title: string; audioUrl: string | null }[]; // this-window appearances, tap to listen
+};
+
 export type BriefingData = {
   area: string;
   areas: string[]; // switcher options
@@ -797,6 +809,7 @@ export type BriefingData = {
   topKols: BriefingKol[]; // "Most active on X" section
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
+  guests?: BriefingGuest[]; // ADDITIVE — "This week's guests" box score (optional: old snapshots omit it)
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
   proseFp?: string; // ADDITIVE — area-level evidence fingerprint (prose stability)

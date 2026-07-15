@@ -284,6 +284,27 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         })}
         <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
 
+        {/* This week's guests — box score (recent form + lifetime career) */}
+        {!!data.guests?.length && <>
+          <SectionHead>This week&rsquo;s guests</SectionHead>
+          {data.guests.map((g, i) => (
+            <div key={"g:" + i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "15px 2px", borderTop: "1px solid rgba(255,255,255,.09)" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>{g.name}{g.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase" }}>Verified</span>}</div>
+                {g.affiliation && <div style={{ font: "400 12.5px system-ui", color: "#7c7f88", marginTop: 3 }}>{g.affiliation}</div>}
+                <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  {g.episodes[0]?.audioUrl && <a href={g.episodes[0].audioUrl} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent, textDecoration: "none" }}>▸ Listen</a>}
+                  {g.shows.length > 0 && <span style={{ font: "400 12px system-ui", color: "#5e6d90" }}>{g.shows.join(" · ")}</span>}
+                </div>
+              </div>
+              <div style={{ flex: "none", display: "flex", gap: 8, textAlign: "center" }}>
+                <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 11, padding: "8px 11px", minWidth: 56 }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#5e6d90", marginTop: 5 }}>This wk</div></div>
+                <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 11, padding: "8px 11px", minWidth: 56 }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#5e6d90", marginTop: 5 }}>Career</div></div>
+              </div>
+            </div>
+          ))}
+        </>}
+
         {/* KOLs */}
         {data.topKols.length > 0 && <>
           <SectionHead>Most active on X</SectionHead>
