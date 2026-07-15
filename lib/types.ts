@@ -797,6 +797,10 @@ export type BriefingGuest = {
   episodes: { title: string; audioUrl: string | null; show: string | null; showArt: string | null; description: string | null }[]; // this-window appearances, tap to listen
 };
 
+// "Also worth hearing" — this-week area episodes the drug movers don't already surface
+// (untracked-topic blind spot). Same card shape as a guest's episode.
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string };
+
 export type BriefingData = {
   area: string;
   areas: string[]; // switcher options
@@ -810,6 +814,7 @@ export type BriefingData = {
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
   guests?: BriefingGuest[]; // ADDITIVE — "This week's guests" box score (optional: old snapshots omit it)
+  episodes?: BriefingEpisode[]; // ADDITIVE — "Also worth hearing" episode rail (optional: old snapshots omit it)
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
   proseFp?: string; // ADDITIVE — area-level evidence fingerprint (prose stability)

@@ -17,7 +17,7 @@ import "./design.css";
 const PEEK_H = 176; // collapsed story evidence peeks this tall — a real chunk of the top card(s), fading out
 const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
-type Screen = { kind: "intro" | "events" | "story" | "caughtup" | "kols" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
+type Screen = { kind: "intro" | "events" | "story" | "caughtup" | "kols" | "episodes" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
 
 function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 10px", borderRadius: 20 }}>— flat</span>;
@@ -141,6 +141,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   // not the freshest headline, so it must not be the first thing a user swipes into.
   if (data.events.length) screens.push({ kind: "events", chapter: "Updates" });
   if (data.topKols.length || data.guests?.length) screens.push({ kind: "kols", chapter: "KOLs" });
+  if (data.episodes?.length) screens.push({ kind: "episodes", chapter: "Episodes" });
   if (data.topArticles.length) screens.push({ kind: "papers", chapter: "Papers" });
   if (data.trials.length) screens.push({ kind: "trials", chapter: "Trials" });
   if (data.movers.length) screens.push({ kind: "drugs", chapter: "Drugs" });
@@ -271,7 +272,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
     if (cur?.kind === "story") { const s = stories[cur.si!]; if (s) logStorySeen(area, s.id, s.fp); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, area]);
-  const chapters = ["Top Stories", "KOLs", "Papers", "Trials", "Drugs", "Updates"].filter((c) => screens.some((s) => s.chapter === c));
+  const chapters = ["Top Stories", "KOLs", "Episodes", "Papers", "Trials", "Drugs", "Updates"].filter((c) => screens.some((s) => s.chapter === c));
 
   // ---- card renderers (closures: use the shared player + stop) ----
   const clipBtn = (url: string, startMs: number | null, id: string, label: string) => {
@@ -586,6 +587,24 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                   </div>
                 );
               })}
+            </div>
+          </>
+        )}
+
+        {cur.kind === "episodes" && (
+          <>
+            {sectionHead("Also worth hearing")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(data.episodes ?? []).filter((e) => e.audioUrl).map((ep, i) => (
+                <div key={i} onClick={stop} style={cardBox}>
+                  <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
+                  </div>
+                  {ep.description && <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+                  <div style={{ marginTop: ep.description ? 0 : 12 }}>{clipBtn(ep.audioUrl!, 0, ep.audioUrl!, ep.title)}</div>
+                </div>
+              ))}
             </div>
           </>
         )}

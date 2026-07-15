@@ -144,13 +144,14 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-kols", label: "KOLs", on: !!(data.guests?.length || data.topKols.length) },
+    { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.length },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
   useEffect(() => {
-    const ids = ["sec-top", "sec-kols", "sec-papers", "sec-trials", "sec-drugs"];
+    const ids = ["sec-top", "sec-kols", "sec-episodes", "sec-papers", "sec-trials", "sec-drugs"];
     let raf = 0;
     const check = () => {
       let cur = "";
@@ -372,6 +373,25 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
               </Row>
             );
           })}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
+        </>}
+
+        {/* Also worth hearing — area episodes the drug movers don't cover (untracked-topic blind
+            spot). Flat list of episode cards, same shape as a guest's episode. */}
+        {!!data.episodes?.length && <>
+          <SectionHead id="sec-episodes">Also worth hearing</SectionHead>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+            {data.episodes.filter((e) => e.audioUrl).map((ep, i) => (
+              <div key={i} style={cardBox}>
+                <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
+                </div>
+                {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+                <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
+              </div>
+            ))}
+          </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
