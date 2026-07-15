@@ -139,6 +139,30 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
   const stats = heroStats(data);
+  // sticky section nav — jump-links + scroll-spy (desktop scroll is one long column; mobile
+  // has the pill deck, so this brings parity). Sections match the mobile chapters.
+  const sections = [
+    { id: "sec-top", label: "Top Stories", on: true },
+    { id: "sec-kols", label: "KOLs", on: !!(data.guests?.length || data.topKols.length) },
+    { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
+    { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
+    { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
+  ].filter((s) => s.on);
+  const [activeSec, setActiveSec] = useState<string>("sec-top");
+  useEffect(() => {
+    const ids = ["sec-top", "sec-kols", "sec-papers", "sec-trials", "sec-drugs"];
+    let raf = 0;
+    const check = () => {
+      let cur = "";
+      for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 90) cur = id; }
+      setActiveSec(cur || ids.find((id) => document.getElementById(id)) || "sec-top");
+    };
+    check();
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [area]);
+  const goSec = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
   // divider, then the ones they've already read (editorial order inside each half).
   const part = partitionStories(storiesOf(data), seen);
@@ -200,6 +224,15 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
             return <span key={a} onClick={() => onArea(a)} style={{ cursor: "pointer", font: "600 13px system-ui", letterSpacing: ".02em", paddingBottom: 4, color: on ? "#f4f7ff" : "#71747f", borderBottom: `2px solid ${on ? pal.accent : "transparent"}` }}>{a}</span>;
           })}
         </div>
+        {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
+            reader can skip ahead/back without a long scroll (desktop parity with the mobile deck) */}
+        <div style={{ position: "sticky", top: 0, zIndex: 15, margin: "0 -30px", padding: "11px 30px", background: pal.bg, borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
+          {sections.map((s) => {
+            const on = activeSec === s.id;
+            return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", transition: "background .15s, color .15s" }}>{s.label}</button>;
+          })}
+        </div>
+
         {/* hero */}
         <div style={{ textAlign: "center", marginTop: 40 }}>
           <div style={{ font: "600 11px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
@@ -217,7 +250,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         {/* Top Stories — the atom-agnostic hero (drug | paper | topic). ONE story card,
             same shell; only the metric line (drug = score + bar; paper/topic = text) and the
             lead evidence adapt by kind. */}
-        <SectionHead>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+        <SectionHead id="sec-top">{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
         {part.mode === "caughtup" && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "0 0 22px", font: "500 13px system-ui", color: "#8b93a4" }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
@@ -286,7 +319,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
 
         {/* This week's guests — box score (recent form + lifetime career) */}
         {!!data.guests?.length && <>
-          <SectionHead>This week&rsquo;s guests</SectionHead>
+          <SectionHead id="sec-kols">This week&rsquo;s guests</SectionHead>
           {data.guests.map((g, i) => {
             const eps = g.episodes.filter((e) => e.audioUrl);
             return (
@@ -320,7 +353,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
 
         {/* KOLs */}
         {data.topKols.length > 0 && <>
-          <SectionHead>Most active on X</SectionHead>
+          <SectionHead id={data.guests?.length ? undefined : "sec-kols"}>Most active on X</SectionHead>
           {data.topKols.map((k, i) => {
             const id = "k:" + i;
             return (
@@ -344,7 +377,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
 
         {/* papers */}
         {data.topArticles.length > 0 && <>
-          <SectionHead>What&rsquo;s being read</SectionHead>
+          <SectionHead id="sec-papers">What&rsquo;s being read</SectionHead>
           {data.topArticles.map((a, i) => {
             const id = "p:" + i;
             return (
@@ -374,7 +407,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
 
         {/* trials */}
         {data.trials.length > 0 && <>
-          <SectionHead>Trials being discussed</SectionHead>
+          <SectionHead id="sec-trials">Trials being discussed</SectionHead>
           {data.trials.map((t, i) => {
             const id = "t:" + i;
             const parts: string[] = [];
@@ -403,7 +436,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         {/* Drugs — the full ranked drug board, relocated so the drug overview isn't lost
             (unchanged rendering, sibling to Trials). */}
         {data.movers.length > 0 && <>
-          <SectionHead>Drugs</SectionHead>
+          <SectionHead id="sec-drugs">Drugs</SectionHead>
           {data.movers.map((m, i) => {
             const id = "m:" + m.drugId;
             return (
@@ -447,6 +480,6 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
   );
 }
 
-function SectionHead({ children }: { children: React.ReactNode }) {
-  return <div style={{ font: "600 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", textAlign: "center", margin: "48px 0 8px" }}>{children}</div>;
+function SectionHead({ children, id }: { children: React.ReactNode; id?: string }) {
+  return <div id={id} style={{ font: "600 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", textAlign: "center", margin: "48px 0 8px", scrollMarginTop: 66 }}>{children}</div>;
 }
