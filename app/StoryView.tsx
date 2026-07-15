@@ -183,6 +183,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   // clip keeps playing when you close the sheet or move between screens.
   const audioRef = useRef<HTMLAudioElement>(null);
   const [clipId, setClipId] = useState<string | null>(null);
+  const [guestOpen, setGuestOpen] = useState<number | null>(null); // which guest card is expanded (People screen)
   const [clipLabel, setClipLabel] = useState<string>("");
   const [clipOn, setClipOn] = useState(false);
   const [clipCur, setClipCur] = useState(0);
@@ -208,7 +209,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   // reset when the area (data) changes
   useEffect(() => { setIdx(0); setSheet(null); }, [area]);
   useEffect(() => { setSheetDrag(0); }, [sheet]);
-  useEffect(() => { setExpanded(false); }, [idx]); // collapse inline evidence when the screen changes
+  useEffect(() => { setExpanded(false); setGuestOpen(null); }, [idx]); // collapse inline evidence + guest cards when the screen changes
   useEffect(() => { const t = setTimeout(() => setHint(false), 3500); return () => clearTimeout(t); }, []);
 
   const go = (dir: number) => { setSheet(null); setIdx((i) => Math.max(0, Math.min(screens.length - 1, i + dir))); };
@@ -534,22 +535,33 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             {!!data.guests?.length && <div style={{ marginBottom: 24 }}>
               {sectionHead("This week's guests")}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {data.guests.slice(0, 10).map((g, i) => (
-                  <div key={"g" + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>{g.name}{g.verified && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "1.5px 4px", textTransform: "uppercase" }}>✓</span>}</div>
-                      {g.affiliation && <div style={{ font: "400 11px system-ui", color: "rgba(255,255,255,.42)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.affiliation}</div>}
-                      <div style={{ marginTop: 4, display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
-                        {g.episodes[0]?.audioUrl && <a href={g.episodes[0].audioUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => stop(e)} style={{ font: "600 11px system-ui", color: pal.accent, textDecoration: "none", flex: "none" }}>▸ Listen</a>}
-                        {g.shows[0] && <span style={{ font: "400 11px system-ui", color: "rgba(255,255,255,.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.shows[0]}</span>}
+                {data.guests.slice(0, 10).map((g, i) => {
+                  const eps = g.episodes.filter((e) => e.audioUrl);
+                  const gopen = guestOpen === i;
+                  return (
+                  <div key={"g" + i} style={{ padding: "11px 0" }}>
+                    <div onClick={(e) => { if (eps.length) { stop(e); setGuestOpen(gopen ? null : i); } }} style={{ display: "flex", alignItems: "center", gap: 12, cursor: eps.length ? "pointer" : "default" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>{g.name}{g.verified && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "1.5px 4px", textTransform: "uppercase" }}>✓</span>}</div>
+                        {g.affiliation && <div style={{ font: "400 11px system-ui", color: "rgba(255,255,255,.42)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.affiliation}</div>}
+                        {eps.length > 0 && <div style={{ font: "600 11px system-ui", color: pal.accent, marginTop: 4 }}>{gopen ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flex: "none", textAlign: "center" }}>
+                        <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Wk</div></div>
+                        <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Career</div></div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 6, flex: "none", textAlign: "center" }}>
-                      <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Wk</div></div>
-                      <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Career</div></div>
-                    </div>
+                    {/* expand to the episodes — each in the in-app player (not the raw RSS url) */}
+                    {gopen && eps.length > 0 && <div onClick={stop} style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {eps.map((ep, j) => (
+                        <div key={j}>
+                          <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.55)", marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div>
+                          {clipBtn(ep.audioUrl!, 0, ep.audioUrl!, ep.title)}
+                        </div>
+                      ))}
+                    </div>}
                   </div>
-                ))}
+                );})}
               </div>
             </div>}
             {sectionHead("Most active on X")}
