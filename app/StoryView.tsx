@@ -561,7 +561,8 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
                           </div>
-                          <div style={{ marginTop: 12 }}>{clipBtn(ep.audioUrl!, 0, ep.audioUrl!, ep.title)}</div>
+                          {ep.description && <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+                          <div style={{ marginTop: ep.description ? 0 : 12 }}>{clipBtn(ep.audioUrl!, 0, ep.audioUrl!, ep.title)}</div>
                         </div>
                       ))}
                     </div>}
