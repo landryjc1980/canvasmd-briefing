@@ -206,26 +206,18 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
           Share
         </button>
       </div>
-      <div style={{ maxWidth: 690, margin: "0 auto", padding: "52px 30px 120px" }}>
-        {/* masthead — "The Readout · by CanvasMD" one-line lockup (matches the mobile header).
-            Rule is full-bleed (margin -30) + .1 opacity so it matches the sticky-nav rule exactly
-            — the header has ONE consistent divider above the nav and one below it (not three
-            mismatched ones). */}
-        <div style={{ textAlign: "center", margin: "0 -30px", padding: "0 30px 20px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>
-          {/* wordmark-only masthead — the serif lockup IS the mark (pulse icon lives on in the
-              favicon/social card); matches the mobile header + signed-out gate */}
-          {/* kicker → wordmark → byline: one tight monochrome lockup. "The Weekly Brief" is the
-              kicker (context) up top; freshness drops to a quiet meta line at the bottom — so the
-              serif wordmark is the single focal point, not one of four competing text rows. */}
-          <div style={{ font: "600 10px system-ui", letterSpacing: ".3em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", marginBottom: 15 }}>The Weekly Brief</div>
-          <div style={{ font: "500 35px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.015em" }}>The Readout</div>
-          <div style={{ font: "600 9.5px system-ui", letterSpacing: ".26em", textTransform: "uppercase", color: "rgba(255,255,255,.44)", marginTop: 11 }}>by CanvasMD</div>
-          <div style={{ font: "400 12.5px/1.55 system-ui", color: "rgba(255,255,255,.52)", marginTop: 19, maxWidth: 470, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
-          <div style={{ font: "500 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.3)", marginTop: 15 }}>Updated {ago(data.generatedAt)}</div>
+      <div style={{ maxWidth: 690, margin: "0 auto", padding: "34px 30px 120px" }}>
+        {/* masthead — ONE line for the signed-in reader: wordmark · byline · freshness. The
+            sell (big lockup, tagline) belongs on the gate page + footer; a reader who's already
+            in should reach this week's content almost immediately. */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 4, margin: "0 -30px", padding: "0 30px 16px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>
+          <span style={{ font: "500 21px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+          <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>
+          <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>
         </div>
         {/* area links — grouped with the sticky section-nav below it as one nav zone (no rule
             between them; the rule lives under the whole zone via the sticky nav's border) */}
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 26px", marginTop: 22, paddingBottom: 15 }}>
+        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 26px", marginTop: 18, paddingBottom: 13 }}>
           {areas.map((a) => {
             const on = a === area;
             return <span key={a} onClick={() => onArea(a)} style={{ cursor: "pointer", font: "600 13px system-ui", letterSpacing: ".02em", paddingBottom: 4, color: on ? "#f4f7ff" : "#71747f", borderBottom: `2px solid ${on ? pal.accent : "transparent"}` }}>{a}</span>;
@@ -501,6 +493,12 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
           })}
           <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
+
+        {/* footer — the positioning line lives here (end of the read), not stacked on the masthead */}
+        <div style={{ textAlign: "center", marginTop: 40, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+          <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)", letterSpacing: "-.01em" }}>The Readout</div>
+          <div style={{ font: "400 12px/1.55 system-ui", color: "rgba(255,255,255,.4)", marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
+        </div>
       </div>
     </div>
   );
