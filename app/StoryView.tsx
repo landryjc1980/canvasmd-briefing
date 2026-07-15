@@ -551,12 +551,17 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                         <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Career</div></div>
                       </div>
                     </div>
-                    {/* expand to the episodes — each in the in-app player (not the raw RSS url) */}
-                    {gopen && eps.length > 0 && <div onClick={stop} style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {/* expand to the episodes — same card format as a story (art · show · title · in-app player) */}
+                    {gopen && eps.length > 0 && <div onClick={stop} style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                       {eps.map((ep, j) => (
-                        <div key={j}>
-                          <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.55)", marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div>
-                          {clipBtn(ep.audioUrl!, 0, ep.audioUrl!, ep.title)}
+                        <div key={j} style={cardBox}>
+                          <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+                            <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
+                              {ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || g.name)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
+                          </div>
+                          <div style={{ marginTop: 12 }}>{clipBtn(ep.audioUrl!, 0, ep.audioUrl!, ep.title)}</div>
                         </div>
                       ))}
                     </div>}

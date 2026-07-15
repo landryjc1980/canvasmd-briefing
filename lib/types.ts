@@ -794,7 +794,7 @@ export type BriefingGuest = {
   thisWeek: number;
   career: number;
   shows: string[];
-  episodes: { title: string; audioUrl: string | null }[]; // this-window appearances, tap to listen
+  episodes: { title: string; audioUrl: string | null; show: string | null; showArt: string | null }[]; // this-window appearances, tap to listen
 };
 
 export type BriefingData = {
