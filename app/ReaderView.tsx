@@ -91,7 +91,9 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent 
   const isNews = isNewsDomain(domain) && !journal;
   return (
     <div style={cardBox}>
-      <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>
+      {url
+        ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8", textDecoration: "none" }}>{cleanArticleTitle(title)}</a>
+        : <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>}
       {(src || meta) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
         <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[src, meta].filter(Boolean).join(" · ")}</span>
         {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
