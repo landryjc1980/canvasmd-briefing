@@ -674,7 +674,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                     <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#6f727c", width: 22, flex: "none" }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "500 16px system-ui", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.drug}</div>
-                      {metricsLine(m) && <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.42)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{metricsLine(m)}</div>}
+                      {metricsLine(m) && <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 4 }}>{pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} ring={pal.bg} size={20} />}<span style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.42)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{metricsLine(m)}</span></div>}
                     </div>
                     <span style={{ font: "700 18px system-ui", color: pal.accent, flex: "none" }}>{m.score}</span>
                     <Delta delta={m.delta} />
