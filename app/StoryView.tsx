@@ -77,7 +77,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 
 // A paper card that expands INLINE to reveal the abstract AND the clinicians' tweets
 // about it (so readers don't have to leave). The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent: string }) {
+function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, ring, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; faces?: string[]; ring?: string; accent: string }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -98,6 +98,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent 
             {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
           </div>}
         </div>
+        {faces && faces.length > 0 && <FacePile faces={faces} ring={ring ?? "#12305f"} size={22} />}
         {canExpand && <span style={{ font: "700 13px system-ui", color: accent, flex: "none", transform: open ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>}
       </div>
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
@@ -629,7 +630,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             {sectionHead("What’s being read")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} accent={pal.accent} />)}
+              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} faces={a.faces} ring={pal.bg} accent={pal.accent} />)}
             </div>
           </>
         )}
