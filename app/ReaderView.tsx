@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
-import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
 
@@ -304,16 +303,9 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
           })}
         </div>
 
-        {/* hero — desktop only: kicker + AI cover headline + recap. On mobile (compact) we skip
-            it and lead straight with the #1 story — a real headline the field wrote, not a
-            whole-week thesis the AI could get wrong; the front-page treatment. */}
-        {!compact && (
-          <div style={{ textAlign: "center", marginTop: 40 }}>
-            <div style={{ font: "700 13px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
-            {data.headline && <h1 style={{ font: "400 39px/1.14 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "17px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
-            <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={5} centered />
-          </div>
-        )}
+        {/* No AI cover hero on either platform: lead with the #1 story — a real headline the
+            field wrote, not a whole-week thesis the AI could get wrong (John: drop it on desktop
+            like mobile). The recap/headline still exist on the payload for OG/social. */}
 
         {/* Top Stories — the atom-agnostic hero (drug | paper | topic). ONE story card,
             same shell; only the metric line (drug = score + bar; paper/topic = text) and the
