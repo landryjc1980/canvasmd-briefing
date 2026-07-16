@@ -118,6 +118,27 @@ function Row({ open, onToggle, accent, head, children }: { open: boolean; onTogg
   );
 }
 
+// Long list sections (Most active on X, What's being read, …) show the top `cap` and tuck the
+// rest behind a "Show N more" toggle so the desktop column doesn't scroll forever. Short lists
+// (≤ cap) render in full with no button. Slicing from 0 keeps item indices stable when expanded.
+function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; accent: string; render: (item: T, i: number) => React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? items : items.slice(0, cap);
+  const extra = items.length - cap;
+  return (
+    <>
+      {shown.map(render)}
+      {extra > 0 && (
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <button onClick={() => setOpen((o) => !o)} style={{ display: "inline-block", background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 20, padding: "7px 20px", cursor: "pointer" }}>
+            {open ? "Show less ↑" : `Show ${extra} more ↓`}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function ReaderView({ data, area, areas, onArea, seen }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string> }) {
   const pal = palOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -319,7 +340,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         {/* This week's guests — box score (recent form + lifetime career) */}
         {!!data.guests?.length && <>
           <SectionHead id="sec-kols">This week&rsquo;s guests</SectionHead>
-          {data.guests.map((g, i) => {
+          <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
             const eps = g.episodes.filter((e) => e.audioUrl);
             return (
             <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent}
@@ -347,13 +368,13 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 </div>
               ))}
             </Row>
-          );})}
+          );}} />
         </>}
 
         {/* KOLs */}
         {data.topKols.length > 0 && <>
           <SectionHead id={data.guests?.length ? undefined : "sec-kols"}>Most active on X</SectionHead>
-          {data.topKols.map((k, i) => {
+          <Capped items={data.topKols} cap={6} accent={pal.accent} render={(k, i) => {
             const id = "k:" + i;
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
