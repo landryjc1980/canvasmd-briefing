@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#12305f"/>
+  <!-- CanvasMD "pulse" mark in The Readout's navy/periwinkle palette:
+       C-curve (the canvas) + reading lines + the medical plus. -->
+  <path d="M196 118 C 108 150, 108 362, 196 394" stroke="#f4f7ff" stroke-width="34" stroke-linecap="round" fill="none"/>
+  <rect x="278" y="176" width="128" height="34" rx="17" fill="#f4f7ff"/>
+  <rect x="278" y="232" width="112" height="34" rx="17" fill="#9fc0ff"/>
+  <rect x="278" y="288" width="128" height="34" rx="17" fill="#f4f7ff"/>
+  <rect x="278" y="344" width="88"  height="34" rx="17" fill="#9fc0ff"/>
+  <path d="M214 240 h20 v-20 h20 v20 h20 v20 h-20 v20 h-20 v-20 h-20 z" fill="#9fc0ff"/>
+</svg>
