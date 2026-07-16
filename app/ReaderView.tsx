@@ -143,6 +143,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
   const pal = palOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false); // masthead area/tumor switcher (mobile parity)
   const doShare = async () => {
     try {
       const r = await fetch("/api/brief-share", { method: "POST" });
@@ -228,21 +229,40 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         </button>
       </div>
       <div style={{ maxWidth: 690, margin: "0 auto", padding: "34px 30px 120px" }}>
-        {/* masthead — ONE line for the signed-in reader: wordmark · byline · freshness. The
-            sell (big lockup, tagline) belongs on the gate page + footer; a reader who's already
-            in should reach this week's content almost immediately. */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 4, margin: "0 -30px", padding: "0 30px 16px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>
-          <span style={{ font: "500 21px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
-          <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>
-          <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>
-        </div>
-        {/* area links — grouped with the sticky section-nav below it as one nav zone (no rule
-            between them; the rule lives under the whole zone via the sticky nav's border) */}
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 26px", marginTop: 18, paddingBottom: 13 }}>
-          {areas.map((a) => {
-            const on = a === area;
-            return <span key={a} onClick={() => onArea(a)} style={{ cursor: "pointer", font: "600 13px system-ui", letterSpacing: ".02em", paddingBottom: 4, color: on ? "#f4f7ff" : "#71747f", borderBottom: `2px solid ${on ? pal.accent : "transparent"}` }}>{a}</span>;
-          })}
+        {/* masthead — ONE line: wordmark · byline · freshness on the left, the tumor-area
+            switcher as a dropdown on the right (mobile parity). Folding the area picker up here
+            kills the whole separate tabs row — header is now just masthead + section pills. */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, paddingBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 11, rowGap: 3, minWidth: 0 }}>
+            <span style={{ font: "500 21px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
+            <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>
+            <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>
+          </div>
+          {/* tumor-area dropdown — same interaction as the mobile header */}
+          <div style={{ position: "relative", flex: "none" }}>
+            <div onClick={() => setMenuOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 11px", cursor: "pointer", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)" }}>
+              <span style={{ font: "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
+              <span style={{ font: "700 13px system-ui", color: "rgba(255,255,255,.7)", lineHeight: 1 }}>▾</span>
+            </div>
+            {menuOpen && (
+              <>
+                <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
+                <div style={{ position: "absolute", top: "calc(100% + 7px)", right: 0, width: 202, background: "rgba(16,18,26,.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, boxShadow: "0 20px 44px rgba(0,0,0,.4)", padding: 8, zIndex: 31 }}>
+                  <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
+                  {areas.map((a) => {
+                    const on = a === area;
+                    return (
+                      <div key={a} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
+                        <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.75)" }}>{AREA_FULL[a] ?? a}</span>
+                        {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll (desktop parity with the mobile deck) */}
