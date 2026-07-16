@@ -259,17 +259,17 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             {!compact && <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>}
             {!compact && <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-          {/* mobile share — icon in the masthead (the desktop floating button would overlap here) */}
-          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 10, cursor: "pointer", flex: "none" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dbe3f4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
+          {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
+          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, padding: 2, cursor: "pointer", flex: "none" }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </button>}
           {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
           {/* tumor-area dropdown — same interaction as the mobile header */}
           <div style={{ position: "relative", flex: "none" }}>
-            <div onClick={() => setMenuOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 11px", cursor: "pointer", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)" }}>
+            <div onClick={() => setMenuOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
               <span style={{ font: "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
-              <span style={{ font: "700 13px system-ui", color: "rgba(255,255,255,.7)", lineHeight: 1 }}>▾</span>
+              <span style={{ font: "700 12px system-ui", color: "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
             </div>
             {menuOpen && (
               <>
