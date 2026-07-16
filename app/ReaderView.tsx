@@ -391,7 +391,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 </div>
               </Row>
             );
-          })}
+          }} />
           <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
@@ -400,7 +400,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         {!!data.episodes?.length && <>
           <SectionHead id="sec-episodes">Also worth hearing</SectionHead>
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
-            {data.episodes.filter((e) => e.audioUrl).map((ep, i) => (
+            <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={6} accent={pal.accent} render={(ep, i) => (
               <div key={i} style={cardBox}>
                 <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
@@ -409,7 +409,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
                 <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
               </div>
-            ))}
+            )} />
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
@@ -417,7 +417,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         {/* papers */}
         {data.topArticles.length > 0 && <>
           <SectionHead id="sec-papers">What&rsquo;s being read</SectionHead>
-          {data.topArticles.map((a, i) => {
+          <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
             const id = "p:" + i;
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
@@ -440,14 +440,14 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: pal.accent, textDecoration: "none" }}>Open article ↗</a>}
               </Row>
             );
-          })}
+          }} />
           <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
         {/* trials */}
         {data.trials.length > 0 && <>
           <SectionHead id="sec-trials">Trials being discussed</SectionHead>
-          {data.trials.map((t, i) => {
+          <Capped items={data.trials} cap={6} accent={pal.accent} render={(t, i) => {
             const id = "t:" + i;
             const parts: string[] = [];
             if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
@@ -468,7 +468,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                 <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
               </Row>
             );
-          })}
+          }} />
           <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
