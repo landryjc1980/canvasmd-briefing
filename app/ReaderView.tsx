@@ -112,7 +112,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent 
 
 function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }}>
+    <div>
       <div onClick={onToggle} style={{ cursor: "pointer" }}>{head}</div>
       {open && <div style={{ margin: "0 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>}
     </div>
@@ -378,7 +378,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             </div>
           );
         })}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
 
         {/* This week's guests — box score (recent form + lifetime career) */}
         {!!data.guests?.length && <>
@@ -435,7 +434,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               </Row>
             );
           }} />
-          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
         {/* Also worth hearing — area episodes the drug movers don't cover (untracked-topic blind
@@ -454,7 +452,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               </div>
             )} />
           </div>
-          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
         {/* papers */}
@@ -487,7 +484,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               </Row>
             );
           }} />
-          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
         {/* trials */}
@@ -529,7 +525,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               </Row>
             );
           }} />
-          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
         {/* Drugs — the full ranked drug board, relocated so the drug overview isn't lost
@@ -570,7 +565,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               </Row>
             );
           })}
-          <div style={{ borderTop: "1px solid rgba(255,255,255,.09)" }} />
         </>}
 
         {/* footer — the positioning line lives here (end of the read), not stacked on the masthead */}
