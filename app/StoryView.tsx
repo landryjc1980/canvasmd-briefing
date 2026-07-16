@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper, BriefingStance } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
@@ -16,6 +16,20 @@ import "./design.css";
 
 const PEEK_H = 176; // collapsed story evidence peeks this tall — a real chunk of the top card(s), fading out
 const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
+
+// "Who's discussing this" face-pile — X-sharer avatars + podcast art, overlapping coins with a
+// bg ring. Shown on story/drug cards (faces come from pileFaces()).
+function FacePile({ faces, ring }: { faces: string[]; ring: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
+      {faces.map((f, i) => (
+        <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "rgba(255,255,255,.12)", marginLeft: i ? -8 : 0, flex: "none" }}>
+          <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type Screen = { kind: "intro" | "events" | "story" | "caughtup" | "kols" | "episodes" | "papers" | "trials" | "drugs"; si?: number; chapter: string };
 
@@ -478,8 +492,9 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                   element sitting in the card's tap-to-advance flow (right above the description) its
                   hit-box clipped advance taps "sometimes" → accidental expand. Evidence now opens
                   solely via the dedicated summary-row button below, so every card-body tap navigates. */}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)", marginTop: isDrug ? 10 : 14, pointerEvents: "none" }}>
-                <span>{storyMetricLine(s)}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: isDrug ? 10 : 14, pointerEvents: "none" }}>
+                {pileFaces(s).length > 0 && <FacePile faces={pileFaces(s)} ring={pal.bg} />}
+                <span style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)" }}>{storyMetricLine(s)}</span>
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
               {/* How the field is reacting — shared component; self-suppresses under 4 opinions. */}

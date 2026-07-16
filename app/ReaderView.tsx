@@ -310,6 +310,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
         {stories.map((s, i) => {
           const id = "s:" + s.id;
           const isDrug = s.kind === "drug";
+          const faces = pileFaces(s);
           const chip = part.mode === "split" ? part.status.get(s.id) : undefined;
           return (
             <div key={id} data-sid={s.id} data-sfp={s.fp ?? ""}>
@@ -347,6 +348,7 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                           {barSegmentsRaw(s.bar).map((seg, k) => <div key={k} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 3 }} />)}
                         </div>
                       )}
+                      {faces.length > 0 && <FacePile faces={faces} extra={0} ring={pal.bg} />}
                       <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{storyMetricLine(s)}</span>
                       <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                     </div>
@@ -522,8 +524,9 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                         <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
                       </div>
                       {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
-                      <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <Bar m={m} accent={pal.accent} />
+                        {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
                         <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{metricsLine(m)}</span>
                         <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                       </div>
