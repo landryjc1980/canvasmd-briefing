@@ -251,11 +251,11 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         {/* masthead — ONE line: wordmark · byline · freshness on the left, the tumor-area
             switcher as a dropdown on the right (mobile parity). Folding the area picker up here
             kills the whole separate tabs row — header is now just masthead + section pills. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, paddingBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingBottom: compact ? 3 : 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 11, rowGap: 3, minWidth: 0 }}>
             <span style={{ font: "500 21px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
-            <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>
-            <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>
+            {!compact && <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>}
+            {!compact && <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           {/* mobile share — icon in the masthead (the desktop floating button would overlap here) */}
@@ -290,6 +290,9 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
           </div>
           </div>
         </div>
+        {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
+            share + area controls (not floating against a 3-line stack) */}
+        {compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.32)", margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll (desktop parity with the mobile deck) */}
         <div className="rv-pills" style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: pal.bg, borderBottom: "1px solid rgba(255,255,255,.1)", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
@@ -339,10 +342,11 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               )}
             <Row open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
               head={
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "22px 2px" }}>
-                  <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
+                  {!compact && <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      {compact && <span style={{ font: "600 13px 'Newsreader',Georgia,serif", color: pal.accent, lineHeight: 1 }}>{i + 1}</span>}
                       {(chip === "new" || chip === "updated") && (
                         <span style={{ font: "800 8.5px system-ui", letterSpacing: ".08em", color: pal.bg, background: chip === "new" ? pal.accent : "#fff", borderRadius: 4, padding: "2.5px 6px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
                       )}
@@ -531,10 +535,11 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
                 head={
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "22px 2px" }}>
-                    <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
+                    {!compact && <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                        {compact && <span style={{ font: "500 15px 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", lineHeight: 1 }}>{i + 1}</span>}
                         <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{m.drug}</span>
                         <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
                       </div>
