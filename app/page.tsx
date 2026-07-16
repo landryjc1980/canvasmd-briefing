@@ -5,7 +5,6 @@ import { BriefingData } from "@/lib/types";
 import { AREAS } from "./ui";
 import BroadsheetView from "./BroadsheetView";
 import BriefView from "./BriefView";
-import StoryView from "./StoryView";
 import ReaderView from "./ReaderView";
 import { palOf } from "./briefVM";
 import { logSignal } from "./gateClient";
@@ -128,7 +127,8 @@ export default function BriefingPage() {
       </div>
     );
   }
-  return isMobile
-    ? <StoryView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} />
-    : <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} />;
+  // One scroll model on both platforms (retires the swipe deck — swipe/tap-to-advance wasn't
+  // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
+  // (no AI cover line) + horizontally-scrolling section pills.
+  return <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
 }

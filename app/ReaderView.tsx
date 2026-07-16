@@ -156,7 +156,7 @@ function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring
   );
 }
 
-export default function ReaderView({ data, area, areas, onArea, seen }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string> }) {
+export default function ReaderView({ data, area, areas, onArea, seen, compact = false }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean }) {
   const pal = palOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
@@ -236,14 +236,17 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
 
   return (
     <div style={{ minHeight: "100vh", background: pal.bg, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", transition: "background .45s ease" }}>
-      {/* share with a colleague — spreads the brief inside the account (referral graph) */}
-      <div style={{ position: "fixed", top: 18, right: 18, zIndex: 20, display: "flex", alignItems: "center", gap: 10 }}>
+      {/* hide the horizontal scrollbar under the mobile section pills */}
+      <style>{".rv-pills::-webkit-scrollbar{display:none}.rv-pills{scrollbar-width:none}"}</style>
+      {/* share with a colleague — spreads the brief inside the account (referral graph). Desktop
+          only: on mobile it collided with the area dropdown, so a share icon sits in the masthead. */}
+      {!compact && <div style={{ position: "fixed", top: 18, right: 18, zIndex: 20, display: "flex", alignItems: "center", gap: 10 }}>
         {shareMsg && <span style={{ font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 11px" }}>{shareMsg}</span>}
         <button onClick={doShare} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", color: "#fff", font: "600 13px system-ui", borderRadius: 20, padding: "8px 15px", cursor: "pointer" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           Share
         </button>
-      </div>
+      </div>}
       <div style={{ maxWidth: 690, margin: "0 auto", padding: "34px 30px 120px" }}>
         {/* masthead — ONE line: wordmark · byline · freshness on the left, the tumor-area
             switcher as a dropdown on the right (mobile parity). Folding the area picker up here
@@ -254,6 +257,12 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
             <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>
             <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>
           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
+          {/* mobile share — icon in the masthead (the desktop floating button would overlap here) */}
+          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 10, cursor: "pointer", flex: "none" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dbe3f4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+          </button>}
+          {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
           {/* tumor-area dropdown — same interaction as the mobile header */}
           <div style={{ position: "relative", flex: "none" }}>
             <div onClick={() => setMenuOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 11px", cursor: "pointer", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)" }}>
@@ -279,23 +288,27 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
               </>
             )}
           </div>
+          </div>
         </div>
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll (desktop parity with the mobile deck) */}
-        <div style={{ position: "sticky", top: 0, zIndex: 15, margin: "0 -30px", padding: "11px 30px", background: pal.bg, borderBottom: "1px solid rgba(255,255,255,.1)", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
+        <div className="rv-pills" style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: pal.bg, borderBottom: "1px solid rgba(255,255,255,.1)", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
-            return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", transition: "background .15s, color .15s" }}>{s.label}</button>;
+            return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>{s.label}</button>;
           })}
         </div>
 
-        {/* hero — kicker + cover headline + recap. (No stat tallies: they didn't link anywhere
-            and pushed the actual read down.) */}
-        <div style={{ textAlign: "center", marginTop: 40 }}>
-          <div style={{ font: "700 13px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
-          {data.headline && <h1 style={{ font: "400 39px/1.14 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "17px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
-          <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={5} centered />
-        </div>
+        {/* hero — desktop only: kicker + AI cover headline + recap. On mobile (compact) we skip
+            it and lead straight with the #1 story — a real headline the field wrote, not a
+            whole-week thesis the AI could get wrong; the front-page treatment. */}
+        {!compact && (
+          <div style={{ textAlign: "center", marginTop: 40 }}>
+            <div style={{ font: "700 13px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
+            {data.headline && <h1 style={{ font: "400 39px/1.14 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "17px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
+            <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={5} centered />
+          </div>
+        )}
 
         {/* Top Stories — the atom-agnostic hero (drug | paper | topic). ONE story card,
             same shell; only the metric line (drug = score + bar; paper/topic = text) and the
