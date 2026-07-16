@@ -261,7 +261,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
-          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, padding: 2, cursor: "pointer", flex: "none" }}>
+          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, padding: 2, cursor: "pointer", flex: "none", order: 1 }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </button>}
           {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
@@ -544,6 +544,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                         {compact && <span style={{ font: "500 15px 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", lineHeight: 1 }}>{i + 1}</span>}
                         <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{m.drug}</span>
                         <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
+                        {m.delta !== 0 && <Delta delta={m.delta} />}
                       </div>
                       {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
                       <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -552,11 +553,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                         <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{metricsLine(m)}</span>
                         <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                       </div>
-                    </div>
-                    <div style={{ textAlign: "right", flex: "none" }}>
-                      <div style={{ font: "500 34px/1 'Newsreader',Georgia,serif", color: pal.accent, letterSpacing: "-.01em" }}>{m.score}</div>
-                      <div style={{ font: "600 9px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: "#6f727c", marginTop: 4 }}>signal · {area}-rel.</div>
-                      <div style={{ marginTop: 6 }}><Delta delta={m.delta} /></div>
                     </div>
                   </div>
                 }>
