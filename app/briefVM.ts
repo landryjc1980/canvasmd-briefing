@@ -53,6 +53,18 @@ export function podConvLabel(episodes: number, segments: number): string | null 
   return `${episodes} conversations`;
 }
 
+// The "who's discussing this" face-pile for a story/drug card: X-sharer avatars first (human
+// faces), then podcast show art (fills in when X is sparse). Movers carry precomputed `avatars`/
+// `showArt`; stories derive them from their podcast/posts evidence. Deduped, capped at 4.
+export function pileFaces(x: {
+  avatars?: string[]; showArt?: string[];
+  posts?: { avatar: string | null }[]; podcast?: { showArt: string | null }[];
+}): string[] {
+  const xs = x.avatars ?? (x.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a);
+  const pods = x.showArt ?? (x.podcast ?? []).map((p) => p.showArt).filter((a): a is string => !!a);
+  return [...new Set([...xs, ...pods])].slice(0, 4);
+}
+
 // "4 conversations · 2 on X · 3 papers · ♥ 214" — zeros omitted.
 export function metricsLine(m: BriefingMover): string {
   const parts: string[] = [];
