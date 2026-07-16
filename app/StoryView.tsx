@@ -19,11 +19,12 @@ const ini = (s: string) => (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filt
 
 // "Who's discussing this" face-pile — X-sharer avatars + podcast art, overlapping coins with a
 // bg ring. Shown on story/drug cards (faces come from pileFaces()).
-function FacePile({ faces, ring }: { faces: string[]; ring: string }) {
+function FacePile({ faces, ring, size = 26 }: { faces: string[]; ring: string; size?: number }) {
+  const ov = Math.round(size * 0.31);
   return (
     <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
       {faces.map((f, i) => (
-        <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "rgba(255,255,255,.12)", marginLeft: i ? -8 : 0, flex: "none" }}>
+        <div key={i} style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "rgba(255,255,255,.12)", marginLeft: i ? -ov : 0, flex: "none" }}>
           <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
       ))}
