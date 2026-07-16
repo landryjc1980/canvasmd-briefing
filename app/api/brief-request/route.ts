@@ -13,7 +13,9 @@ import { sendMagicLink } from "@/lib/mail";
 export const dynamic = "force-dynamic";
 
 const FREEMAIL = new Set(["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "proton.me", "protonmail.com"]);
-const generic = () => NextResponse.json({ ok: true, message: "If your address is eligible, the brief is on its way to your inbox." });
+// Same reply whether we sent a link OR logged a request — so the form can't be used to probe
+// who's already approved.
+const generic = () => NextResponse.json({ ok: true, message: "Thanks — if your email is approved, your sign-in link is on its way. If not, we’ve received your request to join and will be in touch." });
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({} as any));
@@ -24,29 +26,29 @@ export async function POST(req: NextRequest) {
   }
 
   const domain = email.split("@")[1];
-  let contact = await findContactByEmail(email).catch(() => null);
-  const isNew = !contact;
+  const contact = await findContactByEmail(email).catch(() => null);
 
-  if (!contact) {
-    contact = await upsertContact({ email, source: "self", status: "active", defaultArea: area });
-    // new-domain sales alert (only for real corporate domains, not freemail)
-    await logEvent({
-      contactId: contact.id,
-      kind: "capture",
-      area,
-      meta: { domain, newDomain: !FREEMAIL.has(domain), source: "welcome" },
-    }).catch(() => {});
+  // ACCESS MODEL — this public form is NOT self-serve. You're in ONLY if we ADDED you (admin/CSV,
+  // status=active) or you came via a colleague's SHARE link (brief-invite, source=invite). Any
+  // unknown/unapproved email becomes an access REQUEST: recorded for the admin queue, given NO
+  // sign-in link, and shown the same generic reply as an approved user (no membership leak).
+  if (!contact || contact.status !== "active") {
+    if (!contact) {
+      const pending = await upsertContact({ email, source: "request", status: "requested", defaultArea: area });
+      await logEvent({ contactId: pending.id, kind: "access_request", area, meta: { domain, newDomain: !FREEMAIL.has(domain), source: "welcome" } }).catch(() => {});
+    } else if (contact.status === "requested") {
+      await logEvent({ contactId: contact.id, kind: "access_request", area, meta: { domain, repeat: true } }).catch(() => {});
+    }
+    return generic(); // requested / blocked / unsubscribed → no link
   }
-  if (contact.status === "blocked") return generic();
 
+  // APPROVED (active) contact → email a fresh sign-in link. Personalize only to the area they were
+  // actively viewing (URL `area`), else the neutral "oncology" — never fall back to default_area
+  // (seed/URL-derived, not a deliberate specialty choice).
   const base = siteUrl(req);
   const token = await mintMagicToken(contact.id);
   const link = `${base}/api/brief-auth?t=${token}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
   const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(contact.id)}`;
-  // Personalize to the area they were ACTIVELY viewing when they signed up (URL `area`), else the
-  // neutral "oncology". Do NOT fall back to contact.default_area — that's set by seeds/imports and
-  // the signup URL, not a deliberate specialty choice, so it wrongly framed the brief as e.g. GU
-  // for people who never picked it.
   await sendMagicLink({ email, name: contact.name, link, unsubUrl, areaLabel: areaLabel(area) }).catch(() => {});
 
   return generic();
