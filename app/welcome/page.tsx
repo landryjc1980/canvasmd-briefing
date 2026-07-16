@@ -53,7 +53,7 @@ export default function Welcome() {
               What moved this week in oncology — the conversations, papers, and approvals your field is actually discussing.
             </h1>
             <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#aab2c4", margin: "0 0 22px" }}>
-              {expired ? "That link expired. Enter your work email and we'll send a fresh one." : "This brief is invite-only. Enter your work email — if you're on the list we'll send your sign-in link, otherwise we'll pass your request along to join."}
+              {expired ? "Your sign-in expired. Enter your work email and we'll send a fresh link." : "This brief is invite-only. Enter your work email — if you're on the list we'll send your sign-in link, otherwise we'll pass your request along to join."}
             </p>
             <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input
