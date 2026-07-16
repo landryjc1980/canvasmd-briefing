@@ -43,7 +43,11 @@ export async function POST(req: NextRequest) {
   const token = await mintMagicToken(contact.id);
   const link = `${base}/api/brief-auth?t=${token}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
   const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(contact.id)}`;
-  await sendMagicLink({ email, name: contact.name, link, unsubUrl, areaLabel: areaLabel(area || contact.default_area) }).catch(() => {});
+  // Personalize to the area they were ACTIVELY viewing when they signed up (URL `area`), else the
+  // neutral "oncology". Do NOT fall back to contact.default_area — that's set by seeds/imports and
+  // the signup URL, not a deliberate specialty choice, so it wrongly framed the brief as e.g. GU
+  // for people who never picked it.
+  await sendMagicLink({ email, name: contact.name, link, unsubUrl, areaLabel: areaLabel(area) }).catch(() => {});
 
   return generic();
 }
