@@ -502,14 +502,26 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
-                head={
+                head={compact ? (
+                  /* mobile: stack — acronym + (clamped) title full width, then a meta row so the
+                     title isn't crushed into a sliver by the faces/counts/toggle */
+                  <div style={{ padding: "16px 2px" }}>
+                    <div style={{ font: "500 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div>
+                    <div style={{ font: "400 12.5px/1.4 system-ui", color: "#7c7f88", marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11 }}>
+                      {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
+                      <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{parts.join(" · ")}</span>
+                      <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                    </div>
+                  </div>
+                ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "16px 2px" }}>
                     <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div><div style={{ font: "400 12.5px system-ui", color: "#7c7f88", marginTop: 3 }}>{t.title}</div></div>
                     {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: "#7c7f88", whiteSpace: "nowrap" }}>{parts.join(" · ")}</span>
                     <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap", flex: "none" }}>{tog(id)}</span>
                   </div>
-                }>
+                )}>
                 {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                 {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={`shared by ${p.sharers.length}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
