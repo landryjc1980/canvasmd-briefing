@@ -488,11 +488,13 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
             if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
             if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
             if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
+            const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
                 head={
-                  <div style={{ display: "flex", alignItems: "center", gap: 15, padding: "16px 2px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "16px 2px" }}>
                     <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div><div style={{ font: "400 12.5px system-ui", color: "#7c7f88", marginTop: 3 }}>{t.title}</div></div>
+                    {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: "#7c7f88", whiteSpace: "nowrap" }}>{parts.join(" · ")}</span>
                     <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap", flex: "none" }}>{tog(id)}</span>
                   </div>

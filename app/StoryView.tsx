@@ -645,13 +645,14 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                 if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
                 if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
                 if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
+                const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
                 return (
                   <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: t.acronym || t.nctId, sub: t.title, podcasts: t.pods, posts: t.posts, papers: t.articles.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length}`, posts: p.sharers })) }); } }}
                     style={{ borderTop: "1px solid rgba(255,255,255,.1)", padding: "13px 0", display: "flex", alignItems: "flex-start", gap: 10, cursor: hasEv ? "pointer" : "default" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || t.nctId}</div>
                       <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginTop: 3 }}>{t.title}</div>
-                      {parts.length > 0 && <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)", marginTop: 4 }}>discussed in {parts.join(" · ")}</div>}
+                      {parts.length > 0 && <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 6 }}>{tFaces.length > 0 && <FacePile faces={tFaces} ring={pal.bg} size={20} />}<span style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)" }}>discussed in {parts.join(" · ")}</span></div>}
                     </div>
                     {hasEv && <span style={{ font: "700 13px system-ui", color: pal.accent, lineHeight: 1, marginTop: 4, flex: "none" }}>›</span>}
                   </div>
