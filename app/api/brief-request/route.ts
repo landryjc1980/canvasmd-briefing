@@ -34,12 +34,12 @@ export async function POST(req: NextRequest) {
   // sign-in link, and shown the same generic reply as an approved user (no membership leak).
   if (!contact || contact.status !== "active") {
     if (!contact) {
-      const pending = await upsertContact({ email, source: "request", status: "requested", defaultArea: area });
+      const pending = await upsertContact({ email, source: "self", status: "pending", defaultArea: area });
       await logEvent({ contactId: pending.id, kind: "access_request", area, meta: { domain, newDomain: !FREEMAIL.has(domain), source: "welcome" } }).catch(() => {});
-    } else if (contact.status === "requested") {
+    } else if (contact.status === "pending") {
       await logEvent({ contactId: contact.id, kind: "access_request", area, meta: { domain, repeat: true } }).catch(() => {});
     }
-    return generic(); // requested / blocked / unsubscribed → no link
+    return generic(); // pending / blocked / unsubscribed → no link
   }
 
   // APPROVED (active) contact → email a fresh sign-in link. Personalize only to the area they were

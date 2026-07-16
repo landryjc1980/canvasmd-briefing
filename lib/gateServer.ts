@@ -3,8 +3,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, SESSION_MAX_AGE, mintSession, readSession } from "./gate";
+import { getContact } from "./db";
 
 export const ADMIN_COOKIE = "brief_admin";
+
+// Who can reach /admin. Passwordless for now — being signed into the brief with one of these
+// emails IS admin auth (add a real password/2FA later). Override/extend via BRIEF_ADMIN_EMAILS
+// (comma-separated). landryjc@gmail.com is the default owner.
+const ADMIN_EMAILS = new Set(
+  (process.env.BRIEF_ADMIN_EMAILS ?? "landryjc@gmail.com").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+);
 
 export const AREA_LABEL: Record<string, string> = {
   GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Heme", Gyn: "Gynecologic",
@@ -38,10 +46,15 @@ export function clearSession(res: NextResponse): NextResponse {
   return res;
 }
 
-/** Admin gate for the CSV upload / send / signal routes. MVP: a shared token, no user accounts. */
-export function isAdmin(req: NextRequest): boolean {
+/** Admin gate for the CSV upload / send / signal / requests routes. Admin = signed into the brief
+ *  as an admin email (passwordless), OR the legacy shared token (headless/scripted fallback). */
+export async function isAdmin(req: NextRequest): Promise<boolean> {
+  const contactId = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  if (contactId) {
+    const c = await getContact(contactId).catch(() => null);
+    if (c && ADMIN_EMAILS.has((c.email || "").toLowerCase())) return true;
+  }
   const want = process.env.BRIEF_ADMIN_TOKEN;
-  if (!want) return false;
   const given = req.headers.get("x-admin-token") || req.cookies.get(ADMIN_COOKIE)?.value || req.nextUrl.searchParams.get("key");
-  return !!given && given === want;
+  return !!(want && given && given === want);
 }

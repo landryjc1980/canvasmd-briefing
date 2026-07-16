@@ -18,19 +18,32 @@ export default function Admin() {
   const [csv, setCsv] = useState("email,name,org,role,area\n");
   const [out, setOut] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [requests, setRequests] = useState<{ id: string; email: string; default_area: string | null; created_at?: string }[]>([]);
   const [testEmail, setTestEmail] = useState("");
 
   useEffect(() => {
     const saved = localStorage.getItem("brief_admin_key") || new URLSearchParams(window.location.search).get("key") || "";
-    if (saved) { setKey(saved); }
+    setKey(saved);
+    loadSignal(saved); // try the saved token, else the brief session cookie (admin-email login)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hdr = () => ({ "x-admin-token": key, "content-type": "application/json" });
 
+  const loadRequests = async (k = key) => {
+    const r = await fetch("/api/admin/requests", { headers: { "x-admin-token": k } });
+    if (r.ok) { const j = await r.json(); setRequests(j.requests || []); }
+  };
   const loadSignal = async (k = key) => {
-    const r = await fetch("/api/admin/signal", { headers: { "x-admin-token": k } });
-    if (r.ok) { const j = await r.json(); setRows(j.rows || []); setAuthed(true); localStorage.setItem("brief_admin_key", k); }
-    else { setAuthed(false); setOut("Bad admin token."); }
+    // send the token only if we have one; otherwise the request rides the brief session cookie
+    const r = await fetch("/api/admin/signal", { headers: k ? { "x-admin-token": k } : {} });
+    if (r.ok) { const j = await r.json(); setRows(j.rows || []); setAuthed(true); if (k) localStorage.setItem("brief_admin_key", k); loadRequests(k); }
+    else { setAuthed(false); if (k) setOut("Bad admin token."); } // silent when just probing the session
+  };
+  const decide = async (id: string, action: "approve" | "decline") => {
+    setRequests((rs) => rs.filter((x) => x.id !== id)); // optimistic
+    await fetch("/api/admin/requests", { method: "POST", headers: hdr(), body: JSON.stringify({ id, action }) });
+    loadSignal();
   };
 
   const upload = async () => {
@@ -55,7 +68,8 @@ export default function Admin() {
     return (
       <div style={{ minHeight: "100vh", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ width: 340 }}>
-          <div style={{ fontWeight: 700, fontSize: 18, color: "#fff", marginBottom: 16 }}>Brief Gate · Admin</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: "#fff", marginBottom: 8 }}>Brief Gate · Admin</div>
+          <p style={{ fontSize: 13, lineHeight: 1.5, color: "#8b93a4", marginBottom: 16 }}>Sign into the brief with an admin email (landryjc@gmail.com) and you&rsquo;ll be let in here automatically. Or enter the admin token below.</p>
           <input style={{ ...input, width: "100%", boxSizing: "border-box", marginBottom: 12 }} type="password" placeholder="Admin token" value={key} onChange={(e) => setKey(e.target.value)} />
           <button style={{ ...btn, width: "100%" }} onClick={() => loadSignal()}>Enter</button>
           {out && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{out}</p>}
@@ -70,9 +84,30 @@ export default function Admin() {
     <div style={{ minHeight: "100vh", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui", padding: "28px 24px", maxWidth: 1000, margin: "0 auto" }}>
       <div style={{ fontWeight: 700, fontSize: 18, color: "#fff", marginBottom: 20 }}>Brief Gate · Admin</div>
 
+      <div style={{ ...box, ...(requests.length ? { border: "1px solid rgba(122,162,255,.5)" } : {}) }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontWeight: 600 }}>Access requests {requests.length ? <span style={{ background: "#7aa2ff", color: "#0e1524", fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "1px 9px", marginLeft: 6 }}>{requests.length}</span> : null}</div>
+          <button style={{ ...btn, background: "rgba(255,255,255,.14)", color: "#f4f7ff" }} onClick={() => loadRequests()}>Refresh</button>
+        </div>
+        {requests.length === 0
+          ? <div style={{ fontSize: 13, color: "#8b93a4" }}>No pending requests. People you add or who arrive via a share link are approved automatically; anyone else who enters their email shows up here to approve.</div>
+          : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {requests.map((q) => (
+                <div key={q.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", background: "rgba(255,255,255,.04)", border: "0.5px solid rgba(255,255,255,.1)", borderRadius: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: "#f4f7ff", fontSize: 14 }}>{q.email}</div>
+                    <div style={{ color: "#6b7280", fontSize: 11 }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : ""}{q.default_area ? ` · viewed ${q.default_area}` : ""}</div>
+                  </div>
+                  <button style={btn} onClick={() => decide(q.id, "approve")}>Approve</button>
+                  <button style={{ ...btn, background: "transparent", color: "#8b93a4", border: "0.5px solid rgba(255,255,255,.2)" }} onClick={() => decide(q.id, "decline")}>Decline</button>
+                </div>
+              ))}
+            </div>}
+      </div>
+
       <div style={box}>
-        <div style={{ fontWeight: 600, marginBottom: 10 }}>1 · Upload send list (CSV)</div>
-        <div style={{ fontSize: 12.5, color: "#8b93a4", marginBottom: 10 }}>Header row required: <code>email,name,org,role,area</code> — area is one of GU, Breast, Lung, GI, Heme, Gyn.</div>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>1 · Add people (CSV)</div>
+        <div style={{ fontSize: 12.5, color: "#8b93a4", marginBottom: 10 }}>Header row required: <code>email,name,org,role,area</code> — area optional (GU, Breast, Lung, GI, Heme, Gyn). <span style={{ color: "#a9b6d6" }}>Each newly-added person is emailed a sign-in link automatically;</span> re-uploading won&rsquo;t re-email existing people.</div>
         <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={6} style={{ ...input, width: "100%", boxSizing: "border-box", fontFamily: "ui-monospace,Menlo,monospace", fontSize: 12.5, resize: "vertical" }} />
         <div style={{ marginTop: 10 }}><button style={btn} onClick={upload}>Upload</button></div>
       </div>

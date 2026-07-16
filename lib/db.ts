@@ -76,6 +76,14 @@ export async function listContacts(orgId?: string): Promise<Contact[]> {
   const q = orgId ? `&org_id=eq.${orgId}` : "";
   return pg<Contact[]>(`brief_contacts?status=neq.unsubscribed${q}&order=created_at.desc`, { method: "GET", headers: headers() });
 }
+// Pending access requests (people who hit the public wall but weren't added/shared) — the admin
+// review queue. Newest first.
+export async function listRequests(): Promise<(Contact & { created_at?: string })[]> {
+  return pg(`brief_contacts?select=id,email,name,source,status,default_area,created_at&status=eq.pending&order=created_at.desc`, { method: "GET", headers: headers() });
+}
+export async function setContactStatus(id: string, status: string): Promise<void> {
+  await pg(`brief_contacts?id=eq.${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify({ status }) });
+}
 
 // ---- events (the signal spine) -----------------------------------------------------------
 export async function logEvent(e: { contactId: string; kind: string; area?: string | null; storyId?: string | null; meta?: unknown }): Promise<void> {

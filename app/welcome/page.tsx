@@ -53,7 +53,7 @@ export default function Welcome() {
               What moved this week in oncology — the conversations, papers, and approvals your field is actually discussing.
             </h1>
             <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#aab2c4", margin: "0 0 22px" }}>
-              {expired ? "That link expired. Enter your work email and we'll send a fresh one." : "Enter your work email and we'll send you this week's brief."}
+              {expired ? "That link expired. Enter your work email and we'll send a fresh one." : "This brief is invite-only. Enter your work email — if you're on the list we'll send your sign-in link, otherwise we'll pass your request along to join."}
             </p>
             <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input
@@ -63,7 +63,7 @@ export default function Welcome() {
               />
               <button type="submit" disabled={state === "sending"}
                 style={{ background: "#7aa2ff", color: "#0e1524", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
-                {state === "sending" ? "Sending…" : "Send me the brief"}
+                {state === "sending" ? "Sending…" : expired ? "Send me a fresh link" : "Request access"}
               </button>
             </form>
             {state === "error" && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{msg}</p>}

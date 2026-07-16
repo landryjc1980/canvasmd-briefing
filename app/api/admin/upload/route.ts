@@ -3,8 +3,10 @@
 // org is upserted to brief_orgs; each row becomes a source=seed contact.
 
 import { NextRequest, NextResponse } from "next/server";
-import { isAdmin } from "@/lib/gateServer";
-import { upsertOrg, upsertContact } from "@/lib/db";
+import { isAdmin, siteUrl, areaLabel } from "@/lib/gateServer";
+import { upsertOrg, upsertContact, findContactByEmail } from "@/lib/db";
+import { mintMagicToken, mintUnsubToken } from "@/lib/gate";
+import { sendMagicLink } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,7 @@ function parseCsv(text: string): Record<string, string>[] {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await isAdmin(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const ct = req.headers.get("content-type") ?? "";
   let csv = "";
@@ -40,8 +42,9 @@ export async function POST(req: NextRequest) {
   const records = parseCsv(csv);
   if (!records.length) return NextResponse.json({ ok: false, error: "No rows found. Expected header: email,name,org,role,area" }, { status: 400 });
 
+  const base = siteUrl(req);
   const orgCache = new Map<string, string>();
-  let contacts = 0, skipped = 0;
+  let contacts = 0, skipped = 0, emailed = 0;
   const errors: string[] = [];
   for (const r of records) {
     const email = (r.email ?? "").toLowerCase();
@@ -53,11 +56,20 @@ export async function POST(req: NextRequest) {
         if (!orgCache.has(orgName)) orgCache.set(orgName, await upsertOrg(orgName));
         orgId = orgCache.get(orgName)!;
       }
-      await upsertContact({ email, name: r.name || null, orgId, role: r.role || null, defaultArea: r.area || null, source: "seed", status: "active" });
+      const existed = await findContactByEmail(email).catch(() => null);
+      const contact = await upsertContact({ email, name: r.name || null, orgId, role: r.role || null, defaultArea: r.area || null, source: "seed", status: "active" });
       contacts++;
+      // First-time access email: welcome brand-new adds AND newly-approved (previously pending)
+      // contacts with their sign-in link. Never re-email someone already active (re-uploads).
+      if (!existed || existed.status !== "active") {
+        const link = `${base}/api/brief-auth?t=${await mintMagicToken(contact.id)}`;
+        const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(contact.id)}`;
+        await sendMagicLink({ email, name: r.name || null, link, unsubUrl, areaLabel: areaLabel(r.area || null) }).catch(() => {});
+        emailed++;
+      }
     } catch (e: any) {
       errors.push(`${email}: ${String(e?.message ?? e).slice(0, 120)}`);
     }
   }
-  return NextResponse.json({ ok: true, contacts, orgs: orgCache.size, skipped, errors: errors.slice(0, 10) });
+  return NextResponse.json({ ok: true, contacts, emailed, orgs: orgCache.size, skipped, errors: errors.slice(0, 10) });
 }

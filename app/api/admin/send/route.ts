@@ -11,7 +11,7 @@ import { sendMagicLink } from "@/lib/mail";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await isAdmin(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({} as any));
   const base = siteUrl(req);
 
