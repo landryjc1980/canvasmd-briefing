@@ -346,11 +346,11 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                   {!compact && <div style={{ font: "500 30px/1 'Newsreader',Georgia,serif", color: i === 0 ? pal.accent : "#5f626c", width: 30, flex: "none" }}>{i + 1}</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      {compact && <span style={{ font: "600 13px 'Newsreader',Georgia,serif", color: pal.accent, lineHeight: 1 }}>{i + 1}</span>}
+                      {compact && <span style={{ font: "600 15px 'Newsreader',Georgia,serif", color: pal.accent, lineHeight: 1 }}>{i + 1}</span>}
                       {(chip === "new" || chip === "updated") && (
                         <span style={{ font: "800 8.5px system-ui", letterSpacing: ".08em", color: pal.bg, background: chip === "new" ? pal.accent : "#fff", borderRadius: 4, padding: "2.5px 6px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
                       )}
-                      <span style={{ font: "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>{storyKicker(s)}</span>
+                      <span style={{ font: compact ? "700 11px system-ui" : "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>{storyKicker(s)}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                       <span style={{ font: isDrug ? "500 22px/1.15 'Newsreader',Georgia,serif" : "500 20px/1.3 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{s.headline}</span>
@@ -375,7 +375,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                       The momentum arrow moved up beside the subtitle. */}
                 </div>
               }>
-              <div style={{ marginLeft: 50 }}>
+              <div style={{ marginLeft: compact ? 0 : 50 }}>
                 {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                 {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                 {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
@@ -434,7 +434,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                     <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                   </div>
                 }>
-                <div style={{ marginLeft: 55 }}>
+                <div style={{ marginLeft: compact ? 0 : 55 }}>
                   {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Posts on X · {k.posts.length}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                   {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Articles shared · {k.articles.length}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} url={a.url} accent={pal.accent} />)}</div>}
                 </div>
@@ -558,7 +558,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                     </div>
                   </div>
                 }>
-                <div style={{ marginLeft: 50 }}>
+                <div style={{ marginLeft: compact ? 0 : 50 }}>
                   {/* the field's read at the TOP of the drug's evidence drawer (self-suppresses if thin) */}
                   <StanceBlock stance={m.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
                   {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
