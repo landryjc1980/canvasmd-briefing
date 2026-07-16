@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, heroStats, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
@@ -160,7 +160,6 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
     } catch { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); }
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
-  const stats = heroStats(data);
   // sticky section nav — jump-links + scroll-spy (desktop scroll is one long column; mobile
   // has the pill deck, so this brings parity). Sections match the mobile chapters.
   const sections = [
@@ -273,18 +272,12 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
           })}
         </div>
 
-        {/* hero */}
+        {/* hero — kicker + cover headline + recap. (No stat tallies: they didn't link anywhere
+            and pushed the actual read down.) */}
         <div style={{ textAlign: "center", marginTop: 40 }}>
-          <div style={{ font: "600 11px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
-          {data.headline && <h1 style={{ font: "400 38px/1.15 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "14px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
+          <div style={{ font: "700 13px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in {AREA_FULL[area] ?? area}</div>
+          {data.headline && <h1 style={{ font: "400 39px/1.14 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "17px auto 0", maxWidth: 600, letterSpacing: "-.01em" }}>{data.headline}</h1>}
           <RecapBlock text={data.recap} accent={pal.accent} size={19} lines={5} centered />
-          <div style={{ display: "flex", justifyContent: "center", gap: 26, marginTop: 26 }}>
-            <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.moverCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>mover{stats.moverCount === 1 ? "" : "s"}</span></div>
-            <div style={{ width: 1, background: "rgba(255,255,255,.12)" }} />
-            <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.postCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>KOL posts</span></div>
-            <div style={{ width: 1, background: "rgba(255,255,255,.12)" }} />
-            <div><span style={{ font: "600 18px system-ui", color: "#f4f7ff" }}>{stats.talkCount}</span> <span style={{ font: "400 13px system-ui", color: "#7c7f88" }}>podcast talks</span></div>
-          </div>
         </div>
 
         {/* Top Stories — the atom-agnostic hero (drug | paper | topic). ONE story card,
@@ -546,5 +539,5 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
 }
 
 function SectionHead({ children, id }: { children: React.ReactNode; id?: string }) {
-  return <div id={id} style={{ font: "600 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: "#6f727c", textAlign: "center", margin: "48px 0 8px", scrollMarginTop: 66 }}>{children}</div>;
+  return <div id={id} style={{ font: "700 13.5px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#aeb4c4", textAlign: "center", margin: "54px 0 18px", scrollMarginTop: 66 }}>{children}</div>;
 }
