@@ -139,6 +139,23 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
   );
 }
 
+// Overlapping avatars of the clinicians who shared an article (the "who's reading this" face-pile,
+// mirrors the pharma dashboard). `ring` = page bg so the overlap reads as clean separated coins.
+function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
+      {faces.slice(0, 4).map((f, i) => (
+        <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "rgba(255,255,255,.12)", marginLeft: i ? -8 : 0, flex: "none" }}>
+          <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+      ))}
+      {extra > 0 && (
+        <div style={{ height: 26, minWidth: 26, padding: "0 6px", boxSizing: "border-box", borderRadius: 13, border: `2px solid ${ring}`, background: "rgba(255,255,255,.1)", marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", font: "600 10px system-ui", color: "rgba(255,255,255,.72)", flex: "none" }}>+{extra}</div>
+      )}
+    </div>
+  );
+}
+
 export default function ReaderView({ data, area, areas, onArea, seen }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string> }) {
   const pal = palOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -443,7 +460,10 @@ export default function ReaderView({ data, area, areas, onArea, seen }: { data: 
                         {isNewsDomain(a.domain) && !a.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
                       </div>
                     </div>
-                    <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap", flex: "none" }}>{tog(id)}</span>
+                    <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 9 }}>
+                      {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
+                      <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                    </div>
                   </div>
                 }>
                 {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{a.abstract}</p>}
