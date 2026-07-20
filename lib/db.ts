@@ -138,3 +138,36 @@ export type Engagement = {
 export async function engagement(): Promise<Engagement[]> {
   return pg<Engagement[]>("v_brief_engagement?order=last_event_at.desc.nullslast", { method: "GET", headers: headers() });
 }
+
+// ---- pipeline health (admin "data health") -----------------------------------------------
+// Reads the SAME probes the daily pipeline-health email uses, so the admin page and the
+// alert can never disagree. Two halves, because they catch different failures:
+//   freshness — "did each stage produce output recently?"
+//   backlog   — "is unprocessed work piling up?"  Freshness alone is blind to a stage that
+//               still writes rows but writes them unfinished (the 2026-07-20 embedding
+//               outage stayed green for days while 13% of the corpus sat unembedded).
+export type Freshness = {
+  name: string; table: string; ts_column: string; latest: string | null;
+  max_staleness_hours: number; hours_stale: number | null; stale: boolean;
+};
+export type Backlog = {
+  name: string; table: string; backlog: number | null;
+  max_backlog: number; note: string | null; over: boolean;
+};
+export type CronFailure = { jobname: string; message: string; start_time: string };
+
+async function rpc<T = any>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+  return pg<T>(`rpc/${fn}`, { method: "POST", headers: headers(), body: JSON.stringify(args) });
+}
+export async function freshnessSnapshot(): Promise<{ checks: Freshness[]; cron_failures: CronFailure[] }> {
+  const d = await rpc<any>("pipeline_health_snapshot", { cron_lookback_hours: 26 });
+  return { checks: d?.checks ?? [], cron_failures: d?.cron_failures ?? [] };
+}
+export async function backlogSnapshot(): Promise<Backlog[]> {
+  const d = await rpc<any>("pipeline_backlog_snapshot");
+  return d?.backlogs ?? [];
+}
+export async function lastHealthRun(): Promise<{ ran_at: string; ok: boolean } | null> {
+  const r = await pg<any[]>("pipeline_health_runs?select=ran_at,ok&order=ran_at.desc&limit=1", { method: "GET", headers: headers() });
+  return r?.[0] ?? null;
+}
