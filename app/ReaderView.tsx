@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
@@ -55,6 +55,11 @@ function Bar({ m, accent }: { m: BriefingMover; accent: string }) {
 
 // Raised surface: a step lighter than the page, lit top edge, soft drop — the depth system.
 const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.065)", border: "1px solid rgba(255,255,255,.09)", borderTop: "1px solid rgba(255,255,255,.16)", borderRadius: 13, padding: 14, marginBottom: 9, boxShadow: "0 8px 22px rgba(0,0,0,.2)" };
+// Story container: everything belonging to one story (headline, stance, metrics, evidence
+// peek, expanded drawer) sits inside ONE bounded panel — without it, the peek's "On the
+// podcasts" read as a brand-new page section instead of story evidence. A quiet step above
+// the page; the evidence cards inside step up again.
+const storyCard: React.CSSProperties = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, padding: "0 20px", marginBottom: 14 };
 const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 
 // "shared by N · ♥ M" with zero parts dropped — never renders "shared by 0 · ♥ 0".
@@ -334,7 +339,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         }
         const showPeek = lead && openId !== id && peekItems.length > 0;
         return (
-          <div key={id} data-sid={s.id} data-sfp={s.fp ?? ""}>
+          <Fragment key={id}>
             {part.mode === "split" && i === part.freshCount && (
               <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "26px 0 10px" }}>
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
@@ -345,6 +350,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
               </div>
             )}
+          <div data-sid={s.id} data-sfp={s.fp ?? ""} style={storyCard}>
           <Row open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
@@ -392,6 +398,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             </div>
           </Row>
           </div>
+          </Fragment>
         );
       })}
     </>
