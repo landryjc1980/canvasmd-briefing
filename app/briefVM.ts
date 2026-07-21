@@ -16,6 +16,20 @@ export const PALETTE: Record<string, Pal> = {
 };
 export const palOf = (area: string): Pal => PALETTE[area] ?? PALETTE.GU;
 
+// ---- Ink editorial treatment (2026-07-21) ----------------------------------------
+// The default reader no longer paints the page in the jewel tone — a saturated
+// full-viewport field read as cheap. The page is one shared near-black ink (a whisper
+// of blue so it isn't dead), and the area's jewel tone survives as a "cover wash":
+// a gradient band at the very top of the page that fades into the ink, plus the
+// accent system (kickers, numerals, hairlines, bars). palOf/PALETTE stay untouched —
+// the frozen ?design=flat fallback and StoryView still key off them.
+export const INK_BG = "#0D1017";
+export type InkPal = { bg: string; accent: string; wash: string };
+export const inkOf = (area: string): InkPal => {
+  const p = palOf(area);
+  return { bg: INK_BG, accent: p.accent, wash: p.bg };
+};
+
 // Full tumor-area names for the header switcher (the compact "GU" codes are for chips).
 export const AREA_FULL: Record<string, string> = {
   GU: "Genitourinary",

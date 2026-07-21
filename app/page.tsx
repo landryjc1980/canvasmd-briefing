@@ -7,7 +7,7 @@ import BroadsheetView from "./BroadsheetView";
 import BriefView from "./BriefView";
 import ReaderView from "./ReaderView";
 import ReaderViewFlat from "./ReaderViewFlat";
-import { palOf } from "./briefVM";
+import { palOf, INK_BG } from "./briefVM";
 import { logSignal } from "./gateClient";
 import "./briefing.css";
 import "./brief.css";
@@ -122,7 +122,9 @@ export default function BriefingPage() {
   }
 
   // ---- DEFAULT: responsive story / reader ----
-  const bg = palOf(area ?? "GU").bg;
+  // Loading field matches the design about to mount: ink for the default reader,
+  // the area jewel tone only for the frozen ?design=flat fallback.
+  const bg = design === "flat" ? palOf(area ?? "GU").bg : INK_BG;
   if (!data || !area || isMobile === null) {
     return (
       <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui" }}>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
 
@@ -189,7 +189,9 @@ function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring
 }
 
 export default function ReaderView({ data, area, areas, onArea, seen, compact = false }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean }) {
-  const pal = palOf(area);
+  // Ink editorial: neutral near-black page, the area's jewel tone demoted to a top
+  // "cover wash" + the accent system. See inkOf in briefVM.
+  const pal = inkOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // masthead area/tumor switcher (mobile parity)
@@ -238,10 +240,14 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
+  // The jump-link bar rides transparently on the cover wash at rest, and only grows its
+  // ink-glass chrome once it actually sticks — a floating bar over the masthead read as a band.
+  const [stuck, setStuck] = useState(false);
   useEffect(() => {
     const ids = ["sec-top", "sec-kols", "sec-episodes", "sec-papers", "sec-trials", "sec-drugs"].filter((id) => !wide || !["sec-kols", "sec-trials"].includes(id));
     let raf = 0;
     const check = () => {
+      setStuck(window.scrollY > 120);
       let cur = "";
       for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 90) cur = id; }
       setActiveSec(cur || ids.find((id) => document.getElementById(id)) || "sec-top");
@@ -571,7 +577,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: `radial-gradient(1000px 520px at 50% -220px, rgba(255,255,255,.07), rgba(255,255,255,0) 72%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       {/* rv-pills: hide the scrollbar; on mobile a right-edge fade signals there's more to scroll.
           rv-row: the hover-lift surface + keyboard focus ring on every expandable row. */}
       <style>{`
@@ -642,7 +648,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         {/* wide: the rail is quiet context, so the jump-links center on the EDITORIAL column
             (right padding = rail 320 + gap 46), not the full wrapper. The hard border under the
             bar read as cheap — replaced by the glass blur + a soft cast shadow. */}
-        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : wide ? "11px 396px 11px 30px" : "11px 30px", background: `${pal.bg}E8`, backdropFilter: "blur(10px) saturate(1.15)", WebkitBackdropFilter: "blur(10px) saturate(1.15)", boxShadow: "0 14px 28px -18px rgba(0,0,0,.55)", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : wide ? "11px 396px 11px 30px" : "11px 30px", background: stuck ? `${pal.bg}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
             return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>{s.label}</button>;
