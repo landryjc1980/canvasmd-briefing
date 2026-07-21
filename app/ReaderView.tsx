@@ -575,7 +575,8 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
       {data.movers.map((m, i) => {
         const id = "m:" + m.drugId;
         return (
-          <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+          <div key={id} style={storyCard}>
+          <Row open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
                 {!compact && <div style={{ font: "500 26px/1.1 'Newsreader',Georgia,serif", color: pal.accent, opacity: i === 0 ? 1 : 0.45, width: 34, flex: "none" }}>{i + 1}</div>}
