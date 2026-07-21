@@ -262,7 +262,13 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
   // divider, then the ones they've already read (editorial order inside each half).
   const part = partitionStories(storiesOf(data), seen);
   const stories = part.ordered;
-  const tog = (id: string) => (openId === id ? "Hide ↑" : "The signal ↓");
+  // The evidence toggle is the product — a bare 11.5px text link was invisible to
+  // first-time readers. It's now a small accent-tinted pill that reads as a control.
+  const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
+    <span style={{ display: "inline-flex", alignItems: "center", font: "600 12.5px system-ui", color: pal.accent, border: `1px solid ${pal.accent}59`, background: `${pal.accent}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap", ...style }}>
+      {openId === id ? "Hide ↑" : "The signal ↓"}
+    </span>
+  );
 
   // Story impression — a story counts as SEEN when its card actually scrolls into view (≥45%
   // visible). Logged once per story per page load (logStorySeen dedupes); feeds
@@ -354,7 +360,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                     )}
                     {faces.length > 0 && <FacePile faces={faces} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
-                    <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                    <SignalTag id={id} style={{ marginLeft: "auto" }} />
                   </div>
                 </div>
               </div>
@@ -424,7 +430,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               <div style={{ display: "flex", alignItems: "center", gap: 15, padding: "16px 2px" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
                 <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}{k.institution ? <span style={{ font: "400 12.5px system-ui", color: MUT }}>{"  ·  " + k.institution}</span> : ""}</div><div style={{ font: "400 12.5px system-ui", color: MUT, marginTop: 2 }}>{k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "")}</div></div>
-                <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                <SignalTag id={id} />
               </div>
             }>
             <div style={{ marginLeft: narrow ? 0 : 55 }}>
@@ -476,7 +482,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                 </div>
                 <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 9 }}>
                   {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
-                  <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                  <SignalTag id={id} />
                 </div>
               </div>
             }>
@@ -513,7 +519,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11 }}>
                   {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                   <span style={{ font: "400 12px system-ui", color: MUT }}>{parts.join(" · ")}</span>
-                  <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                  <SignalTag id={id} style={{ marginLeft: "auto" }} />
                 </div>
               </div>
             ) : (
@@ -521,7 +527,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                 <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div><div style={{ font: "400 12.5px system-ui", color: MUT, marginTop: 3 }}>{t.title}</div></div>
                 {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                 <span style={{ font: "400 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>{parts.join(" · ")}</span>
-                <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap", flex: "none" }}>{tog(id)}</span>
+                <SignalTag id={id} style={{ flex: "none" }} />
               </div>
             )}>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
@@ -558,7 +564,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                     <Bar m={m} accent={pal.accent} />
                     {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{metricsLine(m)}</span>
-                    <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
+                    <SignalTag id={id} style={{ marginLeft: "auto" }} />
                   </div>
                 </div>
               </div>
