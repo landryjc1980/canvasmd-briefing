@@ -537,26 +537,23 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
         return (
           <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
-            head={narrow ? (
-              /* narrow (mobile / rail): stack — acronym + (clamped) title full width, then a meta
-                 row so the title isn't crushed into a sliver by the faces/counts/toggle */
-              <div style={{ padding: "16px 2px" }}>
-                <div style={{ font: "500 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div>
-                <div style={{ font: "400 12.5px/1.4 system-ui", color: MUT, marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11 }}>
+            /* Each trial is a compact contained chip-card: acronym + toggle on the header line,
+               the CT.gov title full-width beneath (clamped), then a tight meta row. Containment
+               (vs the old bare floating rows) stops the acronym reading as its own page heading,
+               and the fixed card rhythm kills the ragged whitespace. */
+            head={
+              <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ flex: 1, minWidth: 0, font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.acronym || prettyPhase(t.phase)}</span>
+                  <SignalTag id={id} style={{ flex: "none" }} />
+                </div>
+                {t.title && <div style={{ font: "400 12px/1.4 system-ui", color: MUT, marginTop: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 10 }}>
                   {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
-                  <span style={{ font: "400 12px system-ui", color: MUT }}>{parts.join(" · ")}</span>
-                  <SignalTag id={id} style={{ marginLeft: "auto" }} />
+                  <span style={{ font: "400 11.5px system-ui", color: MUT }}>{parts.join(" · ")}</span>
                 </div>
               </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "16px 2px" }}>
-                <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div><div style={{ font: "400 12.5px system-ui", color: MUT, marginTop: 3 }}>{t.title}</div></div>
-                {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
-                <span style={{ font: "400 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>{parts.join(" · ")}</span>
-                <SignalTag id={id} style={{ flex: "none" }} />
-              </div>
-            )}>
+            }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
             {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, 0)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
