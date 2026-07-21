@@ -321,6 +321,18 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         const headlineFont = isDrug
           ? (lead ? (compact ? "500 26px/1.15" : "500 34px/1.12") : "500 22px/1.15")
           : (lead ? (compact ? "500 23px/1.28" : "500 30px/1.22") : "500 20px/1.3");
+        // First-time discoverability: the LEAD story teases its evidence — the first 1–2
+        // pieces render in a clipped, bottom-faded, non-interactive preview with the signal
+        // pill beneath as the "see the rest" affordance. Clicking anywhere expands the real
+        // drawer (the whole head is the button); once open the pill moves back to the metric
+        // row as "Hide ↑". Teaser only — pointer-events off so a play button can't half-fire.
+        const peekItems: React.ReactNode[] = [];
+        if (lead) {
+          if (s.podcast[0]) peekItems.push(<div key="pod"><div style={evLabel(pal.accent)}>On the podcasts</div><PodCard p={s.podcast[0]} accent={pal.accent} /></div>);
+          if (peekItems.length < 2 && s.posts[0]) peekItems.push(<div key="x"><div style={evLabel(pal.accent)}>On X · verified clinicians</div><TweetCard t={s.posts[0]} /></div>);
+          if (peekItems.length < 2 && s.papers[0]) peekItems.push(<div key="pp"><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div><PaperCard title={s.papers[0].title} journal={s.papers[0].journal} domain={s.papers[0].domain} url={s.papers[0].url} abstract={s.papers[0].abstract} accent={pal.accent} /></div>);
+        }
+        const showPeek = lead && openId !== id && peekItems.length > 0;
         return (
           <div key={id} data-sid={s.id} data-sfp={s.fp ?? ""}>
             {part.mode === "split" && i === part.freshCount && (
@@ -360,8 +372,16 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                     )}
                     {faces.length > 0 && <FacePile faces={faces} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
-                    <SignalTag id={id} style={{ marginLeft: "auto" }} />
+                    {(!lead || openId === id) && <SignalTag id={id} style={{ marginLeft: "auto" }} />}
                   </div>
+                  {showPeek && (
+                    <>
+                      <div aria-hidden style={{ maxHeight: 250, overflow: "hidden", marginTop: 16, pointerEvents: "none", WebkitMaskImage: "linear-gradient(180deg, #000 38%, transparent 96%)", maskImage: "linear-gradient(180deg, #000 38%, transparent 96%)" }}>
+                        {peekItems}
+                      </div>
+                      <div style={{ textAlign: "center", marginTop: 4 }}><SignalTag id={id} /></div>
+                    </>
+                  )}
                 </div>
               </div>
             }>
