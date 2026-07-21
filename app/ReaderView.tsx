@@ -145,7 +145,7 @@ function Row({ open, onToggle, accent, head, children }: { open: boolean; onTogg
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
         style={{ cursor: "pointer", margin: "0 -12px", padding: "0 12px", borderRadius: 14 }}
       >{head}</div>
-      {open && <div style={{ margin: "0 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>}
+      {open && <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>}
     </div>
   );
 }
@@ -579,6 +579,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         .rv-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
         .rv-row{transition:background .16s ease}
         @media(hover:hover){.rv-row:hover{background:rgba(255,255,255,.045)}}
+        @media(hover:hover){.rv-row[aria-expanded="true"],.rv-row[aria-expanded="true"]:hover{background:transparent}}
         .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
       `}</style>
       {/* share with a colleague — spreads the brief inside the account (referral graph). Desktop
@@ -638,7 +639,10 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         {compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.32)", margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll. Glassy over the lit page field. */}
-        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: `${pal.bg}E8`, backdropFilter: "blur(10px) saturate(1.15)", WebkitBackdropFilter: "blur(10px) saturate(1.15)", borderBottom: "1px solid rgba(255,255,255,.1)", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        {/* wide: the rail is quiet context, so the jump-links center on the EDITORIAL column
+            (right padding = rail 320 + gap 46), not the full wrapper. The hard border under the
+            bar read as cheap — replaced by the glass blur + a soft cast shadow. */}
+        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : wide ? "11px 396px 11px 30px" : "11px 30px", background: `${pal.bg}E8`, backdropFilter: "blur(10px) saturate(1.15)", WebkitBackdropFilter: "blur(10px) saturate(1.15)", boxShadow: "0 14px 28px -18px rgba(0,0,0,.55)", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
             return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>{s.label}</button>;
