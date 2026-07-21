@@ -6,23 +6,25 @@ import { AREAS } from "./ui";
 import BroadsheetView from "./BroadsheetView";
 import BriefView from "./BriefView";
 import ReaderView from "./ReaderView";
+import ReaderViewFlat from "./ReaderViewFlat";
 import { palOf } from "./briefVM";
 import { logSignal } from "./gateClient";
 import "./briefing.css";
 import "./brief.css";
 
 // Weekly Briefing — "what moved this week in {area}", one tumor area at a time.
-// DEFAULT experience = the responsive "story / reader" design (dark, one color per
-// area): the phone-width story player on mobile, the centered reader on desktop,
-// chosen by viewport. The earlier Brief/Broadsheet renderings are KEPT (not deleted)
-// and reachable at ?design=classic as a fallback in case the new design needs work.
+// DEFAULT experience = the responsive reader (dark, one color per area), with the
+// 2026-07-21 depth/two-column treatment. Fallbacks kept, not deleted:
+//   ?design=flat    → the pre-2026-07-21 single-column reader (ReaderViewFlat)
+//   ?design=classic → the original Brief/Broadsheet renderings
 
 type ViewMode = "broadsheet" | "brief";
+type Design = "default" | "flat" | "classic";
 
 export default function BriefingPage() {
   const [area, setArea] = useState<string | undefined>(undefined);
   const [view, setView] = useState<ViewMode>("brief");
-  const [classic, setClassic] = useState(false);
+  const [design, setDesign] = useState<Design>("default");
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [data, setData] = useState<BriefingData | null>(null);
   const [seen, setSeen] = useState<Record<string, string>>({});
@@ -55,7 +57,8 @@ export default function BriefingPage() {
     const q = new URLSearchParams(window.location.search);
     setArea(AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : "GU");
     setView(q.get("view") === "broadsheet" ? "broadsheet" : "brief");
-    setClassic(q.get("design") === "classic");
+    const d = q.get("design");
+    setDesign(d === "classic" ? "classic" : d === "flat" ? "flat" : "default");
   }, []);
 
   // responsive: pick story (mobile) vs reader (desktop) by viewport width
@@ -99,7 +102,7 @@ export default function BriefingPage() {
   const pickView = (v: ViewMode) => { setView(v); sync({ view: v }); };
 
   // ---- CLASSIC fallback (the original Brief/Broadsheet toggle) ----
-  if (classic) {
+  if (design === "classic") {
     return (
       <div className={`bfroot ${view}`}>
         <div className="switchbar">
@@ -130,5 +133,6 @@ export default function BriefingPage() {
   // One scroll model on both platforms (retires the swipe deck — swipe/tap-to-advance wasn't
   // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
   // (no AI cover line) + horizontally-scrolling section pills.
+  if (design === "flat") return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
   return <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
 }

@@ -76,6 +76,18 @@ export function metricsLine(m: BriefingMover): string {
   return parts.join(" · ");
 }
 
+// Display-side tweet cleanup: drop the "RT @handle:" prefix and bare t.co shortlinks —
+// they read as debris on an editorial card. The card itself still links to the real tweet,
+// so nothing is lost. Ingest/data stays untouched (display-only).
+export function cleanTweetText(s: string | null | undefined): string {
+  return (s ?? "")
+    .replace(/^RT @[A-Za-z0-9_]+:\s*/, "")
+    .replace(/https?:\/\/t\.co\/\S+/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([.,;:!?])/g, "$1")
+    .trim();
+}
+
 // "5:30" clip timestamp from a start offset in ms.
 export function clipTs(ms: number | null): string {
   if (ms == null) return "0:00";
