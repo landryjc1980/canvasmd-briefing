@@ -605,6 +605,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, p.topLikes)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
             </div>
           </Row>
+          </div>
         );
       })}
     </>
