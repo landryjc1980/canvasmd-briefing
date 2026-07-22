@@ -39,6 +39,17 @@ const ini = (s: string) =>
 // for the 12px metric lines). This clears 4.5:1 on every area bg in the palette.
 const MUT = "#9aa2b6";
 
+// Podcast/trial excerpt cleanup: transcript-derived snippets start & end mid-sentence
+// ("…n-free survival with a switch…"). Drop a leading partial token + mark both ends as an
+// excerpt. Clean AI glosses (capitalized start, terminal punctuation) pass through untouched.
+const cleanSnippet = (s: string | null | undefined): string => {
+  let t = (s ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return t;
+  if (/^[a-z]/.test(t)) t = "…" + t.replace(/^\S+\s*/, "");
+  if (!/[.!?"'’”)…]$/.test(t)) t = t.replace(/\s+\S*$/, "").trim() + "…";
+  return t;
+};
+
 function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
@@ -77,12 +88,12 @@ function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
         <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div>
-          <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.episodeTitle}</div>
+          <div style={{ font: "400 11px/1.35 system-ui", color: MUT, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
         </div>
       </div>
-      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
+      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{cleanSnippet(p.gloss)}</p>
       {p.audioUrl
-        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label={`clip ${clipTs(p.startMs)}`} accent={accent} tone="dark" />
+        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label="Listen to the clip" accent={accent} tone="dark" />
         : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
     </div>
   );
@@ -554,17 +565,15 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         return (
           <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
             head={
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 15, padding: "16px 2px" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(a.title)}</div>
-                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 5 }}>
-                    <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-                    {isNewsDomain(a.domain) && !a.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
-                  </div>
-                </div>
-                <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 9 }}>
+              /* full-width title (John: "I like full width text"), then a single meta row —
+                 faces + source + the expander — so the headline never gets squeezed to a column */
+              <div style={{ padding: "16px 2px" }}>
+                <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(a.title)}</div>
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
                   {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
-                  <SignalTag id={id} />
+                  <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+                  {isNewsDomain(a.domain) && !a.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                  <SignalTag id={id} style={{ marginLeft: "auto" }} />
                 </div>
               </div>
             }>
@@ -585,24 +594,25 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
       <SectionHead id="sec-trials" accent={pal.accent} rail={wide}>Trials being discussed</SectionHead>
       <Capped items={data.trials} cap={6} accent={pal.accent} render={(t, i) => {
         const id = "t:" + i;
+        const open = openId === id;
         const parts: string[] = [];
         if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
         if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
         if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
         const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
         return (
-          <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
-            /* Each trial is a compact contained chip-card: acronym + toggle on the header line,
-               the CT.gov title full-width beneath (clamped), then a tight meta row. Containment
-               (vs the old bare floating rows) stops the acronym reading as its own page heading,
-               and the fixed card rhythm kills the ragged whitespace. */
+          /* One CARD wraps the whole trial — header AND the expanded evidence — so the drawer
+             reads as part of the trial, not disconnected posts on the page. Title clamps to 2
+             lines when closed, shows in FULL when open (John: expanding should reveal the rest). */
+          <div key={id} style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "0 14px 2px", marginBottom: 8 }}>
+          <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
-              <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
+              <div style={{ padding: "13px 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ flex: 1, minWidth: 0, font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.acronym || prettyPhase(t.phase)}</span>
                   <SignalTag id={id} style={{ flex: "none" }} />
                 </div>
-                {t.title && <div style={{ font: "400 12px/1.4 system-ui", color: MUT, marginTop: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>}
+                {t.title && <div style={{ font: "400 12.5px/1.5 system-ui", color: MUT, marginTop: 6, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{t.title}</div>}
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 10 }}>
                   {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                   <span style={{ font: "400 11.5px system-ui", color: MUT }}>{parts.join(" · ")}</span>
@@ -614,6 +624,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, 0)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
+          </div>
         );
       }} />
     </>
