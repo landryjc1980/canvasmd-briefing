@@ -234,6 +234,43 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
     } catch { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); }
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
+  // Tumor-area / "edition" switcher — one menu, two homes: a chip anchored to the masthead
+  // wordmark on desktop (so the specialty isn't orphaned at the far-right edge) and the plain
+  // trigger in the mobile header. Shared menuOpen state; the menu aligns to the trigger's side.
+  const areaSwitcher = (variant: "chip" | "plain") => {
+    const chip = variant === "chip";
+    return (
+      <div style={{ position: "relative", flex: "none" }}>
+        <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area"
+          onClick={() => setMenuOpen((o) => !o)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
+          style={chip
+            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 20 }
+            : { display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
+          <span style={{ font: chip ? "600 13.5px system-ui" : "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
+          <span style={{ font: "700 11px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
+        </div>
+        {menuOpen && (
+          <>
+            <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
+            <div style={{ position: "absolute", top: "calc(100% + 7px)", ...(chip ? { left: 0 } : { right: 0 }), width: 210, background: "rgba(16,18,26,.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, boxShadow: "0 20px 44px rgba(0,0,0,.4)", padding: 8, zIndex: 31 }}>
+              <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
+              {areas.map((a) => {
+                const on = a === area;
+                return (
+                  <div key={a} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
+                    <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.75)" }}>{AREA_FULL[a] ?? a}</span>
+                    {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
   // sticky section nav — jump-links + scroll-spy. On the wide layout the rail sections
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const sections = [
@@ -652,8 +689,10 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             switcher as a dropdown on the right (mobile parity). Folding the area picker up here
             kills the whole separate tabs row — header is now just masthead + section pills. */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingBottom: compact ? 3 : 14 }}>
-          <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 11, rowGap: 3, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 5, minWidth: 0 }}>
             <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0, display: "inline" }}>The Readout</h1>
+            {/* desktop: the area IS the edition — anchor its selector to the wordmark, not the far right */}
+            {!compact && areaSwitcher("chip")}
             {!compact && <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>}
             {!compact && <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>}
           </div>
@@ -663,31 +702,8 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </button>}
           {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
-          {/* tumor-area dropdown — same interaction as the mobile header */}
-          <div style={{ position: "relative", flex: "none" }}>
-            <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area" onClick={() => setMenuOpen((o) => !o)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
-              <span style={{ font: "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
-              <span style={{ font: "700 12px system-ui", color: "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
-            </div>
-            {menuOpen && (
-              <>
-                <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-                <div style={{ position: "absolute", top: "calc(100% + 7px)", right: 0, width: 202, background: "rgba(16,18,26,.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, boxShadow: "0 20px 44px rgba(0,0,0,.4)", padding: 8, zIndex: 31 }}>
-                  <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
-                  {areas.map((a) => {
-                    const on = a === area;
-                    return (
-                      <div key={a} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent" }}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
-                        <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.75)" }}>{AREA_FULL[a] ?? a}</span>
-                        {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
+          {/* mobile: the area switcher stays in the compact header's right cluster */}
+          {compact && areaSwitcher("plain")}
           </div>
         </div>
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
