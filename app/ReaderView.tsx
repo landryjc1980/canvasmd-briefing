@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
-import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
 
@@ -66,14 +67,6 @@ function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
   return <span title="Net change in evidence (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
-}
-
-function Bar({ m, accent }: { m: BriefingMover; accent: string }) {
-  return (
-    <div style={{ width: 132, height: 4, borderRadius: 3, display: "flex", gap: 2, overflow: "hidden" }}>
-      {barSegments(m).map((s, i) => <div key={i} style={{ flex: s.flex, background: accent, opacity: s.opacity, borderRadius: 3 }} />)}
-    </div>
-  );
 }
 
 // Raised surface: a step lighter than the page, lit top edge, soft drop — the depth system.
@@ -160,20 +153,46 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent 
 
 // The expandable row. A real button now (keyboard + AT reach the evidence too), with the
 // hover-lift surface from the .rv-row class; the click target is unchanged — the whole head.
+// Evidence drawer: lazy (children mount only while open, keeping the content-heavy page light) and
+// eased in with a pure-CSS fade + short slide on mount (see .rv-drawer). Deliberately NOT a
+// height-unfurl — animating grid-template-rows/max-height is fragile and risks clipping the
+// evidence to 0 if the animation is throttled; opacity/transform are universally safe and the
+// content renders at its natural height immediately, so visibility never depends on JS.
+function Collapse({ open, children }: { open: boolean; children: React.ReactNode }) {
+  if (!open) return null;
+  return <div className="rv-drawer">{children}</div>;
+}
+
 function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
   void accent;
+  const headRef = useRef<HTMLDivElement>(null);
+  // Single-open accordion: opening a row BELOW an already-open one collapses that one and yanks the
+  // clicked row upward off the cursor. Capture the head's viewport position, commit the toggle
+  // SYNCHRONOUSLY (flushSync — so the DOM/layout is updated before the browser paints; an rAF here
+  // is unreliable when throttled), then scroll by the delta so the clicked row stays visually put.
+  const activate = () => {
+    const el = headRef.current;
+    if (!el) { onToggle(); return; }
+    const before = el.getBoundingClientRect().top;
+    flushSync(() => onToggle());
+    const d = el.getBoundingClientRect().top - before;
+    if (Math.abs(d) > 1) window.scrollBy(0, d);
+  };
   return (
     <div>
       <div
+        ref={headRef}
         role="button"
         tabIndex={0}
         aria-expanded={open}
         className="rv-row"
-        onClick={onToggle}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+        onClick={activate}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
         style={{ cursor: "pointer", margin: "0 -12px", padding: "0 12px", borderRadius: 14 }}
       >{head}</div>
-      {open && <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>}
+      <Collapse open={open}>
+        <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>
+      </Collapse>
     </div>
   );
 }
@@ -461,11 +480,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                   {s.description && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{s.description}</p>}
                   <StanceBlock stance={s.stance} accent={pal.accent} style={{ marginTop: 14 }} />
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                    {isDrug && s.bar && (
-                      <div style={{ width: 132, height: 4, borderRadius: 3, display: "flex", gap: 2, overflow: "hidden" }}>
-                        {barSegmentsRaw(s.bar).map((seg, k) => <div key={k} style={{ flex: seg.flex, background: pal.accent, opacity: seg.opacity, borderRadius: 3 }} />)}
-                      </div>
-                    )}
                     {faces.length > 0 && <FacePile faces={faces} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
                     {(!lead || openId === id) && <SignalTag id={id} style={{ marginLeft: "auto" }} />}
@@ -694,7 +708,6 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                   </div>
                   {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                    <Bar m={m} accent={pal.accent} />
                     {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{metricsLine(m)}</span>
                     <SignalTag id={id} style={{ marginLeft: "auto" }} />
@@ -727,6 +740,9 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         @media(hover:hover){.rv-row:hover{background:rgba(255,255,255,.045)}}
         @media(hover:hover){.rv-row[aria-expanded="true"],.rv-row[aria-expanded="true"]:hover{background:transparent}}
         .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
+        .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
+        @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+        @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
       `}</style>
       {/* share with a colleague — spreads the brief inside the account (referral graph). Desktop
           only: on mobile it collided with the area dropdown, so a share icon sits in the masthead. */}
