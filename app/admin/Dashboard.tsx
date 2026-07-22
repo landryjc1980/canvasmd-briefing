@@ -7,7 +7,10 @@
 
 import { useEffect, useState } from "react";
 
-type Tier = { total: number; npi: number; international: number; md_no_npi: number; other: number };
+type Tier = {
+  total: number; npi: number; international: number; md_no_npi: number; other: number;
+  intl_identified?: number; intl_md_credential?: number; intl_x_linked?: number;
+};
 type Stats = {
   captured_at: string;
   people: { total: number; hosts: number; guests: number; guests_hosts: Tier; x_users: Tier };
@@ -43,7 +46,7 @@ function StatCard({ label, value, prev, sub }: { label: string; value: number; p
   );
 }
 
-const TIER_ROWS: { key: keyof Tier; label: string; color: string }[] = [
+const TIER_ROWS: { key: "npi" | "international" | "md_no_npi" | "other"; label: string; color: string }[] = [
   { key: "npi", label: "With NPI", color: "#5ac88c" },
   { key: "international", label: "International", color: "#7aa2ff" },
   { key: "md_no_npi", label: "MD/DO w/o NPI", color: "#e8c268" },
@@ -75,6 +78,14 @@ function BreakdownCard({ title, now, prev, note }: { title: string; now: Tier; p
               <div style={{ gridColumn: "1 / -1", height: 5, background: "rgba(255,255,255,.08)", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{ width: `${pct * 100}%`, height: "100%", background: color }} />
               </div>
+              {key === "international" && now.intl_identified !== undefined && (
+                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: muted, paddingLeft: 12, whiteSpace: "nowrap", overflowX: "auto" }}>
+                  <span>↳ identified</span>
+                  <span style={{ color: "#e9edf6", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{nf(now.intl_identified)}</span>
+                  <Delta now={now.intl_identified} prev={prev?.intl_identified} />
+                  <span style={{ color: "#5b6372" }}>· MD cred {nf(now.intl_md_credential ?? 0)} · on X {nf(now.intl_x_linked ?? 0)}</span>
+                </div>
+              )}
             </div>
           );
         })}
@@ -147,6 +158,7 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
       <div style={{ fontSize: 11, color: "#5b6372" }}>
         Tiers: <b>With NPI</b> = verified/inferred NPI on file · <b>International</b> = likely non-US, no NPI ·
         {" "}<b>MD/DO w/o NPI</b> = MD/DO/MBBS credential, no NPI, not international · <b>Other</b> = everyone else (PhD-only, no credential, …).
+        {" "}International <b>identified</b> = clinician with a known affiliation (no NPI registry exists for non-US physicians).
       </div>
     </div>
   );

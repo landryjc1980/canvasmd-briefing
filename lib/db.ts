@@ -182,7 +182,12 @@ export async function lastHealthRun(): Promise<{ ran_at: string; ok: boolean } |
 // admin_stats_daily keeps one snapshot per day (cron 07:50 UTC) for day-over-day deltas.
 // We also upsert today's row on every load so the baseline exists even if the cron
 // hadn't run yet — the delta always compares against the previous day's LAST capture.
-export type PeopleTierBreakdown = { total: number; npi: number; international: number; md_no_npi: number; other: number };
+export type PeopleTierBreakdown = {
+  total: number; npi: number; international: number; md_no_npi: number; other: number;
+  // International detail (no NPI registry exists for them): identified = clinician
+  // person_type + known affiliation. Added in migration 0204 — absent on older snapshots.
+  intl_identified?: number; intl_md_credential?: number; intl_x_linked?: number;
+};
 export type DbStats = {
   captured_at: string;
   people: { total: number; hosts: number; guests: number; guests_hosts: PeopleTierBreakdown; x_users: PeopleTierBreakdown };
