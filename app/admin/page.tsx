@@ -5,6 +5,7 @@
 // (CSV), send the brief, and read the "who's hot" engagement signal for sales.
 
 import { useEffect, useState } from "react";
+import Dashboard from "./Dashboard";
 
 type Row = {
   contact_id: string; email: string; name: string | null; org: string | null; role: string | null;
@@ -35,6 +36,7 @@ export default function Admin() {
   const [testEmail, setTestEmail] = useState("");
   const [health, setHealth] = useState<Health | null>(null);
   const [healthBusy, setHealthBusy] = useState(false);
+  const [tab, setTab] = useState<"console" | "dashboard">("console");
 
   useEffect(() => {
     const saved = localStorage.getItem("brief_admin_key") || new URLSearchParams(window.location.search).get("key") || "";
@@ -104,8 +106,24 @@ export default function Admin() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui", padding: "28px 24px", maxWidth: 1000, margin: "0 auto" }}>
-      <div style={{ fontWeight: 700, fontSize: 18, color: "#fff", marginBottom: 20 }}>Brief Gate · Admin</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, color: "#fff" }}>Brief Gate · Admin</div>
+        <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, padding: 3 }}>
+          {(["console", "dashboard"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{
+                background: tab === t ? "#7aa2ff" : "transparent", color: tab === t ? "#0e1524" : "#8b93a4",
+                fontWeight: 700, border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13,
+              }}>
+              {t === "console" ? <>Console{requests.length ? ` · ${requests.length}` : ""}</> : "Dashboard"}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      {tab === "dashboard" && <Dashboard adminKey={key} />}
+
+      {tab === "console" && <>
       {(() => {
         if (!health) return null;
         const stale = health.freshness.filter((c) => c.stale);
@@ -258,6 +276,7 @@ export default function Admin() {
       </div>
 
       {out && <pre style={{ ...box, whiteSpace: "pre-wrap", fontSize: 12, color: "#aab2c4" }}>{out}</pre>}
+      </>}
     </div>
   );
 }

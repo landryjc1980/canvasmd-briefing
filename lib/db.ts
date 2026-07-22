@@ -176,3 +176,34 @@ export async function lastHealthRun(): Promise<{ ran_at: string; ok: boolean } |
   const r = await pg<any[]>("pipeline_health_runs?select=ran_at,ok&order=ran_at.desc&limit=1", { method: "GET", headers: headers() });
   return r?.[0] ?? null;
 }
+
+// ---- database stats (Dashboard tab) ------------------------------------------------------
+// admin_db_stats() (migration 0203) computes the whole stats jsonb in one SQL call;
+// admin_stats_daily keeps one snapshot per day (cron 07:50 UTC) for day-over-day deltas.
+// We also upsert today's row on every load so the baseline exists even if the cron
+// hadn't run yet — the delta always compares against the previous day's LAST capture.
+export type PeopleTierBreakdown = { total: number; npi: number; international: number; md_no_npi: number; other: number };
+export type DbStats = {
+  captured_at: string;
+  people: { total: number; hosts: number; guests: number; guests_hosts: PeopleTierBreakdown; x_users: PeopleTierBreakdown };
+  corpus: {
+    shows: number; episodes: number; episodes_transcribed: number; transcript_chunks: number;
+    chunks_unembedded: number; appearances: number; x_sources_active: number; x_posts: number;
+  };
+  readout: { contacts_total: number; contacts_active: number };
+};
+
+export async function dbStats(): Promise<{ stats: DbStats; prevDay: string | null; prev: DbStats | null }> {
+  const stats = await rpc<DbStats>("admin_db_stats");
+  const today = new Date().toISOString().slice(0, 10); // UTC, matching the cron's current_date
+  await pg("admin_stats_daily?on_conflict=day", {
+    method: "POST",
+    headers: headers({ Prefer: "resolution=merge-duplicates" }),
+    body: JSON.stringify([{ day: today, stats }]),
+  }).catch(() => {}); // snapshot write is best-effort; never block the read
+  const prevRows = await pg<{ day: string; stats: DbStats }[]>(
+    `admin_stats_daily?select=day,stats&day=lt.${today}&order=day.desc&limit=1`,
+    { method: "GET", headers: headers() },
+  );
+  return { stats, prevDay: prevRows?.[0]?.day ?? null, prev: prevRows?.[0]?.stats ?? null };
+}
