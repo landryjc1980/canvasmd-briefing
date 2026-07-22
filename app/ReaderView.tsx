@@ -310,7 +310,33 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [area, wide]);
-  const goSec = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Jump-link scroll: rAF glide instead of native scrollIntoView({smooth}) — iOS janks on
+  // long smooth scrolls, and lazy-loading avatars/show-art ABOVE the target shift the layout
+  // mid-flight so the native scroll re-targets with a visible lurch. Fixed duration (long
+  // jumps glide, short ones feel instant), ease-in-out, target re-measured EVERY frame so
+  // layout shifts are absorbed smoothly, and any reader wheel/touch cancels the glide.
+  const goSec = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const offset = 62; // clear the sticky pill bar
+    const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
+    const start = window.scrollY;
+    const t0 = performance.now();
+    const D = 520;
+    const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    let raf = 0;
+    const cancel = () => { cancelAnimationFrame(raf); window.removeEventListener("wheel", cancel); window.removeEventListener("touchstart", cancel); };
+    const step = (now: number) => {
+      const t = Math.min(1, (now - t0) / D);
+      window.scrollTo(0, start + (targetNow() - start) * ease(t));
+      if (t < 1) raf = requestAnimationFrame(step);
+      else cancel();
+    };
+    raf = requestAnimationFrame(step);
+    window.addEventListener("wheel", cancel, { passive: true });
+    window.addEventListener("touchstart", cancel, { passive: true });
+  };
   // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
   // divider, then the ones they've already read (editorial order inside each half).
   const part = partitionStories(storiesOf(data), seen);
