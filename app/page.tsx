@@ -59,7 +59,13 @@ export default function BriefingPage() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    setArea(AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : "GU");
+    // Landing area precedence: an explicit ?area= (a shared/deep link) wins for THIS visit but is
+    // not saved; else the reader's saved primary specialty; else GU. So switching areas in-app sets
+    // your home, while a colleague's link never overwrites it.
+    const urlArea = AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : null;
+    let saved: string | null = null;
+    try { const s = localStorage.getItem("readout_area"); if (AREAS.includes(s ?? "")) saved = s; } catch { /* private mode */ }
+    setArea(urlArea ?? saved ?? "GU");
     setView(q.get("view") === "broadsheet" ? "broadsheet" : "brief");
     const d = q.get("design");
     setDesign(d === "classic" ? "classic" : d === "flat" ? "flat" : "default");
@@ -102,7 +108,9 @@ export default function BriefingPage() {
     for (const [k, v] of Object.entries(next)) u.searchParams.set(k, v);
     window.history.replaceState({}, "", u);
   };
-  const pickArea = (a: string) => { setArea(a); sync({ area: a }); };
+  // An explicit in-app area switch IS "choose your primary specialty" — remember it so the next
+  // visit lands here. (Only deliberate switches persist; ?area= link-landings don't — see load effect.)
+  const pickArea = (a: string) => { setArea(a); sync({ area: a }); try { localStorage.setItem("readout_area", a); } catch { /* private mode */ } };
   const pickView = (v: ViewMode) => { setView(v); sync({ view: v }); };
 
   // ---- CLASSIC fallback (the original Brief/Broadsheet toggle) ----
