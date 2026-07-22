@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
@@ -18,21 +18,44 @@ import { logStorySeen } from "./gateClient";
 //   • every expandable row is a real button (keyboard + screen readers), same click targets
 // Evidence expands inline as an accordion under whatever you click — unchanged.
 
-// Sub-tumor (indication) filter: narrow every section to items tagged with the picked
-// sub-indication. Filter, don't fragment — "All" (no pick) returns the whole brief untouched.
-// Top Stories are filtered separately in the component (off the full hero list), so an empty
-// result shows a note rather than silently falling back to the drug movers.
-function filterBySubArea(d: BriefingData, sa: string): BriefingData {
-  const inSub = (x: { subAreas?: string[] }) => (x.subAreas ?? []).includes(sa);
+// Narrow every section by the two composable axes: the congress (Live-coverage scope) and the
+// sub-indication (Focus). Filter, don't fragment — with neither active this returns the whole
+// brief untouched. Top Stories are filtered separately in the component (off the full hero list),
+// so an empty result shows a note rather than silently falling back to the drug movers.
+function filterBrief(d: BriefingData, sa: string | null, congressOnly: boolean): BriefingData {
+  if (!sa && !congressOnly) return d;
+  const keep = (x: { subAreas?: string[]; congress?: boolean }) =>
+    (!sa || (x.subAreas ?? []).includes(sa)) && (!congressOnly || x.congress === true);
   return {
     ...d,
-    movers: d.movers.filter(inSub),
-    topKols: d.topKols.filter(inSub),
-    trials: d.trials.filter(inSub),
-    topArticles: d.topArticles.filter(inSub),
-    guests: d.guests ? d.guests.filter(inSub) : d.guests,
-    episodes: d.episodes ? d.episodes.filter(inSub) : d.episodes,
+    movers: d.movers.filter(keep),
+    topKols: d.topKols.filter(keep),
+    trials: d.trials.filter(keep),
+    topArticles: d.topArticles.filter(keep),
+    guests: d.guests ? d.guests.filter(keep) : d.guests,
+    episodes: d.episodes ? d.episodes.filter(keep) : d.episodes,
   };
+}
+
+// Congress status is derived HERE (client), never trusted from the snapshot, so a cached brief
+// can't show a stale "Day 2". Days count inclusive from start; whole-day granularity is honest
+// for a snapshot that refreshes on a cron, not a live ticker.
+type CongressState = { phase: "upcoming" | "live" | "wrapped"; label: string };
+function congressState(c: BriefingCongress): CongressState {
+  const day = 86400_000;
+  const todayMs = Date.parse(new Date().toISOString().slice(0, 10));
+  const start = Date.parse(c.startDate), end = Date.parse(c.endDate);
+  const total = Math.round((end - start) / day) + 1;
+  if (todayMs < start) {
+    const d = Math.round((start - todayMs) / day);
+    return { phase: "upcoming", label: d <= 1 ? "Starts tomorrow" : `Starts in ${d} days` };
+  }
+  if (todayMs > end) {
+    const d = Math.round((todayMs - end) / day);
+    return { phase: "wrapped", label: d <= 1 ? "Wrapped · the verdict" : "Wrapped" };
+  }
+  const dayN = Math.round((todayMs - start) / day) + 1;
+  return { phase: "live", label: `Day ${dayN} of ${total}` };
 }
 
 const ago = (iso: string) => {
@@ -59,6 +82,9 @@ const MUT = "#9aa2b6";
 // Tertiary metadata (byline, drug tags) — a solid step below MUT. Solid, not a low-alpha white:
 // sub-.4 whites over ink read as *disabled/placeholder*, which made a finished page look unfinished.
 const MUT2 = "#7e8698";
+// Congress "marquee event" gold — the ONE accent that isn't a tumor-area jewel tone, so a congress
+// reads as a distinct dimension (event, not disease). Used only by the Congress bar + badge.
+const CG = "#E6B450";
 
 // Podcast/trial excerpt cleanup. The transcript extractor (extract-mentions snippetAround)
 // wraps a raw CHARACTER window in "…" markers, so snippets read "…r cancer … ineligible for…"
@@ -261,17 +287,28 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // every section reads from; the switcher options come from the UNfiltered catalog (rawData.subAreas).
   // Reset the pick whenever the tumor area changes (a stale "Prostate" makes no sense in Breast).
   const [subArea, setSubArea] = useState<string | null>(null);
-  // Reset the Focus pick AND any open drawer on an area switch. openId matters because rail rows
-  // (KOLs/papers/trials/guests) are index-keyed, so on a cached switch (ReaderView stays mounted)
-  // a stale openId would render a DIFFERENT item's drawer open in the new area.
-  useEffect(() => { setSubArea(null); setOpenId(null); }, [area]);
+  // Congress Mode: "Live coverage" scopes the whole brief to congress-tagged items. Default ON only
+  // while the congress is actually live AND there's tagged content to show — otherwise the weekly
+  // brief leads and the bar is an invitation.
+  const cong = rawData.congress;
+  const cState = cong ? congressState(cong) : null;
+  const defaultCongressOn = (c?: BriefingData["congress"]) => {
+    if (!c) return false; const st = congressState(c); return st.phase === "live" && c.taggedStories > 0;
+  };
+  const [congressOn, setCongressOn] = useState<boolean>(() => defaultCongressOn(rawData.congress));
+  // Reset the Focus pick, the congress scope, AND any open drawer on an area switch. openId matters
+  // because rail rows (KOLs/papers/trials/guests) are index-keyed, so on a cached switch (ReaderView
+  // stays mounted) a stale openId would render a DIFFERENT item's drawer open in the new area.
+  useEffect(() => { setSubArea(null); setOpenId(null); setCongressOn(defaultCongressOn(rawData.congress)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [area]);
   const subAreaOpts = rawData.subAreas ?? [];
   // Guard against a stale pick: the useEffect reset runs AFTER render, so on an area switch there's
   // one render where `subArea` (e.g. "prostate") no longer belongs to the new area's catalog. Deriving
   // `activeSub` — the pick ONLY if the current catalog still has it — makes filtering correct on that
   // very render (an area like Breast with no taxonomy filters by null = shows everything, no blank flash).
   const activeSub = subArea && subAreaOpts.some((s) => s.key === subArea) ? subArea : null;
-  const data = useMemo(() => (activeSub ? filterBySubArea(rawData, activeSub) : rawData), [rawData, activeSub]);
+  // If the congress is gone for this area (area switch), never leave the scope stuck on.
+  const congressScope = congressOn && !!cong;
+  const data = useMemo(() => filterBrief(rawData, activeSub, congressScope), [rawData, activeSub, congressScope]);
   const subLabel = activeSub ? (subAreaOpts.find((s) => s.key === activeSub)?.label ?? activeSub) : null;
   const [shareMsg, setShareMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // masthead area/tumor switcher (mobile parity)
@@ -410,7 +447,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // filtering happens HERE (off the full hero list) — not via storiesOf(data), whose empty-array
   // fallback would silently swap in the drug movers when a sub-area has no curated story.
   const heroStories = storiesOf(rawData);
-  const visibleStories = subArea ? heroStories.filter((s) => (s.subAreas ?? []).includes(subArea)) : heroStories;
+  const visibleStories = heroStories.filter((s) =>
+    (!activeSub || (s.subAreas ?? []).includes(activeSub)) && (!congressScope || s.congress === true));
   const part = partitionStories(visibleStories, seen);
   const stories = part.ordered;
   // The evidence toggle is the product — a bare 11.5px text link was invisible to
@@ -459,9 +497,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const storiesSection = (
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
-      {subArea && stories.length === 0 && (
+      {stories.length === 0 && (congressScope || subArea) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
-          No {subLabel} top stories this week. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>All</b> for the full brief.
+          {congressScope
+            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>Weekly brief</b> for the full read.</>
+            : <>No {subLabel} top stories this week. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {part.mode === "caughtup" && (
@@ -512,6 +552,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                     {compact && <span style={{ font: "600 15px 'Newsreader',Georgia,serif", color: pal.accent, lineHeight: 1 }}>{i + 1}</span>}
+                    {s.congress && cong && (
+                      <span style={{ font: "800 8.5px system-ui", letterSpacing: ".05em", color: "#12130f", background: CG, borderRadius: 4, padding: "2.5px 6px", textTransform: "uppercase" }}>{cong.shortName}</span>
+                    )}
                     {(chip === "new" || chip === "updated") && (
                       <span style={{ font: "800 8.5px system-ui", letterSpacing: ".08em", color: pal.bg, background: chip === "new" ? pal.accent : "#fff", borderRadius: 4, padding: "2.5px 6px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
                     )}
@@ -787,7 +830,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
         .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
         @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-        @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
+        .cg-pip{animation:cgPulse 2.2s ease-out infinite}
+        @keyframes cgPulse{0%{box-shadow:0 0 0 0 rgba(255,92,92,.55)}70%{box-shadow:0 0 0 7px rgba(255,92,92,0)}100%{box-shadow:0 0 0 0 rgba(255,92,92,0)}}
+        @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}.cg-pip{animation:none}}
       `}</style>
       {/* share with a colleague — spreads the brief inside the account (referral graph). Desktop
           only: on mobile it collided with the area dropdown, so a share icon sits in the masthead. */}
@@ -799,6 +844,26 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         </button>
       </div>}
       <div style={{ maxWidth: wide ? 1116 : 690, margin: "0 auto", padding: "34px 30px 120px" }}>
+        {/* CONGRESS MODE bar — the ONE new element. A gold "marquee event" strip above the
+            masthead: status on the left (derived client-side from the dates), a Weekly/Live toggle
+            on the right. Everything below is the normal reader, scoped to congress-tagged stories
+            when Live coverage is on. Wrapped-with-nothing-tagged self-suppresses. */}
+        {cong && cState && !(cState.phase === "wrapped" && cong.taggedStories === 0) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", margin: compact ? "0 -20px 16px" : "-6px -30px 20px", padding: compact ? "11px 20px" : "12px 30px", background: `linear-gradient(90deg, ${CG}29, ${CG}0d)`, borderTop: `1px solid ${CG}55`, borderBottom: `1px solid ${CG}55` }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 9, font: "700 11px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: "#f4ecd8", minWidth: 0 }}>
+              <span aria-hidden className={cState.phase === "live" ? "cg-pip" : ""} style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: cState.phase === "live" ? "#FF5C5C" : cState.phase === "upcoming" ? CG : "#8a8f9c" }} />
+              {cState.phase === "live" && <span style={{ color: "#ffd9d2" }}>Live</span>}
+              <b style={{ color: "#fff", fontWeight: 700 }}>{cong.shortName}</b>
+              <span style={{ color: CG, whiteSpace: "nowrap" }}>· {cState.label}</span>
+            </span>
+            <div role="group" aria-label="Congress coverage" style={{ marginLeft: "auto", display: "inline-flex", background: "rgba(0,0,0,.28)", border: `1px solid ${CG}55`, borderRadius: 20, padding: 3, flex: "none" }}>
+              {([["Weekly brief", false], ["Live coverage", true]] as [string, boolean][]).map(([lbl, on]) => (
+                <button key={lbl} type="button" aria-pressed={congressScope === on} onClick={() => { setCongressOn(on); setOpenId(null); }}
+                  style={{ cursor: "pointer", font: "700 11px system-ui", padding: "6px 12px", borderRadius: 16, border: 0, whiteSpace: "nowrap", background: congressScope === on ? CG : "transparent", color: congressScope === on ? "#12130f" : "rgba(255,255,255,.62)" }}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* masthead — ONE line: wordmark · byline · freshness on the left, the tumor-area
             switcher as a dropdown on the right (mobile parity). Folding the area picker up here
             kills the whole separate tabs row — header is now just masthead + section pills. */}

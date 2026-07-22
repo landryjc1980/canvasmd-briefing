@@ -556,9 +556,17 @@ export type BriefingMover = {
   papers: BriefingPaper[]; // drawer: journal papers a KOL shared while naming this drug
   podcast: BriefingPod[]; // drawer: podcast evidence
   subAreas?: string[]; // within-area sub-indications this item touches (sub-tumor filter)
+  congress?: boolean; // touches the active congress (badge + Live-coverage scope)
 };
 // A within-area sub-indication present this week (GU → prostate/bladder/kidney).
 export type BriefingSubArea = { key: string; label: string; count: number };
+// The active congress (Congress Mode v1). Status/Day-N are derived CLIENT-side from the dates,
+// so a cached snapshot can never display a wrong "Day 2". Absent ~95% of weeks.
+export type BriefingCongress = {
+  key: string; name: string; shortName: string; location: string | null;
+  startDate: string; endDate: string; // ISO YYYY-MM-DD
+  taggedStories: number;
+};
 // A clinician driving the week's conversation on X (the "Most active" people lens).
 export type BriefingKol = {
   name: string;
@@ -571,6 +579,7 @@ export type BriefingKol = {
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
   articles: { title: string; url: string; journal: string | null; domain: string | null }[]; // articles they shared
   subAreas?: string[];
+  congress?: boolean;
 };
 // A journal article the field shared this week (the "what's being read" lens — includes
 // the many papers whose titles never name a drug, so they're invisible in the drug spine).
@@ -587,6 +596,7 @@ export type BriefingArticle = {
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
   subAreas?: string[];
+  congress?: boolean;
 };
 // A clinical trial the field is TALKING ABOUT this week — matched by acronym against
 // podcast conversations, KOL tweets and shared-article title/abstracts (not the raw
@@ -609,6 +619,7 @@ export type BriefingTrial = {
   articles: BriefingPaper[]; // the papers that named it (title/abstract)
   url: string; // clinicaltrials.gov permalink
   subAreas?: string[];
+  congress?: boolean;
 };
 // ---- Unified evidence (drug OR trial) — who/what discusses it ---------------
 export type EvidencePod = {
@@ -806,6 +817,7 @@ export type BriefingStory = {
   stance?: BriefingStance | null; // drug stories only: how the field is reacting (null / thin otherwise)
   fp?: string; // evidence fingerprint (identities only) — powers "Since your last read" NEW/UPDATED
   subAreas?: string[]; // within-area sub-indications this story touches
+  congress?: boolean; // touches the active congress
 };
 
 // "This week's guests" — clinicians the field invited onto podcasts. Box score: recent form
@@ -819,11 +831,12 @@ export type BriefingGuest = {
   shows: string[];
   episodes: { title: string; audioUrl: string | null; show: string | null; showArt: string | null; description: string | null }[]; // this-window appearances, tap to listen
   subAreas?: string[];
+  congress?: boolean;
 };
 
 // "Also worth hearing" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
-export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; subAreas?: string[] };
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; subAreas?: string[]; congress?: boolean };
 
 export type BriefingData = {
   area: string;
@@ -842,6 +855,7 @@ export type BriefingData = {
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
   subAreas?: BriefingSubArea[]; // ADDITIVE — sub-indication switcher options (GU-first); absent for single-disease areas
+  congress?: BriefingCongress; // ADDITIVE — the active congress, when one is in window for this area
   proseFp?: string; // ADDITIVE — area-level evidence fingerprint (prose stability)
 };
 

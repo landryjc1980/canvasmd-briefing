@@ -43,8 +43,12 @@ export default function BriefingPage() {
     if (cacheRef.current[a]) return Promise.resolve();
     const pending = inflightRef.current[a];
     if (pending) return pending;
+    // Congress rehearsal: a `?congressPreview=<series_key>` on the page URL is forwarded so the
+    // edge fn force-builds Congress Mode (it never persists a preview). Constant per page load, so
+    // caching by area alone stays correct.
+    const preview = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("congressPreview") : null;
     const p = Promise.all([
-      fetch(`/api/briefing?area=${a}`).then((r) => r.json()),
+      fetch(`/api/briefing?area=${a}${preview ? `&congressPreview=${encodeURIComponent(preview)}` : ""}`).then((r) => r.json()),
       fetch(`/api/brief-seen?area=${a}`).then((r) => r.json()).catch(() => ({ seen: {} })),
     ])
       .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {} }; })

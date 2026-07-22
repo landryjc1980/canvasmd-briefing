@@ -25,6 +25,11 @@ export async function GET(req: NextRequest) {
 
   const raw = req.nextUrl.searchParams.get("area") ?? "GU";
   const area = AREAS.has(raw) ? raw : "GU";
+  // Congress rehearsal: forward a `congressPreview` series_key (e.g. esmo-gi) so the edge fn
+  // force-builds Congress Mode for a meeting regardless of its window. The edge fn NEVER persists
+  // a preview build, so this can't corrupt the live snapshot. Slug-shaped only, for safety.
+  const previewRaw = req.nextUrl.searchParams.get("congressPreview");
+  const congressPreview = previewRaw && /^[a-z0-9-]{2,40}$/.test(previewRaw) ? previewRaw : undefined;
 
   try {
     const res = await fetch(`${url}/functions/v1/briefing`, {
@@ -34,7 +39,7 @@ export async function GET(req: NextRequest) {
         authorization: `Bearer ${key}`,
         apikey: key,
       },
-      body: JSON.stringify({ area }),
+      body: JSON.stringify({ area, ...(congressPreview ? { congressPreview } : {}) }),
       cache: "no-store",
     });
 
