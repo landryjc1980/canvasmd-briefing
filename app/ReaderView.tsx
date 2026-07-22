@@ -700,12 +700,14 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             switcher as a dropdown on the right (mobile parity). Folding the area picker up here
             kills the whole separate tabs row — header is now just masthead + section pills. */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingBottom: compact ? 3 : 14 }}>
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 5, minWidth: 0 }}>
-            <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0, display: "inline" }}>The Readout</h1>
-            {/* desktop: the area IS the edition — anchor its selector to the wordmark, not the far right */}
-            {!compact && areaSwitcher("chip")}
-            {!compact && <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>}
-            {!compact && <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>}
+          <div style={{ minWidth: 0 }}>
+            {/* line 1: wordmark + the edition chip. line 2: byline sits UNDERNEATH the wordmark
+                (John: byline next to the specialty looked weird), matching the mobile stack. */}
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 6 }}>
+              <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0, display: "inline" }}>The Readout</h1>
+              {!compact && areaSwitcher("chip")}
+            </div>
+            {!compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
