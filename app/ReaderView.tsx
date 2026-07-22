@@ -39,15 +39,24 @@ const ini = (s: string) =>
 // for the 12px metric lines). This clears 4.5:1 on every area bg in the palette.
 const MUT = "#9aa2b6";
 
-// Podcast/trial excerpt cleanup: transcript-derived snippets start & end mid-sentence
-// ("…n-free survival with a switch…"). Drop a leading partial token + mark both ends as an
-// excerpt. Clean AI glosses (capitalized start, terminal punctuation) pass through untouched.
+// Podcast/trial excerpt cleanup. The transcript extractor (extract-mentions snippetAround)
+// wraps a raw CHARACTER window in "…" markers, so snippets read "…r cancer … ineligible for…"
+// — a half-word at each end. Strip the extractor's markers FIRST, then drop the dangling
+// partial word at whichever end was truncated, then re-add one clean ellipsis. Clean AI glosses
+// (no "…" markers, capitalized start, terminal punctuation) pass straight through untouched.
 const cleanSnippet = (s: string | null | undefined): string => {
-  let t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return t;
-  if (/^[a-z]/.test(t)) t = "…" + t.replace(/^\S+\s*/, "");
-  if (!/[.!?"'’”)…]$/.test(t)) t = t.replace(/\s+\S*$/, "").trim() + "…";
-  return t;
+  const orig = (s ?? "").replace(/\s+/g, " ").trim();
+  if (!orig) return orig;
+  const truncStart = /^(?:…|\.{2,})/.test(orig);
+  const truncEnd = /(?:…|\.{2,})$/.test(orig);
+  let t = orig.replace(/^(?:…|\.{2,})\s*/, "").replace(/\s*(?:…|\.{2,})$/, "").trim();
+  if (!t) return orig;
+  // window opened mid-word (leading token is a lowercase fragment) → drop it
+  if (truncStart && /^[a-z]/.test(t)) t = t.replace(/^\S+\s+/, "").trim();
+  // window closed mid-word (no sentence-ending punctuation) → drop the dangling token
+  if (truncEnd && !/[.!?"'’”)]$/.test(t)) t = t.replace(/\s+\S+$/, "").trim();
+  if (!t) return orig;
+  return (truncStart ? "…" : "") + t + (truncEnd ? "…" : "");
 };
 
 function Delta({ delta }: { delta: number }) {
