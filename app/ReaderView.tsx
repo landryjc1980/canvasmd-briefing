@@ -392,7 +392,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
 
   const storiesSection = (
     <>
-      <SectionHead id="sec-top" accent={pal.accent}>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
       {part.mode === "caughtup" && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "0 0 22px", font: "500 13px system-ui", color: MUT }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
@@ -575,7 +575,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.length && (
     <>
-      <SectionHead id="sec-episodes" accent={pal.accent}>Also worth hearing</SectionHead>
+      <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>Also worth hearing</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={6} accent={pal.accent} render={(ep, i) => (
           <div key={i} style={cardBox}>
@@ -594,7 +594,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
   // papers
   const papersSection = data.topArticles.length > 0 && (
     <>
-      <SectionHead id="sec-papers" accent={pal.accent}>What&rsquo;s being read</SectionHead>
+      <SectionHead id="sec-papers" accent={pal.accent} left={!compact}>What&rsquo;s being read</SectionHead>
       <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
         const id = "p:" + i;
         return (
@@ -669,7 +669,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
   // (unchanged rendering, sibling to Trials).
   const drugsSection = data.movers.length > 0 && (
     <>
-      <SectionHead id="sec-drugs" accent={pal.accent}>Drugs</SectionHead>
+      <SectionHead id="sec-drugs" accent={pal.accent} left={!compact}>Drugs</SectionHead>
       {data.movers.map((m, i) => {
         const id = "m:" + m.drugId;
         return (
@@ -764,7 +764,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
             bar read as cheap — replaced by the glass blur + a soft cast shadow. */}
         {/* pills LEFT-aligned to the wordmark's edge — nav belongs to the masthead's left spine
             (wordmark → byline → pills → numerals/headlines); centered nav floated anchorless. */}
-        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: stuck ? `${pal.bg}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ?
+        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: stuck ? `${pal.bg}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
             return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>{s.label}</button>;
@@ -817,12 +817,15 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
 const statTile: React.CSSProperties = { background: "rgba(255,255,255,.055)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.14)", borderRadius: 11, padding: "8px 11px", minWidth: 56 };
 const statTileLabel: React.CSSProperties = { font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#7d89a8", marginTop: 5 };
 
-// Section header as a real h2, flanked by area-accent hairlines (the landmark the long
-// scroll was missing). Rail variant is left-aligned with a single trailing rule.
-function SectionHead({ children, id, accent, rail = false }: { children: React.ReactNode; id?: string; accent: string; rail?: boolean }) {
+// Section header as a real h2. Default (mobile) is centered, flanked by two accent hairlines.
+// `rail` and `left` both left-align it (label first, single trailing rule) — the desktop main
+// column passes left={!compact} so its headers share the masthead/pills left spine, while the
+// rail keeps its tighter top margin.
+function SectionHead({ children, id, accent, rail = false, left = false }: { children: React.ReactNode; id?: string; accent: string; rail?: boolean; left?: boolean }) {
+  const leftAlign = rail || left;
   return (
     <h2 id={id} style={{ display: "flex", alignItems: "center", gap: 14, margin: rail ? "54px 0 10px" : "54px 0 18px", scrollMarginTop: 66 }}>
-      {!rail && <span aria-hidden style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${accent}42)` }} />}
+      {!leftAlign && <span aria-hidden style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${accent}42)` }} />}
       <span style={{ font: "700 12.5px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#b6bccb" }}>{children}</span>
       <span aria-hidden style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${accent}42, transparent)` }} />
     </h2>
