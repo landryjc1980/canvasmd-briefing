@@ -451,13 +451,31 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
       <SectionHead id={data.guests?.length ? undefined : "sec-kols"} accent={pal.accent} rail={wide}>Most active on X</SectionHead>
       <Capped items={data.topKols} cap={6} accent={pal.accent} render={(k, i) => {
         const id = "k:" + i;
+        const open = openId === id;
+        // KOL expander is NOT "the signal" — expanding shows their raw posts/papers, not
+        // synthesized evidence. Label it with the honest COUNT, and keep it small: this is
+        // the rail, secondary to stories/drugs. Lighter tint than SignalTag on purpose.
+        const nPost = k.posts.length, nArt = k.articles.length;
+        const countLabel = open
+          ? "Hide ↑"
+          : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
+        const drugLine = k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "");
         return (
-          <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+          <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
-              <div style={{ display: "flex", alignItems: "center", gap: 15, padding: "16px 2px" }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
-                <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}{k.institution ? <span style={{ font: "400 12.5px system-ui", color: MUT }}>{"  ·  " + k.institution}</span> : ""}</div><div style={{ font: "400 12.5px system-ui", color: MUT, marginTop: 2 }}>{k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "")}</div></div>
-                <SignalTag id={id} />
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 2px" }}>
+                <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2 }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    {/* name clamped to 2 lines so credential-laden names ("…, MD PhD") don't run away */}
+                    <span style={{ flex: 1, minWidth: 0, font: "500 15.5px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{k.name}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", flex: "none", marginTop: 1, font: "600 11px system-ui", color: pal.accent, border: `1px solid ${pal.accent}42`, background: `${pal.accent}12`, borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap" }}>{countLabel}</span>
+                  </div>
+                  {/* institution + drugs each clamped to ONE line — the ballooning multi-line
+                      affiliation was the source of the ragged look */}
+                  {k.institution && <div style={{ font: "400 12px system-ui", color: MUT, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.institution}</div>}
+                  {drugLine && <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drugLine}</div>}
+                </div>
               </div>
             }>
             <div style={{ marginLeft: narrow ? 0 : 55 }}>
