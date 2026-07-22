@@ -23,6 +23,7 @@ type Design = "default" | "flat" | "classic";
 
 export default function BriefingPage() {
   const [area, setArea] = useState<string | undefined>(undefined);
+  const [primary, setPrimary] = useState<string | null>(null); // the reader's saved default specialty
   const [view, setView] = useState<ViewMode>("brief");
   const [design, setDesign] = useState<Design>("default");
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -65,6 +66,7 @@ export default function BriefingPage() {
     const urlArea = AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : null;
     let saved: string | null = null;
     try { const s = localStorage.getItem("readout_area"); if (AREAS.includes(s ?? "")) saved = s; } catch { /* private mode */ }
+    setPrimary(saved);
     setArea(urlArea ?? saved ?? "GU");
     setView(q.get("view") === "broadsheet" ? "broadsheet" : "brief");
     const d = q.get("design");
@@ -108,9 +110,11 @@ export default function BriefingPage() {
     for (const [k, v] of Object.entries(next)) u.searchParams.set(k, v);
     window.history.replaceState({}, "", u);
   };
-  // An explicit in-app area switch IS "choose your primary specialty" — remember it so the next
-  // visit lands here. (Only deliberate switches persist; ?area= link-landings don't — see load effect.)
-  const pickArea = (a: string) => { setArea(a); sync({ area: a }); try { localStorage.setItem("readout_area", a); } catch { /* private mode */ } };
+  // Switching areas just BROWSES — it never changes your saved default (a GU onc glancing at Breast
+  // shouldn't get moved to Breast). Setting a default is a separate, deliberate action (savePrimary),
+  // surfaced as "Make X my default" in the area menu.
+  const pickArea = (a: string) => { setArea(a); sync({ area: a }); };
+  const savePrimary = (a: string) => { setPrimary(a); try { localStorage.setItem("readout_area", a); } catch { /* private mode */ } };
   const pickView = (v: ViewMode) => { setView(v); sync({ view: v }); };
 
   // ---- CLASSIC fallback (the original Brief/Broadsheet toggle) ----
@@ -148,5 +152,5 @@ export default function BriefingPage() {
   // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
   // (no AI cover line) + horizontally-scrolling section pills.
   if (design === "flat") return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
-  return <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
+  return <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
 }

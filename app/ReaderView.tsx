@@ -278,7 +278,7 @@ function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring
   );
 }
 
-export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean }) {
+export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void }) {
   // Ink editorial: neutral near-black page, the area's jewel tone demoted to a top
   // "cover wash" + the accent system. See inkOf in briefVM.
   const pal = inkOf(area);
@@ -373,14 +373,29 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
               {areas.map((a) => {
                 const on = a === area;
+                const isHome = a === primary;
                 return (
                   <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent", border: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
                     <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.78)" }}>{AREA_FULL[a] ?? a}</span>
+                    {/* a filled home glyph marks the saved default, so switching to browse another
+                        area is visibly distinct from your home — and you can see what you'll land on next visit */}
+                    {isHome && <span title="Your default" aria-label="Your default" style={{ color: "rgba(255,255,255,.5)", font: "700 12px system-ui" }}>⌂</span>}
                     {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
                   </button>
                 );
               })}
+              {/* Setting a default is a DELIBERATE act — browsing to another specialty never changes
+                  it. Only shown when you're viewing an area that isn't already your home. */}
+              {onSetPrimary && area !== primary && (
+                <>
+                  <div style={{ height: 1, background: "rgba(255,255,255,.08)", margin: "6px 4px" }} />
+                  <button type="button" onClick={() => { onSetPrimary(area); setMenuOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: pal.accent, font: "600 12.5px system-ui" }}>
+                    <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>
+                    Make {AREA_FULL[area] ?? area} my default
+                  </button>
+                </>
+              )}
             </div>
           </>
         )}
