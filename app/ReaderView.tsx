@@ -38,6 +38,9 @@ const ini = (s: string) =>
 // Muted ink on the area bgs — was #7c7f88, which sat at ~3:1 on the navy (below WCAG AA
 // for the 12px metric lines). This clears 4.5:1 on every area bg in the palette.
 const MUT = "#9aa2b6";
+// Tertiary metadata (byline, drug tags) — a solid step below MUT. Solid, not a low-alpha white:
+// sub-.4 whites over ink read as *disabled/placeholder*, which made a finished page look unfinished.
+const MUT2 = "#7e8698";
 
 // Podcast/trial excerpt cleanup. The transcript extractor (extract-mentions snippetAround)
 // wraps a raw CHARACTER window in "…" markers, so snippets read "…r cancer … ineligible for…"
@@ -244,12 +247,16 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
       const j = await r.json();
       if (!r.ok || !j.ok || !j.url) { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); return; }
       const nav = navigator as any;
+      // Carry the CURRENT area on the invite link so a colleague opens the SAME edition the sharer
+      // was reading (a breast-onc sharing the breast brief shouldn't land them on GU). /i/[code]
+      // reads ?area and redirects into it.
+      const url = area ? `${j.url}?area=${encodeURIComponent(area)}` : j.url;
       // URL only — iMessage/Mail build a rich card from OG tags; adding text/title posts a second
       // plain bubble on top (ugly). URL alone = just the card.
-      if (nav.share) { try { await nav.share({ url: j.url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
+      if (nav.share) { try { await nav.share({ url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
       let copied = false;
-      try { await navigator.clipboard.writeText(j.url); copied = true; } catch { /* activation lost */ }
-      setShareMsg(copied ? "Link copied — send it to a colleague" : j.url);
+      try { await navigator.clipboard.writeText(url); copied = true; } catch { /* activation lost */ }
+      setShareMsg(copied ? "Link copied — send it to a colleague" : url);
       setTimeout(() => setShareMsg(""), copied ? 2800 : 6000);
     } catch { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); }
   };
@@ -278,11 +285,11 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               {areas.map((a) => {
                 const on = a === area;
                 return (
-                  <div key={a} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent" }}>
+                  <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent", border: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
-                    <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.75)" }}>{AREA_FULL[a] ?? a}</span>
+                    <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.78)" }}>{AREA_FULL[a] ?? a}</span>
                     {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -557,7 +564,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
                   {/* institution + drugs each clamped to ONE line — the ballooning multi-line
                       affiliation was the source of the ragged look */}
                   {k.institution && <div style={{ font: "400 12px system-ui", color: MUT, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.institution}</div>}
-                  {drugLine && <div style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drugLine}</div>}
+                  {drugLine && <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drugLine}</div>}
                 </div>
               </div>
             }>
@@ -742,7 +749,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
               <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0, display: "inline" }}>The Readout</h1>
               {!compact && areaSwitcher("chip")}
             </div>
-            {!compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+            {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
@@ -756,7 +763,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         </div>
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
-        {compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.32)", margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+        {compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll. Glassy over the lit page field. */}
         {/* wide: the rail is quiet context, so the jump-links center on the EDITORIAL column
@@ -807,7 +814,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
         {/* footer — the positioning line lives here (end of the read), not stacked on the masthead */}
         <div style={{ textAlign: "center", marginTop: 40, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)", letterSpacing: "-.01em" }}>The Readout</div>
-          <div style={{ font: "400 12px/1.55 system-ui", color: "rgba(255,255,255,.4)", marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
+          <div style={{ font: "400 12px/1.55 system-ui", color: MUT, marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
         </div>
       </div>
     </div>

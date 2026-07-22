@@ -26,7 +26,11 @@ export default function InviteLanding() {
       });
       const j = await r.json();
       if (!r.ok || !j.ok) { setState("error"); setMsg(j.error || "Couldn't open the invite."); return; }
-      router.push("/"); // session cookie is set → the brief renders
+      // Carry the sharer's tumor area (on the invite link as ?area=) through redemption, so the
+      // colleague opens the SAME edition. Read from the URL here (client) — no useSearchParams,
+      // so no Suspense-boundary requirement at build.
+      const area = new URLSearchParams(window.location.search).get("area");
+      router.push(area ? `/?area=${encodeURIComponent(area)}` : "/"); // session cookie is set → the brief renders
     } catch { setState("error"); setMsg("Network error — try again."); }
   };
 

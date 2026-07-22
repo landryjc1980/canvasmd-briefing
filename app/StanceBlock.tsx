@@ -21,7 +21,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
         <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
         {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
         {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
-        <span style={{ color: "rgba(255,255,255,.42)", font: "400 11.5px system-ui" }}>of {st.total} voiced opinions</span>
+        <span style={{ color: "#9aa2b6", font: "400 11.5px system-ui" }}>of {st.total} voiced opinions</span>
       </div>
       {st.quote && (
         <div style={{ display: "flex", gap: 9, margin: "12px 0 0", alignItems: "flex-start" }}>
