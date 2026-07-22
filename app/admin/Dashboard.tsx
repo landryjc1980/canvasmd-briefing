@@ -13,14 +13,29 @@ type Tier = {
 };
 type Stats = {
   captured_at: string;
-  people: { total: number; hosts: number; guests: number; guests_hosts: Tier; x_users: Tier };
+  people: {
+    total: number; hosts: number; guests: number; guests_hosts: Tier; x_users: Tier;
+    both?: number; guests_hosts_only?: number; x_only?: number; neither?: number;
+    voice_id?: { total: number; guests_hosts: number; gold: number; silver: number; provisional: number };
+    npi_verified?: number; npi_inferred?: number;
+  };
   corpus: {
     shows: number; episodes: number; episodes_transcribed: number; transcript_chunks: number;
     chunks_unembedded: number; appearances: number; x_sources_active: number; x_posts: number;
   };
+  velocity?: { new_people_7d: number; new_episodes_7d: number; new_posts_7d: number; new_appearances_7d: number };
   readout: { contacts_total: number; contacts_active: number };
 };
-type Payload = { ok: boolean; stats?: Stats; prev?: Stats | null; prevDay?: string | null; error?: string };
+type TrendingX = {
+  name: string; handle: string; followers: number | null; delta_7d: number | null;
+  delta_30d: number | null; pct_growth_7d: number | null; avatar_url: string | null;
+  source_type: string | null; person_has_npi: boolean | null;
+};
+type ActiveX = { name: string; handle: string; posts_7d: number; follower_count: number | null; avatar_url: string | null; source_type: string | null };
+type Payload = {
+  ok: boolean; stats?: Stats; prev?: Stats | null; prevDay?: string | null; error?: string;
+  trending?: TrendingX[]; activity?: ActiveX[];
+};
 
 const box: React.CSSProperties = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: 18, marginBottom: 18 };
 const muted = "#8b93a4";
@@ -52,6 +67,69 @@ const TIER_ROWS: { key: "npi" | "international" | "md_no_npi" | "other"; label: 
   { key: "md_no_npi", label: "MD/DO w/o NPI", color: "#e8c268" },
   { key: "other", label: "Other", color: "#8b93a4" },
 ];
+
+// People composition: guests/hosts and X users are overlapping sets, not a sum.
+// One segmented bar shows the union: podcast-only | both | X-only.
+function CompositionStrip({ s, p }: { s: Stats; p: Stats | null }) {
+  if (s.people.both === undefined) return null;
+  const gh = s.people.guests_hosts_only ?? 0, both = s.people.both ?? 0, xo = s.people.x_only ?? 0;
+  const total = gh + both + xo || 1;
+  const segs = [
+    { label: "Podcast only", v: gh, pv: p?.people.guests_hosts_only, color: "#7aa2ff" },
+    { label: "Both (podcast + X)", v: both, pv: p?.people.both, color: "#5ac88c" },
+    { label: "X only", v: xo, pv: p?.people.x_only, color: "#e8c268" },
+  ];
+  return (
+    <div style={{ ...box }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+        <div style={{ fontWeight: 600 }}>Who our people are <span style={{ color: muted, fontWeight: 400, fontSize: 12 }}>— one pool, two ways in</span></div>
+        <div style={{ fontSize: 12, color: muted }}>{nf(s.people.total)} people{s.people.neither ? ` · ${nf(s.people.neither)} unlinked` : ""}</div>
+      </div>
+      <div style={{ display: "flex", height: 10, borderRadius: 5, overflow: "hidden", marginBottom: 10 }}>
+        {segs.map((g) => <div key={g.label} style={{ width: `${(g.v / total) * 100}%`, background: g.color }} />)}
+      </div>
+      <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
+        {segs.map((g) => (
+          <div key={g.label} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 3, background: g.color, display: "inline-block" }} />
+            <span style={{ color: muted }}>{g.label}</span>
+            <span style={{ color: "#fff", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{nf(g.v)}</span>
+            <Delta now={g.v} prev={g.pv} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function XPanel({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+  return (
+    <div style={{ ...box, flex: "1 1 380px", marginBottom: 0 }}>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>{title}</div>
+      {sub && <div style={{ fontSize: 11.5, color: "#5b6372", marginBottom: 10 }}>{sub}</div>}
+      <div style={{ display: "grid", gap: 7 }}>{children}</div>
+    </div>
+  );
+}
+
+function XRow({ i, avatar, name, handle, right, rightSub }: { i: number; avatar: string | null; name: string; handle: string; right: string; rightSub?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+      <span style={{ width: 16, color: "#5b6372", fontSize: 11, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{i + 1}</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {avatar ? <img src={avatar} alt="" width={22} height={22} style={{ borderRadius: 11, flexShrink: 0 }} />
+        : <span style={{ width: 22, height: 22, borderRadius: 11, background: "rgba(255,255,255,.1)", flexShrink: 0 }} />}
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ color: "#f4f7ff" }}>{name}</span>
+        <span style={{ color: "#5b6372", fontSize: 11, marginLeft: 6 }}>@{handle}</span>
+      </div>
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <div style={{ color: "#f4f7ff", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{right}</div>
+        {rightSub && <div style={{ color: "#5b6372", fontSize: 10.5 }}>{rightSub}</div>}
+      </div>
+    </div>
+  );
+}
 
 function BreakdownCard({ title, now, prev, note }: { title: string; now: Tier; prev?: Tier | null; note?: string }) {
   return (
@@ -132,17 +210,25 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
         </button>
       </div>
 
+      {/* Composition: the two populations below OVERLAP — this is the union */}
+      <CompositionStrip s={s} p={p} />
+
       {/* People coverage — the graph's identity spine */}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
         <BreakdownCard title="Guests & Hosts" now={s.people.guests_hosts} prev={p?.people.guests_hosts}
-          note={`${nf(s.people.guests)} guests · ${nf(s.people.hosts)} hosts (people with ≥1 podcast appearance)`} />
+          note={`${nf(s.people.guests)} guests · ${nf(s.people.hosts)} hosts (people with ≥1 podcast appearance)${s.people.both !== undefined ? ` · ${nf(s.people.both)} also on X` : ""}`} />
         <BreakdownCard title="X Users" now={s.people.x_users} prev={p?.people.x_users}
           note={`People with a linked X account · ${nf(s.corpus.x_sources_active)} active X sources`} />
       </div>
 
       {/* Corpus + readout counters */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
-        <StatCard label="People (all)" value={s.people.total} prev={p?.people.total} />
+        <StatCard label="People (all)" value={s.people.total} prev={p?.people.total}
+          sub={s.people.npi_verified !== undefined ? `NPI: ${nf(s.people.npi_verified)} verified · ${nf(s.people.npi_inferred ?? 0)} inferred` : undefined} />
+        {s.people.voice_id && (
+          <StatCard label="Voice ID'd" value={s.people.voice_id.total} prev={p?.people.voice_id?.total}
+            sub={`${Math.round((s.people.voice_id.guests_hosts / (s.people.guests_hosts.total || 1)) * 100)}% of guests/hosts · ${s.people.voice_id.gold} gold · ${nf(s.people.voice_id.silver)} silver · ${nf(s.people.voice_id.provisional)} prov.`} />
+        )}
         <StatCard label="Podcasts" value={s.corpus.shows} prev={p?.corpus.shows} />
         <StatCard label="Episodes" value={s.corpus.episodes} prev={p?.corpus.episodes} />
         <StatCard label="Transcribed" value={s.corpus.episodes_transcribed} prev={p?.corpus.episodes_transcribed} sub={`${txPct}% of episodes`} />
@@ -154,6 +240,49 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
         <StatCard label="X posts" value={s.corpus.x_posts} prev={p?.corpus.x_posts} />
         <StatCard label="Brief contacts" value={s.readout.contacts_active} prev={p?.readout.contacts_active} sub={`${nf(s.readout.contacts_total)} total`} />
       </div>
+
+      {/* Rolling 7-day intake — rendered without delta chips (a day-over-day delta
+          on a rolling window reads as noise, not signal) */}
+      {s.velocity && (
+        <>
+          <div style={{ fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: muted, margin: "4px 0 8px" }}>
+            Intake · last 7 days
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <StatCard label="New episodes" value={s.velocity.new_episodes_7d} />
+            <StatCard label="New X posts" value={s.velocity.new_posts_7d} />
+            <StatCard label="New people" value={s.velocity.new_people_7d} />
+            <StatCard label="New appearances" value={s.velocity.new_appearances_7d} />
+          </div>
+        </>
+      )}
+
+      {/* X panels: who's rising (followers) + who's talking (post volume) */}
+      {(data.trending?.length || data.activity?.length) ? (
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+          {data.trending && data.trending.length > 0 && (
+            <XPanel title="Rising on X"
+              sub={data.trending.some((r) => r.delta_7d !== null)
+                ? "Ranked by 7-day follower growth (weekly snapshots)"
+                : "Ranked by followers — growth deltas start once two weekly snapshots exist (first: Jul 26)"}>
+              {data.trending.map((r, i) => (
+                <XRow key={r.handle} i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
+                  right={r.delta_7d !== null ? `+${nf(r.delta_7d)} wk` : nf(r.followers ?? 0)}
+                  rightSub={r.delta_7d !== null ? `${nf(r.followers ?? 0)} followers` : "followers"} />
+              ))}
+            </XPanel>
+          )}
+          {data.activity && data.activity.length > 0 && (
+            <XPanel title="Most active on X" sub="Posts captured in the last 7 days">
+              {data.activity.map((r, i) => (
+                <XRow key={r.handle} i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
+                  right={`${nf(r.posts_7d)} posts`}
+                  rightSub={r.follower_count ? `${nf(r.follower_count)} followers` : r.source_type ?? undefined} />
+              ))}
+            </XPanel>
+          )}
+        </div>
+      ) : null}
 
       <div style={{ fontSize: 11, color: "#5b6372" }}>
         Tiers: <b>With NPI</b> = verified/inferred NPI on file · <b>International</b> = likely non-US, no NPI ·

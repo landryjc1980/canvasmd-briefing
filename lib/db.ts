@@ -190,13 +190,37 @@ export type PeopleTierBreakdown = {
 };
 export type DbStats = {
   captured_at: string;
-  people: { total: number; hosts: number; guests: number; guests_hosts: PeopleTierBreakdown; x_users: PeopleTierBreakdown };
+  people: {
+    total: number; hosts: number; guests: number;
+    guests_hosts: PeopleTierBreakdown; x_users: PeopleTierBreakdown;
+    // v2 (migration 0205) — composition overlap + voice ID + NPI quality.
+    // Optional: older snapshots lack them.
+    guests_hosts_total?: number; x_users_total?: number;
+    both?: number; guests_hosts_only?: number; x_only?: number; neither?: number;
+    voice_id?: { total: number; guests_hosts: number; gold: number; silver: number; provisional: number };
+    npi_verified?: number; npi_inferred?: number;
+  };
   corpus: {
     shows: number; episodes: number; episodes_transcribed: number; transcript_chunks: number;
     chunks_unembedded: number; appearances: number; x_sources_active: number; x_posts: number;
   };
+  velocity?: { new_people_7d: number; new_episodes_7d: number; new_posts_7d: number; new_appearances_7d: number };
   readout: { contacts_total: number; contacts_active: number };
 };
+
+export type TrendingX = {
+  name: string; handle: string; followers: number | null;
+  delta_7d: number | null; delta_30d: number | null; pct_growth_7d: number | null;
+  avatar_url: string | null; source_type: string | null; primary_institution: string | null;
+  person_name: string | null; person_has_npi: boolean | null; account_status: string;
+};
+export type ActiveX = {
+  name: string; handle: string; posts_7d: number;
+  follower_count: number | null; avatar_url: string | null; source_type: string | null;
+};
+
+export const trendingX = (n = 15): Promise<TrendingX[]> => rpc("admin_trending_x", { n });
+export const xActivity7d = (n = 15): Promise<ActiveX[]> => rpc("admin_x_activity_7d", { n });
 
 export async function dbStats(): Promise<{ stats: DbStats; prevDay: string | null; prev: DbStats | null }> {
   const stats = await rpc<DbStats>("admin_db_stats");
