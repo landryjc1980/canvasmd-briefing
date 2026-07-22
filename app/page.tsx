@@ -60,17 +60,32 @@ export default function BriefingPage() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    // Landing area precedence: an explicit ?area= (a shared/deep link) wins for THIS visit but is
-    // not saved; else the reader's saved primary specialty; else GU. So switching areas in-app sets
-    // your home, while a colleague's link never overwrites it.
+    setView(q.get("view") === "broadsheet" ? "broadsheet" : "brief");
+    const d = q.get("design");
+    setDesign(d === "classic" ? "classic" : d === "flat" ? "flat" : "default");
+    // Landing-area precedence: an explicit ?area= (a shared/deep link) wins for THIS visit but is
+    // never saved; else the reader's saved primary specialty; else GU. The primary is stored on the
+    // CONTACT (server) so it follows them across devices — localStorage is just an instant-paint
+    // cache so a returning device doesn't wait on the round-trip.
     const urlArea = AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : null;
     let saved: string | null = null;
     try { const s = localStorage.getItem("readout_area"); if (AREAS.includes(s ?? "")) saved = s; } catch { /* private mode */ }
     setPrimary(saved);
-    setArea(urlArea ?? saved ?? "GU");
-    setView(q.get("view") === "broadsheet" ? "broadsheet" : "brief");
-    const d = q.get("design");
-    setDesign(d === "classic" ? "classic" : d === "flat" ? "flat" : "default");
+    if (urlArea ?? saved) setArea(urlArea ?? (saved as string)); // paint immediately when we have a hint
+    // Authoritative primary from the account. Adopt it unless the visit is pinned by ?area=.
+    fetch("/api/brief-prefs")
+      .then((r) => r.json())
+      .then((j) => {
+        const server = AREAS.includes(j?.defaultArea ?? "") ? (j.defaultArea as string) : null;
+        if (server) {
+          setPrimary(server);
+          try { localStorage.setItem("readout_area", server); } catch { /* private mode */ }
+          if (!urlArea) setArea(server); // the account default is authoritative — follows across devices
+        } else if (!urlArea && !saved) {
+          setArea("GU"); // nothing saved anywhere → default
+        }
+      })
+      .catch(() => { if (!urlArea && !saved) setArea((cur) => cur ?? "GU"); });
   }, []);
 
   // responsive: pick story (mobile) vs reader (desktop) by viewport width
@@ -114,7 +129,12 @@ export default function BriefingPage() {
   // shouldn't get moved to Breast). Setting a default is a separate, deliberate action (savePrimary),
   // surfaced as "Make X my default" in the area menu.
   const pickArea = (a: string) => { setArea(a); sync({ area: a }); };
-  const savePrimary = (a: string) => { setPrimary(a); try { localStorage.setItem("readout_area", a); } catch { /* private mode */ } };
+  const savePrimary = (a: string) => {
+    setPrimary(a);
+    try { localStorage.setItem("readout_area", a); } catch { /* private mode */ } // instant cache on this device
+    // Persist to the contact record so it follows the reader to every device they sign into.
+    fetch("/api/brief-prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ area: a }) }).catch(() => {});
+  };
   const pickView = (v: ViewMode) => { setView(v); sync({ view: v }); };
 
   // ---- CLASSIC fallback (the original Brief/Broadsheet toggle) ----

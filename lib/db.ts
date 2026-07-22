@@ -84,6 +84,11 @@ export async function listRequests(): Promise<(Contact & { created_at?: string }
 export async function setContactStatus(id: string, status: string): Promise<void> {
   await pg(`brief_contacts?id=eq.${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify({ status }) });
 }
+// The reader's chosen primary specialty (default landing area) — stored on the contact so it
+// FOLLOWS THEM across devices, not just the browser it was set in.
+export async function setDefaultArea(id: string, area: string): Promise<void> {
+  await pg(`brief_contacts?id=eq.${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify({ default_area: area }) });
+}
 
 // ---- events (the signal spine) -----------------------------------------------------------
 export async function logEvent(e: { contactId: string; kind: string; area?: string | null; storyId?: string | null; meta?: unknown }): Promise<void> {
