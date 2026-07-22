@@ -502,6 +502,17 @@ export type BriefingEvent = {
   ahead: boolean; // true = upcoming congress, false = already happened
   drugId: string | null; // anchors a jump to the mover row
 };
+// One classified take behind the stance counts — the auditable "receipt".
+export type BriefingStanceTake = {
+  valence: string; // enthusiastic | favorable | equipoise | skeptical | negative
+  text: string; // the classifier's evidence line (quote or paraphrase)
+  verbatim: boolean; // words verified present in the source (X posts only) → safe to quote
+  sourceType: "podcast" | "x";
+  sourceLabel: string; // "Show — Episode title" or "Name (@handle)"
+  url: string | null; // episode audio / tweet permalink
+  occurredAt: string | null;
+  practiceChanging: boolean;
+};
 // How the field is REACTING to a drug (from pharma_stance) — voiced opinions only, ≥4 or null.
 export type BriefingStance = {
   total: number; // voiced opinions (excludes 'unclear' backbone/comparator mentions)
@@ -511,6 +522,11 @@ export type BriefingStance = {
   quote: string; // one traceable evidence line (prefers a practice-changing take)
   practiceChanging: boolean;
   axis: string | null; // dominant stance axis (efficacy | safety | access | sequencing | …)
+  // ADDITIVE (2026-07-22 receipts) — old snapshots omit these; StanceBlock degrades gracefully.
+  quoteVerbatim?: boolean; // whether the lead quote is a verified verbatim source quote
+  episodeCount?: number; // podcast episodes among the classified mentions
+  postCount?: number; // X posts among the classified mentions
+  takes?: BriefingStanceTake[]; // the receipts, most-signal first (capped; may be < total)
 };
 export type BriefingMover = {
   drugId: string;
@@ -539,7 +555,10 @@ export type BriefingMover = {
   posts: BriefingSharer[]; // drawer: the KOL tweets that named this drug (their takes)
   papers: BriefingPaper[]; // drawer: journal papers a KOL shared while naming this drug
   podcast: BriefingPod[]; // drawer: podcast evidence
+  subAreas?: string[]; // within-area sub-indications this item touches (sub-tumor filter)
 };
+// A within-area sub-indication present this week (GU → prostate/bladder/kidney).
+export type BriefingSubArea = { key: string; label: string; count: number };
 // A clinician driving the week's conversation on X (the "Most active" people lens).
 export type BriefingKol = {
   name: string;
@@ -551,6 +570,7 @@ export type BriefingKol = {
   peakLikes: number;
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
   articles: { title: string; url: string; journal: string | null; domain: string | null }[]; // articles they shared
+  subAreas?: string[];
 };
 // A journal article the field shared this week (the "what's being read" lens — includes
 // the many papers whose titles never name a drug, so they're invisible in the drug spine).
@@ -566,6 +586,7 @@ export type BriefingArticle = {
   faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
+  subAreas?: string[];
 };
 // A clinical trial the field is TALKING ABOUT this week — matched by acronym against
 // podcast conversations, KOL tweets and shared-article title/abstracts (not the raw
@@ -587,6 +608,7 @@ export type BriefingTrial = {
   posts: BriefingSharer[]; // the tweets that named it
   articles: BriefingPaper[]; // the papers that named it (title/abstract)
   url: string; // clinicaltrials.gov permalink
+  subAreas?: string[];
 };
 // ---- Unified evidence (drug OR trial) — who/what discusses it ---------------
 export type EvidencePod = {
@@ -783,6 +805,7 @@ export type BriefingStory = {
   drugId: string | null; // drug stories → the Drugs board row
   stance?: BriefingStance | null; // drug stories only: how the field is reacting (null / thin otherwise)
   fp?: string; // evidence fingerprint (identities only) — powers "Since your last read" NEW/UPDATED
+  subAreas?: string[]; // within-area sub-indications this story touches
 };
 
 // "This week's guests" — clinicians the field invited onto podcasts. Box score: recent form
@@ -795,11 +818,12 @@ export type BriefingGuest = {
   career: number;
   shows: string[];
   episodes: { title: string; audioUrl: string | null; show: string | null; showArt: string | null; description: string | null }[]; // this-window appearances, tap to listen
+  subAreas?: string[];
 };
 
 // "Also worth hearing" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
-export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string };
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; subAreas?: string[] };
 
 export type BriefingData = {
   area: string;
@@ -817,6 +841,7 @@ export type BriefingData = {
   episodes?: BriefingEpisode[]; // ADDITIVE — "Also worth hearing" episode rail (optional: old snapshots omit it)
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
+  subAreas?: BriefingSubArea[]; // ADDITIVE — sub-indication switcher options (GU-first); absent for single-disease areas
   proseFp?: string; // ADDITIVE — area-level evidence fingerprint (prose stability)
 };
 

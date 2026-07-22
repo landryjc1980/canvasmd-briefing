@@ -174,6 +174,7 @@ export function moverToStory(m: BriefingMover): BriefingStory {
     description: m.why, score: m.score, delta: m.delta, bar: [m.podPct, m.xPct, m.articlePct],
     podConvs: m.podConvs, podEpisodes: m.podEpisodes, podShows: m.podShows, xSharers: m.xSharers, articleCount: m.articleCount, clinicianCount: 0, topLikes: m.topLikes,
     podcast: m.podcast, posts: m.posts, papers: m.papers, drugId: m.drugId, stance: m.stance ?? null,
+    subAreas: m.subAreas, // carry sub-tumor tags so the Focus filter works even on the movers-as-stories fallback
   };
 }
 

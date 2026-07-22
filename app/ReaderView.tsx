@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
@@ -17,6 +17,23 @@ import { logStorySeen } from "./gateClient";
 //   • type scale: lead story gets front-page size; rank numerals set in the area accent
 //   • every expandable row is a real button (keyboard + screen readers), same click targets
 // Evidence expands inline as an accordion under whatever you click — unchanged.
+
+// Sub-tumor (indication) filter: narrow every section to items tagged with the picked
+// sub-indication. Filter, don't fragment — "All" (no pick) returns the whole brief untouched.
+// Top Stories are filtered separately in the component (off the full hero list), so an empty
+// result shows a note rather than silently falling back to the drug movers.
+function filterBySubArea(d: BriefingData, sa: string): BriefingData {
+  const inSub = (x: { subAreas?: string[] }) => (x.subAreas ?? []).includes(sa);
+  return {
+    ...d,
+    movers: d.movers.filter(inSub),
+    topKols: d.topKols.filter(inSub),
+    trials: d.trials.filter(inSub),
+    topArticles: d.topArticles.filter(inSub),
+    guests: d.guests ? d.guests.filter(inSub) : d.guests,
+    episodes: d.episodes ? d.episodes.filter(inSub) : d.episodes,
+  };
+}
 
 const ago = (iso: string) => {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -235,11 +252,27 @@ function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring
   );
 }
 
-export default function ReaderView({ data, area, areas, onArea, seen, compact = false }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean }) {
+export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean }) {
   // Ink editorial: neutral near-black page, the area's jewel tone demoted to a top
   // "cover wash" + the accent system. See inkOf in briefVM.
   const pal = inkOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Sub-tumor (indication) filter — GU → Prostate/Bladder/Kidney. `data` is the sub-filtered view
+  // every section reads from; the switcher options come from the UNfiltered catalog (rawData.subAreas).
+  // Reset the pick whenever the tumor area changes (a stale "Prostate" makes no sense in Breast).
+  const [subArea, setSubArea] = useState<string | null>(null);
+  // Reset the Focus pick AND any open drawer on an area switch. openId matters because rail rows
+  // (KOLs/papers/trials/guests) are index-keyed, so on a cached switch (ReaderView stays mounted)
+  // a stale openId would render a DIFFERENT item's drawer open in the new area.
+  useEffect(() => { setSubArea(null); setOpenId(null); }, [area]);
+  const subAreaOpts = rawData.subAreas ?? [];
+  // Guard against a stale pick: the useEffect reset runs AFTER render, so on an area switch there's
+  // one render where `subArea` (e.g. "prostate") no longer belongs to the new area's catalog. Deriving
+  // `activeSub` — the pick ONLY if the current catalog still has it — makes filtering correct on that
+  // very render (an area like Breast with no taxonomy filters by null = shows everything, no blank flash).
+  const activeSub = subArea && subAreaOpts.some((s) => s.key === subArea) ? subArea : null;
+  const data = useMemo(() => (activeSub ? filterBySubArea(rawData, activeSub) : rawData), [rawData, activeSub]);
+  const subLabel = activeSub ? (subAreaOpts.find((s) => s.key === activeSub)?.label ?? activeSub) : null;
   const [shareMsg, setShareMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // masthead area/tumor switcher (mobile parity)
   // Two-track layout kicks in on real desktop width (never on the compact/mobile pass).
@@ -322,7 +355,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-kols", label: "KOLs", on: !wide && !!(data.guests?.length || data.topKols.length) },
-    { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.length },
+    { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: !wide && data.trials.length > 0 },
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
@@ -344,7 +377,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [area, wide]);
+  }, [area, wide, subArea]);
   // Jump-link scroll: rAF glide instead of native scrollIntoView({smooth}) — iOS janks on
   // long smooth scrolls, and lazy-loading avatars/show-art ABOVE the target shift the layout
   // mid-flight so the native scroll re-targets with a visible lurch. Fixed duration (long
@@ -373,8 +406,12 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
     window.addEventListener("touchstart", cancel, { passive: true });
   };
   // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
-  // divider, then the ones they've already read (editorial order inside each half).
-  const part = partitionStories(storiesOf(data), seen);
+  // divider, then the ones they've already read (editorial order inside each half). Sub-tumor
+  // filtering happens HERE (off the full hero list) — not via storiesOf(data), whose empty-array
+  // fallback would silently swap in the drug movers when a sub-area has no curated story.
+  const heroStories = storiesOf(rawData);
+  const visibleStories = subArea ? heroStories.filter((s) => (s.subAreas ?? []).includes(subArea)) : heroStories;
+  const part = partitionStories(visibleStories, seen);
   const stories = part.ordered;
   // The evidence toggle is the product — a bare 11.5px text link was invisible to
   // first-time readers. It's now a small accent-tinted pill that reads as a control.
@@ -408,17 +445,25 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [area]);
+  }, [area, subArea]);
 
   // Rail modules (guests / most-active / trials) render narrow on the wide layout, so they
   // use the stacked/compact arrangements and no drawer indent there.
   const narrow = compact || wide;
+  // Whether the desktop rail has ANY content — drives collapsing the two-column grid to one when a
+  // Focus pick empties guests + KOLs + trials (else the fixed 320px track leaves a blank gap).
+  const railHasContent = !!(data.guests?.length || data.topKols.length || data.trials.length);
 
   // ---- section builders (placement differs by layout; content is identical) --------------
 
   const storiesSection = (
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      {subArea && stories.length === 0 && (
+        <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
+          No {subLabel} top stories this week. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>All</b> for the full brief.
+        </div>
+      )}
       {part.mode === "caughtup" && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "0 0 22px", font: "500 13px system-ui", color: MUT }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
@@ -594,7 +639,7 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
 
   // Also worth hearing — area episodes the drug movers don't cover (untracked-topic blind
   // spot). Flat list of episode cards, same shape as a guest's episode.
-  const episodesSection = !!data.episodes?.length && (
+  const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
     <>
       <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>Also worth hearing</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
@@ -794,6 +839,24 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
           })}
         </div>
 
+        {/* Sub-tumor "Focus" filter — GU → Prostate/Bladder/Kidney. Doctors practice, and pharma
+            buys, BY INDICATION. Only shown when ≥2 sub-indications actually have content this week
+            (rawData.subAreas); "All" is the default whole brief. Not sticky — a top-of-read control. */}
+        {subAreaOpts.length >= 2 && (
+          <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: compact ? "12px -20px 0" : "14px 0 0", padding: compact ? "0 20px" : 0 }}>
+            <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, alignSelf: "center", marginRight: 2, flex: "none" }}>Focus</span>
+            {[{ key: null as string | null, label: "All" }, ...subAreaOpts.map((s) => ({ key: s.key as string | null, label: s.label }))].map((c) => {
+              const on = subArea === c.key;
+              return (
+                <button key={c.label} type="button" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
+                  style={{ cursor: "pointer", font: "600 12px system-ui", padding: "5px 13px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? pal.accent : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* No AI cover hero on either platform: lead with the #1 story — a real headline the
             field wrote, not a whole-week thesis the AI could get wrong (John: drop it on desktop
             like mobile). The recap/headline still exist on the payload for OG/social. The lead
@@ -801,19 +864,23 @@ export default function ReaderView({ data, area, areas, onArea, seen, compact = 
 
         {wide ? (
           /* two tracks: the editorial column + the rail. Rail modules (guests, most-active,
-             trials) use their narrow/stacked arrangements; evidence still expands inline. */
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", columnGap: 46, alignItems: "start" }}>
+             trials) use their narrow/stacked arrangements; evidence still expands inline. When a
+             Focus pick empties the whole rail (e.g. GU → Kidney with movers but no guests/KOLs/
+             trials), collapse to a single column so the fixed 320px track doesn't leave a blank gap. */
+          <div style={{ display: "grid", gridTemplateColumns: railHasContent ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
             <div style={{ minWidth: 0 }}>
               {storiesSection}
               {episodesSection}
               {papersSection}
               {drugsSection}
             </div>
-            <aside style={{ minWidth: 0 }}>
-              {guestsSection}
-              {kolsSection}
-              {trialsSection}
-            </aside>
+            {railHasContent && (
+              <aside style={{ minWidth: 0 }}>
+                {guestsSection}
+                {kolsSection}
+                {trialsSection}
+              </aside>
+            )}
           </div>
         ) : (
           <>
