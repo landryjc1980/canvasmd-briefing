@@ -40,7 +40,7 @@ type TrendingX = {
 type ActiveX = { name: string; handle: string; posts_7d: number; follower_count: number | null; avatar_url: string | null; source_type: string | null };
 type AmplifiedX = {
   handle: string; name: string; amplifications: number; rts: number; quotes: number;
-  amplifiers: number; in_panel: boolean; avatar_url: string | null; followers: number | null;
+  amplifiers: number; in_panel: boolean; feed_active?: boolean; avatar_url: string | null; followers: number | null;
 };
 type Payload = {
   ok: boolean; stats?: Stats; prev?: Stats | null; prevDay?: string | null; error?: string;
@@ -189,8 +189,9 @@ function AmplifiedPanel({ title, sub, rows, count }: { title: string; sub: strin
               rightSub={`${count(r)}${r.followers ? ` · ${nf(r.followers)} fol.` : ""}`} />
           </div>
           {!r.in_panel && (
-            <span style={{ background: "rgba(232,194,104,.15)", color: "#e8c268", border: "0.5px solid rgba(232,194,104,.4)", fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap" }}>
-              not followed
+            <span title="Not in x_sources at all — a genuine follow-gap the discovery cron will seed as a KOL candidate"
+              style={{ background: "rgba(232,194,104,.15)", color: "#e8c268", border: "0.5px solid rgba(232,194,104,.4)", fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap" }}>
+              not tracked
             </span>
           )}
         </div>

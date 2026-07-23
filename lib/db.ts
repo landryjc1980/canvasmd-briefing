@@ -254,7 +254,7 @@ export const xActivity7d = (n = 15): Promise<ActiveX[]> => rpc("admin_x_activity
 // panel amplifiers; in_panel=false rows are follow-gaps the discovery cron chases.
 export type AmplifiedX = {
   handle: string; name: string; amplifications: number; rts: number; quotes: number;
-  amplifiers: number; in_panel: boolean; avatar_url: string | null; followers: number | null;
+  amplifiers: number; in_panel: boolean; feed_active?: boolean; avatar_url: string | null; followers: number | null;
 };
 export const amplifiedX = (days = 30, n = 15, kind: "all" | "rt" | "quote" = "all"): Promise<AmplifiedX[]> =>
   rpc("admin_amplified_x", { p_days: days, p_n: n, p_kind: kind });
