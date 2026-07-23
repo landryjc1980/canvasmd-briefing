@@ -44,7 +44,7 @@ type AmplifiedX = {
 };
 type Payload = {
   ok: boolean; stats?: Stats; prev?: Stats | null; prevDay?: string | null; error?: string;
-  trending?: TrendingX[]; activity?: ActiveX[]; amplified?: AmplifiedX[]; history?: HistoryPoint[];
+  trending?: TrendingX[]; activity?: ActiveX[]; topRetweeted?: AmplifiedX[]; topQuoted?: AmplifiedX[]; history?: HistoryPoint[];
 };
 
 const box: React.CSSProperties = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: 18, marginBottom: 18 };
@@ -172,6 +172,30 @@ function AreaPanel({ areas, prev }: { areas: NonNullable<Stats["areas"]>; prev?:
         })}
       </div>
     </div>
+  );
+}
+
+// One ranked amplification list (RT or QT flavor). Not-followed rows are
+// follow-gaps — the discovery cron seeds them, the badge makes them visible.
+function AmplifiedPanel({ title, sub, rows, count }: { title: string; sub: string; rows?: AmplifiedX[]; count: (r: AmplifiedX) => string }) {
+  if (!rows || rows.length === 0) return null;
+  return (
+    <XPanel title={title} sub={sub}>
+      {rows.map((r, i) => (
+        <div key={r.handle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <XRow i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
+              right={`${nf(r.amplifiers)} experts`}
+              rightSub={`${count(r)}${r.followers ? ` · ${nf(r.followers)} fol.` : ""}`} />
+          </div>
+          {!r.in_panel && (
+            <span style={{ background: "rgba(232,194,104,.15)", color: "#e8c268", border: "0.5px solid rgba(232,194,104,.4)", fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap" }}>
+              not followed
+            </span>
+          )}
+        </div>
+      ))}
+    </XPanel>
   );
 }
 
@@ -341,7 +365,7 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
       )}
 
       {/* X panels: who's rising (followers) + who's talking (post volume) */}
-      {(data.trending?.length || data.activity?.length) ? (
+      {(data.trending?.length || data.activity?.length || data.topRetweeted?.length || data.topQuoted?.length) ? (
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
           {data.trending && data.trending.length > 0 && (
             <XPanel title="Rising on X"
@@ -364,25 +388,12 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
               ))}
             </XPanel>
           )}
-          {data.amplified && data.amplified.length > 0 && (
-            <XPanel title="Most amplified by the panel"
-              sub="RT + quote targets, last 30 days — ranked by distinct panel amplifiers. Not-followed rows are follow-gaps (discovery cron chases them).">
-              {data.amplified.map((r, i) => (
-                <div key={r.handle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <XRow i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
-                      right={`${nf(r.amplifiers)} amplifiers`}
-                      rightSub={`${nf(r.rts)} RT · ${nf(r.quotes)} QT${r.followers ? ` · ${nf(r.followers)} fol.` : ""}`} />
-                  </div>
-                  {!r.in_panel && (
-                    <span style={{ background: "rgba(232,194,104,.15)", color: "#e8c268", border: "0.5px solid rgba(232,194,104,.4)", fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap" }}>
-                      not followed
-                    </span>
-                  )}
-                </div>
-              ))}
-            </XPanel>
-          )}
+          <AmplifiedPanel title="Top retweeted by the panel" rows={data.topRetweeted}
+            sub="Accounts our panel RETWEETED most, last 30 days — ranked by distinct retweeters. Pure amplification."
+            count={(r) => `${nf(r.rts)} RTs`} />
+          <AmplifiedPanel title="Top quote-tweeted by the panel" rows={data.topQuoted}
+            sub="Accounts our panel QUOTED most, last 30 days — ranked by distinct quoters. Commentary engagement."
+            count={(r) => `${nf(r.quotes)} QTs`} />
         </div>
       ) : null}
 

@@ -256,7 +256,8 @@ export type AmplifiedX = {
   handle: string; name: string; amplifications: number; rts: number; quotes: number;
   amplifiers: number; in_panel: boolean; avatar_url: string | null; followers: number | null;
 };
-export const amplifiedX = (days = 30, n = 15): Promise<AmplifiedX[]> => rpc("admin_amplified_x", { p_days: days, p_n: n });
+export const amplifiedX = (days = 30, n = 15, kind: "all" | "rt" | "quote" = "all"): Promise<AmplifiedX[]> =>
+  rpc("admin_amplified_x", { p_days: days, p_n: n, p_kind: kind });
 
 export async function dbStats(): Promise<{ stats: DbStats; prevDay: string | null; prev: DbStats | null }> {
   const stats = await rpc<DbStats>("admin_db_stats");
