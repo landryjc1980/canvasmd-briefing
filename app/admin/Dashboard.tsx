@@ -325,7 +325,7 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
       {s.velocity && (
         <>
           <div style={{ fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: muted, margin: "4px 0 8px" }}>
-            Intake · last 7 days
+            Intake · last 7 days <span style={{ textTransform: "none", letterSpacing: 0 }}>— rows added to the graph (includes backfills)</span>
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
             <StatCard label="New episodes" value={s.velocity.new_episodes_7d} />
@@ -352,7 +352,7 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
             </XPanel>
           )}
           {data.activity && data.activity.length > 0 && (
-            <XPanel title="Most active on X" sub="Posts captured in the last 7 days">
+            <XPanel title="Most active on X" sub="Posts published in the last 7 days">
               {data.activity.map((r, i) => (
                 <XRow key={r.handle} i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
                   right={`${nf(r.posts_7d)} posts`}
