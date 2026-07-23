@@ -38,9 +38,13 @@ type TrendingX = {
   source_type: string | null; person_has_npi: boolean | null;
 };
 type ActiveX = { name: string; handle: string; posts_7d: number; follower_count: number | null; avatar_url: string | null; source_type: string | null };
+type AmplifiedX = {
+  handle: string; name: string; amplifications: number; rts: number; quotes: number;
+  amplifiers: number; in_panel: boolean; avatar_url: string | null; followers: number | null;
+};
 type Payload = {
   ok: boolean; stats?: Stats; prev?: Stats | null; prevDay?: string | null; error?: string;
-  trending?: TrendingX[]; activity?: ActiveX[]; history?: HistoryPoint[];
+  trending?: TrendingX[]; activity?: ActiveX[]; amplified?: AmplifiedX[]; history?: HistoryPoint[];
 };
 
 const box: React.CSSProperties = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: 18, marginBottom: 18 };
@@ -357,6 +361,25 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
                 <XRow key={r.handle} i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
                   right={`${nf(r.posts_7d)} posts`}
                   rightSub={r.follower_count ? `${nf(r.follower_count)} followers` : r.source_type ?? undefined} />
+              ))}
+            </XPanel>
+          )}
+          {data.amplified && data.amplified.length > 0 && (
+            <XPanel title="Most amplified by the panel"
+              sub="RT + quote targets, last 30 days — ranked by distinct panel amplifiers. Not-followed rows are follow-gaps (discovery cron chases them).">
+              {data.amplified.map((r, i) => (
+                <div key={r.handle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <XRow i={i} avatar={r.avatar_url} name={r.name} handle={r.handle}
+                      right={`${nf(r.amplifiers)} amplifiers`}
+                      rightSub={`${nf(r.rts)} RT · ${nf(r.quotes)} QT${r.followers ? ` · ${nf(r.followers)} fol.` : ""}`} />
+                  </div>
+                  {!r.in_panel && (
+                    <span style={{ background: "rgba(232,194,104,.15)", color: "#e8c268", border: "0.5px solid rgba(232,194,104,.4)", fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap" }}>
+                      not followed
+                    </span>
+                  )}
+                </div>
               ))}
             </XPanel>
           )}

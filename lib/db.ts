@@ -250,6 +250,14 @@ export type ActiveX = {
 export const trendingX = (n = 15): Promise<TrendingX[]> => rpc("admin_trending_x", { n });
 export const xActivity7d = (n = 15): Promise<ActiveX[]> => rpc("admin_x_activity_7d", { n });
 
+// Who the panel amplifies (RT + quote edges, migration 0208). Ranked by DISTINCT
+// panel amplifiers; in_panel=false rows are follow-gaps the discovery cron chases.
+export type AmplifiedX = {
+  handle: string; name: string; amplifications: number; rts: number; quotes: number;
+  amplifiers: number; in_panel: boolean; avatar_url: string | null; followers: number | null;
+};
+export const amplifiedX = (days = 30, n = 15): Promise<AmplifiedX[]> => rpc("admin_amplified_x", { p_days: days, p_n: n });
+
 export async function dbStats(): Promise<{ stats: DbStats; prevDay: string | null; prev: DbStats | null }> {
   const stats = await rpc<DbStats>("admin_db_stats");
   const today = new Date().toISOString().slice(0, 10); // UTC, matching the cron's current_date
