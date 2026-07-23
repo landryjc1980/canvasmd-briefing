@@ -22,9 +22,15 @@ type Stats = {
   corpus: {
     shows: number; episodes: number; episodes_transcribed: number; transcript_chunks: number;
     chunks_unembedded: number; appearances: number; x_sources_active: number; x_posts: number;
+    audio_hours_total?: number; audio_hours_transcribed?: number;
   };
+  areas?: { area: string; episodes: number; transcribed: number; shows: number; x_sources: number }[];
   velocity?: { new_people_7d: number; new_episodes_7d: number; new_posts_7d: number; new_appearances_7d: number };
   readout: { contacts_total: number; contacts_active: number };
+};
+type HistoryPoint = {
+  day: string; guests_hosts: number; x_users: number; npi: number;
+  episodes_transcribed: number; x_posts: number; people_total: number;
 };
 type TrendingX = {
   name: string; handle: string; followers: number | null; delta_7d: number | null;
@@ -34,7 +40,7 @@ type TrendingX = {
 type ActiveX = { name: string; handle: string; posts_7d: number; follower_count: number | null; avatar_url: string | null; source_type: string | null };
 type Payload = {
   ok: boolean; stats?: Stats; prev?: Stats | null; prevDay?: string | null; error?: string;
-  trending?: TrendingX[]; activity?: ActiveX[];
+  trending?: TrendingX[]; activity?: ActiveX[]; history?: HistoryPoint[];
 };
 
 const box: React.CSSProperties = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: 18, marginBottom: 18 };
@@ -48,10 +54,30 @@ function Delta({ now, prev }: { now: number; prev: number | undefined }) {
   return <span style={{ color, fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{d > 0 ? `+${nf(d)}` : d < 0 ? nf(d) : "±0"}</span>;
 }
 
-function StatCard({ label, value, prev, sub }: { label: string; value: number; prev?: number; sub?: string }) {
+// Tiny inline trend line from the daily snapshots. Y is normalized to the series'
+// own min/max (shape, not scale); flat/short series render as a subtle baseline.
+// It grows a point a day — with 2 snapshots it's a segment, in a month it's a curve.
+function Sparkline({ points, width = 88, height = 26 }: { points: number[]; width?: number; height?: number }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points), max = Math.max(...points);
+  const span = max - min || 1;
+  const step = width / (points.length - 1);
+  const d = points.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(height - 2 - ((v - min) / span) * (height - 4)).toFixed(1)}`).join(" ");
+  return (
+    <svg width={width} height={height} style={{ display: "block", opacity: 0.9 }} aria-hidden>
+      <path d={d} fill="none" stroke="#7aa2ff" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={(points.length - 1) * step} cy={height - 2 - ((points[points.length - 1] - min) / span) * (height - 4)} r={2} fill="#7aa2ff" />
+    </svg>
+  );
+}
+
+function StatCard({ label, value, prev, sub, spark }: { label: string; value: number; prev?: number; sub?: string; spark?: number[] }) {
   return (
     <div style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "14px 16px", minWidth: 150, flex: "1 1 150px" }}>
-      <div style={{ fontSize: 12, color: muted, marginBottom: 4 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <span style={{ fontSize: 12, color: muted }}>{label}</span>
+        {spark && spark.length >= 2 && <Sparkline points={spark} width={64} height={20} />}
+      </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <span style={{ fontSize: 24, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{nf(value)}</span>
         <Delta now={value} prev={prev} />
@@ -102,6 +128,49 @@ function CompositionStrip({ s, p }: { s: Stats; p: Stats | null }) {
   );
 }
 
+const AREA_LABEL: Record<string, string> = {
+  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Heme", Gyn: "Gynecologic",
+};
+const AREA_COLOR: Record<string, string> = {
+  GU: "#7aa2ff", Breast: "#e88fc0", Lung: "#5ac8c8", GI: "#e8c268", Heme: "#c08fe8", Gyn: "#5ac88c",
+};
+
+// Per-Readout-area coverage. Bars share ONE scale (max episodes across areas) so
+// relative depth is honest; areas overlap (multi-tagged episodes) so no total row.
+function AreaPanel({ areas, prev }: { areas: NonNullable<Stats["areas"]>; prev?: Stats["areas"] }) {
+  const maxEp = Math.max(...areas.map((a) => a.episodes), 1);
+  return (
+    <div style={{ ...box }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ fontWeight: 600 }}>Coverage by area <span style={{ color: muted, fontWeight: 400, fontSize: 12 }}>— episodes tagged to each Readout edition</span></div>
+        <div style={{ fontSize: 11, color: "#5b6372" }}>areas overlap — rows don&rsquo;t sum</div>
+      </div>
+      <div style={{ display: "grid", gap: 9 }}>
+        {areas.map((a) => {
+          const pv = prev?.find((x) => x.area === a.area);
+          const txPct = a.episodes ? Math.round((a.transcribed / a.episodes) * 100) : 0;
+          return (
+            <div key={a.area} style={{ display: "grid", gridTemplateColumns: "110px 1fr", columnGap: 12, rowGap: 3, alignItems: "center", fontSize: 13 }}>
+              <div style={{ color: "#e9edf6" }}>{AREA_LABEL[a.area] ?? a.area}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ color: "#e9edf6", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{nf(a.episodes)}</span>
+                <span style={{ color: muted, fontSize: 11 }}>episodes</span>
+                <Delta now={a.episodes} prev={pv?.episodes} />
+                <span style={{ color: "#5b6372", fontSize: 11 }}>
+                  · {nf(a.transcribed)} transcribed ({txPct}%) · {a.shows} shows · {a.x_sources} X sources
+                </span>
+              </div>
+              <div style={{ gridColumn: "1 / -1", height: 5, background: "rgba(255,255,255,.08)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: `${(a.episodes / maxEp) * 100}%`, height: "100%", background: AREA_COLOR[a.area] ?? "#7aa2ff", opacity: 0.85 }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function XPanel({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
     <div style={{ ...box, flex: "1 1 380px", marginBottom: 0 }}>
@@ -131,12 +200,13 @@ function XRow({ i, avatar, name, handle, right, rightSub }: { i: number; avatar:
   );
 }
 
-function BreakdownCard({ title, now, prev, note }: { title: string; now: Tier; prev?: Tier | null; note?: string }) {
+function BreakdownCard({ title, now, prev, note, spark }: { title: string; now: Tier; prev?: Tier | null; note?: string; spark?: number[] }) {
   return (
     <div style={{ ...box, flex: "1 1 320px", marginBottom: 0 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ fontWeight: 600 }}>{title}</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {spark && spark.length >= 2 && <Sparkline points={spark} />}
           <span style={{ fontSize: 20, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{nf(now.total)}</span>
           <Delta now={now.total} prev={prev?.total} />
         </div>
@@ -194,6 +264,8 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
   const s = data.stats;
   const p = data.prev ?? null;
   const txPct = s.corpus.episodes ? Math.round((s.corpus.episodes_transcribed / s.corpus.episodes) * 100) : 0;
+  const h = data.history ?? [];
+  const series = (pick: (pt: HistoryPoint) => number) => (h.length >= 2 ? h.map(pick) : undefined);
 
   return (
     <div>
@@ -215,9 +287,9 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
 
       {/* People coverage — the graph's identity spine */}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-        <BreakdownCard title="Guests & Hosts" now={s.people.guests_hosts} prev={p?.people.guests_hosts}
+        <BreakdownCard title="Guests & Hosts" now={s.people.guests_hosts} prev={p?.people.guests_hosts} spark={series((pt) => pt.guests_hosts)}
           note={`${nf(s.people.guests)} guests · ${nf(s.people.hosts)} hosts (people with ≥1 podcast appearance)${s.people.both !== undefined ? ` · ${nf(s.people.both)} also on X` : ""}`} />
-        <BreakdownCard title="X Users" now={s.people.x_users} prev={p?.people.x_users}
+        <BreakdownCard title="X Users" now={s.people.x_users} prev={p?.people.x_users} spark={series((pt) => pt.x_users)}
           note={`People with a linked X account · ${nf(s.corpus.x_sources_active)} active X sources`} />
       </div>
 
@@ -231,15 +303,22 @@ export default function Dashboard({ adminKey }: { adminKey: string }) {
         )}
         <StatCard label="Podcasts" value={s.corpus.shows} prev={p?.corpus.shows} />
         <StatCard label="Episodes" value={s.corpus.episodes} prev={p?.corpus.episodes} />
-        <StatCard label="Transcribed" value={s.corpus.episodes_transcribed} prev={p?.corpus.episodes_transcribed} sub={`${txPct}% of episodes`} />
+        <StatCard label="Transcribed" value={s.corpus.episodes_transcribed} prev={p?.corpus.episodes_transcribed}
+          spark={series((pt) => pt.episodes_transcribed)}
+          sub={s.corpus.audio_hours_transcribed !== undefined
+            ? `${txPct}% of episodes · ${nf(s.corpus.audio_hours_transcribed)} of ${nf(s.corpus.audio_hours_total ?? 0)} hrs of audio`
+            : `${txPct}% of episodes`} />
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
         <StatCard label="Transcript chunks" value={s.corpus.transcript_chunks} prev={p?.corpus.transcript_chunks}
           sub={s.corpus.chunks_unembedded ? `⚠ ${nf(s.corpus.chunks_unembedded)} unembedded` : "all embedded"} />
         <StatCard label="Appearances" value={s.corpus.appearances} prev={p?.corpus.appearances} />
-        <StatCard label="X posts" value={s.corpus.x_posts} prev={p?.corpus.x_posts} />
+        <StatCard label="X posts" value={s.corpus.x_posts} prev={p?.corpus.x_posts} spark={series((pt) => pt.x_posts)} />
         <StatCard label="Brief contacts" value={s.readout.contacts_active} prev={p?.readout.contacts_active} sub={`${nf(s.readout.contacts_total)} total`} />
       </div>
+
+      {/* Per-area coverage — mirrors the Readout's own tumor_categories bucketing */}
+      {s.areas && s.areas.length > 0 && <AreaPanel areas={s.areas} prev={p?.areas} />}
 
       {/* Rolling 7-day intake — rendered without delta chips (a day-over-day delta
           on a rolling window reads as noise, not signal) */}

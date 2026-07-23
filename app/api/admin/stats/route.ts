@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/gateServer";
-import { dbStats, trendingX, xActivity7d } from "@/lib/db";
+import { dbStats, trendingX, xActivity7d, statsHistory } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +14,13 @@ export async function GET(req: NextRequest) {
   if (!(await isAdmin(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   // Settled, not all-or-nothing: the snapshot stats are the core; the X lists are
   // additive panels that shouldn't blank the whole dashboard if one probe fails.
-  const [d, t, a] = await Promise.allSettled([dbStats(), trendingX(15), xActivity7d(15)]);
+  const [d, t, a, h] = await Promise.allSettled([dbStats(), trendingX(15), xActivity7d(15), statsHistory()]);
   if (d.status === "rejected") return NextResponse.json({ ok: false, error: String(d.reason).slice(0, 300) }, { status: 500 });
   return NextResponse.json({
     ok: true,
     ...d.value,
     trending: t.status === "fulfilled" ? t.value : [],
     activity: a.status === "fulfilled" ? a.value : [],
+    history: h.status === "fulfilled" ? h.value : [],
   });
 }

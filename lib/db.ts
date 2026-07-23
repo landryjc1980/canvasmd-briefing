@@ -203,10 +203,38 @@ export type DbStats = {
   corpus: {
     shows: number; episodes: number; episodes_transcribed: number; transcript_chunks: number;
     chunks_unembedded: number; appearances: number; x_sources_active: number; x_posts: number;
+    // v3 (migration 0206) — sum(duration_seconds) in hours, all vs transcribed.
+    audio_hours_total?: number; audio_hours_transcribed?: number;
   };
+  // v3 (migration 0206) — per Readout area; same tumor_categories containment the
+  // briefing edge fn uses. Areas overlap (multi-tagged episodes) — don't sum rows.
+  areas?: AreaCoverage[];
   velocity?: { new_people_7d: number; new_episodes_7d: number; new_posts_7d: number; new_appearances_7d: number };
   readout: { contacts_total: number; contacts_active: number };
 };
+export type AreaCoverage = { area: string; episodes: number; transcribed: number; shows: number; x_sources: number };
+
+// Compact per-day series for sparklines, oldest→newest. Reads the snapshot table
+// directly — one row per day, so 60 rows ≈ two months of trend.
+export type StatsHistoryPoint = {
+  day: string; guests_hosts: number; x_users: number; npi: number;
+  episodes_transcribed: number; x_posts: number; people_total: number;
+};
+export async function statsHistory(limit = 60): Promise<StatsHistoryPoint[]> {
+  const rows = await pg<{ day: string; stats: DbStats }[]>(
+    `admin_stats_daily?select=day,stats&order=day.desc&limit=${limit}`,
+    { method: "GET", headers: headers() },
+  );
+  return (rows ?? []).reverse().map((r) => ({
+    day: r.day,
+    guests_hosts: r.stats?.people?.guests_hosts?.total ?? 0,
+    x_users: r.stats?.people?.x_users?.total ?? 0,
+    npi: r.stats?.people?.guests_hosts?.npi ?? 0,
+    episodes_transcribed: r.stats?.corpus?.episodes_transcribed ?? 0,
+    x_posts: r.stats?.corpus?.x_posts ?? 0,
+    people_total: r.stats?.people?.total ?? 0,
+  }));
+}
 
 export type TrendingX = {
   name: string; handle: string; followers: number | null;
