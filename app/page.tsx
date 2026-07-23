@@ -21,6 +21,29 @@ import "./brief.css";
 type ViewMode = "broadsheet" | "brief";
 type Design = "default" | "flat" | "classic";
 
+// The briefing edge fn can return a transient 546 (WORKER_RESOURCE_LIMIT) when a
+// page load coincides with the twice-daily snapshot rebuild (03:15/15:15 UTC)
+// saturating the function worker. It clears within seconds, so retry a few times
+// with backoff before surfacing the dead-end error instead of failing on the blip.
+// A successful load never carries `.error`; on a permanent error we still return
+// after the attempts and the page shows it (only ~4s later, only when truly broken).
+async function fetchBriefingWithRetry(url: string, attempts = 3): Promise<any> {
+  const delays = [1200, 2600];
+  let last: any = { error: "Failed to reach the briefing service." };
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      const j = await r.json();
+      if (r.ok && !j?.error) return j; // success
+      last = j?.error ? j : { error: `Briefing service returned ${r.status}` };
+    } catch (e: any) {
+      last = { error: e?.message ?? "Failed to reach the briefing service." };
+    }
+    if (i < attempts - 1) await new Promise((res) => setTimeout(res, delays[i] ?? 2600));
+  }
+  return last; // attempts exhausted → surface the last error
+}
+
 export default function BriefingPage() {
   const [area, setArea] = useState<string | undefined>(undefined);
   const [primary, setPrimary] = useState<string | null>(null); // the reader's saved default specialty
@@ -49,7 +72,7 @@ export default function BriefingPage() {
     // caching by area alone stays correct.
     const preview = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("congressPreview") : null;
     const p = Promise.all([
-      fetch(`/api/briefing?area=${a}${preview ? `&congressPreview=${encodeURIComponent(preview)}` : ""}`).then((r) => r.json()),
+      fetchBriefingWithRetry(`/api/briefing?area=${a}${preview ? `&congressPreview=${encodeURIComponent(preview)}` : ""}`),
       fetch(`/api/brief-seen?area=${a}`).then((r) => r.json()).catch(() => ({ seen: {} })),
     ])
       .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {} }; })
