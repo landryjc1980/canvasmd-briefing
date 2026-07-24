@@ -31,24 +31,47 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+  // ---- activity-ordered groups: busiest area first ----
+  // The fixed GU→Gyn order was itself a quiet editorial statement (GU first because it was OUR
+  // first area; Gyn permanently last = permanently least-read). Order instead by a plain,
+  // comparable count — distinct evidence items (podcast clips + verified-clinician posts +
+  // papers) behind the area's stories this week — shown in the header so the order justifies
+  // itself. Rankings within each area stay area-relative; only the GROUPS move.
+  const evidenceCount = (brief: BriefingData | undefined): number => {
+    if (!brief) return 0;
+    const pods = new Set<string>(), tweets = new Set<string>(), papers = new Set<string>();
+    for (const s of storiesOf(brief)) {
+      for (const p of s.podcast) pods.add(p.episodeId + ":" + (p.startMs ?? ""));
+      for (const t of s.posts) tweets.add(t.tweetUrl ?? (t.handle ?? t.name) + ":" + (t.text ?? "").slice(0, 40));
+      for (const p of s.papers) papers.add(norm(p.title));
+    }
+    return pods.size + tweets.size + papers.size;
+  };
+  const activity = Object.fromEntries(AREAS.map((a) => [a, evidenceCount(briefsByArea[a])]));
+  const orderedAreas = [...AREAS].sort((x, y) => activity[y] - activity[x] || AREAS.indexOf(x) - AREAS.indexOf(y));
+
   // The pill bar sticks — glassy chrome only once it actually sticks (same treatment as the
   // tumor pages' section nav), plus scroll-spy so the bar always shows where you are.
   const [stuck, setStuck] = useState(false);
-  const [activeSec, setActiveSec] = useState<string>(areaId("GU"));
+  const [activeSec, setActiveSec] = useState<string>(areaId(orderedAreas[0]));
+  const orderKey = orderedAreas.join(",");
   useEffect(() => {
-    const ids = [...AREAS.map(areaId), "all-reading"];
+    // ids in VISUAL order (groups are activity-ordered) — the spy takes the last one above the fold
+    const ids = [...orderKey.split(",").map(areaId), "all-reading"];
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
       let cur = "";
       for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 90) cur = id; }
-      setActiveSec(cur || areaId("GU"));
+      setActiveSec(cur || ids[0]);
     };
     check();
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, []);
+  }, [orderKey]);
   // rAF glide (ported from ReaderView.goSec): the FacePile avatars above a jump target lazy-load
   // and shift layout mid-flight, so the target is re-measured every frame; wheel/touch cancels.
   const goTo = (id: string) => {
@@ -76,7 +99,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const goArea = (a: string) => goTo(areaId(a));
 
   // ---- cross-area reading list: dedupe by title, keep the max clinician-share, rank by it ----
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const best = new Map<string, { p: BriefingArticle; area: string }>();
   for (const a of AREAS) {
     for (const p of briefsByArea[a]?.topArticles ?? []) {
@@ -174,8 +196,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     </div>
   );
 
-  const generatedAt = briefsByArea.GU?.generatedAt;
-
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${wash}80 0px, ${wash}22 220px, ${wash}00 460px), ${INK}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <style>{`
@@ -195,13 +215,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0 }}>The Readout</h1>
           {editionMenu}
         </div>
-        <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 10 }}>By CanvasMD · Every tumor area{generatedAt ? " · this week" : ""}</div>
+        <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 10 }}>By CanvasMD · Every tumor area · Busiest first</div>
         {/* the rainbow rule — the one place that signals "everything" */}
         <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
 
         {/* area jump-pills — sticky with scroll-spy, glass chrome once stuck (tumor-page parity) */}
         <div className="all-pills" style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: "16px -26px 0", padding: "10px 26px", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", WebkitOverflowScrolling: "touch" }}>
-          {AREAS.map((a) => {
+          {orderedAreas.map((a) => {
             const on = activeSec === areaId(a);
             return (
               <button key={a} onClick={() => goArea(a)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
@@ -220,8 +240,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           })()}
         </div>
 
-        {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more) */}
-        {AREAS.map((a) => {
+        {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more);
+            groups ride in activity order, and the source count in each header justifies the slot */}
+        {orderedAreas.map((a) => {
           const brief = briefsByArea[a];
           const acc = inkOf(a).accent;
           const stories = brief ? storiesOf(brief) : [];
@@ -231,7 +252,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
                 <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2" }}>{full}</span>
-                {stories.length > 0 && <span style={{ font: "400 11px system-ui", color: MUT2 }}>· {stories.length} {stories.length === 1 ? "story" : "stories"}</span>}
+                {activity[a] > 0 && <span title="Distinct podcast clips, verified-clinician posts, and papers behind this week's stories" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
                 <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
               </div>
               {stories.length > 0 ? (
