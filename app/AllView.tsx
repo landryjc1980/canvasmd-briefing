@@ -204,6 +204,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 
   const wash = "#232a3a"; // a neutral top wash for All (no single area owns the page)
   const ini = (s: string) => s.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  // KOL institutions arrive as raw primary_institution ("Dana-Farber Cancer Institute, Boston,
+  // MA") — keep the first segment only, the same rule the edge fn already applies to guest
+  // affiliations, so the identity line stays short enough to sit beside the counts.
+  const shortInst = (s: string | null) => {
+    let t = (s ?? "").split(",")[0].trim();
+    // cutting at the comma can orphan an open paren ("Mayo Clinic (Rochester, MN)" →
+    // "Mayo Clinic (Rochester") — drop the dangling fragment rather than close it
+    const opens = (t.match(/\(/g) ?? []).length, closes = (t.match(/\)/g) ?? []).length;
+    if (opens > closes) t = t.slice(0, t.lastIndexOf("(")).trim();
+    return t || null;
+  };
   const miniTag = (a: string) => (
     <span key={a} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: inkOf(a).accent, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{a}</span>
   );
@@ -213,7 +224,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // COLOR DISCIPLINE (John, 2026-07-24: "an awful lot of color"): the tiny area tag is the
   // ONLY color carrier on a closed row — ring, count chip and role chip stay neutral so six
   // areas' rows don't read as rainbow noise. Accent returns inside the open drawer.
-  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: string | null; sub: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
+  // `sub` is the truncatable identity line (institution / show); `facts` are the COUNTS behind
+  // the ranking and never truncate — a long affiliation ("Medstar Medical Group Ii LLC") was
+  // eating "· 30 posts · 10 papers" off the end of the line (John, 2026-07-24).
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
     const acc = inkOf(opts.areas[0] ?? "GU").accent;
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
@@ -232,7 +246,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                 {opts.areas.map(miniTag)}
                 {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
-                {opts.sub && <span style={{ font: "400 11.5px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
+                {(opts.sub || opts.facts) && (
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 5, minWidth: 0, flex: "1 1 auto", font: "400 11.5px system-ui", color: MUT }}>
+                    {opts.sub && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
+                    {opts.sub && opts.facts && <span aria-hidden style={{ flex: "none" }}>·</span>}
+                    {opts.facts && <span style={{ flex: "none", whiteSpace: "nowrap" }}>{opts.facts}</span>}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -267,7 +287,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         const n = eps.length;
         // a host's SHOW is the identifying fact (Florez → Lung Cancer Considered); a guest's is
         // where they practice. Hosts who also guested keep both, show first.
-        const sub = m.hostShow ? [m.hostShow, m.aff].filter(Boolean).join(" · ") : m.aff;
+        const sub = m.hostShow ? [m.hostShow, shortInst(m.aff)].filter(Boolean).join(" · ") : shortInst(m.aff);
         return voiceRow({
           id: "vm:" + m.key,
           name: m.name,
@@ -315,7 +335,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           avatar: v.avatar,
           areas: v.areas,
           roleChip: onMics ? "🎙 on mics" : null,
-          sub: [v.institution, facts].filter(Boolean).join(" · "),
+          sub: shortInst(v.institution),
+          facts,
           count: `${v.amp.toLocaleString()} amplified ↓`,
           children: (v.posts.length || v.articles.length) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
