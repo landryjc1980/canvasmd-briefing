@@ -161,7 +161,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const goTo = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const offset = 62; // clear the sticky pill bar
+    const offset = compact ? 100 : 62; // clear the sticky pill bar (two rows on compact)
     const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
     const start = window.scrollY;
@@ -423,36 +423,49 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {/* the rainbow rule — the one place that signals "everything" */}
         <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
 
-        {/* area jump-pills — sticky with scroll-spy, glass chrome once stuck (tumor-page parity) */}
-        <div className="all-pills" style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: wide ? "16px -30px 0" : "16px -26px 0", padding: wide ? "10px 30px" : "10px 26px", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", WebkitOverflowScrolling: "touch" }}>
-          {orderedAreas.map((a) => {
+        {/* jump-pills — sticky with scroll-spy, glass chrome once stuck (tumor-page parity).
+            COMPACT: two rows — areas scroll horizontally on top, the cross-area sections
+            (Voices · Papers) sit on their own always-visible row beneath (John: hidden behind
+            the scroll when appended to the area row). Desktop: one wrapping row. */}
+        {(() => {
+          const pillStyle = (on: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" });
+          const areaPills = orderedAreas.map((a) => {
             const on = activeSec === areaId(a);
             return (
-              <button key={a} onClick={() => goArea(a)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
+              <button key={a} onClick={() => goArea(a)} style={pillStyle(on)}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />{a}
               </button>
             );
-          })}
+          });
           {/* Voices rides the rail on wide (always visible → no pill, same rule as the tumor
               pages' rail sections); on narrow it's an inline section that earns a jump */}
-          {!wide && micsRanked.length + xRanked.length > 0 && (() => {
-            const on = activeSec === "all-voices";
-            return (
-              <button onClick={() => goTo("all-voices")} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #46C7B8, #9B8CFF)", flex: "none" }} />Voices
-              </button>
-            );
-          })()}
-          {/* the merged reading list lives below all six areas — give it a direct jump */}
-          {reading.length > 0 && (() => {
-            const on = activeSec === "all-reading";
-            return (
-              <button onClick={() => goTo("all-reading")} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
-              </button>
-            );
-          })()}
-        </div>
+          const voicesPill = !wide && micsRanked.length + xRanked.length > 0 && (
+            <button key="voices" onClick={() => goTo("all-voices")} style={pillStyle(activeSec === "all-voices")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #46C7B8, #9B8CFF)", flex: "none" }} />Voices
+            </button>
+          );
+          const papersPill = reading.length > 0 && (
+            <button key="papers" onClick={() => goTo("all-reading")} style={pillStyle(activeSec === "all-reading")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
+            </button>
+          );
+          const rowPad = wide ? "0 30px" : "0 26px";
+          return (
+            <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
+              <div className="all-pills" style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
+                {areaPills}
+                {!compact && voicesPill}
+                {!compact && papersPill}
+              </div>
+              {compact && (voicesPill || papersPill) && (
+                <div style={{ display: "flex", gap: 8, padding: rowPad }}>
+                  {voicesPill}
+                  {papersPill}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more);
             groups ride in activity order, and the source count in each header justifies the slot.
@@ -467,7 +480,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 const stories = brief ? storiesOf(brief) : [];
                 const full = AREA_FULL[a] ?? a;
                 return (
-                  <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: 62 }}>
+                  <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: compact ? 100 : 62 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
                       <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
                       <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2" }}>{full}</span>
@@ -493,7 +506,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           {/* the ONE merged section — honest by a comparable count; rows behave exactly like
               the tumor pages' "What's being read" (expand → abstract + what clinicians said) */}
           const readingJsx = reading.length > 0 && (
-            <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: 62 }}>
+            <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: compact ? 100 : 62 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
                 <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>What the field is reading</span>
                 <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· across oncology · ranked by clinicians who shared it</span>
@@ -528,7 +541,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </div>
           );
           const voicesInline = micsRanked.length + xRanked.length > 0 && (
-            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: 62 }}>{voicesModules}</div>
+            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: compact ? 100 : 62 }}>{voicesModules}</div>
           );
           return wide ? (
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", columnGap: 46, alignItems: "start" }}>
