@@ -465,6 +465,7 @@ export type BriefingSharer = {
   text: string | null;
   likes: number;
   retweets: number;
+  quotes?: number; // quote-posts (absent on pre-2026-07-24 snapshots)
   views: number;
 };
 // One journal paper about a mover drug, with the verified oncologists who shared it.
@@ -576,6 +577,8 @@ export type BriefingKol = {
   tweets: number; // count of their in-area tweets this window
   drugs: string[]; // distinct drugs they discussed (up to a few)
   peakLikes: number;
+  amp?: number; // reposts + quote-posts earned across ALL their window posts (Voices ranking); absent on pre-2026-07-24 snapshots
+  paperShares?: number; // distinct papers they shared this window
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
   articles: { title: string; url: string; journal: string | null; domain: string | null }[]; // articles they shared
   subAreas?: string[];
@@ -851,6 +854,7 @@ export type BriefingData = {
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
   guests?: BriefingGuest[]; // ADDITIVE — "This week's guests" box score (optional: old snapshots omit it)
+  hosts?: BriefingGuest[]; // ADDITIVE — working-clinician hosts this week (pro_interview networks excluded); Voices rail
   episodes?: BriefingEpisode[]; // ADDITIVE — "Also worth hearing" episode rail (optional: old snapshots omit it)
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms

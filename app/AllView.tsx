@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BriefingData, BriefingArticle, BriefingStory } from "@/lib/types";
+import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
 import { Row, PodCard, TweetCard, PaperCard, FacePile, evLabel, paperMeta } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
+import AudioQuote from "@/components/AudioQuote";
 import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsDomain } from "./briefVM";
 
 // "All oncology" — a front page that reads as ONE continuous scroll: every area's full
@@ -30,6 +31,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [micsMore, setMicsMore] = useState(false);
+  const [xMore, setXMore] = useState(false);
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -52,6 +55,81 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const activity = Object.fromEntries(AREAS.map((a) => [a, evidenceCount(briefsByArea[a])]));
   const orderedAreas = [...AREAS].sort((x, y) => activity[y] - activity[x] || AREAS.indexOf(x) - AREAS.indexOf(y));
 
+  // ---- VOICES OF THE WEEK (rail on wide, inline section on narrow) ----
+  // Two lists because a microphone and a repost aren't the same axis:
+  //   On the mics — ranked by GUEST appearances (invitations are the field's choice, cadence-
+  //     proof); working-clinician hosts included at host-credit ≤1/wk; co-hosted shows collapse
+  //     to one SHOW row (Oncology Brothers). Pro-interview CME hosts never appear (edge fn).
+  //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
+  // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
+  // MAX across areas (each area scopes to its own posts — summing would double-count).
+  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; areas: string[]; guestEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostShow: string | null; career: number; people?: string[] };
+  const epKey = (t: string | null) => norm(t ?? "").replace(/\s+/g, "").slice(0, 34);
+  const mics = new Map<string, MicEntry>();
+  const addMic = (a: string, g: NonNullable<BriefingData["guests"]>[number], role: "guest" | "host") => {
+    const key = norm(g.name); if (!key) return;
+    let m = mics.get(key);
+    if (!m) { m = { key, name: g.name, aff: g.affiliation, verified: g.verified, areas: [], guestEps: new Map(), hostEps: new Map(), hostShow: null, career: 0 }; mics.set(key, m); }
+    if (!m.areas.includes(a)) m.areas.push(a);
+    m.career = Math.max(m.career, g.career);
+    if (role === "host") m.hostShow = m.hostShow ?? g.shows[0] ?? null;
+    const eps = role === "host" ? m.hostEps : m.guestEps;
+    for (const e of g.episodes) eps.set(epKey(e.title), { title: e.title, audioUrl: e.audioUrl, show: e.show, showArt: e.showArt });
+  };
+  for (const a of AREAS) {
+    for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");
+    for (const h of briefsByArea[a]?.hosts ?? []) addMic(a, h, "host");
+  }
+  // co-hosted shows → one SHOW row (e.g. the Gosains post & host as "Oncology Brothers")
+  const byShow = new Map<string, MicEntry[]>();
+  for (const m of mics.values()) {
+    if (m.guestEps.size === 0 && m.hostShow) { const l = byShow.get(m.hostShow) ?? []; l.push(m); byShow.set(m.hostShow, l); }
+  }
+  const showRows: MicEntry[] = [];
+  for (const [show, hs] of byShow) {
+    if (hs.length < 2) continue;
+    for (const h of hs) mics.delete(h.key);
+    const eps = new Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>();
+    for (const h of hs) for (const [k, e] of h.hostEps) eps.set(k, e);
+    showRows.push({ key: "show:" + norm(show), name: show, aff: null, verified: false, areas: [...new Set(hs.flatMap((h) => h.areas))], guestEps: new Map(), hostEps: eps, hostShow: show, career: Math.max(...hs.map((h) => h.career)), people: hs.map((h) => h.name) });
+  }
+  const micValue = (m: MicEntry) => m.guestEps.size + (m.hostEps.size ? 1 : 0); // host credit capped at 1/wk
+  const micsRanked = [...mics.values(), ...showRows]
+    .filter((m) => micValue(m) > 0)
+    .sort((x, y) => micValue(y) - micValue(x) || y.career - x.career || x.name.localeCompare(y.name));
+
+  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null }[] };
+  const xVoices = new Map<string, XEntry>();
+  for (const a of AREAS) {
+    for (const k of briefsByArea[a]?.topKols ?? []) {
+      const amp = k.amp ?? k.posts.reduce((s, p) => s + p.retweets + (p.quotes ?? 0), 0); // old-snapshot fallback
+      const key = k.handle ? k.handle.toLowerCase() : norm(k.name); if (!key) continue;
+      let v = xVoices.get(key);
+      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [], amp: 0, tweets: 0, paperShares: 0, posts: [], articles: [] }; xVoices.set(key, v); }
+      if (!v.areas.includes(a)) v.areas.push(a);
+      v.amp = Math.max(v.amp, amp);
+      v.tweets = Math.max(v.tweets, k.tweets);
+      v.paperShares = Math.max(v.paperShares, k.paperShares ?? k.articles.length);
+      const seen = new Set(v.posts.map((p) => p.tweetUrl ?? p.text ?? ""));
+      for (const p of k.posts) { const pk = p.tweetUrl ?? p.text ?? ""; if (!seen.has(pk)) { v.posts.push(p); seen.add(pk); } }
+      const seenA = new Set(v.articles.map((ar) => ar.url));
+      for (const ar of k.articles) if (!seenA.has(ar.url)) { v.articles.push(ar); seenA.add(ar.url); }
+    }
+  }
+  const xRanked = [...xVoices.values()].filter((v) => v.amp > 0).sort((x, y) => y.amp - x.amp || y.tweets - x.tweets);
+  const micKeys = new Set(micsRanked.flatMap((m) => (m.people ? m.people.map(norm) : [m.key])));
+
+  // Two tracks on desktop ≥1180 — the SAME layout rule as the tumor pages (editorial column +
+  // 320px rail). The home page replicates the tumor-page design with all-areas content.
+  const [wide, setWide] = useState<boolean>(() => typeof window !== "undefined" && !compact && window.matchMedia("(min-width: 1180px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1180px)");
+    const set = () => setWide(!compact && mq.matches);
+    set();
+    mq.addEventListener("change", set);
+    return () => mq.removeEventListener("change", set);
+  }, [compact]);
+
   // The pill bar sticks — glassy chrome only once it actually sticks (same treatment as the
   // tumor pages' section nav), plus scroll-spy so the bar always shows where you are.
   const [stuck, setStuck] = useState(false);
@@ -59,7 +137,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const orderKey = orderedAreas.join(",");
   useEffect(() => {
     // ids in VISUAL order (groups are activity-ordered) — the spy takes the last one above the fold
-    const ids = [...orderKey.split(",").map(areaId), "all-reading"];
+    const ids = [...orderKey.split(",").map(areaId), "all-voices", "all-reading"];
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
@@ -110,6 +188,122 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const reading = [...best.values()].filter((x) => x.p.kolSharers >= 2).sort((x, y) => y.p.kolSharers - x.p.kolSharers).slice(0, 10);
 
   const wash = "#232a3a"; // a neutral top wash for All (no single area owns the page)
+  const ini = (s: string) => s.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  const miniTag = (a: string) => (
+    <span key={a} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: inkOf(a).accent, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{a}</span>
+  );
+
+  // One rail-style voice row — mirrors the tumor pages' "Most active on X" module anatomy
+  // (38px avatar, serif name, count chip right, one-line institution, expand-in-place).
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: { label: string; bg: string } | null; sub: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
+    const acc = inkOf(opts.areas[0] ?? "GU").accent;
+    const open = openId === opts.id;
+    const canOpen = opts.children !== null;
+    return (
+      <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc}
+        head={
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 2px" }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: `2px solid ${acc}55` }}>
+              {opts.avatar ? <img src={opts.avatar} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(opts.name)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
+                <span style={{ display: "inline-flex", alignItems: "center", flex: "none", marginTop: 1, font: "600 11px system-ui", color: acc, border: `1px solid ${acc}42`, background: `${acc}12`, borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                {opts.areas.map(miniTag)}
+                {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: opts.roleChip.bg, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{opts.roleChip.label}</span>}
+                {opts.sub && <span style={{ font: "400 11.5px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
+              </div>
+            </div>
+          </div>
+        }>
+        {opts.children}
+      </Row>
+    );
+  };
+
+  const MICS_CAP = 6, X_CAP = 6, MORE_CAP = 14; // expanded view still caps — a rail, not a directory
+  const micsShown = micsMore ? micsRanked.slice(0, MORE_CAP) : micsRanked.slice(0, MICS_CAP);
+  const xShown = xMore ? xRanked.slice(0, MORE_CAP) : xRanked.slice(0, X_CAP);
+  const moreBtn = (total: number, cap: number, on: boolean, flip: () => void) => total > cap && (
+    <button type="button" onClick={flip} style={{ background: "none", border: 0, cursor: "pointer", font: "600 11.5px system-ui", color: MUT2, padding: "8px 2px 0", textAlign: "left" }}>{on ? "Show fewer ↑" : `Show ${Math.min(total, MORE_CAP) - cap} more ↓`}</button>
+  );
+
+  const voicesModules = (
+    <div>
+      <div style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>Voices of the week</div>
+      <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 5 }}>who the field heard · who it amplified</div>
+
+      {/* ── On the mics ── */}
+      <div style={{ margin: "18px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>On the mics</span>
+        <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by podcast appearances</span>
+      </div>
+      {micsShown.map((m) => {
+        const isShow = !!m.people;
+        const eps = [...m.guestEps.values(), ...m.hostEps.values()];
+        const n = micValue(m);
+        return voiceRow({
+          id: "vm:" + m.key,
+          name: m.name,
+          areas: m.areas,
+          roleChip: isShow ? { label: "Show", bg: "#cdd2de" } : m.hostShow ? { label: "Host", bg: inkOf(m.areas[0] ?? "GU").accent } : { label: "Guest", bg: "rgba(255,255,255,.32)" },
+          sub: isShow ? (m.people ?? []).join(" & ") : m.aff,
+          count: `${n} episode${n === 1 ? "" : "s"} ↓`,
+          children: eps.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {eps.slice(0, 3).map((e, j) => (
+                <div key={j} style={{ background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12, padding: "11px 13px" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: e.audioUrl ? 9 : 0 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,.1)", flex: "none", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px system-ui" }}>{e.showArt ? <img src={e.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(e.show ?? "P")}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {e.show && <div style={{ font: "600 12px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.show}</div>}
+                      <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
+                    </div>
+                  </div>
+                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} label="Listen" accent={inkOf(m.areas[0] ?? "GU").accent} tone="dark" />}
+                </div>
+              ))}
+            </div>
+          ) : null,
+        });
+      })}
+      {moreBtn(micsRanked.length, MICS_CAP, micsMore, () => setMicsMore((v) => !v))}
+
+      {/* ── Carried on X ── */}
+      <div style={{ margin: "26px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>Carried on X</span>
+        <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by reposts + quotes earned</span>
+      </div>
+      {xShown.map((v) => {
+        const acc = inkOf(v.areas[0] ?? "GU").accent;
+        const onMics = micKeys.has(norm(v.name));
+        const facts = [`${v.tweets} post${v.tweets === 1 ? "" : "s"}`, v.paperShares ? `${v.paperShares} paper${v.paperShares === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
+        return voiceRow({
+          id: "vx:" + v.key,
+          name: v.name,
+          avatar: v.avatar,
+          areas: v.areas,
+          roleChip: onMics ? { label: "🎙 on mics", bg: "#cdd2de" } : null,
+          sub: [v.institution, facts].filter(Boolean).join(" · "),
+          count: `${v.amp.toLocaleString()} amplified ↓`,
+          children: (v.posts.length || v.articles.length) ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their posts · this week</div>{v.posts.slice(0, 4).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.slice(0, 3).map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} url={a2.url} accent={acc} />)}</div>}
+            </div>
+          ) : null,
+        });
+      })}
+      {moreBtn(xRanked.length, X_CAP, xMore, () => setXMore((v) => !v))}
+
+      <div style={{ font: "400 10.5px/1.6 system-ui", color: MUT2, marginTop: 16, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.05)" }}>
+        Appearances = episodes in this week&rsquo;s briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Amplified = reposts + quote-posts on their posts this week. Nothing blended.
+      </div>
+    </div>
+  );
 
   const evidenceChip = (acc: string) => (
     <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: acc, border: `1px solid ${acc}59`, background: `${acc}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap" }}>Evidence ↓</span>
@@ -209,7 +403,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
       `}</style>
 
-      <div style={{ maxWidth: compact ? 690 : 760, margin: "0 auto", padding: "34px 26px 120px" }}>
+      <div style={{ maxWidth: wide ? 1116 : compact ? 690 : 760, margin: "0 auto", padding: wide ? "34px 30px 120px" : "34px 26px 120px" }}>
         {/* masthead */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0 }}>The Readout</h1>
@@ -220,7 +414,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
 
         {/* area jump-pills — sticky with scroll-spy, glass chrome once stuck (tumor-page parity) */}
-        <div className="all-pills" style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: "16px -26px 0", padding: "10px 26px", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", WebkitOverflowScrolling: "touch" }}>
+        <div className="all-pills" style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: wide ? "16px -30px 0" : "16px -26px 0", padding: wide ? "10px 30px" : "10px 26px", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", WebkitOverflowScrolling: "touch" }}>
           {orderedAreas.map((a) => {
             const on = activeSec === areaId(a);
             return (
@@ -229,6 +423,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               </button>
             );
           })}
+          {/* Voices rides the rail on wide (always visible → no pill, same rule as the tumor
+              pages' rail sections); on narrow it's an inline section that earns a jump */}
+          {!wide && micsRanked.length + xRanked.length > 0 && (() => {
+            const on = activeSec === "all-voices";
+            return (
+              <button onClick={() => goTo("all-voices")} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #46C7B8, #9B8CFF)", flex: "none" }} />Voices
+              </button>
+            );
+          })()}
           {/* the merged reading list lives below all six areas — give it a direct jump */}
           {reading.length > 0 && (() => {
             const on = activeSec === "all-reading";
@@ -241,72 +445,90 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         </div>
 
         {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more);
-            groups ride in activity order, and the source count in each header justifies the slot */}
-        {orderedAreas.map((a) => {
-          const brief = briefsByArea[a];
-          const acc = inkOf(a).accent;
-          const stories = brief ? storiesOf(brief) : [];
-          const full = AREA_FULL[a] ?? a;
-          return (
-            <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: 62 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
-                <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
-                <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2" }}>{full}</span>
-                {activity[a] > 0 && <span title="Distinct podcast clips, verified-clinician posts, and papers behind this week's stories" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
-                <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
-              </div>
-              {stories.length > 0 ? (
-                <>
-                  {stories.map((s, i) => renderStory(s, i, a, acc))}
-                  {/* the tail: what the full brief adds beyond the stories */}
-                  <div style={{ font: "400 12px system-ui", color: MUT2, padding: "2px 2px 0" }}>
-                    Drugs board, trials &amp; guests in the <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc, padding: 0 }}>full {full} brief →</button>
+            groups ride in activity order, and the source count in each header justifies the slot.
+            WIDE: two tracks like the tumor pages — editorial column (groups + reading) + the
+            Voices rail. NARROW: everything inline — groups → voices → reading. */}
+        {(() => {
+          const groupsJsx = (
+            <>
+              {orderedAreas.map((a) => {
+                const brief = briefsByArea[a];
+                const acc = inkOf(a).accent;
+                const stories = brief ? storiesOf(brief) : [];
+                const full = AREA_FULL[a] ?? a;
+                return (
+                  <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: 62 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
+                      <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2" }}>{full}</span>
+                      {activity[a] > 0 && <span title="Distinct podcast clips, verified-clinician posts, and papers behind this week's stories" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
+                      <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
+                    </div>
+                    {stories.length > 0 ? (
+                      <>
+                        {stories.map((s, i) => renderStory(s, i, a, acc))}
+                        {/* the tail: what the full brief adds beyond the stories */}
+                        <div style={{ font: "400 12px system-ui", color: MUT2, padding: "2px 2px 0" }}>
+                          Drugs board, trials &amp; guests in the <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc, padding: 0 }}>full {full} brief →</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet week in {full}. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
+                    )}
                   </div>
-                </>
-              ) : (
-                <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet week in {full}. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
-              )}
+                );
+              })}
+            </>
+          );
+          {/* the ONE merged section — honest by a comparable count; rows behave exactly like
+              the tumor pages' "What's being read" (expand → abstract + what clinicians said) */}
+          const readingJsx = reading.length > 0 && (
+            <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: 62 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
+                <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>What the field is reading</span>
+                <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· across oncology · ranked by clinicians who shared it</span>
+              </div>
+              {reading.map(({ p, area }, i) => {
+                const acc = inkOf(area).accent;
+                const id = "r:" + i;
+                const open = openId === id;
+                return (
+                  <div key={id} style={{ borderBottom: i < reading.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
+                    <Row open={open} onToggle={() => toggle(id)} accent={acc}
+                      head={
+                        <div style={{ padding: "16px 2px" }}>
+                          <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(p.title)}</div>
+                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
+                            <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: acc, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{area}</span>
+                            {p.faces.length > 0 && <FacePile faces={p.faces} extra={p.kolSharers - p.faces.length} ring={INK} />}
+                            <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(p.journal, p.domain), p.kolSharers ? `shared by ${p.kolSharers} clinician${p.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+                            {isNewsDomain(p.domain) && !p.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                            {!open && evidenceChip(acc)}
+                          </div>
+                        </div>
+                      }>
+                      {p.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{p.abstract}</p>}
+                      {p.posts.length > 0 && <div><div style={evLabel(acc)}>What clinicians said · {p.posts.length}</div>{p.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                      {/* link to the source — also guarantees the expand is never empty */}
+                      {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: acc, textDecoration: "none" }}>Open article ↗</a>}
+                    </Row>
+                  </div>
+                );
+              })}
             </div>
           );
-        })}
-
-        {/* the ONE merged section — honest by a comparable count; rows behave exactly like
-            the tumor pages' "What's being read" (expand → abstract + what clinicians said) */}
-        {reading.length > 0 && (
-          <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: 62 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-              <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>What the field is reading</span>
-              <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· across oncology · ranked by clinicians who shared it</span>
+          const voicesInline = micsRanked.length + xRanked.length > 0 && (
+            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: 62 }}>{voicesModules}</div>
+          );
+          return wide ? (
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", columnGap: 46, alignItems: "start" }}>
+              <div style={{ minWidth: 0 }}>{groupsJsx}{readingJsx}</div>
+              <aside style={{ minWidth: 0, marginTop: 34 }}>{voicesModules}</aside>
             </div>
-            {reading.map(({ p, area }, i) => {
-              const acc = inkOf(area).accent;
-              const id = "r:" + i;
-              const open = openId === id;
-              return (
-                <div key={id} style={{ borderBottom: i < reading.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
-                  <Row open={open} onToggle={() => toggle(id)} accent={acc}
-                    head={
-                      <div style={{ padding: "16px 2px" }}>
-                        <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(p.title)}</div>
-                        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
-                          <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: acc, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{area}</span>
-                          {p.faces.length > 0 && <FacePile faces={p.faces} extra={p.kolSharers - p.faces.length} ring={INK} />}
-                          <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(p.journal, p.domain), p.kolSharers ? `shared by ${p.kolSharers} clinician${p.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-                          {isNewsDomain(p.domain) && !p.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
-                          {!open && evidenceChip(acc)}
-                        </div>
-                      </div>
-                    }>
-                    {p.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{p.abstract}</p>}
-                    {p.posts.length > 0 && <div><div style={evLabel(acc)}>What clinicians said · {p.posts.length}</div>{p.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                    {/* link to the source — also guarantees the expand is never empty */}
-                    {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: acc, textDecoration: "none" }}>Open article ↗</a>}
-                  </Row>
-                </div>
-              );
-            })}
-          </div>
-        )}
+          ) : (
+            <>{groupsJsx}{voicesInline}{readingJsx}</>
+          );
+        })()}
 
         <div style={{ textAlign: "center", marginTop: 44, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)" }}>The Readout</div>
