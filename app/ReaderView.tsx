@@ -207,7 +207,6 @@ function Collapse({ open, children }: { open: boolean; children: React.ReactNode
 }
 
 function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
-  void accent;
   const headRef = useRef<HTMLDivElement>(null);
   // Single-open accordion: opening a row BELOW an already-open one collapses that one and yanks the
   // clicked row upward off the cursor. Capture the head's viewport position, commit the toggle
@@ -220,6 +219,17 @@ function Row({ open, onToggle, accent, head, children }: { open: boolean; onTogg
     flushSync(() => onToggle());
     const d = el.getBoundingClientRect().top - before;
     if (Math.abs(d) > 1) window.scrollBy(0, d);
+  };
+  // Collapsing from the BOTTOM of a long drawer: after the content above the viewport vanishes,
+  // a raw toggle would strand the reader far below the card. Commit the collapse synchronously,
+  // then jump back to the card's head (just under the sticky pill bar) so you land on the story
+  // you were reading.
+  const hideFromBottom = () => {
+    flushSync(() => onToggle());
+    const el = headRef.current;
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - 70;
+    window.scrollTo(0, Math.max(0, y));
   };
   return (
     <div>
@@ -234,7 +244,11 @@ function Row({ open, onToggle, accent, head, children }: { open: boolean; onTogg
         style={{ cursor: "pointer", margin: "0 -12px", padding: "0 12px", borderRadius: 14 }}
       >{head}</div>
       <Collapse open={open}>
-        <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>
+        <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>
+          {children}
+          {/* every drawer collapses from the bottom, and lands you back on the card */}
+          <button type="button" onClick={hideFromBottom} style={{ alignSelf: "center", background: "none", border: `1px solid ${accent}59`, color: accent, font: "600 12px system-ui", borderRadius: 20, padding: "7px 18px", cursor: "pointer", marginTop: 4 }}>Hide evidence ↑</button>
+        </div>
       </Collapse>
     </div>
   );
@@ -587,8 +601,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
               {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
-              {/* collapse from the BOTTOM — after you've read the evidence, not by scrolling back up */}
-              <button type="button" onClick={() => toggle(id)} style={{ alignSelf: "center", background: "none", border: `1px solid ${pal.accent}59`, color: pal.accent, font: "600 12px system-ui", borderRadius: 20, padding: "7px 18px", cursor: "pointer", marginTop: 4 }}>Hide evidence ↑</button>
             </div>
           </Row>
           </div>
@@ -813,7 +825,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
               {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, p.topLikes)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
-              <button type="button" onClick={() => toggle(id)} style={{ alignSelf: "center", background: "none", border: `1px solid ${pal.accent}59`, color: pal.accent, font: "600 12px system-ui", borderRadius: 20, padding: "7px 18px", cursor: "pointer", marginTop: 4 }}>Hide evidence ↑</button>
             </div>
           </Row>
           </div>
