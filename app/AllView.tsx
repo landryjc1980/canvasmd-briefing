@@ -116,9 +116,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     if (m.guestEps.size === 0 && m.hostEps.size === 0) mics.delete(m.key); // everything they hosted collapsed into a show row
   }
   const micValue = (m: MicEntry) => m.guestEps.size + (m.hostEps.size ? 1 : 0); // host credit capped at 1/wk
+  const epCount = (m: MicEntry) => m.guestEps.size + m.hostEps.size; // what the chip displays
   const micsRanked = [...mics.values(), ...showRows]
     .filter((m) => micValue(m) > 0)
-    .sort((x, y) => micValue(y) - micValue(x) || y.career - x.career || x.name.localeCompare(y.name));
+    // credit first (hosting counts once/wk), then the DISPLAYED episode count, then career.
+    // Without the middle key a 3-episode show sorted under a 1-episode host — both hold one
+    // host credit — and the visible numbers read as mis-sorted even though the rule is stated.
+    .sort((x, y) => micValue(y) - micValue(x) || epCount(y) - epCount(x) || y.career - x.career || x.name.localeCompare(y.name));
 
   type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null }[] };
   const xVoices = new Map<string, XEntry>();
