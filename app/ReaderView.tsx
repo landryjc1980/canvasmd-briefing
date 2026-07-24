@@ -889,7 +889,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 (John: byline next to the specialty looked weird), matching the mobile stack. */}
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 6 }}>
               <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0, display: "inline" }}>The Readout</h1>
-              {!compact && areaSwitcher("chip")}
+              {/* the edition chip rides beside the wordmark on EVERY size (2026-07-24: the mobile
+                  bare-text variant read differently from the All page — one switcher, one look) */}
+              {areaSwitcher("chip")}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
             {/* the edition's color, worn structurally: a thin area-accent rule under the masthead */}
@@ -901,8 +903,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </button>}
           {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
-          {/* mobile: the area switcher stays in the compact header's right cluster */}
-          {compact && areaSwitcher("plain")}
           </div>
         </div>
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the

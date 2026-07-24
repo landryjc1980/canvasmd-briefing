@@ -450,6 +450,14 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </button>
           );
           const rowPad = wide ? "0 30px" : "0 26px";
+          // Compact section row reads like the tumor pages' tabs: Top Stories lit while you're
+          // anywhere in the groups; Voices / Papers take over in their sections.
+          const inSection = activeSec === "all-voices" || activeSec === "all-reading";
+          const topPill = (
+            <button key="top" onClick={() => goArea(orderedAreas[0])} style={pillStyle(!inSection)}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: inSection ? "rgba(255,255,255,.55)" : INK, flex: "none" }} />Top Stories
+            </button>
+          );
           return (
             <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
               <div className="all-pills" style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
@@ -459,6 +467,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               </div>
               {compact && (voicesPill || papersPill) && (
                 <div style={{ display: "flex", gap: 8, padding: rowPad }}>
+                  {topPill}
                   {voicesPill}
                   {papersPill}
                 </div>
