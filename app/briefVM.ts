@@ -97,6 +97,9 @@ export function cleanTweetText(s: string | null | undefined): string {
   return (s ?? "")
     .replace(/^RT @[A-Za-z0-9_]+:\s*/, "")
     .replace(/https?:\/\/t\.co\/\S+/g, "")
+    // X delivers content HTML-escaped — decode the common entities so tweets don't
+    // render a literal "&amp;" ("Vedotin &amp; pembrolizumab").
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+([.,;:!?])/g, "$1")
     .trim();

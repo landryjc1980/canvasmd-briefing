@@ -470,7 +470,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // first-time readers. It's now a small accent-tinted pill that reads as a control.
   const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
     <span style={{ display: "inline-flex", alignItems: "center", font: "600 12.5px system-ui", color: pal.accent, border: `1px solid ${pal.accent}59`, background: `${pal.accent}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap", ...style }}>
-      {openId === id ? "Hide ↑" : "The signal ↓"}
+      {openId === id ? "Hide ↑" : "Evidence ↓"}
     </span>
   );
 
@@ -531,22 +531,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         const lead = i === 0;
         const faces = pileFaces(s);
         const chip = part.mode === "split" ? part.status.get(s.id) : undefined;
-        // Front-page scale for the lead story; standard scale below the fold.
-        const headlineFont = isDrug
-          ? (lead ? (compact ? "500 26px/1.15" : "500 34px/1.12") : "500 22px/1.15")
-          : (lead ? (compact ? "500 23px/1.28" : "500 30px/1.22") : "500 20px/1.3");
-        // First-time discoverability: the LEAD story teases its evidence — the first 1–2
-        // pieces render in a clipped, bottom-faded, non-interactive preview with the signal
-        // pill beneath as the "see the rest" affordance. Clicking anywhere expands the real
-        // drawer (the whole head is the button); once open the pill moves back to the metric
-        // row as "Hide ↑". Teaser only — pointer-events off so a play button can't half-fire.
-        const peekItems: React.ReactNode[] = [];
-        if (lead) {
-          if (s.podcast[0]) peekItems.push(<div key="pod"><div style={evLabel(pal.accent)}>On the podcasts</div><PodCard p={s.podcast[0]} accent={pal.accent} /></div>);
-          if (peekItems.length < 2 && s.posts[0]) peekItems.push(<div key="x"><div style={evLabel(pal.accent)}>On X · verified clinicians</div><TweetCard t={s.posts[0]} /></div>);
-          if (peekItems.length < 2 && s.papers[0]) peekItems.push(<div key="pp"><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div><PaperCard title={s.papers[0].title} journal={s.papers[0].journal} domain={s.papers[0].domain} url={s.papers[0].url} abstract={s.papers[0].abstract} accent={pal.accent} /></div>);
-        }
-        const showPeek = lead && openId !== id && peekItems.length > 0;
+        // Denser, scannable scale (2026-07-22 redesign): the lead is a step up, not a poster —
+        // the old 34px front-page headline ate most of a phone screen before story #2.
+        const headlineFont = lead ? (compact ? "500 23px/1.2" : "500 25px/1.16") : (compact ? "500 19px/1.25" : "500 20.5px/1.2");
+        const open = openId === id;
         return (
           <Fragment key={id}>
             {part.mode === "split" && i === part.freshCount && (
@@ -559,8 +547,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
               </div>
             )}
-          <div data-sid={s.id} data-sfp={s.fp ?? ""} style={storyCard}>
-          <Row open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+          <div data-sid={s.id} data-sfp={s.fp ?? ""} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
+          <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
                 {!compact && <div style={{ font: lead ? "500 34px/1 'Newsreader',Georgia,serif" : "500 26px/1.1 'Newsreader',Georgia,serif", color: pal.accent, opacity: lead ? 1 : 0.45, width: 34, flex: "none" }}>{i + 1}</div>}
@@ -580,28 +568,27 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                     {s.subtitle && <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: MUT }}>{s.subtitle}</span>}
                     {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                   </div>
-                  {s.description && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{s.description}</p>}
-                  <StanceBlock stance={s.stance} accent={pal.accent} style={{ marginTop: 14 }} />
+                  {/* Description is a 2-line teaser when closed (sans = the "gloss", not the field's
+                      own words), and unclamps to the full text on expand. */}
+                  {s.description && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
+                  {/* Facts-forward: who + how many + where. The stance ("favorable") does NOT live
+                      here — it only appears in the drawer, next to its receipts. */}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                     {faces.length > 0 && <FacePile faces={faces} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
-                    {(!lead || openId === id) && <SignalTag id={id} style={{ marginLeft: "auto" }} />}
+                    {!open && <SignalTag id={id} style={{ marginLeft: "auto" }} />}
                   </div>
-                  {showPeek && (
-                    <>
-                      <div aria-hidden style={{ maxHeight: 250, overflow: "hidden", marginTop: 16, pointerEvents: "none", WebkitMaskImage: "linear-gradient(180deg, #000 38%, transparent 96%)", maskImage: "linear-gradient(180deg, #000 38%, transparent 96%)" }}>
-                        {peekItems}
-                      </div>
-                      <div style={{ textAlign: "center", marginTop: 4 }}><SignalTag id={id} /></div>
-                    </>
-                  )}
                 </div>
               </div>
             }>
-            <div style={{ marginLeft: compact ? 0 : 54 }}>
+            <div style={{ marginLeft: compact ? 0 : 54, display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* the field's read at the TOP of the evidence — receipts, only on expand */}
+              <StanceBlock stance={s.stance} accent={pal.accent} />
               {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
               {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
+              {/* collapse from the BOTTOM — after you've read the evidence, not by scrolling back up */}
+              <button type="button" onClick={() => toggle(id)} style={{ alignSelf: "center", background: "none", border: `1px solid ${pal.accent}59`, color: pal.accent, font: "600 12px system-ui", borderRadius: 20, padding: "7px 18px", cursor: "pointer", marginTop: 4 }}>Hide evidence ↑</button>
             </div>
           </Row>
           </div>
@@ -796,9 +783,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <SectionHead id="sec-drugs" accent={pal.accent} left={!compact}>Drugs</SectionHead>
       {data.movers.map((m, i) => {
         const id = "m:" + m.drugId;
+        const open = openId === id;
         return (
           <div key={id} style={storyCard}>
-          <Row open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+          <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
                 {!compact && <div style={{ font: "500 26px/1.1 'Newsreader',Georgia,serif", color: pal.accent, opacity: i === 0 ? 1 : 0.45, width: 34, flex: "none" }}>{i + 1}</div>}
@@ -809,21 +797,23 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                     <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: MUT }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
                     {m.delta !== 0 && <Delta delta={m.delta} />}
                   </div>
-                  {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
+                  {/* 2-line teaser closed, full text open — same scannable treatment as the stories */}
+                  {m.why && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{m.why}</p>}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                     {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{metricsLine(m)}</span>
-                    <SignalTag id={id} style={{ marginLeft: "auto" }} />
+                    {!open && <SignalTag id={id} style={{ marginLeft: "auto" }} />}
                   </div>
                 </div>
               </div>
             }>
-            <div style={{ marginLeft: compact ? 0 : 54 }}>
+            <div style={{ marginLeft: compact ? 0 : 54, display: "flex", flexDirection: "column", gap: 18 }}>
               {/* the field's read at the TOP of the drug's evidence drawer (self-suppresses if thin) */}
-              <StanceBlock stance={m.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
+              <StanceBlock stance={m.stance} accent={pal.accent} />
               {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
               {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, p.topLikes)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
+              <button type="button" onClick={() => toggle(id)} style={{ alignSelf: "center", background: "none", border: `1px solid ${pal.accent}59`, color: pal.accent, font: "600 12px system-ui", borderRadius: 20, padding: "7px 18px", cursor: "pointer", marginTop: 4 }}>Hide evidence ↑</button>
             </div>
           </Row>
           </div>
@@ -891,6 +881,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {!compact && areaSwitcher("chip")}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+            {/* the edition's color, worn structurally: a thin area-accent rule under the masthead */}
+            {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 14, background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}47 40%, transparent)` }} />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
@@ -904,7 +896,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         </div>
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
-        {compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+        {compact && <>
+          <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 0" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>
+          <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}47 40%, transparent)` }} />
+        </>}
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll. Glassy over the lit page field. */}
         {/* wide: the rail is quiet context, so the jump-links center on the EDITORIAL column
