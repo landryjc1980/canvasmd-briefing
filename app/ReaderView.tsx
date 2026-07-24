@@ -657,7 +657,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const kolsSection = data.topKols.length > 0 && (
     <>
       <SectionHead id={data.guests?.length ? undefined : "sec-kols"} accent={pal.accent} rail={wide}>Most active on X</SectionHead>
-      <Capped items={data.topKols} cap={6} accent={pal.accent} render={(k, i) => {
+      {/* sort explicitly by ACTIVITY rather than trusting payload order: topKols now also carries
+          a tail of top-amplification voices (for the All page's "Carried on X" rail), which a
+          Focus filter could otherwise float into a list whose header promises "most active" */}
+      <Capped items={[...data.topKols].sort((a, b) => b.tweets - a.tweets || b.peakLikes - a.peakLikes)} cap={6} accent={pal.accent} render={(k, i) => {
         const id = "k:" + i;
         const open = openId === id;
         // KOL expander is NOT "the signal" — expanding shows their raw posts/papers, not
