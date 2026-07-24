@@ -124,7 +124,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const xVoices = new Map<string, XEntry>();
   for (const a of AREAS) {
     for (const k of briefsByArea[a]?.topKols ?? []) {
-      const amp = k.amp ?? k.posts.reduce((s, p) => s + p.retweets + (p.quotes ?? 0), 0); // old-snapshot fallback
+      // old-snapshot fallback (areas whose payload predates edge-fn amp). Zero engagement on
+      // classic retweets ('RT @…') — X API v2 mirrors the ORIGINAL post's metrics onto the RT,
+      // so counting them would let a KOL rank by RETWEETING a viral post, not being carried
+      // (2026-07-24 review). New snapshots ship k.amp already RT-guarded server-side.
+      const amp = k.amp ?? k.posts.reduce((s, p) => s + (/^\s*RT @/.test(p.text ?? "") ? 0 : p.retweets + (p.quotes ?? 0)), 0);
       const key = k.handle ? k.handle.toLowerCase() : norm(k.name); if (!key) continue;
       let v = xVoices.get(key);
       if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [], amp: 0, tweets: 0, paperShares: 0, posts: [], articles: [] }; xVoices.set(key, v); }
