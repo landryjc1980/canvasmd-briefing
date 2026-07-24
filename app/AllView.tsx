@@ -63,8 +63,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
   // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
   // MAX across areas (each area scopes to its own posts — summing would double-count).
-  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostShow: string | null; career: number; people?: string[] };
-  const epKey = (t: string | null) => norm(t ?? "").replace(/\s+/g, "").slice(0, 34);
+  type EpRec = { title: string; audioUrl: string | null; show: string | null; showArt: string | null };
+  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number; people?: string[] };
+  // mirror the server's guestKey: strip numbered-episode prefixes so the same syndicated talk
+  // ("Ep. 12: X" on one feed, "X" on another) can't double-count across areas
+  const epKey = (t: string | null) => norm((t ?? "").replace(/^\s*(ep\.?\s*\d+|episode\s*\d+|#\s*\d+|part\s*\d+)\s*[:.\-–—]*\s*/i, "")).replace(/\s+/g, "").slice(0, 34);
   // X avatars for mic rows: prefer the payload's avatar (people→x_sources, post-2026-07-24
   // snapshots); fall back to a name-match against the week's X-active KOLs so faces show up
   // against older snapshots too. Initials remain the final fallback.
@@ -86,18 +89,31 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");
     for (const h of briefsByArea[a]?.hosts ?? []) addMic(a, h, "host");
   }
-  // co-hosted shows → one SHOW row (e.g. the Gosains post & host as "Oncology Brothers")
-  const byShow = new Map<string, MicEntry[]>();
+  // Co-hosted shows collapse to ONE SHOW row UNCONDITIONALLY (2026-07-24 adversarial review:
+  // the old "only if they never guested" gate silently failed whenever a co-host also took a
+  // guest spot — the flagship Gosains case — leaving the same show's episodes duplicated in
+  // two drawers). Episodes are bucketed by the EPISODE'S show; any show with ≥2 distinct
+  // hosts becomes a SHOW row that OWNS those episodes, which are stripped from each person —
+  // their guest work (and any solo-hosted show) stays under their own name.
+  const showBuckets = new Map<string, { members: Set<MicEntry>; eps: Map<string, EpRec> }>();
   for (const m of mics.values()) {
-    if (m.guestEps.size === 0 && m.hostShow) { const l = byShow.get(m.hostShow) ?? []; l.push(m); byShow.set(m.hostShow, l); }
+    for (const [k, e] of m.hostEps) {
+      if (!e.show) continue;
+      let b = showBuckets.get(e.show);
+      if (!b) { b = { members: new Set(), eps: new Map() }; showBuckets.set(e.show, b); }
+      b.members.add(m); b.eps.set(k, e);
+    }
   }
   const showRows: MicEntry[] = [];
-  for (const [show, hs] of byShow) {
-    if (hs.length < 2) continue;
-    for (const h of hs) mics.delete(h.key);
-    const eps = new Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>();
-    for (const h of hs) for (const [k, e] of h.hostEps) eps.set(k, e);
-    showRows.push({ key: "show:" + norm(show), name: show, aff: null, verified: false, avatar: [...eps.values()].find((e) => e.showArt)?.showArt ?? null, areas: [...new Set(hs.flatMap((h) => h.areas))], guestEps: new Map(), hostEps: eps, hostShow: show, career: Math.max(...hs.map((h) => h.career)), people: hs.map((h) => h.name) });
+  for (const [show, b] of showBuckets) {
+    if (b.members.size < 2) continue;
+    for (const m of b.members) for (const k of b.eps.keys()) m.hostEps.delete(k);
+    const members = [...b.members];
+    showRows.push({ key: "show:" + norm(show), name: show, aff: null, verified: false, avatar: [...b.eps.values()].find((e) => e.showArt)?.showArt ?? null, areas: [...new Set(members.flatMap((m) => m.areas))], guestEps: new Map(), hostEps: b.eps, hostShow: show, career: Math.max(...members.map((m) => m.career)), people: members.map((m) => m.name) });
+  }
+  for (const m of [...mics.values()]) {
+    m.hostShow = m.hostEps.size ? ([...m.hostEps.values()][0].show ?? m.hostShow) : null;
+    if (m.guestEps.size === 0 && m.hostEps.size === 0) mics.delete(m.key); // everything they hosted collapsed into a show row
   }
   const micValue = (m: MicEntry) => m.guestEps.size + (m.hostEps.size ? 1 : 0); // host credit capped at 1/wk
   const micsRanked = [...mics.values(), ...showRows]
@@ -142,20 +158,23 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [activeSec, setActiveSec] = useState<string>(areaId(orderedAreas[0]));
   const orderKey = orderedAreas.join(",");
   useEffect(() => {
-    // ids in VISUAL order (groups are activity-ordered) — the spy takes the last one above the fold
+    // ids in VISUAL order (groups are activity-ordered) — the spy takes the last one above the fold.
+    // Threshold sits BELOW the jump-landing offset (100 compact / 62 desktop) so the pill you just
+    // tapped actually lights up; deps include wide/compact because both change the id set + offsets.
     const ids = [...orderKey.split(",").map(areaId), "all-voices", "all-reading"];
+    const threshold = compact ? 112 : 90;
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
       let cur = "";
-      for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 90) cur = id; }
+      for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= threshold) cur = id; }
       setActiveSec(cur || ids[0]);
     };
     check();
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [orderKey]);
+  }, [orderKey, wide, compact]);
   // rAF glide (ported from ReaderView.goSec): the FacePile avatars above a jump target lazy-load
   // and shift layout mid-flight, so the target is re-measured every frame; wheel/touch cancels.
   const goTo = (id: string) => {
@@ -209,7 +228,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
     return (
-      <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc}
+      <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc} landOffset={compact ? 108 : 70}
         head={
           <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 2px" }}>
             <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: "2px solid rgba(255,255,255,.13)" }}>
@@ -246,20 +265,23 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 5 }}>who the field heard · who it amplified</div>
 
       {/* ── On the mics ── */}
-      <div style={{ margin: "18px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
+      {micsRanked.length > 0 && <div style={{ margin: "18px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
         <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>On the mics</span>
         <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by podcast appearances</span>
-      </div>
+      </div>}
       {micsShown.map((m) => {
         const isShow = !!m.people;
         const eps = [...m.guestEps.values(), ...m.hostEps.values()];
-        const n = micValue(m);
+        // The chip shows the REAL episode count — the host-credit cap is a RANKING rule only
+        // (stated in the footnote), never a displayed number (2026-07-24 adversarial review:
+        // the capped micValue rendered "1 episode" above a drawer holding three).
+        const n = eps.length;
         return voiceRow({
           id: "vm:" + m.key,
           name: m.name,
           avatar: m.avatar,
           areas: m.areas,
-          roleChip: isShow ? "Show" : m.hostShow ? "Host" : "Guest",
+          roleChip: isShow ? "Show" : m.hostShow ? (m.guestEps.size ? "Host + Guest" : "Host") : "Guest",
           sub: isShow ? (m.people ?? []).join(" & ") : m.aff,
           count: `${n} episode${n === 1 ? "" : "s"} ↓`,
           children: eps.length ? (
@@ -283,14 +305,18 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {moreBtn(micsRanked.length, MICS_CAP, micsMore, () => setMicsMore((v) => !v))}
 
       {/* ── Carried on X ── */}
-      <div style={{ margin: "26px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
+      {xRanked.length > 0 && <div style={{ margin: "26px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
         <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>Carried on X</span>
         <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by reposts + quotes earned</span>
-      </div>
+      </div>}
       {xShown.map((v) => {
         const acc = inkOf(v.areas[0] ?? "GU").accent;
         const onMics = micKeys.has(norm(v.name));
-        const facts = [`${v.tweets} post${v.tweets === 1 ? "" : "s"}`, v.paperShares ? `${v.paperShares} paper${v.paperShares === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
+        // displayed counts must never be smaller than the union the drawer renders beneath
+        // them (MAX-across-areas undercounts when a cross-area voice's posts are disjoint)
+        const nPosts = Math.max(v.tweets, v.posts.length);
+        const nPapers = Math.max(v.paperShares, v.articles.length);
+        const facts = [`${nPosts} post${nPosts === 1 ? "" : "s"}`, nPapers ? `${nPapers} paper${nPapers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
         return voiceRow({
           id: "vx:" + v.key,
           name: v.name,
@@ -310,7 +336,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {moreBtn(xRanked.length, X_CAP, xMore, () => setXMore((v) => !v))}
 
       <div style={{ font: "400 10.5px/1.6 system-ui", color: MUT2, marginTop: 16, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.05)" }}>
-        Appearances = episodes in this week&rsquo;s briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Amplified = reposts + quote-posts on their posts this week. Nothing blended.
+        Episode counts = this week&rsquo;s briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Ranked by guest appearances — hosting credits one per week; ties by lifetime appearances. Amplified = reposts + quote-posts earned on their own posts this week; cross-area voices show their busiest area&rsquo;s count. Every number shown is a plain count.
       </div>
     </div>
   );
@@ -329,7 +355,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
     return (
       <div key={id} style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", ...(lead ? { borderTop: "1px solid rgba(255,255,255,.15)", borderLeft: `3px solid ${acc}` } : {}), borderRadius: 15, padding: "0 20px", marginBottom: 10 }}>
-        <Row open={open} onToggle={() => toggle(id)} accent={acc}
+        <Row open={open} onToggle={() => toggle(id)} accent={acc} landOffset={compact ? 108 : 70}
           head={
             <div style={{ display: "flex", alignItems: "flex-start", gap: !lead && !compact ? 16 : 0, padding: lead ? "18px 2px" : "15px 2px" }}>
               {!lead && !compact && <div style={{ font: "500 21px/1.1 'Newsreader',Georgia,serif", color: acc, opacity: 0.45, width: 26, flex: "none" }}>{i + 1}</div>}
@@ -526,7 +552,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 const open = openId === id;
                 return (
                   <div key={id} style={{ borderBottom: i < reading.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
-                    <Row open={open} onToggle={() => toggle(id)} accent={acc}
+                    <Row open={open} onToggle={() => toggle(id)} accent={acc} landOffset={compact ? 108 : 70}
                       head={
                         <div style={{ padding: "16px 2px" }}>
                           <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(p.title)}</div>
@@ -552,10 +578,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           const voicesInline = micsRanked.length + xRanked.length > 0 && (
             <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: compact ? 100 : 62 }}>{voicesModules}</div>
           );
+          // old snapshots ship no hosts/amp — collapse the rail rather than render an empty shell
+          const hasVoices = micsRanked.length + xRanked.length > 0;
           return wide ? (
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", columnGap: 46, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: hasVoices ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
               <div style={{ minWidth: 0 }}>{groupsJsx}{readingJsx}</div>
-              <aside style={{ minWidth: 0, marginTop: 34 }}>{voicesModules}</aside>
+              {hasVoices && <aside style={{ minWidth: 0, marginTop: 34 }}>{voicesModules}</aside>}
             </div>
           ) : (
             <>{groupsJsx}{voicesInline}{readingJsx}</>

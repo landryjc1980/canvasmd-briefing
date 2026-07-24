@@ -206,7 +206,7 @@ function Collapse({ open, children }: { open: boolean; children: React.ReactNode
   return <div className="rv-drawer">{children}</div>;
 }
 
-export function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
+export function Row({ open, onToggle, accent, head, children, landOffset = 70 }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode; landOffset?: number }) {
   const headRef = useRef<HTMLDivElement>(null);
   // Single-open accordion: opening a row BELOW an already-open one collapses that one and yanks the
   // clicked row upward off the cursor. Capture the head's viewport position, commit the toggle
@@ -228,7 +228,9 @@ export function Row({ open, onToggle, accent, head, children }: { open: boolean;
     flushSync(() => onToggle());
     const el = headRef.current;
     if (!el) return;
-    const y = el.getBoundingClientRect().top + window.scrollY - 70;
+    // landOffset defaults to this page's single-row sticky bar; the All page's compact
+    // TWO-row bar (~90px) passes a taller value so the landed head isn't hidden under it
+    const y = el.getBoundingClientRect().top + window.scrollY - landOffset;
     window.scrollTo(0, Math.max(0, y));
   };
   return (
