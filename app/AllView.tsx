@@ -31,7 +31,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
-  const goArea = (a: string) => { const el = document.getElementById(areaId(a)); if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 62); };
+  const goTo = (id: string) => { const el = document.getElementById(id); if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 62); };
+  const goArea = (a: string) => goTo(areaId(a));
 
   // ---- cross-area reading list: dedupe by title, keep the max clinician-share, rank by it ----
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -164,6 +165,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />{a}
             </button>
           ))}
+          {/* the merged reading list lives below all six areas — give it a direct jump */}
+          {reading.length > 0 && (
+            <button onClick={() => goTo("all-reading")} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#cdd2de", whiteSpace: "nowrap", flex: "none" }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
+            </button>
+          )}
         </div>
 
         {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more) */}
@@ -198,7 +205,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {/* the ONE merged section — honest by a comparable count; rows behave exactly like
             the tumor pages' "What's being read" (expand → abstract + what clinicians said) */}
         {reading.length > 0 && (
-          <div style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+          <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: 62 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
               <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>What the field is reading</span>
               <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· across oncology · ranked by clinicians who shared it</span>
