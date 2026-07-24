@@ -59,12 +59,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // Two lists because a microphone and a repost aren't the same axis:
   //   On the mics — ranked by GUEST appearances (invitations are the field's choice, cadence-
   //     proof); working-clinician hosts included at host-credit ≤1/wk; co-hosted shows collapse
-  //     to one SHOW row (Oncology Brothers). Pro-interview CME hosts never appear (edge fn).
+  //     every row is a PERSON (a show is a venue, not a voice). Pro-interview CME hosts never
+  //     appear at all (excluded edge-side).
   //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
   // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
   // MAX across areas (each area scopes to its own posts — summing would double-count).
   type EpRec = { title: string; audioUrl: string | null; show: string | null; showArt: string | null };
-  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number; people?: string[] };
+  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number };
   // mirror the server's guestKey: strip numbered-episode prefixes so the same syndicated talk
   // ("Ep. 12: X" on one feed, "X" on another) can't double-count across areas
   const epKey = (t: string | null) => norm((t ?? "").replace(/^\s*(ep\.?\s*\d+|episode\s*\d+|#\s*\d+|part\s*\d+)\s*[:.\-–—]*\s*/i, "")).replace(/\s+/g, "").slice(0, 34);
@@ -89,35 +90,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");
     for (const h of briefsByArea[a]?.hosts ?? []) addMic(a, h, "host");
   }
-  // Co-hosted shows collapse to ONE SHOW row UNCONDITIONALLY (2026-07-24 adversarial review:
-  // the old "only if they never guested" gate silently failed whenever a co-host also took a
-  // guest spot — the flagship Gosains case — leaving the same show's episodes duplicated in
-  // two drawers). Episodes are bucketed by the EPISODE'S show; any show with ≥2 distinct
-  // hosts becomes a SHOW row that OWNS those episodes, which are stripped from each person —
-  // their guest work (and any solo-hosted show) stays under their own name.
-  const showBuckets = new Map<string, { members: Set<MicEntry>; eps: Map<string, EpRec> }>();
-  for (const m of mics.values()) {
-    for (const [k, e] of m.hostEps) {
-      if (!e.show) continue;
-      let b = showBuckets.get(e.show);
-      if (!b) { b = { members: new Set(), eps: new Map() }; showBuckets.set(e.show, b); }
-      b.members.add(m); b.eps.set(k, e);
-    }
-  }
-  const showRows: MicEntry[] = [];
-  for (const [show, b] of showBuckets) {
-    if (b.members.size < 2) continue;
-    for (const m of b.members) for (const k of b.eps.keys()) m.hostEps.delete(k);
-    const members = [...b.members];
-    showRows.push({ key: "show:" + norm(show), name: show, aff: null, verified: false, avatar: [...b.eps.values()].find((e) => e.showArt)?.showArt ?? null, areas: [...new Set(members.flatMap((m) => m.areas))], guestEps: new Map(), hostEps: b.eps, hostShow: show, career: Math.max(...members.map((m) => m.career)), people: members.map((m) => m.name) });
-  }
-  for (const m of [...mics.values()]) {
-    m.hostShow = m.hostEps.size ? ([...m.hostEps.values()][0].show ?? m.hostShow) : null;
-    if (m.guestEps.size === 0 && m.hostEps.size === 0) mics.delete(m.key); // everything they hosted collapsed into a show row
-  }
+  // EVERY row here is a PERSON. A show is a venue, not a voice — when the field listens to The
+  // Uromigos it hears Powles and Rini, so co-hosts render as themselves (John, 2026-07-24). An
+  // earlier build collapsed co-hosted shows into a SHOW row; that put a podcast brand in a list
+  // of people AND carried a whole class of bug (the collapse silently failed whenever a co-host
+  // also guested). Two co-hosts each showing the same episode is simply true — the same way two
+  // guests on one episode both count it.
+  for (const m of mics.values()) m.hostShow = m.hostEps.size ? ([...m.hostEps.values()][0].show ?? m.hostShow) : null;
   const micValue = (m: MicEntry) => m.guestEps.size + (m.hostEps.size ? 1 : 0); // host credit capped at 1/wk
   const epCount = (m: MicEntry) => m.guestEps.size + m.hostEps.size; // what the chip displays
-  const micsRanked = [...mics.values(), ...showRows]
+  const micsRanked = [...mics.values()]
     .filter((m) => micValue(m) > 0)
     // credit first (hosting counts once/wk), then the DISPLAYED episode count, then career.
     // Without the middle key a 3-episode show sorted under a 1-episode host — both hold one
@@ -147,7 +129,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     }
   }
   const xRanked = [...xVoices.values()].filter((v) => v.amp > 0).sort((x, y) => y.amp - x.amp || y.tweets - x.tweets);
-  const micKeys = new Set(micsRanked.flatMap((m) => (m.people ? m.people.map(norm) : [m.key])));
+  const micKeys = new Set(micsRanked.map((m) => m.key)); // for the "🎙 on mics" cross-reference
 
   // Two tracks on desktop ≥1180 — the SAME layout rule as the tumor pages (editorial column +
   // 320px rail). The home page replicates the tumor-page design with all-areas content.
@@ -278,19 +260,21 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by podcast appearances</span>
       </div>}
       {micsShown.map((m) => {
-        const isShow = !!m.people;
         const eps = [...m.guestEps.values(), ...m.hostEps.values()];
         // The chip shows the REAL episode count — the host-credit cap is a RANKING rule only
         // (stated in the footnote), never a displayed number (2026-07-24 adversarial review:
         // the capped micValue rendered "1 episode" above a drawer holding three).
         const n = eps.length;
+        // a host's SHOW is the identifying fact (Florez → Lung Cancer Considered); a guest's is
+        // where they practice. Hosts who also guested keep both, show first.
+        const sub = m.hostShow ? [m.hostShow, m.aff].filter(Boolean).join(" · ") : m.aff;
         return voiceRow({
           id: "vm:" + m.key,
           name: m.name,
           avatar: m.avatar,
           areas: m.areas,
-          roleChip: isShow ? "Show" : m.hostShow ? (m.guestEps.size ? "Host + Guest" : "Host") : "Guest",
-          sub: isShow ? (m.people ?? []).join(" & ") : m.aff,
+          roleChip: m.hostShow ? (m.guestEps.size ? "Host + Guest" : "Host") : "Guest",
+          sub,
           count: `${n} episode${n === 1 ? "" : "s"} ↓`,
           children: eps.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
