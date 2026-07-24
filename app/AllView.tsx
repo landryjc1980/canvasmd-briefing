@@ -63,13 +63,19 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
   // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
   // MAX across areas (each area scopes to its own posts — summing would double-count).
-  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; areas: string[]; guestEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostShow: string | null; career: number; people?: string[] };
+  type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostEps: Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>; hostShow: string | null; career: number; people?: string[] };
   const epKey = (t: string | null) => norm(t ?? "").replace(/\s+/g, "").slice(0, 34);
+  // X avatars for mic rows: prefer the payload's avatar (people→x_sources, post-2026-07-24
+  // snapshots); fall back to a name-match against the week's X-active KOLs so faces show up
+  // against older snapshots too. Initials remain the final fallback.
+  const xAvatarByName = new Map<string, string>();
+  for (const a of AREAS) for (const k of briefsByArea[a]?.topKols ?? []) if (k.avatar && !xAvatarByName.has(norm(k.name))) xAvatarByName.set(norm(k.name), k.avatar);
   const mics = new Map<string, MicEntry>();
   const addMic = (a: string, g: NonNullable<BriefingData["guests"]>[number], role: "guest" | "host") => {
     const key = norm(g.name); if (!key) return;
     let m = mics.get(key);
-    if (!m) { m = { key, name: g.name, aff: g.affiliation, verified: g.verified, areas: [], guestEps: new Map(), hostEps: new Map(), hostShow: null, career: 0 }; mics.set(key, m); }
+    if (!m) { m = { key, name: g.name, aff: g.affiliation, verified: g.verified, avatar: null, areas: [], guestEps: new Map(), hostEps: new Map(), hostShow: null, career: 0 }; mics.set(key, m); }
+    m.avatar = m.avatar ?? g.avatar ?? xAvatarByName.get(key) ?? null;
     if (!m.areas.includes(a)) m.areas.push(a);
     m.career = Math.max(m.career, g.career);
     if (role === "host") m.hostShow = m.hostShow ?? g.shows[0] ?? null;
@@ -91,7 +97,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     for (const h of hs) mics.delete(h.key);
     const eps = new Map<string, { title: string; audioUrl: string | null; show: string | null; showArt: string | null }>();
     for (const h of hs) for (const [k, e] of h.hostEps) eps.set(k, e);
-    showRows.push({ key: "show:" + norm(show), name: show, aff: null, verified: false, areas: [...new Set(hs.flatMap((h) => h.areas))], guestEps: new Map(), hostEps: eps, hostShow: show, career: Math.max(...hs.map((h) => h.career)), people: hs.map((h) => h.name) });
+    showRows.push({ key: "show:" + norm(show), name: show, aff: null, verified: false, avatar: [...eps.values()].find((e) => e.showArt)?.showArt ?? null, areas: [...new Set(hs.flatMap((h) => h.areas))], guestEps: new Map(), hostEps: eps, hostShow: show, career: Math.max(...hs.map((h) => h.career)), people: hs.map((h) => h.name) });
   }
   const micValue = (m: MicEntry) => m.guestEps.size + (m.hostEps.size ? 1 : 0); // host credit capped at 1/wk
   const micsRanked = [...mics.values(), ...showRows]
@@ -195,7 +201,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 
   // One rail-style voice row — mirrors the tumor pages' "Most active on X" module anatomy
   // (38px avatar, serif name, count chip right, one-line institution, expand-in-place).
-  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: { label: string; bg: string } | null; sub: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
+  // COLOR DISCIPLINE (John, 2026-07-24: "an awful lot of color"): the tiny area tag is the
+  // ONLY color carrier on a closed row — ring, count chip and role chip stay neutral so six
+  // areas' rows don't read as rainbow noise. Accent returns inside the open drawer.
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: string | null; sub: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
     const acc = inkOf(opts.areas[0] ?? "GU").accent;
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
@@ -203,17 +212,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc}
         head={
           <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 2px" }}>
-            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: `2px solid ${acc}55` }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: "2px solid rgba(255,255,255,.13)" }}>
               {opts.avatar ? <img src={opts.avatar} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(opts.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
-                <span style={{ display: "inline-flex", alignItems: "center", flex: "none", marginTop: 1, font: "600 11px system-ui", color: acc, border: `1px solid ${acc}42`, background: `${acc}12`, borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
+                <span style={{ display: "inline-flex", alignItems: "center", flex: "none", marginTop: 1, font: "600 11px system-ui", color: open ? "#eef1f8" : "#cdd2de", border: "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.05)", borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                 {opts.areas.map(miniTag)}
-                {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: opts.roleChip.bg, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{opts.roleChip.label}</span>}
+                {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
                 {opts.sub && <span style={{ font: "400 11.5px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
               </div>
             </div>
@@ -248,8 +257,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         return voiceRow({
           id: "vm:" + m.key,
           name: m.name,
+          avatar: m.avatar,
           areas: m.areas,
-          roleChip: isShow ? { label: "Show", bg: "#cdd2de" } : m.hostShow ? { label: "Host", bg: inkOf(m.areas[0] ?? "GU").accent } : { label: "Guest", bg: "rgba(255,255,255,.32)" },
+          roleChip: isShow ? "Show" : m.hostShow ? "Host" : "Guest",
           sub: isShow ? (m.people ?? []).join(" & ") : m.aff,
           count: `${n} episode${n === 1 ? "" : "s"} ↓`,
           children: eps.length ? (
@@ -286,7 +296,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           name: v.name,
           avatar: v.avatar,
           areas: v.areas,
-          roleChip: onMics ? { label: "🎙 on mics", bg: "#cdd2de" } : null,
+          roleChip: onMics ? "🎙 on mics" : null,
           sub: [v.institution, facts].filter(Boolean).join(" · "),
           count: `${v.amp.toLocaleString()} amplified ↓`,
           children: (v.posts.length || v.articles.length) ? (

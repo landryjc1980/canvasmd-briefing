@@ -829,6 +829,7 @@ export type BriefingGuest = {
   name: string;
   affiliation: string | null;
   verified: boolean; // identified US clinician (has NPI)
+  avatar?: string | null; // their X profile image via people.x_source_id (absent on pre-2026-07-24 snapshots)
   thisWeek: number;
   career: number;
   shows: string[];
