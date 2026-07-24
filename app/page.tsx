@@ -7,10 +7,17 @@ import BroadsheetView from "./BroadsheetView";
 import BriefView from "./BriefView";
 import ReaderView from "./ReaderView";
 import ReaderViewFlat from "./ReaderViewFlat";
+import AllView from "./AllView";
 import { palOf, INK_BG } from "./briefVM";
 import { logSignal } from "./gateClient";
 import "./briefing.css";
 import "./brief.css";
+
+// "All oncology" is a valid area value with no brief of its own — it's assembled
+// client-side from the six area briefs the app already caches. Offered in the menu
+// and eligible as a saved primary.
+const AREAS_ALL = ["All", ...AREAS];
+const isValidArea = (a: string | null | undefined) => a === "All" || AREAS.includes(a ?? "");
 
 // Weekly Briefing — "what moved this week in {area}", one tumor area at a time.
 // DEFAULT experience = the responsive reader (dark, one color per area), with the
@@ -54,6 +61,7 @@ export default function BriefingPage() {
   const [seen, setSeen] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [, bump] = useState(0); // re-render when a brief lands in cache (the All view reads the cache directly)
 
   // Client-side cache: keep every area we've already fetched in memory so switching
   // tumor tabs is INSTANT (no blank flash, no round-trip). The server snapshot cache
@@ -64,6 +72,7 @@ export default function BriefingPage() {
   const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string> }>>({});
   const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
   const load = useCallback((a: string): Promise<void> => {
+    if (a === "All") return Promise.resolve(); // no brief of its own — assembled from the six
     if (cacheRef.current[a]) return Promise.resolve();
     const pending = inflightRef.current[a];
     if (pending) return pending;
@@ -75,7 +84,7 @@ export default function BriefingPage() {
       fetchBriefingWithRetry(`/api/briefing?area=${a}${preview ? `&congressPreview=${encodeURIComponent(preview)}` : ""}`),
       fetch(`/api/brief-seen?area=${a}`).then((r) => r.json()).catch(() => ({ seen: {} })),
     ])
-      .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {} }; })
+      .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {} }; bump((t) => t + 1); })
       .finally(() => { delete inflightRef.current[a]; });
     inflightRef.current[a] = p;
     return p;
@@ -90,16 +99,16 @@ export default function BriefingPage() {
     // never saved; else the reader's saved primary specialty; else GU. The primary is stored on the
     // CONTACT (server) so it follows them across devices — localStorage is just an instant-paint
     // cache so a returning device doesn't wait on the round-trip.
-    const urlArea = AREAS.includes(q.get("area") ?? "") ? (q.get("area") as string) : null;
+    const urlArea = isValidArea(q.get("area")) ? (q.get("area") as string) : null;
     let saved: string | null = null;
-    try { const s = localStorage.getItem("readout_area"); if (AREAS.includes(s ?? "")) saved = s; } catch { /* private mode */ }
+    try { const s = localStorage.getItem("readout_area"); if (isValidArea(s)) saved = s; } catch { /* private mode */ }
     setPrimary(saved);
     if (urlArea ?? saved) setArea(urlArea ?? (saved as string)); // paint immediately when we have a hint
     // Authoritative primary from the account. Adopt it unless the visit is pinned by ?area=.
     fetch("/api/brief-prefs")
       .then((r) => r.json())
       .then((j) => {
-        const server = AREAS.includes(j?.defaultArea ?? "") ? (j.defaultArea as string) : null;
+        const server = isValidArea(j?.defaultArea) ? (j.defaultArea as string) : null;
         if (server) {
           setPrimary(server);
           try { localStorage.setItem("readout_area", server); } catch { /* private mode */ }
@@ -122,6 +131,7 @@ export default function BriefingPage() {
 
   useEffect(() => {
     if (!area) return;
+    if (area === "All") { setLoading(false); setError(null); return; } // assembled from the six in render
     const cached = cacheRef.current[area];
     if (cached) { setData(cached.briefing); setSeen(cached.seen); setError(null); setLoading(false); return; }
     let cancelled = false;
@@ -180,6 +190,20 @@ export default function BriefingPage() {
     );
   }
 
+  // ---- ALL ONCOLOGY: the cross-area front page, assembled from the six cached briefs ----
+  if (area === "All") {
+    const ready = isMobile !== null && AREAS.every((a) => cacheRef.current[a]?.briefing);
+    if (!ready) {
+      return (
+        <div style={{ position: "fixed", inset: 0, background: INK_BG, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui" }}>
+          {error ? `Couldn’t load: ${error}` : "Loading all oncology…"}
+        </div>
+      );
+    }
+    const briefsByArea = Object.fromEntries(AREAS.map((a) => [a, cacheRef.current[a].briefing]));
+    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
+  }
+
   // ---- DEFAULT: responsive story / reader ----
   // Loading field matches the design about to mount: ink for the default reader,
   // the area jewel tone only for the frozen ?design=flat fallback.
@@ -195,5 +219,5 @@ export default function BriefingPage() {
   // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
   // (no AI cover line) + horizontally-scrolling section pills.
   if (design === "flat") return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
-  return <ReaderView data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
+  return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
 }

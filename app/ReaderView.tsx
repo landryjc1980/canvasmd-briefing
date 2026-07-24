@@ -113,23 +113,23 @@ function Delta({ delta }: { delta: number }) {
 }
 
 // Raised surface: a step lighter than the page, lit top edge, soft drop — the depth system.
-const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.065)", border: "1px solid rgba(255,255,255,.09)", borderTop: "1px solid rgba(255,255,255,.16)", borderRadius: 13, padding: 14, marginBottom: 9, boxShadow: "0 8px 22px rgba(0,0,0,.2)" };
+export const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.065)", border: "1px solid rgba(255,255,255,.09)", borderTop: "1px solid rgba(255,255,255,.16)", borderRadius: 13, padding: 14, marginBottom: 9, boxShadow: "0 8px 22px rgba(0,0,0,.2)" };
 // Story container: everything belonging to one story (headline, stance, metrics, evidence
 // peek, expanded drawer) sits inside ONE bounded panel — without it, the peek's "On the
 // podcasts" read as a brand-new page section instead of story evidence. A quiet step above
 // the page; the evidence cards inside step up again.
 const storyCard: React.CSSProperties = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, padding: "0 20px", marginBottom: 14 };
-const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
+export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 
 // "shared by N · ♥ M" with zero parts dropped — never renders "shared by 0 · ♥ 0".
-const paperMeta = (shared: number, likes: number): string | undefined => {
+export const paperMeta = (shared: number, likes: number): string | undefined => {
   const parts: string[] = [];
   if (shared) parts.push(`shared by ${shared}`);
   if (likes) parts.push(`♥ ${likes}`);
   return parts.length ? parts.join(" · ") : undefined;
 };
 
-function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
+export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
       <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
@@ -146,7 +146,7 @@ function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
     </div>
   );
 }
-function TweetCard({ t }: { t: BriefingSharer }) {
+export function TweetCard({ t }: { t: BriefingSharer }) {
   const text = cleanTweetText(t.text);
   const body = (<>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -164,7 +164,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -206,7 +206,7 @@ function Collapse({ open, children }: { open: boolean; children: React.ReactNode
   return <div className="rv-drawer">{children}</div>;
 }
 
-function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
+export function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
   const headRef = useRef<HTMLDivElement>(null);
   // Single-open accordion: opening a row BELOW an already-open one collapses that one and yanks the
   // clicked row upward off the cursor. Capture the head's viewport position, commit the toggle
@@ -277,7 +277,7 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
 
 // Overlapping avatars of the clinicians who shared an article (the "who's reading this" face-pile,
 // mirrors the pharma dashboard). `ring` = page bg so the overlap reads as clean separated coins.
-function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring: string }) {
+export function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
       {faces.slice(0, 4).map((f, i) => (

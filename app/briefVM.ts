@@ -32,6 +32,7 @@ export const inkOf = (area: string): InkPal => {
 
 // Full tumor-area names for the header switcher (the compact "GU" codes are for chips).
 export const AREA_FULL: Record<string, string> = {
+  All: "All oncology",
   GU: "Genitourinary",
   Breast: "Breast",
   Lung: "Lung",

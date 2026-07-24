@@ -11,7 +11,7 @@ import { getContact, setDefaultArea, logEvent } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-const AREAS = new Set(["GU", "Breast", "Lung", "GI", "Heme", "Gyn"]);
+const AREAS = new Set(["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn"]);
 
 export async function GET(req: NextRequest) {
   const contactId = await currentContactId(req);
