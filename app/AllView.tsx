@@ -1,17 +1,17 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import { BriefingData, BriefingArticle } from "@/lib/types";
+import { useState } from "react";
+import { BriefingData, BriefingArticle, BriefingStory } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
-import { Row, PodCard, TweetCard, PaperCard, FacePile, evLabel } from "./ReaderView";
+import { Row, PodCard, TweetCard, PaperCard, FacePile, evLabel, paperMeta } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsDomain } from "./briefVM";
 
-// "All oncology" — a front page, NOT a merged feed. The lead story from each area,
-// grouped by area and shown in its own color, never re-ranked across areas (their
-// scores are area-relative — cross-ranking would be dishonest). The one section that
-// DOES merge is "what the field is reading": papers ranked by a plain, comparable
+// "All oncology" — a front page that reads as ONE continuous scroll: every area's full
+// story list, grouped by area and shown in its own color, never re-ranked across areas
+// (their scores are area-relative — cross-ranking would be dishonest). The one section
+// that DOES merge is "what the field is reading": papers ranked by a plain, comparable
 // count (verified clinicians who shared it), which means the same thing in any area.
 
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"];
@@ -43,9 +43,54 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       if (!cur || p.kolSharers > cur.p.kolSharers) best.set(k, { p, area: a });
     }
   }
-  const reading = [...best.values()].filter((x) => x.p.kolSharers >= 2).sort((x, y) => y.p.kolSharers - x.p.kolSharers).slice(0, 8);
+  const reading = [...best.values()].filter((x) => x.p.kolSharers >= 2).sort((x, y) => y.p.kolSharers - x.p.kolSharers).slice(0, 10);
 
   const wash = "#232a3a"; // a neutral top wash for All (no single area owns the page)
+
+  const evidenceChip = (acc: string) => (
+    <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: acc, border: `1px solid ${acc}59`, background: `${acc}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap" }}>Evidence ↓</span>
+  );
+
+  // One story row — the lead gets the front-page step-up, the rest match the tumor-page
+  // rows (number, kicker, 2-line teaser, facts line) so the page is dense but scannable.
+  const renderStory = (s: BriefingStory, i: number, a: string, acc: string) => {
+    const lead = i === 0;
+    const id = `all:${a}:${i}`;
+    const open = openId === id;
+    const faces = pileFaces(s);
+    const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
+    return (
+      <div key={id} style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", ...(lead ? { borderTop: "1px solid rgba(255,255,255,.15)", borderLeft: `3px solid ${acc}` } : {}), borderRadius: 15, padding: "0 20px", marginBottom: 10 }}>
+        <Row open={open} onToggle={() => toggle(id)} accent={acc}
+          head={
+            <div style={{ display: "flex", alignItems: "flex-start", gap: !lead && !compact ? 16 : 0, padding: lead ? "18px 2px" : "15px 2px" }}>
+              {!lead && !compact && <div style={{ font: "500 21px/1.1 'Newsreader',Georgia,serif", color: acc, opacity: 0.45, width: 26, flex: "none" }}>{i + 1}</div>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                  {!lead && compact && <span style={{ font: "600 13px 'Newsreader',Georgia,serif", color: acc, lineHeight: 1 }}>{i + 1}</span>}
+                  <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{storyKicker(s)}</span>
+                </div>
+                <h3 style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: "#f8f9fc", letterSpacing: lead ? "-.005em" : "0", margin: 0 }}>{s.headline}</h3>
+                {s.subtitle && <div style={{ font: "500 11.5px system-ui", color: MUT, marginTop: 6 }}>{s.subtitle}</div>}
+                {s.description && <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
+                <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  {faces.length > 0 && <FacePile faces={faces} extra={0} ring={INK} />}
+                  <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
+                  {!open && evidenceChip(acc)}
+                </div>
+              </div>
+            </div>
+          }>
+          <div style={{ marginLeft: !lead && !compact ? 42 : 0, display: "flex", flexDirection: "column", gap: 18 }}>
+            <StanceBlock stance={s.stance} accent={acc} />
+            {s.podcast.length > 0 && <div><div style={evLabel(acc)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={acc} />)}</div>}
+            {s.posts.length > 0 && <div><div style={evLabel(acc)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {s.papers.length > 0 && <div><div style={evLabel(acc)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} />)}</div>}
+          </div>
+        </Row>
+      </div>
+    );
+  };
 
   const editionMenu = (
     <div style={{ position: "relative", flex: "none" }}>
@@ -121,80 +166,67 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           ))}
         </div>
 
-        {/* six area groups */}
+        {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more) */}
         {AREAS.map((a) => {
           const brief = briefsByArea[a];
           const acc = inkOf(a).accent;
           const stories = brief ? storiesOf(brief) : [];
-          const lead = stories[0];
           const full = AREA_FULL[a] ?? a;
           return (
-            <div key={a} id={areaId(a)} style={{ marginTop: 30, scrollMarginTop: 62 }}>
+            <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: 62 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
                 <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2" }}>{full}</span>
                 {stories.length > 0 && <span style={{ font: "400 11px system-ui", color: MUT2 }}>· {stories.length} {stories.length === 1 ? "story" : "stories"}</span>}
                 <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
               </div>
-              {lead ? (() => {
-                const id = "all:" + a;
-                const open = openId === id;
-                const faces = pileFaces(lead);
-                return (
-                  <div style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.15)", borderLeft: `3px solid ${acc}`, borderRadius: 15, padding: "0 20px" }}>
-                    <Row open={open} onToggle={() => toggle(id)} accent={acc}
-                      head={
-                        <div style={{ padding: "18px 2px" }}>
-                          <div style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc, marginBottom: 7 }}>{storyKicker(lead)}</div>
-                          <h3 style={{ font: `500 ${compact ? 20 : 21}px/1.18 'Newsreader',Georgia,serif`, color: "#f8f9fc", letterSpacing: "-.005em", margin: 0 }}>{lead.headline}</h3>
-                          {lead.subtitle && <div style={{ font: "500 11.5px system-ui", color: MUT, marginTop: 6 }}>{lead.subtitle}</div>}
-                          {lead.description && <p style={{ margin: "10px 0 0", font: "400 13.5px/1.5 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{lead.description}</p>}
-                          <div style={{ marginTop: 13, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                            {faces.length > 0 && <FacePile faces={faces} extra={0} ring={INK} />}
-                            <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(lead)}</span>
-                            {!open && <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: acc, border: `1px solid ${acc}59`, background: `${acc}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap" }}>Evidence ↓</span>}
-                          </div>
-                        </div>
-                      }>
-                      <StanceBlock stance={lead.stance} accent={acc} />
-                      {lead.podcast.length > 0 && <div><div style={evLabel(acc)}>On the podcasts</div>{lead.podcast.map((p, j) => <PodCard key={j} p={p} accent={acc} />)}</div>}
-                      {lead.posts.length > 0 && <div><div style={evLabel(acc)}>On X · verified clinicians</div>{lead.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                      {lead.papers.length > 0 && <div><div style={evLabel(acc)}>{lead.kind === "paper" ? "The paper" : "Papers"}</div>{lead.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} />)}</div>}
-                    </Row>
+              {stories.length > 0 ? (
+                <>
+                  {stories.map((s, i) => renderStory(s, i, a, acc))}
+                  {/* the tail: what the full brief adds beyond the stories */}
+                  <div style={{ font: "400 12px system-ui", color: MUT2, padding: "2px 2px 0" }}>
+                    Drugs board, trials &amp; guests in the <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc, padding: 0 }}>full {full} brief →</button>
                   </div>
-                );
-              })() : (
+                </>
+              ) : (
                 <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet week in {full}. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
               )}
             </div>
           );
         })}
 
-        {/* the ONE merged section — honest by a comparable count */}
+        {/* the ONE merged section — honest by a comparable count; rows behave exactly like
+            the tumor pages' "What's being read" (expand → abstract + what clinicians said) */}
         {reading.length > 0 && (
           <div style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
               <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>What the field is reading</span>
               <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· across oncology · ranked by clinicians who shared it</span>
             </div>
             {reading.map(({ p, area }, i) => {
               const acc = inkOf(area).accent;
+              const id = "r:" + i;
+              const open = openId === id;
               return (
-                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "14px 2px", borderBottom: i < reading.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
-                  <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: acc, borderRadius: 4, padding: "3px 6px", flex: "none", marginTop: 3 }}>{area}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {p.url
-                      ? <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ font: "500 15px/1.32 'Newsreader',Georgia,serif", color: "#f2f4fa", textDecoration: "none", display: "block" }}>{cleanArticleTitle(p.title)}</a>
-                      : <div style={{ font: "500 15px/1.32 'Newsreader',Georgia,serif", color: "#f2f4fa" }}>{cleanArticleTitle(p.title)}</div>}
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 5, font: "400 11.5px system-ui", color: MUT }}>
-                      <span>{articleSource(p.journal, p.domain)}</span>
-                      {isNewsDomain(p.domain) && !p.journal && <span style={{ font: "700 8px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 5px" }}>News</span>}
-                    </div>
-                  </div>
-                  <div style={{ flex: "none", textAlign: "right" }}>
-                    <div style={{ font: "600 18px/1 'Newsreader',Georgia,serif", color: "#eef1f8", fontVariantNumeric: "tabular-nums" }}>{p.kolSharers}</div>
-                    <div style={{ font: "600 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: MUT2, marginTop: 4 }}>{p.kolSharers === 1 ? "Clinician" : "Clinicians"}</div>
-                  </div>
+                <div key={id} style={{ borderBottom: i < reading.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
+                  <Row open={open} onToggle={() => toggle(id)} accent={acc}
+                    head={
+                      <div style={{ padding: "16px 2px" }}>
+                        <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(p.title)}</div>
+                        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
+                          <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: acc, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{area}</span>
+                          {p.faces.length > 0 && <FacePile faces={p.faces} extra={p.kolSharers - p.faces.length} ring={INK} />}
+                          <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(p.journal, p.domain), p.kolSharers ? `shared by ${p.kolSharers} clinician${p.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+                          {isNewsDomain(p.domain) && !p.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                          {!open && evidenceChip(acc)}
+                        </div>
+                      </div>
+                    }>
+                    {p.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{p.abstract}</p>}
+                    {p.posts.length > 0 && <div><div style={evLabel(acc)}>What clinicians said · {p.posts.length}</div>{p.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                    {/* link to the source — also guarantees the expand is never empty */}
+                    {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: acc, textDecoration: "none" }}>Open article ↗</a>}
+                  </Row>
                 </div>
               );
             })}

@@ -282,7 +282,7 @@ export function FacePile({ faces, extra, ring }: { faces: string[]; extra: numbe
     <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
       {faces.slice(0, 4).map((f, i) => (
         <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "rgba(255,255,255,.12)", marginLeft: i ? -8 : 0, flex: "none" }}>
-          <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={f} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
       ))}
       {extra > 0 && (
