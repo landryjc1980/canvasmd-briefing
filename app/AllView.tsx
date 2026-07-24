@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BriefingData, BriefingArticle, BriefingStory } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
@@ -31,7 +31,48 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
-  const goTo = (id: string) => { const el = document.getElementById(id); if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 62); };
+  // The pill bar sticks — glassy chrome only once it actually sticks (same treatment as the
+  // tumor pages' section nav), plus scroll-spy so the bar always shows where you are.
+  const [stuck, setStuck] = useState(false);
+  const [activeSec, setActiveSec] = useState<string>(areaId("GU"));
+  useEffect(() => {
+    const ids = [...AREAS.map(areaId), "all-reading"];
+    let raf = 0;
+    const check = () => {
+      setStuck(window.scrollY > 120);
+      let cur = "";
+      for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 90) cur = id; }
+      setActiveSec(cur || areaId("GU"));
+    };
+    check();
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+  // rAF glide (ported from ReaderView.goSec): the FacePile avatars above a jump target lazy-load
+  // and shift layout mid-flight, so the target is re-measured every frame; wheel/touch cancels.
+  const goTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const offset = 62; // clear the sticky pill bar
+    const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
+    const start = window.scrollY;
+    const t0 = performance.now();
+    const D = 520;
+    const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    let raf = 0;
+    const cancel = () => { cancelAnimationFrame(raf); window.removeEventListener("wheel", cancel); window.removeEventListener("touchstart", cancel); };
+    const step = (now: number) => {
+      const t = Math.min(1, (now - t0) / D);
+      window.scrollTo(0, start + (targetNow() - start) * ease(t));
+      if (t < 1) raf = requestAnimationFrame(step);
+      else cancel();
+    };
+    raf = requestAnimationFrame(step);
+    window.addEventListener("wheel", cancel, { passive: true });
+    window.addEventListener("touchstart", cancel, { passive: true });
+  };
   const goArea = (a: string) => goTo(areaId(a));
 
   // ---- cross-area reading list: dedupe by title, keep the max clinician-share, rank by it ----
@@ -158,19 +199,25 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {/* the rainbow rule — the one place that signals "everything" */}
         <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
 
-        {/* area jump-pills (the section bar, repurposed as area nav) */}
-        <div className="all-pills" style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: "16px -4px 0", padding: "0 4px", WebkitOverflowScrolling: "touch" }}>
-          {AREAS.map((a) => (
-            <button key={a} onClick={() => goArea(a)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#cdd2de", whiteSpace: "nowrap", flex: "none" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />{a}
-            </button>
-          ))}
+        {/* area jump-pills — sticky with scroll-spy, glass chrome once stuck (tumor-page parity) */}
+        <div className="all-pills" style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: "16px -26px 0", padding: "10px 26px", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", WebkitOverflowScrolling: "touch" }}>
+          {AREAS.map((a) => {
+            const on = activeSec === areaId(a);
+            return (
+              <button key={a} onClick={() => goArea(a)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />{a}
+              </button>
+            );
+          })}
           {/* the merged reading list lives below all six areas — give it a direct jump */}
-          {reading.length > 0 && (
-            <button onClick={() => goTo("all-reading")} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#cdd2de", whiteSpace: "nowrap", flex: "none" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
-            </button>
-          )}
+          {reading.length > 0 && (() => {
+            const on = activeSec === "all-reading";
+            return (
+              <button onClick={() => goTo("all-reading")} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
+              </button>
+            );
+          })()}
         </div>
 
         {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more) */}
