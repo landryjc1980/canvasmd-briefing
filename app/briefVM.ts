@@ -91,12 +91,21 @@ export function metricsLine(m: BriefingMover): string {
   return parts.join(" · ");
 }
 
+// A classic retweet carries the ORIGINAL author's words. Stripping the "RT @handle:" prefix
+// (below) leaves those words sitting under the retweeter's name and face, which reads as their
+// own take — the one thing a sourced mirror must never do. So: recover who actually wrote it,
+// and let the card attribute the quote to them while still crediting the amplification.
+// Returns the original author's handle, or null for an ordinary post.
+export function rtOriginal(s: string | null | undefined): string | null {
+  return (/^\s*RT @([A-Za-z0-9_]{1,15}):/.exec(s ?? "") ?? [])[1] ?? null;
+}
+
 // Display-side tweet cleanup: drop the "RT @handle:" prefix and bare t.co shortlinks —
 // they read as debris on an editorial card. The card itself still links to the real tweet,
 // so nothing is lost. Ingest/data stays untouched (display-only).
 export function cleanTweetText(s: string | null | undefined): string {
   return (s ?? "")
-    .replace(/^RT @[A-Za-z0-9_]+:\s*/, "")
+    .replace(/^\s*RT @[A-Za-z0-9_]+:\s*/, "")
     .replace(/https?:\/\/t\.co\/\S+/g, "")
     // X delivers content HTML-escaped — decode the common entities so tweets don't
     // render a literal "&amp;" ("Vedotin &amp; pembrolizumab").

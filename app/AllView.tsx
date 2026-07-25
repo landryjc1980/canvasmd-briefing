@@ -19,15 +19,27 @@ const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"];
 const INK = "#0D1017";
 const MUT = "#9aa2b6";
 const MUT2 = "#7e8698";
+const ago = (iso: string) => {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return mins < 1 ? "just now" : `${mins}m ago`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "yesterday" : `${d}d ago`;
+};
 const areaId = (a: string) => "all-" + a;
 
-export default function AllView({ briefsByArea, areas, onArea, compact = false, primary, onSetPrimary }: {
-  briefsByArea: Record<string, BriefingData>;
+export default function AllView({ briefsByArea, areas, onArea, compact = false, primary, onSetPrimary, failed, onRetry }: {
+  // Areas may be MISSING: the page renders whatever has landed rather than holding everything
+  // hostage to the slowest (or the broken) one. Every read below is optional-chained.
+  briefsByArea: Record<string, BriefingData | undefined>;
   areas: string[];
   onArea: (a: string) => void;
   compact?: boolean;
   primary?: string | null;
   onSetPrimary?: (a: string) => void;
+  failed?: Record<string, string>;
+  onRetry?: (a: string) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -54,6 +66,22 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   };
   const activity = Object.fromEntries(AREAS.map((a) => [a, evidenceCount(briefsByArea[a])]));
   const orderedAreas = [...AREAS].sort((x, y) => activity[y] - activity[x] || AREAS.indexOf(x) - AREAS.indexOf(y));
+
+  // ---- VINTAGE ----
+  // Six briefs rebuild independently and a failed build falls back to the last good snapshot with
+  // no age bound, so this page can merge weeks. The masthead therefore quotes the OLDEST of the
+  // six — the only claim that holds for everything below it — and any area lagging the newest by
+  // more than a day is called out on its own group header instead of hiding in the merge.
+  const stamps = AREAS.map((a) => briefsByArea[a]?.generatedAt).filter(Boolean) as string[];
+  const ms = (s: string) => new Date(s).getTime();
+  const oldestStamp = stamps.length ? stamps.reduce((x, y) => (ms(x) <= ms(y) ? x : y)) : null;
+  const newestStamp = stamps.length ? stamps.reduce((x, y) => (ms(x) >= ms(y) ? x : y)) : null;
+  const lagOf = (a: string) => {
+    const s = briefsByArea[a]?.generatedAt;
+    if (!s || !newestStamp) return null;
+    const d = Math.floor((ms(newestStamp) - ms(s)) / 86400_000);
+    return d >= 1 ? `${d}d behind` : null;
+  };
 
   // ---- VOICES OF THE WEEK (rail on wide, inline section on narrow) ----
   // Two lists because a microphone and a repost aren't the same axis:
@@ -145,6 +173,24 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // The pill bar sticks — glassy chrome only once it actually sticks (same treatment as the
   // tumor pages' section nav), plus scroll-spy so the bar always shows where you are.
   const [stuck, setStuck] = useState(false);
+  // Share exists on every tumor page but was missing from the home page — the one a reader is
+  // most likely to want to pass to a colleague. Same invite-link flow, minus the area param
+  // (the whole point of this edition is that it isn't scoped to one tumor).
+  const [shareMsg, setShareMsg] = useState("");
+  const doShare = async () => {
+    try {
+      const r = await fetch("/api/brief-share", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.ok || !j.url) { setShareMsg("Couldn’t create a link"); setTimeout(() => setShareMsg(""), 3000); return; }
+      const url = `${j.url}?area=All`;
+      const nav = navigator as any;
+      if (nav.share) { try { await nav.share({ url }); return; } catch (e: any) { if (e?.name === "AbortError") return; } }
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; } catch { /* activation lost */ }
+      setShareMsg(copied ? "Link copied — send it to a colleague" : url);
+      setTimeout(() => setShareMsg(""), copied ? 2800 : 6000);
+    } catch { setShareMsg("Couldn’t create a link"); setTimeout(() => setShareMsg(""), 3000); }
+  };
   const [activeSec, setActiveSec] = useState<string>(areaId(orderedAreas[0]));
   const orderKey = orderedAreas.join(",");
   useEffect(() => {
@@ -161,7 +207,14 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       setActiveSec(cur || ids[0]);
     };
     check();
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
+    // `stuck` drives the bar's opaque backing, so it is set SYNCHRONOUSLY — deferring it to rAF
+    // meant that whenever rAF was throttled (background tab, low-power mode) the bar kept a
+    // transparent background while page text scrolled visibly through it. Only the spy, which
+    // measures every section, is worth deferring.
+    const onScroll = () => {
+      setStuck(window.scrollY > 120);
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); });
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [orderKey, wide, compact]);
@@ -201,6 +254,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     }
   }
   const reading = [...best.values()].filter((x) => x.p.kolSharers >= 2).sort((x, y) => y.p.kolSharers - x.p.kolSharers).slice(0, 10);
+  // This is a cross-area LEADERBOARD, not a leftovers bin — the one ranking on the page where the
+  // number means the same thing in every area, so filtering out the papers that also led a story
+  // would break the very ranking it promises. Instead, name the overlap: a paper the reader
+  // already passed is badged with the area that told it, and the badge jumps back to that group.
+  const featuredIn = new Map<string, string>();
+  for (const a of AREAS) {
+    const b = briefsByArea[a];
+    if (!b) continue;
+    for (const s of storiesOf(b)) if (s.kind === "paper" && s.headline) featuredIn.set(norm(s.headline), a);
+  }
 
   const wash = "#232a3a"; // a neutral top wash for All (no single area owns the page)
   const ini = (s: string) => s.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -271,7 +334,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 
   const voicesModules = (
     <div>
-      <div style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>Voices of the week</div>
+      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de", margin: 0 }}>Voices of the week</h2>
       <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 5 }}>who the field heard · who it amplified</div>
 
       {/* ── On the mics ── */}
@@ -392,7 +455,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             <StanceBlock stance={s.stance} accent={acc} />
             {s.podcast.length > 0 && <div><div style={evLabel(acc)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={acc} />)}</div>}
             {s.posts.length > 0 && <div><div style={evLabel(acc)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {s.papers.length > 0 && <div><div style={evLabel(acc)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} />)}</div>}
+            {s.papers.length > 0 && <div><div style={evLabel(acc)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => {
+              // For a paper STORY the true sharer count is the story's own clinicianCount; for a
+              // drug story's papers it rides on the paper. Either beats the capped array length.
+              const total = (s.kind === "paper" && j === 0 ? s.clinicianCount : undefined) ?? p.sharerCount;
+              return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} sharedTotal={total} />;
+            })}</div>}
           </div>
         </Row>
       </div>
@@ -457,8 +525,15 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0 }}>The Readout</h1>
           {editionMenu}
+          <button onClick={doShare} aria-label="Share this edition" style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, width: compact ? 44 : undefined, height: 44, marginRight: compact ? -13 : 0, padding: compact ? 0 : "0 15px", background: compact ? "none" : "rgba(255,255,255,.12)", border: compact ? 0 : "1px solid rgba(255,255,255,.18)", borderRadius: 20, color: "#fff", font: "600 13px system-ui", cursor: "pointer", flex: "none" }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+            {!compact && "Share"}
+          </button>
         </div>
-        <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 10 }}>By CanvasMD · Every tumor area · Busiest first</div>
+        {shareMsg && <div role="status" style={{ font: "500 12px system-ui", color: "#cdd2de", marginTop: 8 }}>{shareMsg}</div>}
+        <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 10 }}>
+          By CanvasMD · Busiest first{oldestStamp ? <> · Updated {ago(oldestStamp)}</> : null}
+        </div>
         {/* the rainbow rule — the one place that signals "everything" */}
         <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
 
@@ -498,7 +573,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </button>
           );
           return (
-            <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
+            <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}F5` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
               <div className="all-pills" style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
                 {areaPills}
                 {!compact && voicesPill}
@@ -531,11 +606,21 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: compact ? 100 : 62 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
                       <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
-                      <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2" }}>{full}</span>
+                      {/* a real h2: the story titles below are h3, and without this the page is
+                          42 same-level headings under one h1 with no way to skip between areas */}
+                      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2", margin: 0 }}>{full}</h2>
                       {activity[a] > 0 && <span title="Distinct podcast clips, verified-clinician posts, and papers behind this week's stories" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
+                      {lagOf(a) && <span title="This area's snapshot is older than the rest of the page" style={{ font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "2px 6px" }}>{lagOf(a)}</span>}
                       <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
                     </div>
-                    {stories.length > 0 ? (
+                    {/* A brief that never arrived is NOT a quiet week — say which one it is. */}
+                    {!brief ? (
+                      <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>
+                        {failed?.[a]
+                          ? <>Couldn’t load {full} this time. <button onClick={() => onRetry?.(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>Retry →</button></>
+                          : <>Loading {full}…</>}
+                      </div>
+                    ) : stories.length > 0 ? (
                       <>
                         {stories.map((s, i) => renderStory(s, i, a, acc))}
                         {/* the tail: what the full brief adds beyond the stories */}
@@ -556,8 +641,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           const readingJsx = reading.length > 0 && (
             <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: compact ? 100 : 62 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-                <span style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de" }}>What the field is reading</span>
-                <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· across oncology · ranked by clinicians who shared it</span>
+                <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de", margin: 0 }}>What the field is reading</h2>
+                <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· the week’s top ten across every area · ranked by clinicians who shared it · includes papers featured above</span>
               </div>
               {reading.map(({ p, area }, i) => {
                 const acc = inkOf(area).accent;
@@ -573,13 +658,20 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                             <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: acc, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{area}</span>
                             {p.faces.length > 0 && <FacePile faces={p.faces} extra={p.kolSharers - p.faces.length} ring={INK} />}
                             <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(p.journal, p.domain), p.kolSharers ? `shared by ${p.kolSharers} clinician${p.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+                            {featuredIn.has(norm(p.title)) && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); goArea(featuredIn.get(norm(p.title))!); }}
+                                title="This paper also leads a story earlier on the page"
+                                style={{ background: "none", border: "1px solid rgba(255,255,255,.16)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.55)" }}
+                              >↑ Above in {featuredIn.get(norm(p.title))}</button>
+                            )}
                             {isNewsDomain(p.domain) && !p.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
                             {!open && evidenceChip(acc)}
                           </div>
                         </div>
                       }>
                       {p.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{p.abstract}</p>}
-                      {p.posts.length > 0 && <div><div style={evLabel(acc)}>What clinicians said · {p.posts.length}</div>{p.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                      {p.posts.length > 0 && <div><div style={evLabel(acc)}>What clinicians said · {p.kolSharers > p.posts.length ? `${p.posts.length} of ${p.kolSharers}` : p.posts.length}</div>{p.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                       {/* link to the source — also guarantees the expand is never empty */}
                       {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: acc, textDecoration: "none" }}>Open article ↗</a>}
                     </Row>

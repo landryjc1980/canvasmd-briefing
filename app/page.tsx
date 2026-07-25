@@ -62,6 +62,7 @@ export default function BriefingPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [, bump] = useState(0); // re-render when a brief lands in cache (the All view reads the cache directly)
+  const [areaErr, setAreaErr] = useState<Record<string, string>>({}); // per-area fetch failures — the All page degrades instead of hanging
 
   // Client-side cache: keep every area we've already fetched in memory so switching
   // tumor tabs is INSTANT (no blank flash, no round-trip). The server snapshot cache
@@ -147,8 +148,16 @@ export default function BriefingPage() {
   // visit to each tab is already cached and switches feel instant.
   useEffect(() => {
     if (!area) return;
-    for (const a of AREAS) if (a !== area) load(a).catch(() => {});
+    for (const a of AREAS) if (a !== area) load(a).catch((e) => setAreaErr((m) => ({ ...m, [a]: String(e?.message ?? e) })));
   }, [area, load]);
+
+  // Retry a single failed area (or every failed area). `load` short-circuits on anything already
+  // cached, so this only re-fetches what actually needs it.
+  const retryArea = useCallback((a?: string) => {
+    const targets = a ? [a] : Object.keys(areaErr);
+    setAreaErr((m) => { const n = { ...m }; for (const t of targets) delete n[t]; return n; });
+    for (const t of targets) load(t).catch((e) => setAreaErr((m) => ({ ...m, [t]: String(e?.message ?? e) })));
+  }, [areaErr, load]);
 
   // Signal: log a view per area shown (no-ops server-side if the reader isn't identified).
   useEffect(() => { if (area) logSignal("view", area); }, [area]);
@@ -192,16 +201,28 @@ export default function BriefingPage() {
 
   // ---- ALL ONCOLOGY: the cross-area front page, assembled from the six cached briefs ----
   if (area === "All") {
-    const ready = isMobile !== null && AREAS.every((a) => cacheRef.current[a]?.briefing);
-    if (!ready) {
+    // Paint as soon as ANY area has landed. Requiring all six meant one failed fetch — which
+    // nothing retried and nothing surfaced — left a spinner running forever; the areas still in
+    // flight (or broken) say so in their own group slot instead.
+    const landed = AREAS.filter((a) => cacheRef.current[a]?.briefing);
+    const settled = AREAS.every((a) => cacheRef.current[a]?.briefing || areaErr[a]);
+    if (isMobile === null || (!landed.length && !settled)) {
       return (
         <div style={{ position: "fixed", inset: 0, background: INK_BG, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui" }}>
-          {error ? `Couldn’t load: ${error}` : "Loading all oncology…"}
+          Loading all oncology…
         </div>
       );
     }
-    const briefsByArea = Object.fromEntries(AREAS.map((a) => [a, cacheRef.current[a].briefing]));
-    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
+    if (!landed.length) {
+      return (
+        <div style={{ position: "fixed", inset: 0, background: INK_BG, display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui", padding: 24, textAlign: "center" }}>
+          <div>Couldn’t load the briefing: {Object.values(areaErr)[0] ?? "unknown error"}</div>
+          <button onClick={() => retryArea()} style={{ background: "none", border: "1px solid rgba(255,255,255,.22)", borderRadius: 8, padding: "8px 16px", cursor: "pointer", font: "600 13px system-ui", color: "#e9edf6" }}>Try again</button>
+        </div>
+      );
+    }
+    const briefsByArea = Object.fromEntries(AREAS.map((a) => [a, cacheRef.current[a]?.briefing]));
+    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} failed={areaErr} onRetry={retryArea} />;
   }
 
   // ---- DEFAULT: responsive story / reader ----

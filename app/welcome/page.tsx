@@ -33,8 +33,12 @@ export default function Welcome() {
     } catch { setState("error"); setMsg("Network error — try again."); }
   };
 
+  // Two layers on purpose: the fixed layer SCROLLS, the inner layer centers. Centering on the
+  // fixed layer itself clips the overflow beyond reach — and this is the only place in the
+  // product where a reader can convert, so the button has to survive a small phone at 200% zoom.
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#0e1524", color: "#e9edf6", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ position: "fixed", inset: 0, overflowY: "auto", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+      <div style={{ minHeight: "100%", boxSizing: "border-box", padding: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
         <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
           <span style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 500, fontSize: 28, color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
@@ -70,6 +74,7 @@ export default function Welcome() {
             <p style={{ fontSize: 12, lineHeight: 1.5, color: "#6b7280", marginTop: 18 }}>A private benefit for oncology-focused teams. No password — the link signs you in.</p>
           </>
         )}
+      </div>
       </div>
     </div>
   );

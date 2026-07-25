@@ -34,8 +34,11 @@ export default function InviteLanding() {
     } catch { setState("error"); setMsg("Network error — try again."); }
   };
 
+  // Two layers on purpose: the fixed layer SCROLLS, the inner layer centers — centering on the
+  // fixed layer clips the overflow beyond reach on a small phone or at high zoom.
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#0e1524", color: "#e9edf6", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ position: "fixed", inset: 0, overflowY: "auto", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+      <div style={{ minHeight: "100%", boxSizing: "border-box", padding: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
         <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
           <span style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 500, fontSize: 28, color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
@@ -55,6 +58,7 @@ export default function InviteLanding() {
           </button>
         </form>
         {state === "error" && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{msg}</p>}
+      </div>
       </div>
     </div>
   );

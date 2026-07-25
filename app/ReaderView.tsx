@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
 
@@ -122,9 +122,12 @@ const storyCard: React.CSSProperties = { background: "rgba(255,255,255,.03)", bo
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 
 // "shared by N · ♥ M" with zero parts dropped — never renders "shared by 0 · ♥ 0".
-export const paperMeta = (shared: number, likes: number): string | undefined => {
+// `shown` is the length of the serialized sharer list — a display cap, not a census. When the
+// real total is known it wins, so the card never passes a truncation off as a count.
+export const paperMeta = (shown: number, likes: number, total?: number | null): string | undefined => {
   const parts: string[] = [];
-  if (shared) parts.push(`shared by ${shared}`);
+  const n = Math.max(total ?? 0, shown);
+  if (n) parts.push(`shared by ${n}`);
   if (likes) parts.push(`♥ ${likes}`);
   return parts.length ? parts.join(" · ") : undefined;
 };
@@ -148,15 +151,26 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
 }
 export function TweetCard({ t }: { t: BriefingSharer }) {
   const text = cleanTweetText(t.text);
+  // Classic retweet: the words below belong to someone else. Credit the amplification on the
+  // name line, then set the quote apart so it can never be read as this clinician's own take.
+  const rtOf = rtOriginal(t.text);
   const body = (<>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#f4f7ff", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
           {t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{t.handle}</span>}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{t.handle}</span>}
+          {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>⇄ amplified <span style={{ color: "rgba(255,255,255,.62)" }}>@{rtOf}</span></div>}
+        </div>
         {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
       </div>
-      {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{text}</p>}
+      {text && (rtOf
+        ? <blockquote style={{ margin: "9px 0 0", paddingLeft: 11, borderLeft: "2px solid rgba(255,255,255,.14)" }}>
+            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#b6b9c3" }}>{text}</p>
+            <cite style={{ display: "block", marginTop: 5, font: "400 11px system-ui", fontStyle: "normal", color: MUT }}>@{rtOf}</cite>
+          </blockquote>
+        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{text}</p>)}
     </>);
   return t.tweetUrl
     ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
@@ -164,7 +178,7 @@ export function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, sharedTotal }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -183,7 +197,9 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
       </div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
-        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>
+          What clinicians said · {sharedTotal && sharedTotal > posts!.length ? `${posts!.length} of ${sharedTotal}` : posts!.length}
+        </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
@@ -232,6 +248,9 @@ export function Row({ open, onToggle, accent, head, children, landOffset = 70 }:
     // TWO-row bar (~90px) passes a taller value so the landed head isn't hidden under it
     const y = el.getBoundingClientRect().top + window.scrollY - landOffset;
     window.scrollTo(0, Math.max(0, y));
+    // This button unmounts itself, which drops focus to <body> — a keyboard reader would restart
+    // from the top of the document. Hand focus back to the row we just landed on.
+    el.focus({ preventScroll: true });
   };
   return (
     <div>
@@ -442,7 +461,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       setActiveSec(cur || ids.find((id) => document.getElementById(id)) || "sec-top");
     };
     check();
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); }); };
+    // `stuck` gates the bar's opaque backing — set it synchronously so a throttled rAF can never
+    // leave a transparent bar with page text scrolling through it. The spy stays deferred.
+    const onScroll = () => {
+      setStuck(window.scrollY > 120);
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); });
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [area, wide, subArea]);
@@ -602,7 +626,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <StanceBlock stance={s.stance} accent={pal.accent} />
               {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
+              {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => {
+                const total = (s.kind === "paper" && j === 0 ? s.clinicianCount : undefined) ?? p.sharerCount;
+                return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={total} />;
+              })}</div>}
             </div>
           </Row>
           </div>
@@ -784,7 +811,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, 0)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
           </div>
@@ -829,7 +856,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <StanceBlock stance={m.stance} accent={pal.accent} />
               {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, p.topLikes)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
+              {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, p.topLikes, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
             </div>
           </Row>
           </div>
@@ -904,7 +931,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
-          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, padding: 2, cursor: "pointer", flex: "none", order: 1 }}>
+          {/* 44px box around a 17px glyph: the icon measured 21x21 as a tap target, under the
+              24px WCAG 2.2 floor and well under the platform 44px norm. Negative margin keeps the
+              larger hit area from disturbing the header's optical alignment. */}
+          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, width: 44, height: 44, margin: "-11px -13px -11px 0", padding: 0, cursor: "pointer", flex: "none", order: 1 }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </button>}
           {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
@@ -923,7 +953,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             bar read as cheap — replaced by the glass blur + a soft cast shadow. */}
         {/* pills LEFT-aligned to the wordmark's edge — nav belongs to the masthead's left spine
             (wordmark → byline → pills → numerals/headlines); centered nav floated anchorless. */}
-        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: stuck ? `${pal.bg}E0` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: stuck ? `${pal.bg}F5` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
             return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>{s.label}</button>;

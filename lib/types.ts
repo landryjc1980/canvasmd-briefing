@@ -475,7 +475,8 @@ export type BriefingPaper = {
   journal: string | null;
   domain: string | null; // article host — lets us show a clean news-outlet source + "News" badge when there's no journal
   abstract: string | null; // PubMed abstract (structured sections joined), for the expandable read
-  sharers: BriefingSharer[];
+  sharers: BriefingSharer[]; // CAPPED for payload size — never render its length as a count
+  sharerCount?: number; // the real number of verified clinicians who shared it (uncapped)
   topLikes: number;
   posts?: BriefingSharer[]; // the clinicians' actual tweets about the paper (expandable "what they said")
   publishers?: string[]; // institutional/journal/news accounts that posted it (the "via" badge)
