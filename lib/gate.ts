@@ -92,4 +92,29 @@ export async function readSession(cookie: string | undefined | null): Promise<st
   return p && p.t === "s" ? p.c : null;
 }
 
+/** Same check, but keeps the expiry so the caller can decide whether to renew. */
+export async function readSessionExpiry(cookie: string | undefined | null): Promise<{ contactId: string; exp: number } | null> {
+  const p = await verify(cookie);
+  return p && p.t === "s" ? { contactId: p.c, exp: p.e } : null;
+}
+
+// A session was minted from a FIXED instant and never renewed, so a reader who opened the brief
+// every Monday was hard-logged-out on day 90 regardless. Renew once a session is past its halfway
+// point: active readers stay signed in indefinitely, someone genuinely gone for 90 days still lapses.
+export const SESSION_RENEW_AFTER_SECS = (SESS_TTL_DAYS / 2) * 86400;
+
+// A boolean "you have been here before" marker, deliberately carrying no identity. The session
+// cookie dies at the same moment its token expires, so on an ordinary lapse nothing is sent and
+// the wall could not tell a returning member from a stranger — it greeted a lapsed reader with
+// "invite-only, we'll pass your request along" instead of offering a fresh link. This outlives
+// the session so that branch is actually reachable.
+//
+// NOT httpOnly, on purpose. The gate REWRITES to /welcome rather than redirecting (so the reader
+// keeps the URL they asked for), which means the `?expired=1` hint the middleware adds never
+// reaches the browser — the wall reads location.search and would never see it. A cookie survives
+// the rewrite. The value is the literal "1": no id, no token, nothing worth reading.
+export const RETURNING_COOKIE = "brief_returning";
+export const RETURNING_MAX_AGE = 730 * 86400; // 2 years
+export const returningCookieOpts = { httpOnly: false, secure: true, sameSite: "lax" as const, path: "/", maxAge: RETURNING_MAX_AGE };
+
 export const SESSION_MAX_AGE = SESS_TTL_DAYS * 86400;

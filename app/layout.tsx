@@ -1,5 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import "./globals.css";
+
+// Newsreader, SELF-HOSTED. This used to be a render-blocking <link> to fonts.googleapis.com.
+// A health-system proxy that blackholes (rather than refuses) that request stalls first paint
+// until the browser times out — a blank Readout, on exactly the networks our readers are on.
+// The @font-face rules are Google's own, rewritten to /fonts/*.woff2 and inlined here so the
+// page costs zero third-party requests and zero blocking stylesheets. Read once at module load.
+// The family is still literally "Newsreader", so every existing inline `font:` string keeps working.
+const FONT_CSS = readFileSync(join(process.cwd(), "public/fonts/newsreader.css"), "utf8");
 
 export const metadata: Metadata = {
   title: "The Readout · CanvasMD",
@@ -25,10 +35,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Newsreader — the serif the story/reader designs use for headlines, drug names, quotes */}
-        <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&display=swap" rel="stylesheet" />
+        <style dangerouslySetInnerHTML={{ __html: FONT_CSS }} />
       </head>
       <body>{children}</body>
     </html>

@@ -15,7 +15,12 @@ export default function Welcome() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    setExpired(q.get("expired") === "1");
+    // The gate REWRITES here rather than redirecting, so the reader keeps the URL they asked for
+    // — which also means the middleware's `?expired=1` never reaches the browser and this check
+    // alone was always false. The returning marker is what actually survives a rewrite, so a
+    // lapsed member finally gets "here's a fresh link" instead of "this brief is invite-only".
+    const returning = /(?:^|;\s*)brief_returning=1/.test(document.cookie);
+    setExpired(q.get("expired") === "1" || returning);
     setArea(q.get("area"));
   }, []);
 

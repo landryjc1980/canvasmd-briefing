@@ -2,7 +2,7 @@
 // Kept separate from gate.ts (which must stay edge-safe for middleware).
 
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, SESSION_MAX_AGE, mintSession, readSession } from "./gate";
+import { SESSION_COOKIE, SESSION_MAX_AGE, RETURNING_COOKIE, returningCookieOpts, mintSession, readSession } from "./gate";
 import { getContact } from "./db";
 
 export const ADMIN_COOKIE = "brief_admin";
@@ -38,6 +38,10 @@ export async function attachSession(res: NextResponse, contactId: string): Promi
   res.cookies.set(SESSION_COOKIE, await mintSession(contactId), {
     httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: SESSION_MAX_AGE,
   });
+  // Long-lived, identity-free "been here before" marker, set at the canonical sign-in moment.
+  // The session cookie expires exactly when its token does, so without this a lapsed member is
+  // indistinguishable from a stranger and gets the cold invite-only wall. See middleware.ts.
+  res.cookies.set(RETURNING_COOKIE, "1", returningCookieOpts);
   return res;
 }
 

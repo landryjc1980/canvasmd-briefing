@@ -5,7 +5,10 @@
 // Edge runtime: it verifies the session with the same Web-Crypto code the Node routes use.
 
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, readSession } from "./lib/gate";
+import {
+  SESSION_COOKIE, SESSION_MAX_AGE, RETURNING_COOKIE, returningCookieOpts,
+  SESSION_RENEW_AFTER_SECS, readSessionExpiry, mintSession,
+} from "./lib/gate";
 
 const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favicon"];
 
@@ -14,19 +17,37 @@ export async function middleware(req: NextRequest) {
   if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return NextResponse.next();
 
   const sess = req.cookies.get(SESSION_COOKIE)?.value;
-  const contactId = await readSession(sess);
-  if (contactId) return NextResponse.next();
+  const session = await readSessionExpiry(sess);
+  if (session) {
+    const res = NextResponse.next();
+    // SLIDING WINDOW: a session was minted once and never renewed, so a reader who opened the
+    // brief every week was still hard-logged-out on day 90. Past the halfway mark, re-issue on
+    // the way through — reading keeps you signed in; 90 days away still lapses you.
+    const remaining = session.exp - Math.floor(Date.now() / 1000);
+    if (remaining < SESSION_RENEW_AFTER_SECS) {
+      res.cookies.set(SESSION_COOKIE, await mintSession(session.contactId), {
+        httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: SESSION_MAX_AGE,
+      });
+    }
+    // Outlives the session, so a lapse is still recognisable as a RETURN (see below). Set
+    // unconditionally rather than only-when-missing: a "set it once" guard would strand any
+    // browser holding a copy with stale attributes, and it re-slides the 2-year window for
+    // readers who never lapse.
+    res.cookies.set(RETURNING_COOKIE, "1", returningCookieOpts);
+    return res;
+  }
 
   // No valid identity → show the capture wall, preserving the requested area as a hint.
-  // A cookie that's PRESENT but no longer resolves = a returning member whose session lapsed,
-  // not a cold visitor. Flag it so the wall shows the friendly "your sign-in expired, here's a
-  // fresh link" copy instead of the "invite-only, request access" copy.
+  // A returning member whose session lapsed is NOT a cold visitor. The session cookie itself
+  // can't prove that — it expires at the same instant its token does, so on an ordinary lapse
+  // nothing is sent and every loyal reader was greeted as a stranger. The long-lived returning
+  // marker is what makes the friendly "your sign-in expired, here's a fresh link" copy reachable.
   const url = req.nextUrl.clone();
   url.pathname = "/welcome";
   const area = req.nextUrl.searchParams.get("area");
   const params = new URLSearchParams();
   if (area) params.set("area", area);
-  if (sess) params.set("expired", "1");
+  if (sess || req.cookies.get(RETURNING_COOKIE)) params.set("expired", "1");
   url.search = params.toString() ? `?${params.toString()}` : "";
   return NextResponse.rewrite(url);
 }

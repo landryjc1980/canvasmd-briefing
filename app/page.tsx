@@ -180,7 +180,11 @@ export default function BriefingPage() {
   const pickView = (v: ViewMode) => { setView(v); sync({ view: v }); };
 
   // ---- CLASSIC fallback (the original Brief/Broadsheet toggle) ----
-  if (design === "classic") {
+  // "All" has no classic rendering — it is assembled client-side and BriefView/BroadsheetView are
+  // per-area. Falling into this branch with area="All" meant data stayed null, loading was already
+  // false and error was null, so every guard below failed and the reader got a bare switch bar over
+  // an empty page — with no "All" button in it to escape by. The All branch wins.
+  if (design === "classic" && area !== "All") {
     return (
       <div className={`bfroot ${view}`}>
         <div className="switchbar">
