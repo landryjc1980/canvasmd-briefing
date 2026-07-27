@@ -834,14 +834,14 @@ export type BriefingGuest = {
   thisWeek: number;
   career: number;
   shows: string[];
-  episodes: { title: string; audioUrl: string | null; show: string | null; showArt: string | null; description: string | null }[]; // this-window appearances, tap to listen
+  episodes: { title: string; audioUrl: string | null; show: string | null; showArt: string | null; description: string | null; episodeId?: string | null }[]; // this-window appearances, tap to listen (episodeId ADDITIVE 2026-07-27 — the native app's player needs the real episodes.id)
   subAreas?: string[];
   congress?: boolean;
 };
 
 // "Also worth hearing" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
-export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; subAreas?: string[]; congress?: boolean };
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean };
 
 export type BriefingData = {
   area: string;
