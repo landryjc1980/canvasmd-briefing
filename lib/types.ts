@@ -480,6 +480,7 @@ export type BriefingPaper = {
   topLikes: number;
   posts?: BriefingSharer[]; // the clinicians' actual tweets about the paper (expandable "what they said")
   publishers?: string[]; // institutional/journal/news accounts that posted it (the "via" badge)
+  peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
 };
 // One podcast conversation about a mover drug — the AI gloss of what was SAID,
 // seekable to the moment.
@@ -581,7 +582,7 @@ export type BriefingKol = {
   amp?: number; // reposts + quote-posts earned across ALL their window posts (Voices ranking); absent on pre-2026-07-24 snapshots
   paperShares?: number; // distinct papers they shared this window
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
-  articles: { title: string; url: string; journal: string | null; domain: string | null }[]; // articles they shared
+  articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[]; // articles they shared
   subAreas?: string[];
   congress?: boolean;
 };
@@ -599,6 +600,7 @@ export type BriefingArticle = {
   faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
+  peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
   subAreas?: string[];
   congress?: boolean;
 };

@@ -7,7 +7,7 @@ import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer } from "@/
 import { Row, PodCard, TweetCard, PaperCard, FacePile, evLabel, paperMeta } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
-import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsDomain } from "./briefVM";
+import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem } from "./briefVM";
 
 // "All oncology" — a front page that reads as ONE continuous scroll: every area's full
 // story list, grouped by area and shown in its own color, never re-ranked across areas
@@ -134,7 +134,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     // host credit — and the visible numbers read as mis-sorted even though the rule is stated.
     .sort((x, y) => micValue(y) - micValue(x) || epCount(y) - epCount(x) || y.career - x.career || x.name.localeCompare(y.name));
 
-  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null }[] };
+  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[] };
   const xVoices = new Map<string, XEntry>();
   for (const a of AREAS) {
     for (const k of briefsByArea[a]?.topKols ?? []) {
@@ -145,7 +145,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       const amp = k.amp ?? k.posts.reduce((s, p) => s + (/^\s*RT @/.test(p.text ?? "") ? 0 : p.retweets + (p.quotes ?? 0)), 0);
       const key = k.handle ? k.handle.toLowerCase() : norm(k.name); if (!key) continue;
       let v = xVoices.get(key);
-      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [], amp: 0, tweets: 0, paperShares: 0, posts: [], articles: [] }; xVoices.set(key, v); }
+      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [] as string[], amp: 0, tweets: 0, paperShares: 0, posts: [] as BriefingSharer[], articles: [] as XEntry["articles"] }; xVoices.set(key, v); }
       if (!v.areas.includes(a)) v.areas.push(a);
       v.amp = Math.max(v.amp, amp);
       v.tweets = Math.max(v.tweets, k.tweets);
@@ -404,7 +404,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           children: (v.posts.length || v.articles.length) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their posts · this week</div>{v.posts.slice(0, 4).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.slice(0, 3).map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} url={a2.url} accent={acc} />)}</div>}
+              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.slice(0, 3).map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} peerReviewed={a2.peerReviewed} url={a2.url} accent={acc} />)}</div>}
             </div>
           ) : null,
         });
@@ -455,11 +455,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             <StanceBlock stance={s.stance} accent={acc} />
             {s.podcast.length > 0 && <div><div style={evLabel(acc)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={acc} />)}</div>}
             {s.posts.length > 0 && <div><div style={evLabel(acc)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {s.papers.length > 0 && <div><div style={evLabel(acc)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => {
+            {s.papers.length > 0 && <div><div style={evLabel(acc)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => {
               // For a paper STORY the true sharer count is the story's own clinicianCount; for a
               // drug story's papers it rides on the paper. Either beats the capped array length.
               const total = (s.kind === "paper" && j === 0 ? s.clinicianCount : undefined) ?? p.sharerCount;
-              return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} sharedTotal={total} />;
+              return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} sharedTotal={total} />;
             })}</div>}
           </div>
         </Row>
@@ -665,7 +665,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                                 style={{ background: "none", border: "1px solid rgba(255,255,255,.16)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.55)" }}
                               >↑ Above in {featuredIn.get(norm(p.title))}</button>
                             )}
-                            {isNewsDomain(p.domain) && !p.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                            {isNewsItem(p) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
                             {!open && evidenceChip(acc)}
                           </div>
                         </div>

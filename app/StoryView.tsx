@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper, BriefingStance } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
@@ -77,7 +77,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 
 // A paper card that expands INLINE to reveal the abstract AND the clinicians' tweets
 // about it (so readers don't have to leave). The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, ring, accent }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; faces?: string[]; ring?: string; accent: string }) {
+function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, ring, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; faces?: string[]; ring?: string; accent: string; peerReviewed?: boolean }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -86,7 +86,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, 
   // Source line: journal if we have one, else the news outlet's clean name; a small "News" badge
   // marks a non-journal outlet. No "via <publisher>" — the source name already answers "from where".
   const src = articleSource(journal, domain);
-  const isNews = isNewsDomain(domain) && !journal;
+  const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
     <div onClick={(e) => e.stopPropagation()} style={cardBox}>
       {/* whole header taps to expand (was a dead zone — abstract hid behind a tiny link) */}
@@ -119,12 +119,12 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, 
 type SheetEv = {
   title: string; sub?: string; stance?: BriefingStance | null;
   podcasts?: BriefingPod[]; posts?: BriefingSharer[];
-  papers?: { title: string; journal: string | null; domain?: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[] }[];
+  papers?: { title: string; journal: string | null; domain?: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[]; peerReviewed?: boolean }[];
 };
 const moverEv = (m: BriefingMover): SheetEv => ({
   title: m.drug, sub: metricsLine(m), stance: m.stance ?? null,
   podcasts: m.podcast, posts: m.posts,
-  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers })),
+  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers, peerReviewed: p.peerReviewed })),
 });
 // The evidence sheet for ANY story atom (drug | paper | topic) — same generic bundle.
 const storyEv = (s: BriefingStory): SheetEv => ({
@@ -132,7 +132,7 @@ const storyEv = (s: BriefingStory): SheetEv => ({
   podcasts: s.podcast, posts: s.posts,
   papers: s.papers.map((p) => {
     const shared = p.sharers.length || p.posts?.length || 0;
-    return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers };
+    return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers, peerReviewed: p.peerReviewed };
   }),
 });
 
@@ -518,7 +518,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                     <div style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden" }}>
                       {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
                       {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
                       {!expanded && <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 58, background: `linear-gradient(to bottom, ${pal.bg}00, ${pal.bg})`, pointerEvents: "none" }} />}
                     </div>
                     <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, padding: "12px 18px", borderRadius: 12, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", cursor: "pointer", font: "700 13px system-ui", color: expanded ? "#fff" : pal.accent }}>
@@ -630,7 +630,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             {sectionHead("What’s being read")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} faces={a.faces} ring={pal.bg} accent={pal.accent} />)}
+              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} faces={a.faces} ring={pal.bg} accent={pal.accent} />)}
             </div>
           </>
         )}
@@ -705,7 +705,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             <StanceBlock stance={sheet.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
             {!!sheet.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcasts.map((p, j) => podCard(p, j))}</div>}
             {!!sheet.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+            {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
             <div onClick={(e) => { stop(e); setSheet(null); }} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent, cursor: "pointer" }}>Close</div>
           </div>
         </div>

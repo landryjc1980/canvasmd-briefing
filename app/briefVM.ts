@@ -174,9 +174,26 @@ export function storyMetricLine(s: BriefingStory): string {
   return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} engaged`;
 }
 
-// Small uppercase kicker naming the atom kind on the story card.
+// Is this article/paper trade-media journalism (OncLive, UroToday…) rather than a peer-reviewed
+// paper? Prefer the producer's authoritative flag (peerReviewed = the row has a journal name, a
+// PMID, or a DOI); fall back to the domain heuristic only for old snapshots that predate it. This
+// is the ONE predicate the whole reader should use — it catches trade outlets the domain map misses.
+export const isNewsItem = (x: { peerReviewed?: boolean; journal?: string | null; domain?: string | null } | null | undefined): boolean =>
+  x == null ? false
+  : x.peerReviewed === true ? false
+  : x.peerReviewed === false ? true
+  : isNewsDomain(x.domain) && !x.journal; // legacy fallback
+
+// Small uppercase kicker naming the atom kind on the story card. A "paper" story whose lead item
+// is trade/news coverage (not peer-reviewed) is honestly kickered "Most-shared read", never "paper".
 export const storyKicker = (s: BriefingStory): string =>
-  s.kind === "drug" ? "Trending drug" : s.kind === "paper" ? "Most-shared paper" : s.kind === "trial" ? "Trial in discussion" : "In focus";
+  s.kind === "drug" ? "Trending drug"
+    : s.kind === "paper" ? (isNewsItem(s.papers?.[0]) ? "Most-shared read" : "Most-shared paper")
+    : s.kind === "trial" ? "Trial in discussion" : "In focus";
+
+// Header for a story's evidence block ("The paper" / "The read" / "Papers"), honest about trade vs peer-reviewed.
+export const paperBlockLabel = (s: BriefingStory): string =>
+  s.kind === "paper" ? (isNewsItem(s.papers?.[0]) ? "The read" : "The paper") : "Papers";
 
 // Map a drug mover onto the story shape — the fallback so the hero always renders even when
 // an old snapshot (or the native/pharma callers) hasn't got topStories yet.

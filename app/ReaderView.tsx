@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsDomain, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
 
@@ -178,14 +178,14 @@ export function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, sharedTotal }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, sharedTotal, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
   const canExpand = hasAbs || hasPosts;
   const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
   const src = articleSource(journal, domain);
-  const isNews = isNewsDomain(domain) && !journal;
+  const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
     <div style={cardBox}>
       {url
@@ -626,9 +626,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <StanceBlock stance={s.stance} accent={pal.accent} />
               {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{s.kind === "paper" ? "The paper" : "Papers"}</div>{s.papers.map((p, j) => {
+              {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => {
                 const total = (s.kind === "paper" && j === 0 ? s.clinicianCount : undefined) ?? p.sharerCount;
-                return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={total} />;
+                return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={total} />;
               })}</div>}
             </div>
           </Row>
@@ -718,7 +718,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             }>
             <div style={{ marginLeft: narrow ? 0 : 55 }}>
               {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Posts on X · {k.posts.length}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Articles shared · {k.articles.length}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} url={a.url} accent={pal.accent} />)}</div>}
+              {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Articles shared · {k.articles.length}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} url={a.url} accent={pal.accent} />)}</div>}
             </div>
           </Row>
         );
@@ -762,7 +762,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
                   {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
                   <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-                  {isNewsDomain(a.domain) && !a.journal && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                  {isNewsItem(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
                   <SignalTag id={id} style={{ marginLeft: "auto" }} />
                 </div>
               </div>
@@ -811,7 +811,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
           </div>
@@ -856,7 +856,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <StanceBlock stance={m.stance} accent={pal.accent} />
               {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
               {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} meta={paperMeta(p.sharers.length, p.topLikes, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
+              {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, p.topLikes, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
             </div>
           </Row>
           </div>
