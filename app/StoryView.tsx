@@ -610,7 +610,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
         {cur.kind === "episodes" && (
           <>
-            {sectionHead("Also worth hearing")}
+            {sectionHead("This week on the podcasts")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {(data.episodes ?? []).filter((e) => e.audioUrl).map((ep, i) => (
                 <div key={i} onClick={stop} style={cardBox}>

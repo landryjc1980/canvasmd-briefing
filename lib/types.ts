@@ -841,7 +841,7 @@ export type BriefingGuest = {
   congress?: boolean;
 };
 
-// "Also worth hearing" — this-week area episodes the drug movers don't already surface
+// "This week on the podcasts" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
 export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean };
 
@@ -859,7 +859,7 @@ export type BriefingData = {
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
   guests?: BriefingGuest[]; // ADDITIVE — "This week's guests" box score (optional: old snapshots omit it)
   hosts?: BriefingGuest[]; // ADDITIVE — working-clinician hosts this week (pro_interview networks excluded); Voices rail
-  episodes?: BriefingEpisode[]; // ADDITIVE — "Also worth hearing" episode rail (optional: old snapshots omit it)
+  episodes?: BriefingEpisode[]; // ADDITIVE — "This week on the podcasts" episode rail (optional: old snapshots omit it)
   topStories?: BriefingStory[]; // ADDITIVE — the atom-agnostic hero (optional: old snapshots omit it)
   topics?: BriefingTopic[]; // ADDITIVE — the topic atoms
   subAreas?: BriefingSubArea[]; // ADDITIVE — sub-indication switcher options (GU-first); absent for single-disease areas

@@ -726,11 +726,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     </>
   );
 
-  // Also worth hearing — area episodes the drug movers don't cover (untracked-topic blind
+  // This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
     <>
-      <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>Also worth hearing</SectionHead>
+      <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>This week on the podcasts</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={6} accent={pal.accent} render={(ep, i) => (
           <div key={i} style={cardBox}>

@@ -463,10 +463,10 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           }} />
         </>}
 
-        {/* Also worth hearing — area episodes the drug movers don't cover (untracked-topic blind
+        {/* This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
             spot). Flat list of episode cards, same shape as a guest's episode. */}
         {!!data.episodes?.length && <>
-          <SectionHead id="sec-episodes">Also worth hearing</SectionHead>
+          <SectionHead id="sec-episodes">This week on the podcasts</SectionHead>
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
             <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={6} accent={pal.accent} render={(ep, i) => (
               <div key={i} style={cardBox}>
