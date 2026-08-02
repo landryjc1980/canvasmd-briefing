@@ -516,7 +516,7 @@ export type BriefingStanceTake = {
   occurredAt: string | null;
   practiceChanging: boolean;
 };
-// How the field is REACTING to a drug (from pharma_stance) — voiced opinions only, ≥4 or null.
+// Directional takes DETECTED for a drug (from pharma_stance) — classified excerpts only, ≥4 or null.
 export type BriefingStance = {
   total: number; // voiced opinions (excludes 'unclear' backbone/comparator mentions)
   favorable: number; // enthusiastic + favorable
@@ -820,7 +820,7 @@ export type BriefingStory = {
   posts: BriefingSharer[];
   papers: BriefingPaper[];
   drugId: string | null; // drug stories → the Drugs board row
-  stance?: BriefingStance | null; // drug stories only: how the field is reacting (null / thin otherwise)
+  stance?: BriefingStance | null; // drug stories only: directional takes detected (null / thin otherwise)
   fp?: string; // evidence fingerprint (identities only) — powers "Since your last read" NEW/UPDATED
   subAreas?: string[]; // within-area sub-indications this story touches
   congress?: boolean; // touches the active congress

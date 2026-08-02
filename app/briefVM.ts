@@ -263,7 +263,7 @@ export function cleanArticleTitle(title?: string | null): string {
   return t.replace(MEDIA_SUFFIX_RE, "").trim() || t;
 }
 
-// "How the field is reacting" — the counts line for a drug's stance. Honest split, never a
+// "Directional takes detected" — the counts line for a drug's stance. Honest split, never a
 // hollow %. Returns null when there's no stance (thin signal / non-drug), so the card stays clean.
 export function stanceParts(s: BriefingStance | null | undefined):
   { favorable: number; skeptical: number; mixed: number; total: number; axis: string | null; quote: string } | null {

@@ -499,7 +499,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                 <span style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.62)" }}>{storyMetricLine(s)}</span>
               </div>
               {s.description && <p style={{ font: "400 17px/1.34 'Newsreader',Georgia,serif", color: "#eaf0ff", margin: "14px 0 0" }}>{s.description}</p>}
-              {/* How the field is reacting — shared component; self-suppresses under 4 opinions. */}
+              {/* Directional takes detected — shared component; self-suppresses under 4 opinions. */}
               <StanceBlock stance={s.stance} accent={pal.accent} style={{ marginTop: 16 }} />
               {/* Evidence as ONE continuous stack. Collapsed = a peek: clipped to PEEK_H with a
                   fade to the screen bg + a "what's here" row. Expanding happens ONLY via the two

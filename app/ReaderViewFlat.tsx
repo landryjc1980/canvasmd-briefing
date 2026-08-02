@@ -23,13 +23,17 @@ function StanceBlock({ stance, accent, style }: { stance?: BriefingStance | null
   return (
     <div style={{ padding: "13px 15px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 13, ...style }}>
       <div style={{ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>
-        How the field is reacting{st.axis ? ` · on ${st.axis}` : ""}
+        Directional takes detected{st.axis ? ` · on ${st.axis}` : ""}
       </div>
       <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
         <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
         {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
         {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
-        <span style={{ color: "rgba(255,255,255,.38)", font: "400 11.5px system-ui" }}>of {st.total} voiced opinions</span>
+        {/* "of N voiced opinions" was relabelled in the main block on 2026-07-22 as an overclaim
+            (podcast stance is episode-level, not per-speaker) — but this legacy ?design=flat copy
+            kept the old wording for six weeks. A duplicated renderer means a fixed claim can stay
+            broken somewhere you aren't looking; `npm test` now covers this file too. */}
+        <span style={{ color: "rgba(255,255,255,.38)", font: "400 11.5px system-ui" }}>of {st.total} classified excerpts</span>
       </div>
       {st.quote && (
         <p style={{ font: "400 14px/1.42 'Newsreader',Georgia,serif", color: "#c9d2e6", fontStyle: "italic", margin: "11px 0 0" }}>&ldquo;{st.quote}&rdquo;</p>

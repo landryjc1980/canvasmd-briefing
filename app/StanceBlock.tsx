@@ -1,13 +1,22 @@
 "use client";
 
-// "How the field is reacting" — the shared stance block. One place so the drug story cards,
+// "Directional takes detected" — the shared stance block. One place so the drug story cards,
 // the Drugs-board evidence sheet (mobile), and the Drugs-board drawer (desktop) never drift.
-// Honest by construction: renders only at ≥4 voiced opinions (stanceParts self-gates), shows
+// Honest by construction: renders only at ≥4 classified excerpts (stanceParts self-gates), shows
 // the real split (never a hollow %), and — the 2026-07-22 RECEIPTS pass — expands to the exact
 // N classified takes behind the numbers, each traceable to its episode/tweet. The receipt IS the
 // self-serve demo of the paid graph. Quote marks are earned: only verbatim source quotes wear
 // them; everything else is labeled our classifier's paraphrase. Everything BENEATH this — per-KOL
 // attribution, the trend over time, reach — is the paid dashboard.
+//
+// ⚠️ 2026-08-02 — THE HEADING IS A CLAIM. This block used to be titled "How the field is
+// reacting", which asserts we MEASURED the field. We did not: only ~4% of takes are verbatim,
+// the rest are our classifier's paraphrase, and some rows are almost entirely X posts. A smart
+// reader who notices that discounts the whole product, so the heading now describes what we
+// actually did — detect directional takes — and the method line sits ABOVE the fold rather than
+// hidden inside the collapsed receipts.
+// BANNED until speaker-level ownership is real: wording that claims measured sentiment, puts a
+// view in professionals' mouths, or counts takes as people. `npm test` enforces the exact list.
 
 import { useState } from "react";
 import { stanceParts, UP, DOWN } from "./briefVM";
@@ -64,13 +73,14 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
   const lead = takes[0];
   // Relabel: "of N voiced opinions" overstated (podcast stance is episode-level, not per-speaker).
   // Honest breakdown = the counts split by source. Old snapshots (no episodeCount) fall back.
+  // episodeCount/postCount are DISTINCT SOURCES (edge fn, 2026-08-02) — they no longer sum to
+  // total, deliberately: "13 excerpts from 6 episodes and 5 posts" shows concentration that
+  // "13 excerpts, 8 episodes, 5 posts" would hide. Old snapshots omit them → count-only line.
   const eps = stance.episodeCount, posts = stance.postCount;
+  const src = [eps ? `${eps} podcast episode${eps === 1 ? "" : "s"}` : "", posts ? `${posts} X post${posts === 1 ? "" : "s"}` : ""].filter(Boolean);
   const breakdown =
-    eps === undefined && posts === undefined
-      ? `${st.total} classified mentions`
-      : [`${st.total} classified mention${st.total === 1 ? "" : "s"}`,
-         [eps ? `${eps} episode${eps === 1 ? "" : "s"}` : "", posts ? `${posts} post${posts === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")]
-          .filter(Boolean).join(" — ");
+    `${st.total} model-classified excerpt${st.total === 1 ? "" : "s"}` +
+    (src.length ? ` · from ${src.join(" and ")}` : "");
   // Lead quote: render TEXT and attribution from the SAME source object so they can never credit
   // different sources. When receipts exist that's takes[0] (which the edge fn also uses for
   // stance.quote); old snapshots without takes fall back to the flat stance.quote/quoteVerbatim.
@@ -80,7 +90,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
   return (
     <div style={{ padding: "14px 16px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderTop: "1px solid rgba(255,255,255,.16)", borderLeft: `3px solid ${accent}`, borderRadius: 13, boxShadow: "0 8px 22px rgba(0,0,0,.18)", ...style }}>
       <div style={{ font: "600 10px/1.6 system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>
-        How the field is reacting{st.axis ? ` · on ${st.axis}` : ""}
+        Directional takes detected{st.axis ? ` · on ${st.axis}` : ""}
       </div>
       <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
         <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
@@ -88,6 +98,12 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
         {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
       </div>
       <div style={{ font: "400 11.5px system-ui", color: "#9aa2b6", marginTop: 6 }}>{breakdown} · last 30 days</div>
+      {/* The method line sits ABOVE the fold on purpose. It used to live inside the collapsed
+          receipts, so the default view showed a confident-looking tally with no indication that
+          most of it is our classifier's paraphrase — the reader had to opt in to the caveat. */}
+      <div style={{ font: "400 10.5px/1.5 system-ui", color: "#7e8698", marginTop: 3 }}>
+        Classified by an AI reader of verified-clinician podcasts &amp; posts — not a survey.
+      </div>
 
       {leadText && (
         <div style={{ margin: "12px 0 0" }}>
@@ -119,7 +135,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
                 <div style={{ font: "400 11px system-ui", color: "#7e8698" }}>Showing {takes.length} of {st.total}.</div>
               )}
               <div style={{ font: "400 10.5px/1.5 system-ui", color: "#7e8698" }}>
-                &ldquo;Quoted&rdquo; takes are verbatim from the source; others are our classifier&rsquo;s paraphrase. Classified by an AI reader of verified-clinician podcasts &amp; posts.
+                &ldquo;Quoted&rdquo; takes are verbatim from the source; others are our classifier&rsquo;s paraphrase.
               </div>
             </div>
           )}
