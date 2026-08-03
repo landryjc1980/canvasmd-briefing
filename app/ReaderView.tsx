@@ -535,6 +535,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
+  // A jump-click PINS its section active, even when two targets share a vertical position: on wide,
+  // sec-top and sec-kols both sit at their column tops, so a pure position spy ties to Top Stories
+  // and the clicked KOLs pill never lights. The pin is released on the reader's next genuine scroll.
+  const pinnedSecRef = useRef<string | null>(null);
   // The jump-link bar rides transparently on the cover wash at rest, and only grows its
   // ink-glass chrome once it actually sticks — a floating bar over the masthead read as a band.
   const [stuck, setStuck] = useState(false);
@@ -545,6 +549,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
+      // A pinned section (just clicked) wins until the reader scrolls — resolves the shared-position
+      // tie the position spy alone cannot (sec-top vs sec-kols on wide).
+      if (pinnedSecRef.current) { setActiveSec(pinnedSecRef.current); return; }
       // Pick the header most-recently scrolled PAST (greatest top still ≤ threshold), not the last
       // in array order — so the two-column wide layout (long editorial column + short right rail)
       // can't mark a rail section active while the reader is mid-column.
@@ -552,6 +559,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       for (const id of ids) { const el = document.getElementById(id); if (!el) continue; const top = el.getBoundingClientRect().top; if (top <= 90 && top > curTop) { curTop = top; cur = id; } }
       setActiveSec(cur || ids.find((id) => document.getElementById(id)) || "sec-top");
     };
+    // Genuine reader scroll (wheel / touch-drag) releases the jump pin. The programmatic glide uses
+    // window.scrollTo — which fires "scroll" but never wheel/touchmove — so the pin survives it.
+    const releasePin = () => { pinnedSecRef.current = null; };
     check();
     // `stuck` gates the bar's opaque backing — set it synchronously so a throttled rAF can never
     // leave a transparent bar with page text scrolling through it. The spy stays deferred.
@@ -560,7 +570,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+    window.addEventListener("wheel", releasePin, { passive: true });
+    window.addEventListener("touchmove", releasePin, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("wheel", releasePin); window.removeEventListener("touchmove", releasePin); if (raf) cancelAnimationFrame(raf); };
   }, [area, wide, subArea]);
   // Jump-link scroll: rAF glide instead of native scrollIntoView({smooth}) — iOS janks on
   // long smooth scrolls, and lazy-loading avatars/show-art ABOVE the target shift the layout
@@ -570,6 +582,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const goSec = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
+    pinnedSecRef.current = id; // pin the clicked section active (survives the glide; released on scroll)
+    setActiveSec(id);          // instant feedback — the pill lights the moment it's tapped
     const offset = compact ? 74 : 62; // clear the sticky pill bar (taller on mobile — 44px pills)
     const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
