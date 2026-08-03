@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
@@ -287,11 +287,98 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
       {shown.map(render)}
       {extra > 0 && (
         <div style={{ textAlign: "center", marginTop: 16 }}>
-          <button onClick={() => setOpen((o) => !o)} style={{ display: "inline-block", background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 20, padding: "7px 20px", cursor: "pointer" }}>
+          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: "inline-block", background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 20, padding: "7px 20px", cursor: "pointer" }}>
             {open ? "Show less ↑" : `Show ${extra} more ↓`}
           </button>
         </div>
       )}
+    </>
+  );
+}
+
+// ── Progressive evidence disclosure ─────────────────────────────────────────────────────────
+// ONE shared block for the story drawer, the All-oncology page, and the Drugs board drawer, so
+// they never drift. A deep-dive week used to render every clip/post/paper at full height — a
+// 2,500px receipt wall past the collapse control, with the same episode repeated many times.
+// Now: podcast clips GROUP by episode (lead clip of the first two episodes; "more moments" reveals
+// repeat clips of ONE episode; "more episodes" reveals the rest), and X posts / papers cap at 3 / 2
+// behind "show more". Order is the producer's array order (podcast[0] is the lead) — NO re-scoring.
+// Every receipt is preserved: PodCard/TweetCard/PaperCard are reused verbatim. Every show-more
+// control carries aria-expanded + an accurate label + aria-controls (the a11y gap on the old flat
+// list was that there were no controls at all).
+const moreBtn = (accent: string): React.CSSProperties => ({ display: "inline-block", background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 20, padding: "7px 20px", cursor: "pointer" });
+
+// Group clips by episode, preserving first-seen (= strength) order. A missing episodeId falls back
+// to a stable audio/title key; a clip with none of those gets a UNIQUE key so unattributed clips
+// are never silently merged into one "episode".
+function groupPods(pods: BriefingPod[]): BriefingPod[][] {
+  const order: string[] = [];
+  const byKey = new Map<string, BriefingPod[]>();
+  pods.forEach((p, i) => {
+    const key = p.episodeId || p.audioUrl || p.episodeTitle || `__clip${i}`;
+    let g = byKey.get(key);
+    if (!g) { g = []; byKey.set(key, g); order.push(key); }
+    g.push(p);
+  });
+  return order.map((k) => byKey.get(k)!);
+}
+
+// One episode: its lead clip always shows; repeat "moments" from the same episode tuck behind a
+// per-episode toggle. The revealed region carries the aria-controls id (empty when collapsed).
+function EpisodeClips({ clips, accent }: { clips: BriefingPod[]; accent: string }) {
+  const [open, setOpen] = useState(false);
+  const rid = useId();
+  const extra = clips.length - 1;
+  return (
+    <>
+      <PodCard p={clips[0]} accent={accent} />
+      {extra > 0 && <>
+        <div id={rid}>{open && clips.slice(1).map((p, j) => <PodCard key={j} p={p} accent={accent} />)}</div>
+        <button type="button" aria-expanded={open} aria-controls={rid} onClick={() => setOpen((o) => !o)}
+          style={{ ...moreBtn(accent), padding: "5px 14px", font: "600 11.5px system-ui", margin: "0 0 12px" }}>
+          {open ? "Fewer moments ↑" : `${extra} more moment${extra === 1 ? "" : "s"} from this episode ↓`}
+        </button>
+      </>}
+    </>
+  );
+}
+
+// Podcast evidence: the first two episodes' lead clips show; "more episodes" reveals the rest.
+function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string }) {
+  const [open, setOpen] = useState(false);
+  const rid = useId();
+  const groups = groupPods(pods);
+  const EP_CAP = 2;
+  const extra = groups.length - EP_CAP;
+  return (
+    <>
+      {groups.slice(0, EP_CAP).map((clips, gi) => <EpisodeClips key={gi} clips={clips} accent={accent} />)}
+      {extra > 0 && <>
+        <div id={rid}>{open && groups.slice(EP_CAP).map((clips, gi) => <EpisodeClips key={gi} clips={clips} accent={accent} />)}</div>
+        <div style={{ textAlign: "center", marginTop: 4 }}>
+          <button type="button" aria-expanded={open} aria-controls={rid} onClick={() => setOpen((o) => !o)} style={moreBtn(accent)}>
+            {open ? "Show fewer episodes ↑" : `Show ${extra} more episode${extra === 1 ? "" : "s"} ↓`}
+          </button>
+        </div>
+      </>}
+    </>
+  );
+}
+
+// The three evidence blocks with progressive disclosure — used by every drawer that shows story /
+// mover evidence. `story` is a BriefingStory or a drug mover; both carry podcast/posts/papers, and
+// the paper-total formula falls back to sharerCount for movers (no kind:"paper"). `paperLabel` is
+// passed by the caller so each surface keeps its exact heading ("The paper" vs "Papers shared").
+type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null };
+export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
+  return (
+    <>
+      {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
+      {story.posts.length > 0 && <div><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div><Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
+        const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
+      }} /></div>}
     </>
   );
 }
@@ -396,7 +483,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           onClick={() => setMenuOpen((o) => !o)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
           style={chip
-            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 20 }
+            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 20, minHeight: 44, boxSizing: "border-box" }
             : { display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
           <span style={{ font: chip ? "600 13.5px system-ui" : "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
           <span style={{ font: "700 11px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
@@ -441,10 +528,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
-    { id: "sec-kols", label: "KOLs", on: !wide && !!(data.guests?.length || data.topKols.length) },
+    { id: "sec-kols", label: "KOLs", on: !!(data.guests?.length || data.topKols.length) },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
-    { id: "sec-trials", label: "Trials", on: !wide && data.trials.length > 0 },
+    { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
@@ -452,12 +539,17 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // ink-glass chrome once it actually sticks — a floating bar over the masthead read as a band.
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
-    const ids = ["sec-top", "sec-kols", "sec-episodes", "sec-papers", "sec-trials", "sec-drugs"].filter((id) => !wide || !["sec-kols", "sec-trials"].includes(id));
+    // On the wide layout the KOL/Trials sections live in the right rail; their pills now stay in
+    // the nav (jump + active-state), so the scroll-spy tracks every section on both layouts.
+    const ids = ["sec-top", "sec-kols", "sec-episodes", "sec-papers", "sec-trials", "sec-drugs"];
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
-      let cur = "";
-      for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 90) cur = id; }
+      // Pick the header most-recently scrolled PAST (greatest top still ≤ threshold), not the last
+      // in array order — so the two-column wide layout (long editorial column + short right rail)
+      // can't mark a rail section active while the reader is mid-column.
+      let cur = "", curTop = -Infinity;
+      for (const id of ids) { const el = document.getElementById(id); if (!el) continue; const top = el.getBoundingClientRect().top; if (top <= 90 && top > curTop) { curTop = top; cur = id; } }
       setActiveSec(cur || ids.find((id) => document.getElementById(id)) || "sec-top");
     };
     check();
@@ -478,7 +570,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const goSec = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const offset = 62; // clear the sticky pill bar
+    const offset = compact ? 74 : 62; // clear the sticky pill bar (taller on mobile — 44px pills)
     const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
     const start = window.scrollY;
@@ -506,6 +598,23 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     (!activeSub || (s.subAreas ?? []).includes(activeSub)) && (!congressScope || s.congress === true));
   const part = partitionStories(visibleStories, seen);
   const stories = part.ordered;
+  // "Also in Top Stories" — a paper promoted to a Top Story is ALSO kept in the full reading list
+  // (measured 2026-08-03: every paper-story, ~2.8/edition, duplicates below). Rather than delete it
+  // from the complete list, tag it. Keys come from the CURRENTLY-RENDERED story set so the tag is
+  // never false after a Focus filter. Snapshot carries no DOI client-side; match on url, normalized
+  // title as fallback (both lists derive from the same source, so urls align).
+  const normKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const featuredPaperKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const s of stories) if (s.kind === "paper") {
+      const p = s.papers?.[0];
+      if (p?.url) keys.add(`u:${p.url}`);
+      const t = p?.title ?? s.headline; if (t) keys.add(`t:${normKey(t)}`);
+    }
+    return keys;
+  }, [stories]);
+  const isFeaturedPaper = (a: { url?: string | null; title: string }) =>
+    (!!a.url && featuredPaperKeys.has(`u:${a.url}`)) || featuredPaperKeys.has(`t:${normKey(a.title)}`);
   // The evidence toggle is the product — a bare 11.5px text link was invisible to
   // first-time readers. It's now a small accent-tinted pill that reads as a control.
   const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
@@ -580,7 +689,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {part.mode === "split" && i === part.freshCount && (
               <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "26px 0 10px" }}>
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "600 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "600 12px system-ui", color: MUT, minWidth: 0, flexShrink: 1, textAlign: "center" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
                   You&rsquo;re caught up — {stories.length - part.freshCount} stor{stories.length - part.freshCount === 1 ? "y" : "ies"} you&rsquo;ve already read
                 </span>
@@ -624,12 +733,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             <div style={{ marginLeft: compact ? 0 : 54, display: "flex", flexDirection: "column", gap: 18 }}>
               {/* the field's read at the TOP of the evidence — receipts, only on expand */}
               <StanceBlock stance={s.stance} accent={pal.accent} />
-              {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-              {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => {
-                const total = (s.kind === "paper" && j === 0 ? s.clinicianCount : undefined) ?? p.sharerCount;
-                return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={total} />;
-              })}</div>}
+              <StoryEvidence story={s} accent={pal.accent} paperLabel={paperBlockLabel(s)} />
             </div>
           </Row>
           </div>
@@ -763,6 +867,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
                   <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
                   {isNewsItem(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                  {isFeaturedPaper(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
                   <SignalTag id={id} style={{ marginLeft: "auto" }} />
                 </div>
               </div>
@@ -854,9 +959,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             <div style={{ marginLeft: compact ? 0 : 54, display: "flex", flexDirection: "column", gap: 18 }}>
               {/* the field's read at the TOP of the drug's evidence drawer (self-suppresses if thin) */}
               <StanceBlock stance={m.stance} accent={pal.accent} />
-              {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-              {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, p.topLikes, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
+              <StoryEvidence story={m} accent={pal.accent} paperLabel="Papers shared" />
             </div>
           </Row>
           </div>
@@ -956,7 +1059,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: stuck ? `${pal.bg}F5` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
-            return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>{s.label}</button>;
+            return <button key={s.id} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "600 12.5px system-ui", letterSpacing: ".01em", padding: "6px 14px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? "#fff" : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: compact ? 44 : undefined, minWidth: compact ? 44 : undefined }}>{s.label}</button>;
           })}
         </div>
 
@@ -970,7 +1073,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               const on = subArea === c.key;
               return (
                 <button key={c.label} type="button" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
-                  style={{ cursor: "pointer", font: "600 12px system-ui", padding: "5px 13px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? pal.accent : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" }}>
+                  style={{ cursor: "pointer", font: "600 12px system-ui", padding: "5px 13px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? pal.accent : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: compact ? 44 : undefined, minWidth: compact ? 44 : undefined }}>
                   {c.label}
                 </button>
               );

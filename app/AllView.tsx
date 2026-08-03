@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
-import { Row, PodCard, TweetCard, PaperCard, FacePile, evLabel, paperMeta } from "./ReaderView";
+import { Row, TweetCard, PaperCard, FacePile, evLabel, StoryEvidence } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem } from "./briefVM";
@@ -453,14 +453,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           }>
           <div style={{ marginLeft: !lead && !compact ? 42 : 0, display: "flex", flexDirection: "column", gap: 18 }}>
             <StanceBlock stance={s.stance} accent={acc} />
-            {s.podcast.length > 0 && <div><div style={evLabel(acc)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={acc} />)}</div>}
-            {s.posts.length > 0 && <div><div style={evLabel(acc)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {s.papers.length > 0 && <div><div style={evLabel(acc)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => {
-              // For a paper STORY the true sharer count is the story's own clinicianCount; for a
-              // drug story's papers it rides on the paper. Either beats the capped array length.
-              const total = (s.kind === "paper" && j === 0 ? s.clinicianCount : undefined) ?? p.sharerCount;
-              return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={acc} sharedTotal={total} />;
-            })}</div>}
+            <StoryEvidence story={s} accent={acc} paperLabel={paperBlockLabel(s)} />
           </div>
         </Row>
       </div>
@@ -517,6 +510,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
         @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
         .all-pills::-webkit-scrollbar{display:none}.all-pills{scrollbar-width:none}
+        .all-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
       `}</style>
 
@@ -574,7 +568,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           );
           return (
             <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}F5` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
-              <div className="all-pills" style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
+              <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
                 {areaPills}
                 {!compact && voicesPill}
                 {!compact && papersPill}
