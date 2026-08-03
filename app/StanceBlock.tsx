@@ -78,8 +78,12 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
   // "13 excerpts, 8 episodes, 5 posts" would hide. Old snapshots omit them → count-only line.
   const eps = stance.episodeCount, posts = stance.postCount;
   const src = [eps ? `${eps} podcast episode${eps === 1 ? "" : "s"}` : "", posts ? `${posts} X post${posts === 1 ? "" : "s"}` : ""].filter(Boolean);
+  // The count is scoped to ONE axis (edge fn, 2026-08-02): every excerpt behind
+  // these numbers carries `st.axis`, so the label says so — "6 excerpts on
+  // efficacy", never efficacy+safety+convenience blended into one number.
   const breakdown =
     `${st.total} model-classified excerpt${st.total === 1 ? "" : "s"}` +
+    (st.axis ? ` on ${st.axis}` : "") +
     (src.length ? ` · from ${src.join(" and ")}` : "");
   // Lead quote: render TEXT and attribution from the SAME source object so they can never credit
   // different sources. When receipts exist that's takes[0] (which the edge fn also uses for
@@ -90,7 +94,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
   return (
     <div style={{ padding: "14px 16px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)", borderTop: "1px solid rgba(255,255,255,.16)", borderLeft: `3px solid ${accent}`, borderRadius: 13, boxShadow: "0 8px 22px rgba(0,0,0,.18)", ...style }}>
       <div style={{ font: "600 10px/1.6 system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>
-        Directional takes detected{st.axis ? ` · on ${st.axis}` : ""}
+        Directional takes detected
       </div>
       <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
         <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
