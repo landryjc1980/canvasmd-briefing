@@ -106,7 +106,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
           receipts, so the default view showed a confident-looking tally with no indication that
           most of it is our classifier's paraphrase — the reader had to opt in to the caveat. */}
       <div style={{ font: "400 10.5px/1.5 system-ui", color: "#7e8698", marginTop: 3 }}>
-        Classified by an AI reader of verified-clinician podcasts &amp; posts — not a survey.
+        Classified by an AI reader of verified-clinician posts and selected oncology podcast excerpts — not a survey.
       </div>
 
       {leadText && (
