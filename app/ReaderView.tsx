@@ -482,8 +482,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area"
           onClick={() => setMenuOpen((o) => !o)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
+          className={chip ? "rv-edition" : undefined}
+          // The 44px tap target used to be the pill's own minHeight, which made the edition chip
+          // nearly twice the height of the 24px wordmark it sits beside. Keep the target, drop the
+          // bulk: the pill is sized to its text and .rv-edition::after carries an invisible 44px
+          // hit area (a pseudo-element hit-tests as part of its parent).
           style={chip
-            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 20, minHeight: 44, boxSizing: "border-box" }
+            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 20, boxSizing: "border-box" }
             : { display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
           <span style={{ font: chip ? "600 13.5px system-ui" : "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
           <span style={{ font: "700 11px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
@@ -994,6 +999,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           rv-row: the hover-lift surface + keyboard focus ring on every expandable row. */}
       <style>{`
         .rv-pills::-webkit-scrollbar{display:none}.rv-pills{scrollbar-width:none}
+        .rv-edition{position:relative}
+        .rv-edition::after{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
         .rv-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
         .rv-row{transition:background .16s ease}
         @media(hover:hover){.rv-row:hover{background:rgba(255,255,255,.045)}}
