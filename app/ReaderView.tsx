@@ -287,7 +287,7 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
       {shown.map(render)}
       {extra > 0 && (
         <div style={{ textAlign: "center", marginTop: 16 }}>
-          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: "inline-block", background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 20, padding: "7px 20px", cursor: "pointer" }}>
+          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 22, padding: "0 20px", cursor: "pointer" }}>
             {open ? "Show less ↑" : `Show ${extra} more ↓`}
           </button>
         </div>
@@ -434,6 +434,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const subLabel = activeSub ? (subAreaOpts.find((s) => s.key === activeSub)?.label ?? activeSub) : null;
   const [shareMsg, setShareMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // masthead area/tumor switcher (mobile parity)
+  // On a phone, seven full Top Stories put "This week on the podcasts" ~3,000px down — the podcast
+  // archive is the most differentiated asset and nobody scrolled to it. Show the first few and tuck
+  // the rest (which, in split mode, are the already-read ones) behind an explicit control.
+  const [showAllStories, setShowAllStories] = useState(false);
   // Two-track layout kicks in on real desktop width (never on the compact/mobile pass).
   const [wide, setWide] = useState<boolean>(() => typeof window !== "undefined" && !compact && window.matchMedia("(min-width: 1180px)").matches);
   useEffect(() => {
@@ -677,6 +681,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   // ---- section builders (placement differs by layout; content is identical) --------------
 
+  // Mobile only: cap the deck so the sections below stay reachable. Stories are ordered
+  // fresh-first in split mode, so the cap also keeps already-read ones collapsed by default.
+  const MOBILE_STORY_CAP = 4;
+  const storiesCapped = compact && !showAllStories && stories.length > MOBILE_STORY_CAP;
+  const deckStories = storiesCapped ? stories.slice(0, MOBILE_STORY_CAP) : stories;
+
   const storiesSection = (
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
@@ -693,7 +703,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           You&rsquo;re all caught up — nothing new since your last read.
         </div>
       )}
-      {stories.map((s, i) => {
+      {deckStories.map((s, i) => {
         const id = "s:" + s.id;
         const isDrug = s.kind === "drug";
         const lead = i === 0;
@@ -759,6 +769,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </Fragment>
         );
       })}
+      {storiesCapped && (
+        <button onClick={() => setShowAllStories(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", minHeight: 44, margin: "2px 0 24px", padding: "0 14px", cursor: "pointer", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, color: pal.accent, font: "600 14px system-ui" }}>
+          {stories.length - MOBILE_STORY_CAP} more {stories.length - MOBILE_STORY_CAP === 1 ? "story" : "stories"} ↓
+        </button>
+      )}
     </>
   );
 
@@ -994,7 +1010,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: "100vh", overflowWrap: "break-word", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       {/* rv-pills: hide the scrollbar; on mobile a right-edge fade signals there's more to scroll.
           rv-row: the hover-lift surface + keyboard focus ring on every expandable row. */}
       <style>{`

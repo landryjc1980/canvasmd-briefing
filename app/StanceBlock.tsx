@@ -97,7 +97,11 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
         Directional takes detected
       </div>
       <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", font: "600 13px system-ui" }}>
-        <span style={{ color: UP.fg }}>● {st.favorable} favorable</span>
+        {/* "5 favorable" reads as five DOCTORS. The unit is model-classified EXCERPTS — dedup is per
+            post/episode and per amplification origin, never per author, so one clinician posting
+            three times contributes three. Say "excerpts" in the headline, not just in the method
+            line underneath (Codex 2026-08-05). */}
+        <span style={{ color: UP.fg }}>● {st.favorable} favorable excerpt{st.favorable === 1 ? "" : "s"}</span>
         {st.skeptical > 0 && <span style={{ color: DOWN.fg }}>● {st.skeptical} skeptical</span>}
         {st.mixed > 0 && <span style={{ color: "rgba(255,255,255,.55)" }}>● {st.mixed} mixed</span>}
       </div>

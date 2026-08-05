@@ -632,6 +632,9 @@ a {
 }
 .aq-btn {
   flex-shrink: 0;
+  /* 36px circle, 44px touch target: the visual size is deliberate (it sits inline in a clip row),
+     so the target is carried by an invisible ::after rather than by growing the button. */
+  position: relative;
   width: 36px;
   height: 36px;
   border: 0;
@@ -645,6 +648,7 @@ a {
   padding: 0;
   transition: filter 0.15s, transform 0.1s;
 }
+.aq-btn::after { content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; border-radius: 50%; }
 .aq-btn:hover { filter: brightness(1.08); }
 .aq-btn:active { transform: scale(0.94); }
 .aq-btn svg { margin-left: 1px; } /* optically center the play triangle */
