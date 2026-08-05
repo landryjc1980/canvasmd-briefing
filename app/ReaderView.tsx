@@ -871,11 +871,16 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     <>
       <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>This week on the podcasts</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
-        <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={6} accent={pal.accent} render={(ep, i) => (
+        {/* Show 4, then "Show N more" — the rail now carries up to 10 (it stopped hiding
+            discussed episodes), which is too tall to dump in full. */}
+        <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => (
           <div key={i} style={cardBox}>
             <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div><div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}><span style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</span>
+                {/* An episode that drove a story stays HERE too, tagged — same rule as papers.
+                    Deleting it hid the week's most-discussed listening behind a collapsed drawer. */}
+                {ep.featured && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
             <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
