@@ -628,7 +628,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
         {cur.kind === "papers" && (
           <>
-            {sectionHead("What’s being read")}
+            {sectionHead("Papers being shared")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} faces={a.faces} ring={pal.bg} accent={pal.accent} />)}
             </div>

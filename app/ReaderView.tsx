@@ -109,7 +109,7 @@ const cleanSnippet = (s: string | null | undefined): string => {
 function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
-  return <span title="Net change in evidence (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
+  return <span title="Change in source activity (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
 }
 
 // Raised surface: a step lighter than the page, lit top edge, soft drop — the depth system.
@@ -528,11 +528,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
-    { id: "sec-kols", label: "KOLs", on: !!(data.guests?.length || data.topKols.length) },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
+    { id: "sec-kols", label: "People", on: !!(data.guests?.length || data.topKols.length) },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
   // A jump-click PINS its section active, even when two targets share a vertical position: on wide,
@@ -633,7 +633,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // first-time readers. It's now a small accent-tinted pill that reads as a control.
   const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
     <span style={{ display: "inline-flex", alignItems: "center", font: "600 12.5px system-ui", color: pal.accent, border: `1px solid ${pal.accent}59`, background: `${pal.accent}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap", ...style }}>
-      {openId === id ? "Hide ↑" : "Evidence ↓"}
+      {openId === id ? "Hide ↑" : "Sources ↓"}
     </span>
   );
 
@@ -867,7 +867,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // papers
   const papersSection = data.topArticles.length > 0 && (
     <>
-      <SectionHead id="sec-papers" accent={pal.accent} left={!compact}>What&rsquo;s being read</SectionHead>
+      <SectionHead id="sec-papers" accent={pal.accent} left={!compact}>Papers being shared</SectionHead>
       <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
         const id = "p:" + i;
         return (
@@ -943,7 +943,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // (unchanged rendering, sibling to Trials).
   const drugsSection = data.movers.length > 0 && (
     <>
-      <SectionHead id="sec-drugs" accent={pal.accent} left={!compact}>Drugs</SectionHead>
+      <SectionHead id="sec-drugs" accent={pal.accent} left={!compact}>Drug activity</SectionHead>
       {data.movers.map((m, i) => {
         const id = "m:" + m.drugId;
         const open = openId === id;
@@ -960,8 +960,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                     <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: MUT }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
                     {m.delta !== 0 && <Delta delta={m.delta} />}
                   </div>
-                  {/* 2-line teaser closed, full text open — same scannable treatment as the stories */}
-                  {m.why && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{m.why}</p>}
+                  {/* The Drugs board is a compact INDEX into sources, not a synthesized drug profile.
+                      It deliberately does NOT render `why` (the highest-mention gloss, verbatim): a
+                      gloss is written from a dense, often multi-drug passage, so presenting it as this
+                      drug's profile is exactly how a neighbour's approval date / biomarker / trial
+                      result ends up read as this drug's fact. What survives here is only what is
+                      deterministic — a dated regulatory event, the source counts, who's talking — and
+                      the claims themselves stay in the linked source material below. */}
+                  {m.eventChip && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "#aab0bf" }}>{m.eventChip}</p>}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                     {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{metricsLine(m)}</span>
@@ -1122,20 +1128,25 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </div>
         ) : (
           <>
+            {/* Narrow column order mirrors what the product actually promises: the stories, then the
+                podcast archive (the most differentiated asset — on the wide layout it already sits
+                directly under the stories), then the papers trusted accounts are circulating (a
+                first-class editorial signal, not a footnote), and only then the X / trials / drugs /
+                people indexes. Previously guests + X sat between the stories and the podcasts. */}
             {storiesSection}
-            {guestsSection}
-            {kolsSection}
             {episodesSection}
             {papersSection}
+            {kolsSection}
             {trialsSection}
             {drugsSection}
+            {guestsSection}
           </>
         )}
 
         {/* footer — the positioning line lives here (end of the read), not stacked on the masthead */}
         <div style={{ textAlign: "center", marginTop: 40, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)", letterSpacing: "-.01em" }}>The Readout</div>
-          <div style={{ font: "400 12px/1.55 system-ui", color: MUT, marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
+          <div style={{ font: "400 12px/1.55 system-ui", color: MUT, marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from tracked oncology clinicians and selected oncology podcasts. No anonymous social accounts.</div>
         </div>
       </div>
     </div>

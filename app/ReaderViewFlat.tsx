@@ -63,7 +63,7 @@ const ini = (s: string) =>
 function Delta({ delta }: { delta: number }) {
   if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
-  return <span title="Net change in evidence (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
+  return <span title="Change in source activity (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
 }
 
 function Bar({ m, accent }: { m: BriefingMover; accent: string }) {
@@ -487,7 +487,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
 
         {/* papers */}
         {data.topArticles.length > 0 && <>
-          <SectionHead id="sec-papers">What&rsquo;s being read</SectionHead>
+          <SectionHead id="sec-papers">Papers being shared</SectionHead>
           <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
             const id = "p:" + i;
             return (
@@ -576,7 +576,8 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                         <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: "#7c7f88" }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
                         {m.delta !== 0 && <Delta delta={m.delta} />}
                       </div>
-                      {m.why && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.why}</p>}
+                      {/* Compact index into sources, not a synthesized drug profile — see ReaderView. */}
+                      {m.eventChip && <p style={{ margin: "10px 0 0", font: "400 17px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{m.eventChip}</p>}
                       <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <Bar m={m} accent={pal.accent} />
                         {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
@@ -601,7 +602,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
         {/* footer — the positioning line lives here (end of the read), not stacked on the masthead */}
         <div style={{ textAlign: "center", marginTop: 40, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)", letterSpacing: "-.01em" }}>The Readout</div>
-          <div style={{ font: "400 12px/1.55 system-ui", color: "rgba(255,255,255,.4)", marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from oncology&rsquo;s verified voices — identified clinicians and expert, physician-led podcasts. No bots, no anonymous accounts.</div>
+          <div style={{ font: "400 12px/1.55 system-ui", color: "rgba(255,255,255,.4)", marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from tracked oncology clinicians and selected oncology podcasts. No anonymous social accounts.</div>
         </div>
       </div>
     </div>
