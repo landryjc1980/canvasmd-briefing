@@ -47,7 +47,7 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
               </h3>
               <div style={{ font: "500 13px system-ui", color: ink.soft }}>{c.sourceLabel}</div>
               {c.excerpt && (
-                <p style={{ font: "400 14.5px/1.55 system-ui", color: ink.soft, margin: "8px 0 0" }}>
+                <p className="hero-excerpt" style={{ font: "400 14.5px/1.55 system-ui", color: ink.soft, margin: "8px 0 0" }}>
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
               )}

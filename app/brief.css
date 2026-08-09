@@ -340,3 +340,8 @@
   .hero-index { display: none; }
   .hero-index-inline { display: inline; }
 }
+/* On phones the abstract lead clamps to 3 lines — full abstracts made each hero card
+   scroll-height tall (John 2026-08-09). Desktop keeps the full excerpt. */
+@media (max-width: 640px) {
+  .hero-excerpt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+}
