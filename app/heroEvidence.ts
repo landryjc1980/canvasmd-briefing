@@ -25,10 +25,12 @@ export function resolveHeroEvidence(
     // EXACT moment references from the card — resolve, never re-select (Codex High #2).
     const all = (data.movers ?? []).flatMap((m) => m.podcast ?? []).filter((p) => p.episodeId === c.anchorId);
     const refs = c.momentStartMs ?? [];
-    const pods = refs.length
-      ? refs.map((ms) => all.find((p) => p.startMs === ms)).filter((p): p is BriefingPod => !!p)
-      : []; // no refs (pre-cutover snapshot) → no drawer rather than a re-selected guess
-    if (!pods.length) return null;
+    // ALL-OR-NOTHING (Codex invariant): the card says "N selected moments" — the drawer must
+    // show exactly those N or nothing at all. A partial resolve would silently contradict the
+    // count; no refs (pre-cutover snapshot) likewise means no drawer, never a re-selected guess.
+    const maybe = refs.map((ms) => all.find((p) => p.startMs === ms));
+    if (!refs.length || maybe.some((p) => !p)) return null;
+    const pods = maybe as BriefingPod[];
     return { kind: "episode", pods, faces: pods.map((p) => p.showArt).filter((a): a is string => !!a).slice(0, 4) };
   }
   if (c.kind === "thread") {

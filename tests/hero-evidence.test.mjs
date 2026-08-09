@@ -19,11 +19,13 @@ test("paper falls back to topArticles WITH publisher receipts", () => {
   assert.equal(r?.kind, "article");
   assert.deepEqual(r.publishers, ["OncLive", "NEJM"], "publisher names must reach the drawer");
 });
-test("episode resolves EXACT moment refs in card order, dropping missing ones — never re-selecting", () => {
+test("episode resolves ALL moment refs in card order — or nothing (count must never silently shrink)", () => {
   const movers = [{ podcast: [pod("e1", 100), pod("e1", 300), pod("e1", 200), pod("e2", 999)] }];
-  const r = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "a", headline: "E", momentStartMs: [300, 100, 555] }, { topStories: [], topArticles: [], movers });
-  assert.equal(r?.kind, "episode");
-  assert.deepEqual(r.pods.map((p) => p.startMs), [300, 100], "card order preserved; unresolvable 555 dropped; 200 NOT re-selected in");
+  const full = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "a", headline: "E", momentStartMs: [300, 100] }, { topStories: [], topArticles: [], movers });
+  assert.equal(full?.kind, "episode");
+  assert.deepEqual(full.pods.map((p) => p.startMs), [300, 100], "card order preserved, exactly the refs — 200 never re-selected in");
+  const partial = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "a", headline: "E", momentStartMs: [300, 100, 555] }, { topStories: [], topArticles: [], movers });
+  assert.equal(partial, null, "ANY unresolvable ref → no drawer; a partial drawer would contradict the card count");
 });
 test("episode without moment refs returns null — no drawer beats a re-selected guess", () => {
   const movers = [{ podcast: [pod("e1", 100)] }];
