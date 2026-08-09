@@ -329,3 +329,14 @@
   .brief .bk-take { padding: 13px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .brief * { transition: none !important; } }
+
+/* ---- hero cards: rank gutter collapses on phones (HeroCards.tsx) ----
+   Desktop keeps the broadsheet side ordinal; ≤640px the number joins the kicker
+   line so headlines/excerpts get the full column width. */
+.hero-row { display: flex; }
+.hero-index-inline { display: none; }
+@media (max-width: 640px) {
+  .hero-row { display: block; }
+  .hero-index { display: none; }
+  .hero-index-inline { display: inline; }
+}

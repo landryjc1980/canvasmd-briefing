@@ -33,10 +33,13 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
     <div style={{ display: "flex", flexDirection: "column" }}>
       {cards.map((c, i) => (
         <article key={c.id} style={{ padding: "18px 0", borderTop: i ? `1px solid ${ink.line}` : "none" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span style={{ font: "600 22px Georgia, serif", color: ink.softer, minWidth: 22 }}>{i + 1}</span>
+          {/* ≤640px the gutter ordinal collapses into the kicker line (brief.css .hero-row) —
+              a 32px side gutter on a 390px phone squishes every serif headline into extra wraps. */}
+          <div className="hero-row" style={{ alignItems: "baseline", gap: 10 }}>
+            <span className="hero-index" style={{ font: "600 22px Georgia, serif", color: ink.softer, minWidth: 22 }}>{i + 1}</span>
             <div style={{ minWidth: 0 }}>
               <div style={{ font: "700 11px system-ui", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent, #c96)" }}>
+                <span className="hero-index-inline" style={{ font: "600 14px Georgia, serif", color: ink.softer, letterSpacing: "normal", marginRight: 8 }}>{i + 1}</span>
                 {KIND_KICKER[c.kind] ?? c.kind}
               </div>
               <h3 style={{ font: "600 20px/1.3 Georgia, serif", margin: "6px 0 4px" }}>
