@@ -158,7 +158,9 @@ export function storyMetricLine(s: BriefingStory): string {
     return parts.join(" · ");
   }
   if (s.kind === "paper") {
-    const base = `${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} shared`;
+    // Anchor-inclusive count (approved format): the paper itself is evidence #1 —
+    // "1 paper · 4 clinicians shared · ♥ 31" — matching the hero lane's server-authored whys.
+    const base = `1 paper · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} shared`;
     return s.topLikes ? `${base} · ♥ ${s.topLikes}` : base;
   }
   if (s.kind === "trial") {
