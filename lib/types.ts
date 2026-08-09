@@ -856,6 +856,7 @@ export type HeroCard = {
   sourceLabel: string;
   url: string | null;
   startMs?: number | null; // episode: audio receipt, from the SAME gloss as the excerpt
+  momentStartMs?: number[]; // episode: EXACT selected-moment refs — resolve receipts, never re-select
   excerpt?: string | null;
   excerptVerbatim?: boolean;
   drugTags?: string[];

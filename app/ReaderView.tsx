@@ -7,6 +7,7 @@ import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards from "./HeroCards";
+import { resolveHeroEvidence } from "./heroEvidence";
 import { logStorySeen } from "./gateClient";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
@@ -370,13 +371,14 @@ function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string
 // mover evidence. `story` is a BriefingStory or a drug mover; both carry podcast/posts/papers, and
 // the paper-total formula falls back to sharerCount for movers (no kind:"paper"). `paperLabel` is
 // passed by the caller so each surface keeps its exact heading ("The paper" vs "Papers shared").
+type EvSource = EvidenceSource;
 type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null };
 export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
       {story.posts.length > 0 && <div><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
-      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div><Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
+      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; return pubs.length ? <div style={{ font: "400 12px system-ui", color: "rgba(233,237,246,.55)", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
       }} /></div>}
@@ -631,30 +633,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // and WHAT THEY SAID). The payload dual-publishes the full legacy evidence — join each
   // card to it by anchor and reuse the SAME StoryEvidence drawer as legacy stories.
   const heroEvidenceOf = (c: HeroCardT): { faces: string[]; drawer: React.ReactNode } | null => {
-    if (c.kind === "paper") {
-      const st = (rawData.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
-      if (st) return { faces: pileFaces(st), drawer: <StoryEvidence story={st} accent={pal.accent} paperLabel="The paper" /> };
-      const a = (rawData.topArticles ?? []).find((x) => x.url === c.url);
-      if (a) return {
-        faces: a.faces ?? [],
-        drawer: <StoryEvidence story={{ podcast: [], posts: a.posts ?? [], papers: [{ title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }], kind: "paper", clinicianCount: a.kolSharers }} accent={pal.accent} paperLabel="The paper" />,
-      };
-      return null;
-    }
-    if (c.kind === "episode") {
-      const seen = new Set<number | null>();
-      const pods = (rawData.movers ?? []).flatMap((m) => m.podcast ?? [])
-        .filter((p) => p.episodeId === c.anchorId && !seen.has(p.startMs) && (seen.add(p.startMs) || true))
-        .sort((a2, b2) => (b2.mentionCount ?? 0) - (a2.mentionCount ?? 0)).slice(0, 3);
-      if (!pods.length) return null;
-      return { faces: pileFaces({ podcast: pods }), drawer: <StoryEvidence story={{ podcast: pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" /> };
-    }
-    if (c.kind === "thread") {
-      const post = (rawData.movers ?? []).flatMap((m) => m.posts ?? []).find((p) => p.tweetUrl === c.url);
-      if (!post) return null;
-      return { faces: post.avatar ? [post.avatar] : [], drawer: <StoryEvidence story={{ podcast: [], posts: [post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
-    }
-    return null; // events: structured registry facts — the primary-source link IS the receipt
+    const r = resolveHeroEvidence(c, rawData);
+    if (!r) return null;
+    if (r.kind === "paper") return { faces: r.faces, drawer: <StoryEvidence story={r.story as EvSource} accent={pal.accent} paperLabel="The paper" /> };
+    if (r.kind === "article") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [r.paper as unknown as BriefingPaper], kind: "paper" }} accent={pal.accent} paperLabel="The paper" /> };
+    if (r.kind === "episode") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" /> };
+    return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
   };
   const part = partitionStories(heroMode ? [] : visibleStories, seen);
   const stories = part.ordered;

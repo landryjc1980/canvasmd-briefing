@@ -62,7 +62,8 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                 <span style={{ font: "500 12.5px system-ui", color: ink.softer }}>{c.why}</span>
                 {ev && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
-                    style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 16, padding: "5px 13px", cursor: "pointer", font: "600 12px system-ui", color: "inherit", minHeight: 28 }}>
+                    aria-expanded={openId === c.id} aria-controls={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
+                    style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 16, padding: "5px 13px", cursor: "pointer", font: "600 12px system-ui", color: "inherit", minHeight: 44 }}>
                     Sources {openId === c.id ? "↑" : "↓"}
                   </button>
                 )}
@@ -80,7 +81,7 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                   <AudioQuote audioUrl={c.url} startMs={c.startMs} label={`Listen @ ${clipTs(c.startMs)}`} tone="dark" />
                 </div>
               )}
-              {ev && openId === c.id && <div style={{ marginTop: 12 }}>{ev.drawer}</div>}
+              {ev && openId === c.id && <div id={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`} style={{ marginTop: 12 }}>{ev.drawer}</div>}
               </>); })()}
               {!!c.siblings?.length && (
                 <div style={{ font: "400 12px system-ui", color: ink.softer, marginTop: 6 }}>
