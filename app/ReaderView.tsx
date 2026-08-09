@@ -6,6 +6,7 @@ import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongr
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
+import HeroCards from "./HeroCards";
 import { logStorySeen } from "./gateClient";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
@@ -619,7 +620,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const heroStories = storiesOf(rawData);
   const visibleStories = heroStories.filter((s) =>
     (!activeSub || (s.subAreas ?? []).includes(activeSub)) && (!congressScope || s.congress === true));
-  const part = partitionStories(visibleStories, seen);
+  // SOURCE-ANCHORED HERO (cutover): when the edge fn resolves an active frozen build it says
+  // mode==="hero" — the server-authored hero cards replace the legacy story deck (the legacy
+  // pipeline below runs on an empty list so its caps/dividers/caught-up blocks stay silent).
+  // Dormant while briefing_meta.active_build_id is null. Focus/congress filters keep the
+  // legacy filtered list — hero cards are not sub-filtered server-side.
+  const heroCards = rawData.mode === "hero" && rawData.heroCandidates?.cards?.length && !activeSub && !congressScope
+    ? rawData.heroCandidates.cards : null;
+  const part = partitionStories(heroCards ? [] : visibleStories, seen);
   const stories = part.ordered;
   // "Also in Top Stories" — a paper promoted to a Top Story is ALSO kept in the full reading list
   // (measured 2026-08-03: every paper-story, ~2.8/edition, duplicates below). Rather than delete it
@@ -689,7 +697,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   const storiesSection = (
     <>
-      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroCards ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      {heroCards && <HeroCards cards={heroCards} />}
       {stories.length === 0 && (congressScope || subArea) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope

@@ -845,6 +845,24 @@ export type BriefingGuest = {
 // (untracked-topic blind spot). Same card shape as a guest's episode.
 export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number };
 
+// One source-anchored hero card (spec: one card = one editorial proposition anchored to one
+// identifiable source object). Server-authored; clients render, never re-rank.
+export type HeroCard = {
+  id: string; // anchor-derived, stable across builds
+  kind: "paper" | "episode" | "event" | "thread" | "trial_milestone";
+  anchorId: string;
+  headline: string;
+  why: string; // anchor-inclusive counts line ("1 paper · shared by 7 clinicians · …")
+  sourceLabel: string;
+  url: string | null;
+  startMs?: number | null; // episode: audio receipt, from the SAME gloss as the excerpt
+  excerpt?: string | null;
+  excerptVerbatim?: boolean;
+  drugTags?: string[];
+  nct?: string | null;
+  siblings?: { kind: string; label: string; url?: string | null }[];
+};
+
 export type BriefingData = {
   area: string;
   areas: string[]; // switcher options
@@ -854,6 +872,9 @@ export type BriefingData = {
   headline: string | null; // short 3-6 word editorial cover line (AI)
   events: BriefingEvent[]; // regulatory rail (approvals)
   movers: BriefingMover[]; // the ranked drug spine (the "Drugs" tab)
+  mode?: "hero" | "legacy"; // central activation resolution — set by the briefing edge fn read path
+  buildId?: string | null; // frozen build identity when mode==="hero"
+  heroCandidates?: { cards: HeroCard[]; tieCount: number }; // source-anchored hero (additive)
   topKols: BriefingKol[]; // "Most active on X" section
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
