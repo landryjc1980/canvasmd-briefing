@@ -140,8 +140,8 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
         <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: "600 13.5px system-ui", color: "#eef1f8" }}>{p.show}</div>
-          <div style={{ font: "400 11px/1.35 system-ui", color: MUT, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
+          <div style={{ font: "600 13.5px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
+          <div style={{ font: "400 11px system-ui", color: MUT, marginTop: 2 }}>{p.show}</div>
         </div>
       </div>
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{cleanSnippet(p.gloss)}</p>
@@ -640,7 +640,25 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     if (!r) return null;
     if (r.kind === "paper") return { faces: r.faces, drawer: <StoryEvidence story={{ ...(r.story as EvSource), publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
     if (r.kind === "article") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [r.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
-    if (r.kind === "episode") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" /> };
+    if (r.kind === "episode") return { faces: r.faces, drawer: (
+      <>
+        <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" />
+        {(c.amplifiers ?? []).length > 0 && (
+          <div>
+            <div style={evLabel(pal.accent)}>Amplified by</div>
+            {(c.amplifiers ?? []).filter((a) => a.isQuote && a.text).map((a, j) => (
+              <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
+            ))}
+            {(c.amplifiers ?? []).filter((a) => !(a.isQuote && a.text)).map((a, j) => (
+              <div key={`r${j}`} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", font: "400 13px system-ui", color: "#cfd4e0" }}>
+                {a.avatar ? <img src={a.avatar} alt="" style={{ width: 24, height: 24, borderRadius: "50%" }} /> : <span style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "inline-block" }} />}
+                <span><b style={{ color: "#eef1f8", fontWeight: 600 }}>{a.name}</b>{a.handle ? ` @${a.handle}` : ""} reposted the episode</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    ) };
     return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
   };
   const part = partitionStories(heroMode ? [] : visibleStories, seen);

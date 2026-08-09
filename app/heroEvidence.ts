@@ -11,7 +11,7 @@ export type ResolvedEvidence =
   | null;
 
 export function resolveHeroEvidence(
-  c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs">,
+  c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
   if (c.kind === "paper") {
@@ -38,7 +38,8 @@ export function resolveHeroEvidence(
     const maybe = refs.map((ms) => all.find((p) => p.startMs === ms));
     if (!refs.length || maybe.some((p) => !p)) return null;
     const pods = maybe as BriefingPod[];
-    return { kind: "episode", pods, faces: pods.map((p) => p.showArt).filter((a): a is string => !!a).slice(0, 4) };
+    const ampFaces = (c.amplifiers ?? []).map((a) => a.avatar).filter((a): a is string => !!a);
+    return { kind: "episode", pods, faces: [...ampFaces, ...pods.map((p) => p.showArt).filter((a): a is string => !!a)].slice(0, 4) };
   }
   if (c.kind === "thread") {
     const post = (data.movers ?? []).flatMap((m) => m.posts ?? []).find((p) => p.tweetUrl === c.url);
