@@ -12,7 +12,7 @@ export type ResolvedEvidence =
 
 export function resolveHeroEvidence(
   c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs">,
-  data: Pick<BriefingData, "topStories" | "topArticles" | "movers">,
+  data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
   if (c.kind === "paper") {
     const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
@@ -23,7 +23,10 @@ export function resolveHeroEvidence(
   }
   if (c.kind === "episode") {
     // EXACT moment references from the card — resolve, never re-select (Codex High #2).
-    const all = (data.movers ?? []).flatMap((m) => m.podcast ?? []).filter((p) => p.episodeId === c.anchorId);
+    // Search the dedicated receipts channel FIRST (movers' pod arrays cap at 2 clips/episode,
+    // so a selected moment may exist only there), then the movers pods.
+    const all = [...(data.heroCandidates?.receipts ?? []), ...(data.movers ?? []).flatMap((m) => m.podcast ?? [])]
+      .filter((p) => p.episodeId === c.anchorId);
     const refs = c.momentStartMs ?? [];
     // ALL-OR-NOTHING (Codex invariant): the card says "N selected moments" — the drawer must
     // show exactly those N or nothing at all. A partial resolve would silently contradict the

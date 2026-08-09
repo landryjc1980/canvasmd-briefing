@@ -875,7 +875,7 @@ export type BriefingData = {
   movers: BriefingMover[]; // the ranked drug spine (the "Drugs" tab)
   mode?: "hero" | "legacy"; // central activation resolution — set by the briefing edge fn read path
   buildId?: string | null; // frozen build identity when mode==="hero"
-  heroCandidates?: { cards: HeroCard[]; tieCount: number }; // source-anchored hero (additive)
+  heroCandidates?: { cards: HeroCard[]; tieCount: number; receipts?: BriefingPod[] }; // source-anchored hero (additive)
   topKols: BriefingKol[]; // "Most active on X" section
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)

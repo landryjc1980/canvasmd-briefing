@@ -38,3 +38,10 @@ test("thread resolves its own post; missing evidence is null", () => {
   assert.equal(resolveHeroEvidence({ kind: "thread", anchorId: "t", url: "none", headline: "X" }, { topStories: [], topArticles: [], movers: [] }), null);
   assert.equal(resolveHeroEvidence({ kind: "paper", anchorId: "u", url: "u", headline: "H" }, { topStories: [], topArticles: [], movers: [] }), null);
 });
+
+test("episode moments resolve via the dedicated receipts channel when capped out of movers pods", () => {
+  const heroCandidates = { cards: [], tieCount: 0, receipts: [pod("e1", 700), pod("e1", 800), pod("e1", 900)] };
+  const r = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "a", headline: "E", momentStartMs: [700, 800, 900] }, { topStories: [], topArticles: [], movers: [], heroCandidates });
+  assert.equal(r?.kind, "episode");
+  assert.deepEqual(r.pods.map((p) => p.startMs), [700, 800, 900], "all three resolve from receipts, none from movers");
+});
