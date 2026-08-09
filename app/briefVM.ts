@@ -264,7 +264,14 @@ export function articleSource(journal?: string | null, domain?: string | null): 
 // against clipping a real subtitle ("… - A Review"), which we never touch.
 const MEDIA_SUFFIX_RE = new RegExp(`\\s*[|\\u2013\\u2014-]\\s*(${Object.values(MEDIA_SOURCE).map((n) => n.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")).join("|")})\\s*$`, "i");
 export function cleanArticleTitle(title?: string | null): string {
-  const t = (title || "").trim();
+  const t = (title || "")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s*[\u2605\u2606]\s*$/u, "")
+    .replace(/\s+([,;:.])/g, "$1")
+    .replace(/([,;:])(?=\S)/g, "$1 ")
+    .trim();
   return t.replace(MEDIA_SUFFIX_RE, "").trim() || t;
 }
 

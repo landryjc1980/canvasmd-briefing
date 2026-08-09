@@ -671,13 +671,18 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const normKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const featuredPaperKeys = useMemo(() => {
     const keys = new Set<string>();
+    for (const c of heroCards ?? []) if (c.kind === "paper") {
+      if (c.anchorId) keys.add(`u:${c.anchorId}`);
+      if (c.url) keys.add(`u:${c.url}`);
+      if (c.headline) keys.add(`t:${normKey(c.headline)}`);
+    }
     for (const s of stories) if (s.kind === "paper") {
       const p = s.papers?.[0];
       if (p?.url) keys.add(`u:${p.url}`);
       const t = p?.title ?? s.headline; if (t) keys.add(`t:${normKey(t)}`);
     }
     return keys;
-  }, [stories]);
+  }, [heroCards, stories]);
   const isFeaturedPaper = (a: { url?: string | null; title: string }) =>
     (!!a.url && featuredPaperKeys.has(`u:${a.url}`)) || featuredPaperKeys.has(`t:${normKey(a.title)}`);
   // The evidence toggle is the product — a bare 11.5px text link was invisible to
@@ -885,7 +890,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         // KOL expander is NOT "the signal" — expanding shows their raw posts/papers, not
         // synthesized evidence. Label it with the honest COUNT, and keep it small: this is
         // the rail, secondary to stories/drugs. Lighter tint than SignalTag on purpose.
-        const nPost = k.posts.length, nArt = k.articles.length;
+        const nPost = k.tweets ?? k.posts.length, nArt = k.paperShares ?? k.articles.length;
         const countLabel = open
           ? "Hide ↑"
           : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
@@ -909,8 +914,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </div>
             }>
             <div style={{ marginLeft: narrow ? 0 : 55 }}>
-              {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Posts on X · {k.posts.length}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Articles shared · {k.articles.length}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} url={a.url} accent={pal.accent} />)}</div>}
+              {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Top posts on X · {k.posts.length}{nPost > k.posts.length ? ` of ${nPost}` : ""}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+              {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Top papers shared · {k.articles.length}{nArt > k.articles.length ? ` of ${nArt}` : ""}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} url={a.url} accent={pal.accent} />)}</div>}
             </div>
           </Row>
         );
@@ -997,8 +1002,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         const id = "t:" + i;
         const open = openId === id;
         const parts: string[] = [];
-        if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
-        if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
+        if (t.podMentions) parts.push(`${t.podMentions} episode${t.podMentions === 1 ? "" : "s"}`);
+        if (t.xMentions) parts.push(`${t.xMentions} X post${t.xMentions === 1 ? "" : "s"}`);
         if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
         const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
         return (
