@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress } from "@/lib/types";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, HeroCard as HeroCardT } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
@@ -627,6 +627,35 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const heroDeck = heroDeckOf(rawData);
   const heroMode = heroDeck !== null;
   const heroCards = heroMode && !activeSub && !congressScope ? heroDeck : null;
+  // RECEIPTS for hero cards (John 2026-08-09: "shared by 13 clinicians" must open into WHO
+  // and WHAT THEY SAID). The payload dual-publishes the full legacy evidence — join each
+  // card to it by anchor and reuse the SAME StoryEvidence drawer as legacy stories.
+  const heroEvidenceOf = (c: HeroCardT): { faces: string[]; drawer: React.ReactNode } | null => {
+    if (c.kind === "paper") {
+      const st = (rawData.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
+      if (st) return { faces: pileFaces(st), drawer: <StoryEvidence story={st} accent={pal.accent} paperLabel="The paper" /> };
+      const a = (rawData.topArticles ?? []).find((x) => x.url === c.url);
+      if (a) return {
+        faces: a.faces ?? [],
+        drawer: <StoryEvidence story={{ podcast: [], posts: a.posts ?? [], papers: [{ title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }], kind: "paper", clinicianCount: a.kolSharers }} accent={pal.accent} paperLabel="The paper" />,
+      };
+      return null;
+    }
+    if (c.kind === "episode") {
+      const seen = new Set<number | null>();
+      const pods = (rawData.movers ?? []).flatMap((m) => m.podcast ?? [])
+        .filter((p) => p.episodeId === c.anchorId && !seen.has(p.startMs) && (seen.add(p.startMs) || true))
+        .sort((a2, b2) => (b2.mentionCount ?? 0) - (a2.mentionCount ?? 0)).slice(0, 3);
+      if (!pods.length) return null;
+      return { faces: pileFaces({ podcast: pods }), drawer: <StoryEvidence story={{ podcast: pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" /> };
+    }
+    if (c.kind === "thread") {
+      const post = (rawData.movers ?? []).flatMap((m) => m.posts ?? []).find((p) => p.tweetUrl === c.url);
+      if (!post) return null;
+      return { faces: post.avatar ? [post.avatar] : [], drawer: <StoryEvidence story={{ podcast: [], posts: [post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
+    }
+    return null; // events: structured registry facts — the primary-source link IS the receipt
+  };
   const part = partitionStories(heroMode ? [] : visibleStories, seen);
   const stories = part.ordered;
   // "Also in Top Stories" — a paper promoted to a Top Story is ALSO kept in the full reading list
@@ -698,7 +727,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const storiesSection = (
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Worth your attention" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
-      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} />}
+      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} evidenceOf={heroEvidenceOf} />}
       {heroMode && heroCards && heroCards.length === 0 && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           A quiet week — no source-anchored stories qualified. The sections below still carry the corpus.

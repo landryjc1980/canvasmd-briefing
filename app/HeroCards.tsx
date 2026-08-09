@@ -1,5 +1,6 @@
 "use client";
 
+import { ReactNode, useState } from "react";
 import { HeroCard } from "@/lib/types";
 import { clipTs } from "./briefVM";
 import AudioQuote from "@/components/AudioQuote";
@@ -20,7 +21,14 @@ const KIND_KICKER: Record<HeroCard["kind"], string> = {
 };
 
 const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", line: "rgba(255,255,255,.08)" };
-export default function HeroCards({ cards, ink = INK }: { cards: HeroCard[]; ink?: { soft: string; softer: string; line: string } }) {
+// Evidence is supplied by the mounting view (which owns the payload's dual-published
+// legacy arrays): faces for the pile, and a lazily-rendered receipts drawer. RECEIPTS RULE
+// (John, 2026-08-09): a count like "shared by 13 clinicians" must open into WHO and WHAT
+// THEY SAID — counts without receipts are exactly what this product refuses to be.
+export type HeroEvidence = { faces: string[]; drawer: ReactNode } | null;
+
+export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: HeroCard[]; ink?: { soft: string; softer: string; line: string }; evidenceOf?: (c: HeroCard) => HeroEvidence }) {
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {cards.map((c, i) => (
@@ -40,8 +48,24 @@ export default function HeroCards({ cards, ink = INK }: { cards: HeroCard[]; ink
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
               )}
+              {(() => { const ev = evidenceOf?.(c) ?? null; return (<>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                {ev && ev.faces.length > 0 && (
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {ev.faces.slice(0, 4).map((f, j) => (
+                      <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(20,26,40,1)", background: "rgba(255,255,255,.12)", marginLeft: j ? -7 : 0 }}>
+                        <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <span style={{ font: "500 12.5px system-ui", color: ink.softer }}>{c.why}</span>
+                {ev && (
+                  <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
+                    style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 16, padding: "5px 13px", cursor: "pointer", font: "600 12px system-ui", color: "inherit", minHeight: 28 }}>
+                    Sources {openId === c.id ? "↑" : "↓"}
+                  </button>
+                )}
                 {c.url && !(c.kind === "episode" && c.startMs != null) && (
                   <a href={c.url} target="_blank" rel="noreferrer" style={{ font: "600 12.5px system-ui", color: "var(--accent, #c96)", textDecoration: "none" }}>
                     {c.kind === "thread" ? "Original post ↗" : c.kind === "event" ? "Primary source ↗" : "Original ↗"}
@@ -56,6 +80,8 @@ export default function HeroCards({ cards, ink = INK }: { cards: HeroCard[]; ink
                   <AudioQuote audioUrl={c.url} startMs={c.startMs} label={`Listen @ ${clipTs(c.startMs)}`} tone="dark" />
                 </div>
               )}
+              {ev && openId === c.id && <div style={{ marginTop: 12 }}>{ev.drawer}</div>}
+              </>); })()}
               {!!c.siblings?.length && (
                 <div style={{ font: "400 12px system-ui", color: ink.softer, marginTop: 6 }}>
                   Related: {c.siblings.map((sb, j) => sb.url
