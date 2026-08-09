@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards from "./HeroCards";
 import { logStorySeen } from "./gateClient";
@@ -620,14 +620,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const heroStories = storiesOf(rawData);
   const visibleStories = heroStories.filter((s) =>
     (!activeSub || (s.subAreas ?? []).includes(activeSub)) && (!congressScope || s.congress === true));
-  // SOURCE-ANCHORED HERO (cutover): when the edge fn resolves an active frozen build it says
-  // mode==="hero" — the server-authored hero cards replace the legacy story deck (the legacy
-  // pipeline below runs on an empty list so its caps/dividers/caught-up blocks stay silent).
-  // Dormant while briefing_meta.active_build_id is null. Focus/congress filters keep the
-  // legacy filtered list — hero cards are not sub-filtered server-side.
-  const heroCards = rawData.mode === "hero" && rawData.heroCandidates?.cards?.length && !activeSub && !congressScope
-    ? rawData.heroCandidates.cards : null;
-  const part = partitionStories(heroCards ? [] : visibleStories, seen);
+  // SOURCE-ANCHORED HERO (cutover): in hero mode the server-authored deck is AUTHORITATIVE —
+  // branch on mode ALONE (Codex cutover review). An empty deck is a signed-valid quiet week
+  // and renders as empty; a Focus/congress filter shows an honest empty-hero note (hero cards
+  // are not sub-filtered server-side). NEITHER may ever resurrect legacy topStories.
+  const heroDeck = heroDeckOf(rawData);
+  const heroMode = heroDeck !== null;
+  const heroCards = heroMode && !activeSub && !congressScope ? heroDeck : null;
+  const part = partitionStories(heroMode ? [] : visibleStories, seen);
   const stories = part.ordered;
   // "Also in Top Stories" — a paper promoted to a Top Story is ALSO kept in the full reading list
   // (measured 2026-08-03: every paper-story, ~2.8/edition, duplicates below). Rather than delete it
@@ -697,9 +697,19 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   const storiesSection = (
     <>
-      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroCards ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
-      {heroCards && <HeroCards cards={heroCards} />}
-      {stories.length === 0 && (congressScope || subArea) && (
+      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Worth your attention" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} />}
+      {heroMode && heroCards && heroCards.length === 0 && (
+        <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
+          A quiet week — no source-anchored stories qualified. The sections below still carry the corpus.
+        </div>
+      )}
+      {heroMode && !heroCards && (
+        <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
+          Hero stories aren&rsquo;t focus-filtered yet — clear the filter to see this week&rsquo;s picks. The sections below are filtered.
+        </div>
+      )}
+      {!heroMode && stories.length === 0 && (congressScope || subArea) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
             ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>Weekly brief</b> for the full read.</>

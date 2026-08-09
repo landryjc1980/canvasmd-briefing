@@ -184,7 +184,11 @@ export default function BriefingPage() {
   // per-area. Falling into this branch with area="All" meant data stayed null, loading was already
   // false and error was null, so every guard below failed and the reader got a bare switch bar over
   // an empty page — with no "All" button in it to escape by. The All branch wins.
-  if (design === "classic" && area !== "All") {
+  // Hero mode retires the duplicate legacy renderers (Codex cutover review #3): flat still
+  // renders stance and classic renders the generated recap — content the source-anchored
+  // Brief no longer stands behind. One rule, one renderer.
+  const heroActive = data?.mode === "hero";
+  if (design === "classic" && area !== "All" && !heroActive) {
     return (
       <div className={`bfroot ${view}`}>
         <div className="switchbar">
@@ -243,6 +247,6 @@ export default function BriefingPage() {
   // One scroll model on both platforms (retires the swipe deck — swipe/tap-to-advance wasn't
   // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
   // (no AI cover line) + horizontally-scrolling section pills.
-  if (design === "flat") return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
+  if (design === "flat" && !heroActive) return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
   return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
 }

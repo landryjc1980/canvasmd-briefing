@@ -7,7 +7,7 @@ import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer } from "@/
 import { Row, TweetCard, PaperCard, FacePile, evLabel, StoryEvidence } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
-import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem } from "./briefVM";
+import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem, heroDeckOf } from "./briefVM";
 
 // "All oncology" — a front page that reads as ONE continuous scroll: every area's full
 // story list, grouped by area and shown in its own color, never re-ranked across areas
@@ -594,7 +594,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               {orderedAreas.map((a) => {
                 const brief = briefsByArea[a];
                 const acc = inkOf(a).accent;
-                const stories = brief ? storiesOf(brief) : [];
+                // Hero contract (Codex cutover review): in hero mode the deck is authoritative —
+                // an empty deck is a quiet week, never a fallback to legacy stories.
+                const heroDeck = brief ? heroDeckOf(brief) : null;
+                const stories = brief && heroDeck === null ? storiesOf(brief) : [];
                 const full = AREA_FULL[a] ?? a;
                 return (
                   <div key={a} id={areaId(a)} style={{ marginTop: 34, scrollMarginTop: compact ? 100 : 62 }}>
@@ -614,9 +617,23 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           ? <>Couldn’t load {full} this time. <button onClick={() => onRetry?.(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>Retry →</button></>
                           : <>Loading {full}…</>}
                       </div>
-                    ) : stories.length > 0 ? (
+                    ) : (heroDeck !== null || stories.length > 0) ? (
                       <>
-                        {stories.map((s, i) => renderStory(s, i, a, acc))}
+                        {heroDeck !== null && heroDeck.map((c, i) => (
+                          <div key={c.id} style={{ padding: "12px 2px", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
+                            <div style={{ font: "700 9px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: acc }}>
+                              {c.kind === "paper" ? "Most-shared paper" : c.kind === "episode" ? "In-depth episode" : c.kind === "event" ? "Regulatory event" : c.kind === "thread" ? "Clinician post" : "Trial milestone"}
+                            </div>
+                            <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff", marginTop: 4 }}>
+                              {c.url ? <a href={c.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
+                            </div>
+                            <div style={{ font: "400 12px system-ui", color: MUT, marginTop: 5 }}>{c.sourceLabel} · {c.why}</div>
+                          </div>
+                        ))}
+                        {heroDeck !== null && heroDeck.length === 0 && (
+                          <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>A quiet week — no source-anchored stories qualified.</div>
+                        )}
+                        {heroDeck === null && stories.map((s, i) => renderStory(s, i, a, acc))}
                         {/* the tail: what the full brief adds beyond the stories */}
                         <div style={{ font: "400 12px system-ui", color: MUT2, padding: "2px 2px 0" }}>
                           Drugs board, trials &amp; guests in the <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc, padding: 0 }}>full {full} brief →</button>

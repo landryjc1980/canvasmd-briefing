@@ -2,6 +2,7 @@
 
 import { HeroCard } from "@/lib/types";
 import { clipTs } from "./briefVM";
+import AudioQuote from "@/components/AudioQuote";
 
 // The source-anchored hero (spec §10): one card = one proposition anchored to one source
 // object, answering the four reader questions — (1) why it surfaced, (2) what it is,
@@ -41,12 +42,20 @@ export default function HeroCards({ cards, ink = INK }: { cards: HeroCard[]; ink
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                 <span style={{ font: "500 12.5px system-ui", color: ink.softer }}>{c.why}</span>
-                {c.url && (
+                {c.url && !(c.kind === "episode" && c.startMs != null) && (
                   <a href={c.url} target="_blank" rel="noreferrer" style={{ font: "600 12.5px system-ui", color: "var(--accent, #c96)", textDecoration: "none" }}>
-                    {c.kind === "episode" && c.startMs != null ? `Listen @ ${clipTs(c.startMs)}` : c.kind === "thread" ? "Original post ↗" : c.kind === "event" ? "Primary source ↗" : "Original ↗"}
+                    {c.kind === "thread" ? "Original post ↗" : c.kind === "event" ? "Primary source ↗" : "Original ↗"}
                   </a>
                 )}
               </div>
+              {/* Episodes get the REAL seeking player (media fragment + JS re-seek) — a bare
+                  href on a podcast enclosure opens at 0:00, which fails "reach the original
+                  moment" (Codex acceptance item). */}
+              {c.kind === "episode" && c.startMs != null && c.url && (
+                <div style={{ marginTop: 10, maxWidth: 420 }}>
+                  <AudioQuote audioUrl={c.url} startMs={c.startMs} label={`Listen @ ${clipTs(c.startMs)}`} tone="dark" />
+                </div>
+              )}
               {!!c.siblings?.length && (
                 <div style={{ font: "400 12px system-ui", color: ink.softer, marginTop: 6 }}>
                   Related: {c.siblings.map((sb, j) => sb.url
