@@ -843,7 +843,7 @@ export type BriefingGuest = {
 
 // "This week on the podcasts" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
-export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number };
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number ; amplifiers?: { name: string; handle: string | null; avatar: string | null; isQuote: boolean; text: string | null; likes: number }[] };
 
 // One source-anchored hero card (spec: one card = one editorial proposition anchored to one
 // identifiable source object). Server-authored; clients render, never re-rank.

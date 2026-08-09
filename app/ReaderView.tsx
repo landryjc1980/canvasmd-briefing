@@ -930,12 +930,25 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div key={i} style={cardBox}>
             <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}><span style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</span>
-                {/* An episode that drove a story stays HERE too, tagged — same rule as papers.
-                    Deleting it hid the week's most-discussed listening behind a collapsed drawer. */}
-                {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                {/* the EPISODE is the content — it takes the headline slot (John); the show is the byline */}
+                <span style={{ font: "600 15px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</span>
+                {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div></div>
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+            {(ep.amplifiers ?? []).length > 0 && (
+              <div style={{ margin: "0 0 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, font: "500 12.5px system-ui", color: "rgba(233,237,246,.7)" }}>
+                  {(ep.amplifiers ?? []).filter((a) => a.avatar).slice(0, 4).map((a, j) => (
+                    <img key={j} src={a.avatar!} alt="" style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: j ? -7 : 0, border: `2px solid ${pal.bg}` }} />
+                  ))}
+                  <span>Amplified by {(ep.amplifiers ?? []).map((a) => a.name).join(", ")}</span>
+                </div>
+                {(ep.amplifiers ?? []).filter((a) => a.isQuote && a.text).map((a, j) => (
+                  <div key={j} style={{ marginTop: 8 }}><TweetCard t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} /></div>
+                ))}
+              </div>
+            )}
             <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
           </div>
         )} />
