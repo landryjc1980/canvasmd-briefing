@@ -2,7 +2,7 @@
 // (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
-import { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance, HeroCard } from "@/lib/types";
+import { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance } from "@/lib/types";
 
 // Dark jewel-tone palette, one color per tumor area (from the design handoff).
 export type Pal = { bg: string; accent: string; soft: string };
@@ -200,14 +200,7 @@ export const paperBlockLabel = (s: BriefingStory): string =>
 // Map a drug mover onto the story shape — the fallback so the hero always renders even when
 // an old snapshot (or the native/pharma callers) hasn't got topStories yet.
 
-// ---- hero-mode contract (spec: thin weeks are signed-correct output) --------------------
-// The ONE accessor every view must use. In hero mode the server-authored deck is
-// AUTHORITATIVE — `cards ?? []` — and an EMPTY deck is a valid quiet edition that must
-// render as empty, never resurrect legacy topStories (Codex cutover review #1). Returns
-// null only in legacy mode.
-export function heroDeckOf(data: BriefingData): HeroCard[] | null {
-  return data.mode === "hero" ? (data.heroCandidates?.cards ?? []) : null;
-}
+export { heroDeckOf } from "./heroContract";
 
 export function moverToStory(m: BriefingMover): BriefingStory {
   return {
