@@ -479,7 +479,7 @@ export type BriefingPaper = {
   sharerCount?: number; // the real number of verified clinicians who shared it (uncapped)
   topLikes: number;
   posts?: BriefingSharer[]; // the clinicians' actual tweets about the paper (expandable "what they said")
-  publishers?: string[]; // institutional/journal/news accounts that posted it (the "via" badge)
+  publishers?: string[]; publisherPosts?: BriefingSharer[]; // institutional/journal/news accounts that posted it (the "via" badge)
   peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
 };
 // One podcast conversation about a mover drug — the AI gloss of what was SAID,
@@ -596,7 +596,7 @@ export type BriefingArticle = {
   abstract: string | null; // PubMed abstract, for the expandable read
   sharers: number; // distinct accounts total (KOL + publisher)
   kolSharers: number; // distinct KOL (verified-clinician) accounts that shared it
-  publishers: string[]; // institutional/journal/news accounts that posted it (OncLive, NEJM…) — the "via" badge
+  publishers: string[]; publisherPosts?: BriefingSharer[]; // institutional/journal/news accounts that posted it (OncLive, NEJM…) — the "via" badge
   faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)

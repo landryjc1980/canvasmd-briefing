@@ -4,8 +4,8 @@ import type { BriefingData, BriefingPod, BriefingSharer, HeroCard } from "@/lib/
 // thread, missing-evidence, and publisher cases). Type-only imports keep this loadable under
 // node:test. Views map the resolved DATA to JSX; nothing here re-ranks or re-selects.
 export type ResolvedEvidence =
-  | { kind: "paper"; story: unknown; faces: string[] }
-  | { kind: "article"; posts: BriefingSharer[]; faces: string[]; publishers: string[]; paper: Record<string, unknown> }
+  | { kind: "paper"; story: unknown; faces: string[]; publisherPosts: BriefingSharer[] }
+  | { kind: "article"; posts: BriefingSharer[]; faces: string[]; publishers: string[]; publisherPosts: BriefingSharer[]; paper: Record<string, unknown> }
   | { kind: "episode"; pods: BriefingPod[]; faces: string[] }
   | { kind: "thread"; post: BriefingSharer; faces: string[] }
   | null;
@@ -15,10 +15,14 @@ export function resolveHeroEvidence(
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
   if (c.kind === "paper") {
+    // Publisher POSTS are receipts too (John: the drawer named publishers but never showed
+    // their tweet) — they live on the reading-list row, so look them up for BOTH join paths.
+    const reading = (data.topArticles ?? []).find((x) => x.url === c.url);
+    const publisherPosts = reading?.publisherPosts ?? [];
     const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
-    if (st) return { kind: "paper", story: st, faces: (st.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a).slice(0, 4) };
-    const a = (data.topArticles ?? []).find((x) => x.url === c.url);
-    if (a) return { kind: "article", posts: a.posts ?? [], faces: a.faces ?? [], publishers: a.publishers ?? [], paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed } };
+    if (st) return { kind: "paper", story: st, faces: (st.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a).slice(0, 4), publisherPosts: st.papers?.[0]?.publisherPosts ?? publisherPosts };
+    const a = reading;
+    if (a) return { kind: "article", posts: a.posts ?? [], faces: a.faces ?? [], publishers: a.publishers ?? [], publisherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed } };
     return null;
   }
   if (c.kind === "episode") {

@@ -45,3 +45,13 @@ test("episode moments resolve via the dedicated receipts channel when capped out
   assert.equal(r?.kind, "episode");
   assert.deepEqual(r.pods.map((p) => p.startMs), [700, 800, 900], "all three resolve from receipts, none from movers");
 });
+
+test("paper receipts include publisher POSTS from the reading row on both join paths", () => {
+  const pubPost = { name: "OncLive", handle: "OncLive", avatar: null, tweetUrl: "pt", text: "New data...", likes: 9, retweets: 1 };
+  const art = { url: "u3", title: "T3", journal: "J", domain: null, abstract: null, topLikes: 1, faces: [], posts: [], publishers: ["OncLive"], publisherPosts: [pubPost], kolSharers: 2 };
+  const viaArticle = resolveHeroEvidence({ kind: "paper", anchorId: "u3", url: "u3", headline: "T3" }, { topStories: [], topArticles: [art], movers: [] });
+  assert.deepEqual(viaArticle.publisherPosts, [pubPost]);
+  const st = { kind: "paper", headline: "T3", papers: [{ url: "u3" }], posts: [] };
+  const viaStory = resolveHeroEvidence({ kind: "paper", anchorId: "u3", url: "u3", headline: "T3" }, { topStories: [st], topArticles: [art], movers: [] });
+  assert.deepEqual(viaStory.publisherPosts, [pubPost], "story-matched papers still carry the reading row's publisher posts");
+});

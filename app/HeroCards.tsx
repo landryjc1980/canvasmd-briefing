@@ -63,7 +63,7 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                 {ev && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
-                    style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 16, padding: "5px 13px", cursor: "pointer", font: "600 12px system-ui", color: "inherit", minHeight: 44 }}>
+                    style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: "var(--accent, #c96)", minHeight: 44 }}>
                     Sources {openId === c.id ? "↑" : "↓"}
                   </button>
                 )}

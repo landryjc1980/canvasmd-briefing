@@ -372,13 +372,16 @@ function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string
 // the paper-total formula falls back to sharerCount for movers (no kind:"paper"). `paperLabel` is
 // passed by the caller so each surface keeps its exact heading ("The paper" vs "Papers shared").
 type EvSource = EvidenceSource;
-type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null };
+type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[] };
 export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
       {story.posts.length > 0 && <div><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
-      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; return pubs.length ? <div style={{ font: "400 12px system-ui", color: "rgba(233,237,246,.55)", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
+      {(() => { const pp = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []); return pp.length > 0 && (
+        <div><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={pp.slice(0, 2)} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
+      ); })()}
+      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = (story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? [])).length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "rgba(233,237,246,.55)", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
       }} /></div>}
@@ -635,8 +638,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const heroEvidenceOf = (c: HeroCardT): { faces: string[]; drawer: React.ReactNode } | null => {
     const r = resolveHeroEvidence(c, rawData);
     if (!r) return null;
-    if (r.kind === "paper") return { faces: r.faces, drawer: <StoryEvidence story={r.story as EvSource} accent={pal.accent} paperLabel="The paper" /> };
-    if (r.kind === "article") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [r.paper as unknown as BriefingPaper], kind: "paper" }} accent={pal.accent} paperLabel="The paper" /> };
+    if (r.kind === "paper") return { faces: r.faces, drawer: <StoryEvidence story={{ ...(r.story as EvSource), publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
+    if (r.kind === "article") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [r.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
     if (r.kind === "episode") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" /> };
     return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
   };
@@ -710,7 +713,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   const storiesSection = (
     <>
-      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Worth your attention" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
       {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} evidenceOf={heroEvidenceOf} />}
       {heroMode && heroCards && heroCards.length === 0 && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
