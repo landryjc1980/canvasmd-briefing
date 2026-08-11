@@ -577,8 +577,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
-    { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
     { id: "sec-kols", label: "People", on: !!(data.guests?.length || data.topKols.length) },
+    { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
   // A jump-click PINS its section active, even when two targets share a vertical position: on wide,
@@ -861,7 +861,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // This week's guests — box score (recent form + lifetime career)
   const guestsSection = !!data.guests?.length && (
     <>
-      <SectionHead id="sec-kols" accent={pal.accent} rail={wide}>This week&rsquo;s guests</SectionHead>
+      <SectionHead accent={pal.accent} rail={wide}>This week&rsquo;s guests</SectionHead>
       <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
         const eps = g.episodes.filter((e) => e.audioUrl);
         return (
@@ -906,7 +906,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // a compatibility guard for older frozen snapshots that still carried activity-first order.
   const kolsSection = data.topKols.length > 0 && (
     <>
-      <SectionHead id={data.guests?.length ? undefined : "sec-kols"} accent={pal.accent} rail={wide}>Carried on X</SectionHead>
+      <SectionHead accent={pal.accent} rail={wide}>Carried on X</SectionHead>
       <Capped items={[...data.topKols].sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes)} cap={6} accent={pal.accent} render={(k, i) => {
         const id = "k:" + i;
         const open = openId === id;
@@ -947,6 +947,15 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       }} />
     </>
   );
+
+  // Guests and X voices are one People destination. Keeping the anchor on the wrapper means the
+  // nav lands on whichever subsection is actually first (and still works when either is empty).
+  const peopleSection = (data.guests?.length || data.topKols.length) ? (
+    <div id="sec-kols" style={{ scrollMarginTop: 66 }}>
+      {wide ? guestsSection : kolsSection}
+      {wide ? kolsSection : guestsSection}
+    </div>
+  ) : null;
 
   // This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
   // spot). Flat list of episode cards, same shape as a guest's episode.
@@ -1252,9 +1261,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             </div>
             {railHasContent && (
               <aside style={{ minWidth: 0 }}>
-                {guestsSection}
+                {peopleSection}
                 {trialsSection}
-                {kolsSection}
               </aside>
             )}
           </div>
@@ -1263,15 +1271,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {/* Narrow column order mirrors what the product actually promises: the stories, then the
                 podcast archive (the most differentiated asset — on the wide layout it already sits
                 directly under the stories), then the papers trusted accounts are circulating (a
-                first-class editorial signal, not a footnote), and only then the trials / X / drugs /
-                people indexes. Previously guests + X sat between the stories and the podcasts. */}
+                first-class editorial signal, not a footnote), and only then trials, the unified
+                People block, and drug context. */}
             {storiesSection}
             {episodesSection}
             {papersSection}
             {trialsSection}
-            {kolsSection}
+            {peopleSection}
             {drugsSection}
-            {guestsSection}
           </>
         )}
 
