@@ -902,23 +902,23 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     </>
   );
 
-  // KOLs
+  // X voices — the server pool is canonically ordered by earned amplification. Re-sort here as
+  // a compatibility guard for older frozen snapshots that still carried activity-first order.
   const kolsSection = data.topKols.length > 0 && (
     <>
-      <SectionHead id={data.guests?.length ? undefined : "sec-kols"} accent={pal.accent} rail={wide}>Most active on X</SectionHead>
-      {/* sort explicitly by ACTIVITY rather than trusting payload order: topKols now also carries
-          a tail of top-amplification voices (for the All page's "Carried on X" rail), which a
-          Focus filter could otherwise float into a list whose header promises "most active" */}
-      <Capped items={[...data.topKols].sort((a, b) => b.tweets - a.tweets || b.peakLikes - a.peakLikes)} cap={6} accent={pal.accent} render={(k, i) => {
+      <SectionHead id={data.guests?.length ? undefined : "sec-kols"} accent={pal.accent} rail={wide}>Carried on X</SectionHead>
+      <Capped items={[...data.topKols].sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes)} cap={6} accent={pal.accent} render={(k, i) => {
         const id = "k:" + i;
         const open = openId === id;
         // KOL expander is NOT "the signal" — expanding shows their raw posts/papers, not
         // synthesized evidence. Label it with the honest COUNT, and keep it small: this is
         // the rail, secondary to stories/drugs. Lighter tint than SignalTag on purpose.
-        const nPost = k.tweets ?? k.posts.length, nArt = k.paperShares ?? k.articles.length;
+        const nPost = k.tweets ?? k.posts.length, nArt = k.paperShares ?? k.articles.length, nAmp = k.amp ?? 0;
         const countLabel = open
           ? "Hide ↑"
-          : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
+          : nAmp > 0
+            ? `${nAmp.toLocaleString()} amplified ↓`
+            : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
         const drugLine = k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "");
         return (
           <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
@@ -954,8 +954,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     <>
       <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>This week on the podcasts</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
-        {/* Show 4, then "Show N more" — the rail now carries up to 10 (it stopped hiding
-            discussed episodes), which is too tall to dump in full. */}
+        {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => {
           const amplifiers = ep.amplifiers ?? [];
           const ampId = `epamp:${ep.episodeId ?? i}`;
@@ -1048,6 +1047,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <div style={{ padding: "13px 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ flex: 1, minWidth: 0, font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.acronym || prettyPhase(t.phase)}</span>
+                  {t.resultsFresh && <span style={{ flex: "none", font: "700 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: pal.accent, border: `1px solid ${pal.accent}55`, borderRadius: 4, padding: "2px 5px" }}>New results</span>}
                   <SignalTag id={id} style={{ flex: "none" }} />
                 </div>
                 {t.title && <div style={{ font: "400 12.5px/1.5 system-ui", color: MUT, marginTop: 6, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{t.title}</div>}
@@ -1239,8 +1239,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             story instead gets front-page TYPE SCALE (see headlineFont above). */}
 
         {wide ? (
-          /* two tracks: the editorial column + the rail. Rail modules (guests, most-active,
-             trials) use their narrow/stacked arrangements; evidence still expands inline. When a
+          /* two tracks: the editorial column + the rail. Rail modules (guests, trials, X voices)
+             use their narrow/stacked arrangements; evidence still expands inline. When a
              Focus pick empties the whole rail (e.g. GU → Kidney with movers but no guests/KOLs/
              trials), collapse to a single column so the fixed 320px track doesn't leave a blank gap. */
           <div style={{ display: "grid", gridTemplateColumns: railHasContent ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
@@ -1253,8 +1253,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {railHasContent && (
               <aside style={{ minWidth: 0 }}>
                 {guestsSection}
-                {kolsSection}
                 {trialsSection}
+                {kolsSection}
               </aside>
             )}
           </div>
@@ -1263,13 +1263,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {/* Narrow column order mirrors what the product actually promises: the stories, then the
                 podcast archive (the most differentiated asset — on the wide layout it already sits
                 directly under the stories), then the papers trusted accounts are circulating (a
-                first-class editorial signal, not a footnote), and only then the X / trials / drugs /
+                first-class editorial signal, not a footnote), and only then the trials / X / drugs /
                 people indexes. Previously guests + X sat between the stories and the podcasts. */}
             {storiesSection}
             {episodesSection}
             {papersSection}
-            {kolsSection}
             {trialsSection}
+            {kolsSection}
             {drugsSection}
             {guestsSection}
           </>
