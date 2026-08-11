@@ -63,7 +63,7 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                   </div>
                 )}
                 <span style={{ font: "500 12.5px system-ui", color: ink.softer }}>{c.why}</span>
-                {ev && (
+                {ev && c.kind !== "episode" && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: "var(--accent, #c96)", minHeight: 44 }}>
@@ -83,6 +83,13 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                 <div style={{ marginTop: 10, maxWidth: 420 }}>
                   <AudioQuote audioUrl={c.url} startMs={c.startMs} label={`Listen @ ${clipTs(c.startMs)}`} tone="dark" />
                 </div>
+              )}
+              {ev && c.kind === "episode" && (
+                <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
+                  aria-expanded={openId === c.id} aria-controls={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
+                  style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: "var(--accent, #c96)", minHeight: 44 }}>
+                  {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
+                </button>
               )}
               {ev && openId === c.id && <div id={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`} style={{ marginTop: 12 }}>{ev.drawer}</div>}
               </>); })()}

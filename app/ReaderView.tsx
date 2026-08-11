@@ -194,7 +194,7 @@ function AmplifierReceipts({ amplifiers, accent, label = true }: { amplifiers: B
         <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
       ))}
       {reposts.map((a, j) => (
-        <div key={`r${j}`} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 0", borderTop: j || quotes.length ? "1px solid rgba(255,255,255,.07)" : 0, font: "400 13px system-ui", color: "#cfd4e0" }}>
+        <div key={`r${j}`} style={{ ...cardBox, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "#cfd4e0" }}>
           {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "inline-block" }} />}
           <span>
             <b style={{ color: "#eef1f8", fontWeight: 600 }}>{a.name}</b>
@@ -966,8 +966,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div></div>
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+            <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
             {amplifiers.length > 0 && (
-              <div style={{ margin: "0 0 10px" }}>
+              <div style={{ margin: "8px 0 0" }}>
                 <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
                   style={{ width: "100%", minHeight: 44, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: "4px 0", cursor: "pointer", textAlign: "left" }}>
                   <span style={{ display: "flex", alignItems: "center", flex: "none" }}>
@@ -983,7 +984,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.08)" }}><AmplifierReceipts amplifiers={amplifiers} accent={pal.accent} /></div>}
               </div>
             )}
-            <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
           </div>
         );}} />
       </div>
