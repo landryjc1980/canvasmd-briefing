@@ -8,6 +8,7 @@ import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabe
 import StanceBlock from "./StanceBlock";
 import HeroCards from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
+import { scopedHeroCards } from "./heroContract";
 import { logStorySeen } from "./gateClient";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
@@ -656,12 +657,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const visibleStories = heroStories.filter((s) =>
     (!activeSub || (s.subAreas ?? []).includes(activeSub)) && (!congressScope || s.congress === true));
   // SOURCE-ANCHORED HERO (cutover): in hero mode the server-authored deck is AUTHORITATIVE —
-  // branch on mode ALONE (Codex cutover review). An empty deck is a signed-valid quiet week
-  // and renders as empty; a Focus/congress filter shows an honest empty-hero note (hero cards
-  // are not sub-filtered server-side). NEITHER may ever resurrect legacy topStories.
+  // branch on mode ALONE (Codex cutover review). Focus and live coverage narrow that deck using
+  // the anchor's producer-authored scope tags; an empty result never resurrects legacy stories.
   const heroDeck = heroDeckOf(rawData);
   const heroMode = heroDeck !== null;
-  const heroCards = heroMode && !activeSub && !congressScope ? heroDeck : null;
+  const heroCards = heroMode ? scopedHeroCards(heroDeck, activeSub, congressScope) : null;
   // RECEIPTS for hero cards (John 2026-08-09: "shared by 13 clinicians" must open into WHO
   // and WHAT THEY SAID). The payload dual-publishes the full legacy evidence — join each
   // card to it by anchor and reuse the SAME StoryEvidence drawer as legacy stories.
@@ -757,14 +757,16 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
       {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} evidenceOf={heroEvidenceOf} />}
-      {heroMode && heroCards && heroCards.length === 0 && (
+      {heroMode && heroCards && heroCards.length === 0 && !activeSub && !congressScope && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           A quiet week — no source-anchored stories qualified. The sections below still carry the corpus.
         </div>
       )}
-      {heroMode && !heroCards && (
+      {heroMode && heroCards && heroCards.length === 0 && (activeSub || congressScope) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
-          Hero stories aren&rsquo;t focus-filtered yet — clear the filter to see this week&rsquo;s picks. The sections below are filtered.
+          {congressScope
+            ? <>No source-anchored top stories match this live-coverage view. The sections below may still have signal.</>
+            : <>No {subLabel} top stories this week. The sections below may still have {subLabel} signal — or tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {!heroMode && stories.length === 0 && (congressScope || subArea) && (

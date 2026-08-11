@@ -863,6 +863,8 @@ export type HeroCard = {
   excerpt?: string | null;
   excerptVerbatim?: boolean;
   drugTags?: string[];
+  subAreas?: string[];
+  congress?: boolean;
   nct?: string | null;
   siblings?: { kind: string; label: string; url?: string | null }[];
 };

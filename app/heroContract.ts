@@ -8,3 +8,12 @@ import type { BriefingData, HeroCard } from "@/lib/types";
 export function heroDeckOf(data: Pick<BriefingData, "mode" | "heroCandidates">): HeroCard[] | null {
   return data.mode === "hero" ? (data.heroCandidates?.cards ?? []) : null;
 }
+
+// Hero cards carry the same scope tags as every rail item. Unknown/old cards remain visible in
+// the full brief, but never leak into a narrower Focus or live-coverage view.
+export function scopedHeroCards(cards: HeroCard[], subArea: string | null, congressOnly: boolean): HeroCard[] {
+  if (!subArea && !congressOnly) return cards;
+  return cards.filter((card) =>
+    (!subArea || (card.subAreas ?? []).includes(subArea)) &&
+    (!congressOnly || card.congress === true));
+}
