@@ -184,7 +184,7 @@ type BriefingAmplifier = NonNullable<BriefingEpisode["amplifiers"]>[number];
 // A podcast's amplification is evidence, not decoration. Quote-posts keep the clinician's
 // words; plain reposts render as named actions. Both live behind the same Sources disclosure
 // used everywhere else, instead of appearing as an inert byline beside the audio player.
-function AmplifierReceipts({ amplifiers, accent, label = true }: { amplifiers: BriefingAmplifier[]; accent: string; label?: boolean }) {
+export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplifiers: BriefingAmplifier[]; accent: string; label?: boolean }) {
   const quotes = amplifiers.filter((a) => a.isQuote && a.text);
   const reposts = amplifiers.filter((a) => !(a.isQuote && a.text));
   return (

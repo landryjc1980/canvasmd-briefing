@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer } from "@/lib/types";
+import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, HeroCard } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
-import { Row, TweetCard, PaperCard, FacePile, evLabel, StoryEvidence } from "./ReaderView";
+import { Row, TweetCard, PaperCard, FacePile, evLabel, StoryEvidence, AmplifierReceipts } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem, heroDeckOf } from "./briefVM";
+import HeroCards, { HeroEvidence } from "./HeroCards";
+import { resolveHeroEvidence } from "./heroEvidence";
+import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 
-// "All oncology" — a front page that reads as ONE continuous scroll: every area's full
-// story list, grouped by area and shown in its own color, never re-ranked across areas
-// (their scores are area-relative — cross-ranking would be dishonest). The one section
-// that DOES merge is "what the field is reading": papers ranked by a plain, comparable
-// count (verified clinicians who shared it), which means the same thing in any area.
+// "All oncology" — a front page that reads as ONE continuous scan: each area's authoritative
+// hero order, grouped by area and shown in its own color, never re-ranked across areas (their
+// scores are area-relative — cross-ranking would be dishonest). The initial view is capped so
+// community oncologists can cross specialties quickly; expansion preserves the signed order.
+// The one section that DOES merge is "what the field is reading": papers ranked by the plain,
+// comparable count of verified clinicians who shared them.
 
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"];
 const INK = "#0D1017";
@@ -45,6 +49,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [menuOpen, setMenuOpen] = useState(false);
   const [micsMore, setMicsMore] = useState(false);
   const [xMore, setXMore] = useState(false);
+  const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -56,6 +61,19 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // itself. Rankings within each area stay area-relative; only the GROUPS move.
   const evidenceCount = (brief: BriefingData | undefined): number => {
     if (!brief) return 0;
+    const hero = heroDeckOf(brief);
+    if (hero !== null) {
+      const receipts = new Set<string>();
+      for (const card of hero) {
+        receipts.add(`${card.kind}:${card.anchorId}`);
+        const resolved = resolveHeroEvidence(card, brief);
+        if (resolved?.kind === "paper") for (const post of [...((resolved.story as BriefingStory).posts ?? []), ...resolved.publisherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
+        if (resolved?.kind === "article") for (const post of [...resolved.posts, ...resolved.publisherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
+        if (resolved?.kind === "episode") for (const pod of resolved.pods) receipts.add(`clip:${pod.episodeId}:${pod.startMs ?? ""}`);
+        for (const amplifier of card.amplifiers ?? []) receipts.add(`amp:${card.anchorId}:${amplifier.handle ?? amplifier.name}:${amplifier.text ?? "repost"}`);
+      }
+      return receipts.size;
+    }
     const pods = new Set<string>(), tweets = new Set<string>(), papers = new Set<string>();
     for (const s of storiesOf(brief)) {
       for (const p of s.podcast) pods.add(p.episodeId + ":" + (p.startMs ?? ""));
@@ -92,7 +110,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
   // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
   // MAX across areas (each area scopes to its own posts — summing would double-count).
-  type EpRec = { title: string; audioUrl: string | null; show: string | null; showArt: string | null };
+  type EpRec = { title: string; audioUrl: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null };
   type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number };
   // mirror the server's guestKey: strip numbered-episode prefixes so the same syndicated talk
   // ("Ep. 12: X" on one feed, "X" on another) can't double-count across areas
@@ -112,7 +130,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     m.career = Math.max(m.career, g.career);
     if (role === "host") m.hostShow = m.hostShow ?? g.shows[0] ?? null;
     const eps = role === "host" ? m.hostEps : m.guestEps;
-    for (const e of g.episodes) eps.set(epKey(e.title), { title: e.title, audioUrl: e.audioUrl, show: e.show, showArt: e.showArt });
+    for (const e of g.episodes) eps.set(epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt });
   };
   for (const a of AREAS) {
     for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");
@@ -262,7 +280,15 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   for (const a of AREAS) {
     const b = briefsByArea[a];
     if (!b) continue;
-    for (const s of storiesOf(b)) if (s.kind === "paper" && s.headline) featuredIn.set(norm(s.headline), a);
+    const hero = heroDeckOf(b);
+    if (hero !== null) {
+      const keys = featuredHeroPaperKeys(hero);
+      for (const paper of b.topArticles ?? []) {
+        if (keys.has(`u:${paper.url}`) || keys.has(`t:${norm(paper.title)}`)) featuredIn.set(norm(paper.title), a);
+      }
+    } else {
+      for (const s of storiesOf(b)) if (s.kind === "paper" && s.headline) featuredIn.set(norm(s.headline), a);
+    }
   }
 
   const wash = "#232a3a"; // a neutral top wash for All (no single area owns the page)
@@ -366,11 +392,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: e.audioUrl ? 9 : 0 }}>
                     <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,.1)", flex: "none", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px system-ui" }}>{e.showArt ? <img src={e.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(e.show ?? "P")}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {e.show && <div style={{ font: "600 12px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.show}</div>}
-                      <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
+                      <div style={{ font: "600 12px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
+                      {e.show && <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{e.show}</div>}
                     </div>
                   </div>
-                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} label="Listen" accent={inkOf(m.areas[0] ?? "GU").accent} tone="dark" />}
+                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} durationSeconds={e.durationSeconds} label="Listen to the episode" accent={inkOf(m.areas[0] ?? "GU").accent} tone="dark" />}
                 </div>
               ))}
             </div>
@@ -420,6 +446,20 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const evidenceChip = (acc: string) => (
     <span data-disclosure style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: acc, padding: "0 2px", whiteSpace: "nowrap" }}>Sources ↓</span>
   );
+
+  const heroEvidenceFor = (card: HeroCard, brief: BriefingData, accent: string): HeroEvidence => {
+    const resolved = resolveHeroEvidence(card, brief);
+    if (!resolved) return null;
+    if (resolved.kind === "paper") return { faces: resolved.faces, drawer: <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" /> };
+    if (resolved.kind === "article") return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" /> };
+    if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
+      <>
+        <StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />
+        {(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}
+      </>
+    ) };
+    return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" /> };
+  };
 
   // One story row — the lead gets the front-page step-up, the rest match the tumor-page
   // rows (number, kicker, 2-line teaser, facts line) so the page is dense but scannable.
@@ -585,8 +625,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           );
         })()}
 
-        {/* six area groups — EVERY story in each (one continuous scroll, no clicks to see more);
-            groups ride in activity order, and the source count in each header justifies the slot.
+        {/* six area groups — compact first-pass picks with an in-place "show more";
+            groups ride in activity order, and the receipt count in each header justifies the slot.
             WIDE: two tracks like the tumor pages — editorial column (groups + reading) + the
             Voices rail. NARROW: everything inline — groups → voices → reading. */}
         {(() => {
@@ -607,7 +647,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                       {/* a real h2: the story titles below are h3, and without this the page is
                           42 same-level headings under one h1 with no way to skip between areas */}
                       <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2", margin: 0 }}>{full}</h2>
-                      {activity[a] > 0 && <span title="Distinct podcast clips, verified-clinician posts, and papers behind this week's stories" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
+                      {activity[a] > 0 && <span title="Distinct source anchors and published receipts behind this area's featured cards" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
                       {lagOf(a) && <span title="This area's snapshot is older than the rest of the page" style={{ font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "2px 6px" }}>{lagOf(a)}</span>}
                       <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
                     </div>
@@ -620,25 +660,23 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                       </div>
                     ) : (heroDeck !== null || stories.length > 0) ? (
                       <>
-                        {heroDeck !== null && heroDeck.map((c, i) => (
-                          <div key={c.id} style={{ padding: "12px 2px", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
-                            <div style={{ font: "700 9px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: acc }}>
-                              {c.kind === "paper" ? "Most-shared paper" : c.kind === "episode" ? "In-depth episode" : c.kind === "event" ? "Regulatory event" : c.kind === "thread" ? "Clinician post" : "Trial milestone"}
-                            </div>
-                            <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff", marginTop: 4 }}>
-                              {c.url ? <a href={c.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
-                            </div>
-                            <div style={{ font: "400 12px system-ui", color: MUT, marginTop: 5 }}>{c.sourceLabel} · {c.why}</div>
-                          </div>
-                        ))}
+                        {heroDeck !== null && heroDeck.length > 0 && <HeroCards
+                          cards={visibleAllHeroCards(heroDeck, compact, !!expandedAreas[a])}
+                          accent={acc}
+                          variant="compact"
+                          idPrefix={`all-${a}`}
+                          evidenceOf={(card) => heroEvidenceFor(card, brief, acc)}
+                        />}
+                        {heroDeck !== null && heroDeck.length > (compact ? 2 : 3) && (
+                          <button type="button" onClick={() => setExpandedAreas((current) => ({ ...current, [a]: !current[a] }))}
+                            className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: acc }}>
+                            {expandedAreas[a] ? "Show fewer stories ↑" : `Show ${heroDeck.length - (compact ? 2 : 3)} more stor${heroDeck.length - (compact ? 2 : 3) === 1 ? "y" : "ies"} ↓`}
+                          </button>
+                        )}
                         {heroDeck !== null && heroDeck.length === 0 && (
                           <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>A quiet week — no source-anchored stories qualified.</div>
                         )}
                         {heroDeck === null && stories.map((s, i) => renderStory(s, i, a, acc))}
-                        {/* the tail: what the full brief adds beyond the stories */}
-                        <div style={{ font: "400 12px system-ui", color: MUT2, padding: "2px 2px 0" }}>
-                          Drugs board, trials &amp; guests in the <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc, padding: 0 }}>full {full} brief →</button>
-                        </div>
                       </>
                     ) : (
                       <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet week in {full}. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
