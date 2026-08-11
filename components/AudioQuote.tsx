@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logSignal } from "@/app/gateClient";
 
 function fmt(sec: number): string {
   if (!isFinite(sec) || sec < 0) sec = 0;
@@ -45,6 +46,7 @@ export default function AudioQuote({
   const [mediaDur, setMediaDur] = useState(0);
   const dur = mediaDur > 0 ? mediaDur : Math.max(0, durationSeconds ?? 0);
   const seekedRef = useRef(false);
+  const playLoggedRef = useRef(false);
 
   useEffect(() => {
     setPlaying(false);
@@ -52,6 +54,7 @@ export default function AudioQuote({
     setCur(0);
     setMediaDur(0);
     seekedRef.current = false;
+    playLoggedRef.current = false;
   }, [audioUrl, startMs]);
 
   // Jump to the quoted moment once, unless the listener has already scrubbed.
@@ -72,6 +75,11 @@ export default function AudioQuote({
     const el = ref.current;
     if (!el) return;
     if (el.paused) {
+      if (!playLoggedRef.current) {
+        playLoggedRef.current = true;
+        const area = new URLSearchParams(window.location.search).get("area");
+        logSignal("podcast_play", area, null, { label: label ?? "audio", startMs });
+      }
       // one clip at a time — pause any other player on the page
       document.querySelectorAll("audio").forEach((a) => {
         if (a !== el) a.pause();

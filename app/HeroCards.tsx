@@ -67,6 +67,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                 {ev && c.kind !== "episode" && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={drawerId}
+                    data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                     {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
                   </button>
@@ -88,6 +89,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               {ev && c.kind === "episode" && (
                 <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                   aria-expanded={openId === c.id} aria-controls={drawerId}
+                  data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode"
                   style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                   {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
                 </button>

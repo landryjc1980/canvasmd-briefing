@@ -3,7 +3,9 @@
 // Client-side hooks into the gate: log a signal, and run the colleague-share flow. Both are
 // safe to call unconditionally — the API no-ops when there's no session.
 
-export function logSignal(kind: "view" | "story_view" | "dwell", area?: string | null, storyId?: string | null, meta?: Record<string, unknown>) {
+export type BriefSignalKind = "view" | "story_view" | "dwell" | "section_jump" | "source_open" | "podcast_play" | "show_more";
+
+export function logSignal(kind: BriefSignalKind, area?: string | null, storyId?: string | null, meta?: Record<string, unknown>) {
   try {
     fetch("/api/brief-event", {
       method: "POST",

@@ -8,7 +8,7 @@ import { logEvent, touchLastSeen } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED = new Set(["view", "story_view", "dwell"]);
+const ALLOWED = new Set(["view", "story_view", "dwell", "section_jump", "source_open", "podcast_play", "show_more"]);
 
 export async function POST(req: NextRequest) {
   const contactId = await currentContactId(req);

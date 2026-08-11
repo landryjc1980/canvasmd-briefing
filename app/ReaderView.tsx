@@ -9,7 +9,7 @@ import StanceBlock from "./StanceBlock";
 import HeroCards from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
-import { logStorySeen } from "./gateClient";
+import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
 // preserved at ?design=flat / git tag design-2026-07-21-flat-reader):
@@ -290,6 +290,9 @@ export function Row({ open, onToggle, accent, head, children, landOffset = 70, v
         role="button"
         tabIndex={0}
         aria-expanded={open}
+        data-brief-event="source_open"
+        data-brief-open={open}
+        data-brief-target={variant}
         className="rv-row"
         onClick={activate}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
@@ -320,7 +323,7 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
       {shown.map(render)}
       {extra > 0 && (
         <div style={{ marginTop: 8, marginBottom: 12 }}>
-          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="rv-text-action" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "0 2px", cursor: "pointer" }}>
+          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} data-brief-event="show_more" data-brief-open={open} className="rv-text-action" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "0 2px", cursor: "pointer" }}>
             {open ? "Show less ↑" : `Show ${extra} more ↓`}
           </button>
         </div>
@@ -572,12 +575,15 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   };
   // sticky section nav — jump-links + scroll-spy. On the wide layout the rail sections
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
+  const carriedKols = [...data.topKols]
+    .filter((k) => (k.amp ?? 0) > 0)
+    .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes);
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
-    { id: "sec-kols", label: "People", on: !!(data.guests?.length || data.topKols.length) },
+    { id: "sec-kols", label: "People", on: !!(data.guests?.length || carriedKols.length) },
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
@@ -630,6 +636,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     if (!el) return;
     pinnedSecRef.current = id; // pin the clicked section active (survives the glide; released on scroll)
     setActiveSec(id);          // instant feedback — the pill lights the moment it's tapped
+    logSignal("section_jump", area, null, { section: id.replace(/^sec-/, "") });
     const offset = compact ? 74 : 62; // clear the sticky pill bar (taller on mobile — 44px pills)
     const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
@@ -743,7 +750,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const narrow = compact || wide;
   // Whether the desktop rail has ANY content — drives collapsing the two-column grid to one when a
   // Focus pick empties guests + KOLs + trials (else the fixed 320px track leaves a blank gap).
-  const railHasContent = !!(data.guests?.length || data.topKols.length || data.trials.length);
+  const railHasContent = !!(data.guests?.length || carriedKols.length || data.trials.length);
 
   // ---- section builders (placement differs by layout; content is identical) --------------
 
@@ -850,6 +857,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       })}
       {storiesCapped && (
         <button onClick={() => setShowAllStories(true)}
+          data-brief-event="show_more" data-brief-target="stories"
           className="rv-text-action"
           style={{ display: "inline-flex", alignItems: "center", minHeight: 44, margin: "2px 0 24px", padding: "0 2px", cursor: "pointer", background: "none", border: 0, color: pal.accent, font: "600 13px system-ui" }}>
           Show {stories.length - MOBILE_STORY_CAP} more {stories.length - MOBILE_STORY_CAP === 1 ? "story" : "stories"} ↓
@@ -904,10 +912,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   // X voices — the server pool is canonically ordered by earned amplification. Re-sort here as
   // a compatibility guard for older frozen snapshots that still carried activity-first order.
-  const kolsSection = data.topKols.length > 0 && (
+  const kolsSection = carriedKols.length > 0 && (
     <>
       <SectionHead accent={pal.accent} rail={wide}>Carried on X</SectionHead>
-      <Capped items={[...data.topKols].sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes)} cap={6} accent={pal.accent} render={(k, i) => {
+      <Capped items={carriedKols} cap={6} accent={pal.accent} render={(k, i) => {
         const id = "k:" + i;
         const open = openId === id;
         // KOL expander is NOT "the signal" — expanding shows their raw posts/papers, not
@@ -917,7 +925,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         const countLabel = open
           ? "Hide ↑"
           : nAmp > 0
-            ? `${nAmp.toLocaleString()} amplified ↓`
+            ? `${nAmp.toLocaleString()} reposts/quotes ↓`
             : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
         const drugLine = k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "");
         return (
@@ -950,7 +958,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   // Guests and X voices are one People destination. Keeping the anchor on the wrapper means the
   // nav lands on whichever subsection is actually first (and still works when either is empty).
-  const peopleSection = (data.guests?.length || data.topKols.length) ? (
+  const peopleSection = (data.guests?.length || carriedKols.length) ? (
     <div id="sec-kols" style={{ scrollMarginTop: 66 }}>
       {wide ? guestsSection : kolsSection}
       {wide ? kolsSection : guestsSection}
@@ -1125,8 +1133,16 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     </>
   );
 
+  const captureInteraction = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-brief-event]");
+    if (!el || el.dataset.briefOpen === "true") return;
+    const kind = el.dataset.briefEvent as BriefSignalKind | undefined;
+    if (!kind) return;
+    logSignal(kind, area, el.dataset.briefStory ?? null, el.dataset.briefTarget ? { target: el.dataset.briefTarget } : undefined);
+  };
+
   return (
-    <div style={{ minHeight: "100vh", overflowWrap: "break-word", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div onClickCapture={captureInteraction} style={{ minHeight: "100vh", overflowWrap: "break-word", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       {/* rv-pills: hide the scrollbar; on mobile a right-edge fade signals there's more to scroll.
           Expandable lists use dividers and quiet text actions instead of nested pills/cards. */}
       <style>{`
