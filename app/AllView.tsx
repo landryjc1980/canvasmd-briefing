@@ -304,7 +304,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
-                <span style={{ display: "inline-flex", alignItems: "center", flex: "none", marginTop: 1, font: "600 11px system-ui", color: open ? "#eef1f8" : "#cdd2de", border: "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.05)", borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
+                <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? "#eef1f8" : "#cdd2de", padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                 {opts.areas.map(miniTag)}
@@ -418,7 +418,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   );
 
   const evidenceChip = (acc: string) => (
-    <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: acc, border: `1px solid ${acc}59`, background: `${acc}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap" }}>Sources ↓</span>
+    <span data-disclosure style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: acc, padding: "0 2px", whiteSpace: "nowrap" }}>Sources ↓</span>
   );
 
   // One story row — the lead gets the front-page step-up, the rest match the tumor-page
@@ -503,10 +503,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${wash}80 0px, ${wash}22 220px, ${wash}00 460px), ${INK}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <style>{`
-        .rv-row{transition:background .16s ease}
-        @media(hover:hover){.rv-row:hover{background:rgba(255,255,255,.045)}}
-        @media(hover:hover){.rv-row[aria-expanded="true"],.rv-row[aria-expanded="true"]:hover{background:transparent}}
+        .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
+        .rv-row{transition:color .16s ease}
+        @media(hover:hover){.rv-row:hover [data-disclosure],.rv-text-action:hover{text-decoration:underline;text-underline-offset:4px}}
         .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
+        .rv-text-action:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:2px;border-radius:4px}
         .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
         @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
         .all-pills::-webkit-scrollbar{display:none}.all-pills{scrollbar-width:none}

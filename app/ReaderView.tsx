@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, HeroCard as HeroCardT } from "@/lib/types";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, HeroCard as HeroCardT } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
@@ -178,6 +178,34 @@ export function TweetCard({ t }: { t: BriefingSharer }) {
     ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
     : <div style={cardBox}>{body}</div>;
 }
+
+type BriefingAmplifier = NonNullable<BriefingEpisode["amplifiers"]>[number];
+
+// A podcast's amplification is evidence, not decoration. Quote-posts keep the clinician's
+// words; plain reposts render as named actions. Both live behind the same Sources disclosure
+// used everywhere else, instead of appearing as an inert byline beside the audio player.
+function AmplifierReceipts({ amplifiers, accent, label = true }: { amplifiers: BriefingAmplifier[]; accent: string; label?: boolean }) {
+  const quotes = amplifiers.filter((a) => a.isQuote && a.text);
+  const reposts = amplifiers.filter((a) => !(a.isQuote && a.text));
+  return (
+    <div>
+      {label && <div style={evLabel(accent)}>Amplified on X</div>}
+      {quotes.map((a, j) => (
+        <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
+      ))}
+      {reposts.map((a, j) => (
+        <div key={`r${j}`} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 0", borderTop: j || quotes.length ? "1px solid rgba(255,255,255,.07)" : 0, font: "400 13px system-ui", color: "#cfd4e0" }}>
+          {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "inline-block" }} />}
+          <span>
+            <b style={{ color: "#eef1f8", fontWeight: 600 }}>{a.name}</b>
+            {a.handle ? <> <a href={`https://x.com/${a.handle.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: "none" }}>@{a.handle.replace(/^@/, "")}</a></> : null}
+            {" reposted the episode"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
 export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, sharedTotal, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean }) {
@@ -204,9 +232,9 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
         </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
-      <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
-        {canExpand && <button onClick={() => setOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{toggleLabel}</button>}
-        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
+      <div style={{ display: "flex", gap: 16, marginTop: 5, alignItems: "center" }}>
+        {canExpand && <button onClick={() => setOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{toggleLabel}</button>}
+        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
   );
@@ -224,7 +252,7 @@ function Collapse({ open, children }: { open: boolean; children: React.ReactNode
   return <div className="rv-drawer">{children}</div>;
 }
 
-export function Row({ open, onToggle, accent, head, children, landOffset = 70 }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode; landOffset?: number }) {
+export function Row({ open, onToggle, accent, head, children, landOffset = 70, variant = "surface" }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode; landOffset?: number; variant?: "surface" | "list" }) {
   const headRef = useRef<HTMLDivElement>(null);
   // Single-open accordion: opening a row BELOW an already-open one collapses that one and yanks the
   // clicked row upward off the cursor. Capture the head's viewport position, commit the toggle
@@ -255,7 +283,7 @@ export function Row({ open, onToggle, accent, head, children, landOffset = 70 }:
     el.focus({ preventScroll: true });
   };
   return (
-    <div>
+    <div className={variant === "list" ? "rv-list-row" : undefined}>
       <div
         ref={headRef}
         role="button"
@@ -264,13 +292,15 @@ export function Row({ open, onToggle, accent, head, children, landOffset = 70 }:
         className="rv-row"
         onClick={activate}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
-        style={{ cursor: "pointer", margin: "0 -12px", padding: "0 12px", borderRadius: 14 }}
+        style={variant === "list"
+          ? { cursor: "pointer", margin: 0, padding: 0, borderRadius: 0 }
+          : { cursor: "pointer", margin: "0 -12px", padding: "0 12px", borderRadius: 14 }}
       >{head}</div>
       <Collapse open={open}>
         <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>
           {children}
           {/* every drawer collapses from the bottom, and lands you back on the card */}
-          <button type="button" onClick={hideFromBottom} style={{ alignSelf: "center", background: "none", border: `1px solid ${accent}59`, color: accent, font: "600 12px system-ui", borderRadius: 20, padding: "7px 18px", cursor: "pointer", marginTop: 4 }}>Hide evidence ↑</button>
+          <button type="button" onClick={hideFromBottom} className="rv-text-action" style={{ alignSelf: "flex-start", background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "10px 2px", minHeight: 44, cursor: "pointer", marginTop: 2 }}>Hide sources ↑</button>
         </div>
       </Collapse>
     </div>
@@ -288,8 +318,8 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
     <>
       {shown.map(render)}
       {extra > 0 && (
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 22, padding: "0 20px", cursor: "pointer" }}>
+        <div style={{ marginTop: 8, marginBottom: 12 }}>
+          <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="rv-text-action" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "0 2px", cursor: "pointer" }}>
             {open ? "Show less ↑" : `Show ${extra} more ↓`}
           </button>
         </div>
@@ -308,7 +338,7 @@ function Capped<T>({ items, cap, accent, render }: { items: T[]; cap: number; ac
 // Every receipt is preserved: PodCard/TweetCard/PaperCard are reused verbatim. Every show-more
 // control carries aria-expanded + an accurate label + aria-controls (the a11y gap on the old flat
 // list was that there were no controls at all).
-const moreBtn = (accent: string): React.CSSProperties => ({ display: "inline-block", background: "none", border: "1px solid rgba(255,255,255,.18)", color: accent, font: "600 12.5px system-ui", borderRadius: 20, padding: "7px 20px", cursor: "pointer" });
+const moreBtn = (accent: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "0 2px", cursor: "pointer" });
 
 // Group clips by episode, preserving first-seen (= strength) order. A missing episodeId falls back
 // to a stable audio/title key; a clip with none of those gets a UNIQUE key so unattributed clips
@@ -336,7 +366,7 @@ function EpisodeClips({ clips, accent }: { clips: BriefingPod[]; accent: string 
       <PodCard p={clips[0]} accent={accent} />
       {extra > 0 && <>
         <div id={rid}>{open && clips.slice(1).map((p, j) => <PodCard key={j} p={p} accent={accent} />)}</div>
-        <button type="button" aria-expanded={open} aria-controls={rid} onClick={() => setOpen((o) => !o)}
+        <button type="button" aria-expanded={open} aria-controls={rid} onClick={() => setOpen((o) => !o)} className="rv-text-action"
           style={{ ...moreBtn(accent), padding: "5px 14px", font: "600 11.5px system-ui", margin: "0 0 12px" }}>
           {open ? "Fewer moments ↑" : `${extra} more moment${extra === 1 ? "" : "s"} from this episode ↓`}
         </button>
@@ -357,8 +387,8 @@ function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string
       {groups.slice(0, EP_CAP).map((clips, gi) => <EpisodeClips key={gi} clips={clips} accent={accent} />)}
       {extra > 0 && <>
         <div id={rid}>{open && groups.slice(EP_CAP).map((clips, gi) => <EpisodeClips key={gi} clips={clips} accent={accent} />)}</div>
-        <div style={{ textAlign: "center", marginTop: 4 }}>
-          <button type="button" aria-expanded={open} aria-controls={rid} onClick={() => setOpen((o) => !o)} style={moreBtn(accent)}>
+        <div style={{ marginTop: 4 }}>
+          <button type="button" aria-expanded={open} aria-controls={rid} onClick={() => setOpen((o) => !o)} className="rv-text-action" style={moreBtn(accent)}>
             {open ? "Show fewer episodes ↑" : `Show ${extra} more episode${extra === 1 ? "" : "s"} ↓`}
           </button>
         </div>
@@ -644,18 +674,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <>
         <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" />
         {(c.amplifiers ?? []).length > 0 && (
-          <div>
-            <div style={evLabel(pal.accent)}>Amplified by</div>
-            {(c.amplifiers ?? []).filter((a) => a.isQuote && a.text).map((a, j) => (
-              <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
-            ))}
-            {(c.amplifiers ?? []).filter((a) => !(a.isQuote && a.text)).map((a, j) => (
-              <div key={`r${j}`} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", font: "400 13px system-ui", color: "#cfd4e0" }}>
-                {a.avatar ? <img src={a.avatar} alt="" style={{ width: 24, height: 24, borderRadius: "50%" }} /> : <span style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "inline-block" }} />}
-                <span><b style={{ color: "#eef1f8", fontWeight: 600 }}>{a.name}</b>{a.handle ? ` @${a.handle}` : ""} reposted the episode</span>
-              </div>
-            ))}
-          </div>
+          <AmplifierReceipts amplifiers={c.amplifiers ?? []} accent={pal.accent} />
         )}
       </>
     ) };
@@ -685,11 +704,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   }, [heroCards, stories]);
   const isFeaturedPaper = (a: { url?: string | null; title: string }) =>
     (!!a.url && featuredPaperKeys.has(`u:${a.url}`)) || featuredPaperKeys.has(`t:${normKey(a.title)}`);
-  // The evidence toggle is the product — a bare 11.5px text link was invisible to
-  // first-time readers. It's now a small accent-tinted pill that reads as a control.
+  // One quiet disclosure treatment across the reader: text carries the action while the
+  // surrounding row supplies the 44px+ target. No nested pill inside an already-clickable row.
   const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
-    <span style={{ display: "inline-flex", alignItems: "center", font: "600 12.5px system-ui", color: pal.accent, border: `1px solid ${pal.accent}59`, background: `${pal.accent}17`, borderRadius: 20, padding: "5px 12px", whiteSpace: "nowrap", ...style }}>
-      {openId === id ? "Hide ↑" : "Sources ↓"}
+    <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: pal.accent, padding: "0 2px", whiteSpace: "nowrap", ...style }}>
+      {openId === id ? "Hide sources ↑" : "Sources ↓"}
     </span>
   );
 
@@ -829,8 +848,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       })}
       {storiesCapped && (
         <button onClick={() => setShowAllStories(true)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", minHeight: 44, margin: "2px 0 24px", padding: "0 14px", cursor: "pointer", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, color: pal.accent, font: "600 14px system-ui" }}>
-          {stories.length - MOBILE_STORY_CAP} more {stories.length - MOBILE_STORY_CAP === 1 ? "story" : "stories"} ↓
+          className="rv-text-action"
+          style={{ display: "inline-flex", alignItems: "center", minHeight: 44, margin: "2px 0 24px", padding: "0 2px", cursor: "pointer", background: "none", border: 0, color: pal.accent, font: "600 13px system-ui" }}>
+          Show {stories.length - MOBILE_STORY_CAP} more {stories.length - MOBILE_STORY_CAP === 1 ? "story" : "stories"} ↓
         </button>
       )}
     </>
@@ -843,7 +863,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
         const eps = g.episodes.filter((e) => e.audioUrl);
         return (
-        <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent}
+        <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent} variant="list"
           head={
             <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 2px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -896,7 +916,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
         const drugLine = k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "");
         return (
-          <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent}
+          <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 2px" }}>
                 <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2 }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
@@ -904,7 +924,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                     {/* name clamped to 2 lines so credential-laden names ("…, MD PhD") don't run away */}
                     <span style={{ flex: 1, minWidth: 0, font: "500 15.5px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{k.name}</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", flex: "none", marginTop: 1, font: "600 11px system-ui", color: pal.accent, border: `1px solid ${pal.accent}42`, background: `${pal.accent}12`, borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap" }}>{countLabel}</span>
+                    <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: pal.accent, padding: "0 2px", whiteSpace: "nowrap" }}>{countLabel}</span>
                   </div>
                   {/* institution + drugs each clamped to ONE line — the ballooning multi-line
                       affiliation was the source of the ragged look */}
@@ -928,11 +948,16 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
     <>
       <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>This week on the podcasts</SectionHead>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
         {/* Show 4, then "Show N more" — the rail now carries up to 10 (it stopped hiding
             discussed episodes), which is too tall to dump in full. */}
-        <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => (
-          <div key={i} style={cardBox}>
+        <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => {
+          const amplifiers = ep.amplifiers ?? [];
+          const ampId = `epamp:${ep.episodeId ?? i}`;
+          const ampOpen = openId === ampId;
+          const drawerId = `epamp-drawer-${String(ep.episodeId ?? i).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+          return (
+          <div key={i} className="rv-episode-row">
             <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
@@ -941,22 +966,26 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div></div>
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
-            {(ep.amplifiers ?? []).length > 0 && (
-              <div style={{ margin: "0 0 12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, font: "500 12.5px system-ui", color: "rgba(233,237,246,.7)" }}>
-                  {(ep.amplifiers ?? []).filter((a) => a.avatar).slice(0, 4).map((a, j) => (
+            {amplifiers.length > 0 && (
+              <div style={{ margin: "0 0 10px" }}>
+                <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
+                  style={{ width: "100%", minHeight: 44, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: "4px 0", cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ display: "flex", alignItems: "center", flex: "none" }}>
+                  {amplifiers.filter((a) => a.avatar).slice(0, 4).map((a, j) => (
                     <img key={j} src={a.avatar!} alt="" style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: j ? -7 : 0, border: `2px solid ${pal.bg}` }} />
                   ))}
-                  <span>Amplified by {(ep.amplifiers ?? []).map((a) => a.name).join(", ")}</span>
-                </div>
-                {(ep.amplifiers ?? []).filter((a) => a.isQuote && a.text).map((a, j) => (
-                  <div key={j} style={{ marginTop: 8 }}><TweetCard t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} /></div>
-                ))}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "rgba(233,237,246,.7)" }}>
+                    {amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : `Amplified by ${amplifiers.length} clinicians`}
+                  </span>
+                  <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
+                </button>
+                {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.08)" }}><AmplifierReceipts amplifiers={amplifiers} accent={pal.accent} /></div>}
               </div>
             )}
             <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
           </div>
-        )} />
+        );}} />
       </div>
     </>
   );
@@ -968,7 +997,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
         const id = "p:" + i;
         return (
-          <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
+          <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
             head={
               /* full-width title (John: "I like full width text"), then a single meta row —
                  faces + source + the expander — so the headline never gets squeezed to a column */
@@ -1007,11 +1036,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
         const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
         return (
-          /* One CARD wraps the whole trial — header AND the expanded evidence — so the drawer
-             reads as part of the trial, not disconnected posts on the page. Title clamps to 2
-             lines when closed, shows in FULL when open (John: expanding should reveal the rest). */
-          <div key={id} style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "0 14px 2px", marginBottom: 8 }}>
-          <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
+          /* One flat row owns the trial header and its expanded evidence. Title clamps to two
+             lines when closed and shows in full when open. */
+          <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
             head={
               <div style={{ padding: "13px 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1030,7 +1057,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
-          </div>
         );
       }} />
     </>
@@ -1088,16 +1114,18 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   return (
     <div style={{ minHeight: "100vh", overflowWrap: "break-word", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       {/* rv-pills: hide the scrollbar; on mobile a right-edge fade signals there's more to scroll.
-          rv-row: the hover-lift surface + keyboard focus ring on every expandable row. */}
+          Expandable lists use dividers and quiet text actions instead of nested pills/cards. */}
       <style>{`
         .rv-pills::-webkit-scrollbar{display:none}.rv-pills{scrollbar-width:none}
         .rv-edition{position:relative}
         .rv-edition::after{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
         .rv-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
-        .rv-row{transition:background .16s ease}
-        @media(hover:hover){.rv-row:hover{background:rgba(255,255,255,.045)}}
-        @media(hover:hover){.rv-row[aria-expanded="true"],.rv-row[aria-expanded="true"]:hover{background:transparent}}
+        .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
+        .rv-row{transition:color .16s ease}
+        @media(hover:hover){.rv-row:hover [data-disclosure],.rv-text-action:hover{text-decoration:underline;text-underline-offset:4px}}
         .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
+        .rv-episode-row{padding:16px 2px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+        .rv-text-action:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:2px;border-radius:4px}
         .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
         @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
         .cg-pip{animation:cgPulse 2.2s ease-out infinite}
