@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 function fmt(sec: number): string {
   if (!isFinite(sec) || sec < 0) sec = 0;
@@ -24,12 +24,14 @@ export default function AudioQuote({
   startMs,
   label,
   accent,
+  durationSeconds,
   tone = "light",
 }: {
   audioUrl: string;
   startMs: number | null;
   label?: string | null;
   accent?: string; // override the accent (button / scrubber / clip label) — e.g. the tumor color
+  durationSeconds?: number | null; // known RSS duration; media metadata replaces it once loaded
   tone?: "light" | "dark"; // "dark" = translucent chrome for use on a dark card
 }) {
   const ref = useRef<HTMLAudioElement>(null);
@@ -40,8 +42,17 @@ export default function AudioQuote({
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cur, setCur] = useState(0);
-  const [dur, setDur] = useState(0);
+  const [mediaDur, setMediaDur] = useState(0);
+  const dur = mediaDur > 0 ? mediaDur : Math.max(0, durationSeconds ?? 0);
   const seekedRef = useRef(false);
+
+  useEffect(() => {
+    setPlaying(false);
+    setLoading(false);
+    setCur(0);
+    setMediaDur(0);
+    seekedRef.current = false;
+  }, [audioUrl, startMs]);
 
   // Jump to the quoted moment once, unless the listener has already scrubbed.
   const applyStart = useCallback(() => {
@@ -93,7 +104,7 @@ export default function AudioQuote({
         src={src}
         preload="none"
         onLoadedMetadata={(e) => {
-          setDur(e.currentTarget.duration || 0);
+          setMediaDur(e.currentTarget.duration || 0);
           applyStart();
         }}
         onCanPlay={applyStart}

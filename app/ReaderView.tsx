@@ -146,7 +146,7 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       </div>
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{cleanSnippet(p.gloss)}</p>
       {p.audioUrl
-        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label="Listen to the clip" accent={accent} tone="dark" />
+        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} durationSeconds={p.durationSeconds} label="Listen to the clip" accent={accent} tone="dark" />
         : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
     </div>
   );
@@ -756,7 +756,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const storiesSection = (
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
-      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} evidenceOf={heroEvidenceOf} />}
+      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} evidenceOf={heroEvidenceOf} />}
       {heroMode && heroCards && heroCards.length === 0 && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           A quiet week — no source-anchored stories qualified. The sections below still carry the corpus.
@@ -892,7 +892,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 </div>
               </div>
               {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
-              <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
+              <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" accent={pal.accent} tone="dark" />
             </div>
           ))}
         </Row>
@@ -969,7 +969,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div></div>
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
-            <AudioQuote audioUrl={ep.audioUrl!} startMs={0} label="Listen to the episode" accent={pal.accent} tone="dark" />
+            <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" accent={pal.accent} tone="dark" />
             {amplifiers.length > 0 && (
               <div style={{ margin: "8px 0 0" }}>
                 <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"

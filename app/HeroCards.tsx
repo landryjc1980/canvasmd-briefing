@@ -27,7 +27,7 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
 export type HeroEvidence = { faces: string[]; drawer: ReactNode } | null;
 
-export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: HeroCard[]; ink?: { soft: string; softer: string; line: string }; evidenceOf?: (c: HeroCard) => HeroEvidence }) {
+export default function HeroCards({ cards, accent, ink = INK, evidenceOf }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string }; evidenceOf?: (c: HeroCard) => HeroEvidence }) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -38,7 +38,7 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
           <div className="hero-row" style={{ alignItems: "baseline", gap: 10 }}>
             <span className="hero-index" style={{ font: "600 22px Georgia, serif", color: ink.softer, minWidth: 22 }}>{i + 1}</span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ font: "700 11px system-ui", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent, #c96)" }}>
+              <div style={{ font: "700 11px system-ui", letterSpacing: "0.14em", textTransform: "uppercase", color: accent }}>
                 <span className="hero-index-inline" style={{ font: "600 14px Georgia, serif", color: ink.softer, letterSpacing: "normal", marginRight: 8 }}>{i + 1}</span>
                 {KIND_KICKER[c.kind] ?? c.kind}
               </div>
@@ -66,12 +66,12 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                 {ev && c.kind !== "episode" && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
-                    style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: "var(--accent, #c96)", minHeight: 44 }}>
+                    style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                     {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
                   </button>
                 )}
                 {c.url && !(c.kind === "episode" && c.startMs != null) && (
-                  <a href={c.url} target="_blank" rel="noreferrer" style={{ font: "600 12.5px system-ui", color: "var(--accent, #c96)", textDecoration: "none" }}>
+                  <a href={c.url} target="_blank" rel="noreferrer" style={{ font: "600 12.5px system-ui", color: accent, textDecoration: "none" }}>
                     {c.kind === "thread" ? "Original post ↗" : c.kind === "event" ? "Primary source ↗" : "Original ↗"}
                   </a>
                 )}
@@ -80,14 +80,14 @@ export default function HeroCards({ cards, ink = INK, evidenceOf }: { cards: Her
                   href on a podcast enclosure opens at 0:00, which fails "reach the original
                   moment" (Codex acceptance item). */}
               {c.kind === "episode" && c.startMs != null && c.url && (
-                <div style={{ marginTop: 10, maxWidth: 420 }}>
-                  <AudioQuote audioUrl={c.url} startMs={c.startMs} label={`Listen @ ${clipTs(c.startMs)}`} tone="dark" />
+                <div style={{ marginTop: 10, width: "100%" }}>
+                  <AudioQuote audioUrl={c.url} startMs={c.startMs} durationSeconds={c.durationSeconds} label={`Listen @ ${clipTs(c.startMs)}`} accent={accent} tone="dark" />
                 </div>
               )}
               {ev && c.kind === "episode" && (
                 <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                   aria-expanded={openId === c.id} aria-controls={`hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`}
-                  style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: "var(--accent, #c96)", minHeight: 44 }}>
+                  style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                   {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
                 </button>
               )}
