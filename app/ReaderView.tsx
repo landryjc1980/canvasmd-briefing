@@ -734,7 +734,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         const r = el.getBoundingClientRect();
         if (r.height <= 0) return;
         const visible = Math.min(r.bottom, vh) - Math.max(r.top, 0);
-        if (visible >= r.height * 0.45 && el.dataset.sid) logStorySeen(area, el.dataset.sid, el.dataset.sfp || undefined);
+        if (visible >= r.height * 0.45 && el.dataset.sid) {
+          logStorySeen(area, el.dataset.sid, el.dataset.sfp || undefined, {
+            label: el.dataset.stitle,
+            kind: el.dataset.skind,
+          });
+        }
       });
     };
     check(); // whatever is visible on load counts as seen
@@ -811,7 +816,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
               </div>
             )}
-          <div data-sid={s.id} data-sfp={s.fp ?? ""} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
+          <div data-sid={s.id} data-sfp={s.fp ?? ""} data-stitle={s.headline} data-skind={s.kind} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
           <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
@@ -987,7 +992,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div></div>
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
-            <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" accent={pal.accent} tone="dark" />
+            <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" eventId={ep.episodeId ?? null} eventLabel={ep.title} accent={pal.accent} tone="dark" />
             {amplifiers.length > 0 && (
               <div style={{ margin: "8px 0 0" }}>
                 <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
@@ -1138,7 +1143,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     if (!el || el.dataset.briefOpen === "true") return;
     const kind = el.dataset.briefEvent as BriefSignalKind | undefined;
     if (!kind) return;
-    logSignal(kind, area, el.dataset.briefStory ?? null, el.dataset.briefTarget ? { target: el.dataset.briefTarget } : undefined);
+    const meta = {
+      ...(el.dataset.briefTarget ? { target: el.dataset.briefTarget } : {}),
+      ...(el.dataset.briefLabel ? { label: el.dataset.briefLabel } : {}),
+    };
+    logSignal(kind, area, el.dataset.briefStory ?? null, Object.keys(meta).length ? meta : undefined);
   };
 
   return (

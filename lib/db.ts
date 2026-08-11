@@ -144,6 +144,112 @@ export async function engagement(): Promise<Engagement[]> {
   return pg<Engagement[]>("v_brief_engagement?order=last_event_at.desc.nullslast", { method: "GET", headers: headers() });
 }
 
+const READOUT_EVENT_KINDS = ["story_view", "source_open", "podcast_play", "section_jump", "show_more"] as const;
+export type ReadoutEventKind = typeof READOUT_EVENT_KINDS[number];
+export type ReadoutEngagement = {
+  capturedAt: string;
+  firstEventAt: string | null;
+  uniqueReaders30: number;
+  totals: Record<ReadoutEventKind, { last7: number; last30: number; readers30: number }>;
+  byArea: Array<{ area: string; counts: Record<ReadoutEventKind, number> }>;
+  topContent: Array<{ storyId: string; label: string; area: string; views: number; sourceOpens: number; podcastPlays: number; total: number }>;
+  sectionJumps: Array<{ section: string; count: number }>;
+};
+
+type ReadoutEventRow = {
+  contact_id: string | null;
+  kind: ReadoutEventKind;
+  area: string | null;
+  story_id: string | null;
+  meta: unknown;
+  ts: string;
+};
+
+const emptyEventCounts = (): Record<ReadoutEventKind, number> => Object.fromEntries(
+  READOUT_EVENT_KINDS.map((kind) => [kind, 0]),
+) as Record<ReadoutEventKind, number>;
+
+// Compact product-usage summary for /admin. We intentionally aggregate server-side so the
+// admin browser never receives contact-level event rows. PostgREST caps responses, so page
+// rather than quietly treating the first 1,000 events as the whole month.
+export async function readoutEngagement(): Promise<ReadoutEngagement> {
+  const now = Date.now();
+  const since30 = new Date(now - 30 * 86400_000).toISOString();
+  const since7 = now - 7 * 86400_000;
+  const rows: ReadoutEventRow[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await pg<ReadoutEventRow[]>(
+      `brief_events?select=contact_id,kind,area,story_id,meta,ts&kind=in.(${READOUT_EVENT_KINDS.join(",")})&ts=gte.${encodeURIComponent(since30)}&order=ts.desc&limit=${pageSize}&offset=${offset}`,
+      { method: "GET", headers: headers() },
+    );
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  const totals = Object.fromEntries(READOUT_EVENT_KINDS.map((kind) => [kind, { last7: 0, last30: 0, readers30: 0 }])) as ReadoutEngagement["totals"];
+  const readersByKind = Object.fromEntries(READOUT_EVENT_KINDS.map((kind) => [kind, new Set<string>()])) as Record<ReadoutEventKind, Set<string>>;
+  const allReaders = new Set<string>();
+  const areas = new Map<string, Record<ReadoutEventKind, number>>();
+  const content = new Map<string, ReadoutEngagement["topContent"][number]>();
+  const sections = new Map<string, number>();
+
+  for (const row of rows) {
+    if (!READOUT_EVENT_KINDS.includes(row.kind)) continue;
+    totals[row.kind].last30 += 1;
+    if (Date.parse(row.ts) >= since7) totals[row.kind].last7 += 1;
+    if (row.contact_id) {
+      allReaders.add(row.contact_id);
+      readersByKind[row.kind].add(row.contact_id);
+    }
+
+    const area = row.area || "All";
+    const areaCounts = areas.get(area) ?? emptyEventCounts();
+    areaCounts[row.kind] += 1;
+    areas.set(area, areaCounts);
+
+    const meta = row.meta && typeof row.meta === "object" && !Array.isArray(row.meta)
+      ? row.meta as Record<string, unknown>
+      : {};
+    if (row.kind === "section_jump") {
+      const section = typeof meta.section === "string" ? meta.section : "unknown";
+      sections.set(section, (sections.get(section) ?? 0) + 1);
+    }
+    if (row.story_id && (row.kind === "story_view" || row.kind === "source_open" || row.kind === "podcast_play")) {
+      const key = `${area}:${row.story_id}`;
+      const item = content.get(key) ?? {
+        storyId: row.story_id,
+        label: typeof meta.label === "string" && meta.label.trim() ? meta.label : row.story_id,
+        area,
+        views: 0,
+        sourceOpens: 0,
+        podcastPlays: 0,
+        total: 0,
+      };
+      if (item.label === item.storyId && typeof meta.label === "string" && meta.label.trim()) item.label = meta.label;
+      if (row.kind === "story_view") item.views += 1;
+      if (row.kind === "source_open") item.sourceOpens += 1;
+      if (row.kind === "podcast_play") item.podcastPlays += 1;
+      item.total += 1;
+      content.set(key, item);
+    }
+  }
+  for (const kind of READOUT_EVENT_KINDS) totals[kind].readers30 = readersByKind[kind].size;
+
+  const areaOrder = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "All"];
+  return {
+    capturedAt: new Date(now).toISOString(),
+    firstEventAt: rows.at(-1)?.ts ?? null,
+    uniqueReaders30: allReaders.size,
+    totals,
+    byArea: [...areas.entries()]
+      .map(([area, counts]) => ({ area, counts }))
+      .sort((a, b) => (areaOrder.indexOf(a.area) < 0 ? 99 : areaOrder.indexOf(a.area)) - (areaOrder.indexOf(b.area) < 0 ? 99 : areaOrder.indexOf(b.area)) || a.area.localeCompare(b.area)),
+    topContent: [...content.values()].sort((a, b) => b.total - a.total || b.views - a.views).slice(0, 12),
+    sectionJumps: [...sections.entries()].map(([section, count]) => ({ section, count })).sort((a, b) => b.count - a.count),
+  };
+}
+
 // ---- pipeline health (admin "data health") -----------------------------------------------
 // Reads the SAME probes the daily pipeline-health email uses, so the admin page and the
 // alert can never disagree. Two halves, because they catch different failures:

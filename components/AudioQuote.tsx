@@ -26,6 +26,8 @@ export default function AudioQuote({
   label,
   accent,
   durationSeconds,
+  eventId,
+  eventLabel,
   tone = "light",
 }: {
   audioUrl: string;
@@ -33,6 +35,8 @@ export default function AudioQuote({
   label?: string | null;
   accent?: string; // override the accent (button / scrubber / clip label) — e.g. the tumor color
   durationSeconds?: number | null; // known RSS duration; media metadata replaces it once loaded
+  eventId?: string | null; // stable hero/episode identity for admin engagement reporting
+  eventLabel?: string | null;
   tone?: "light" | "dark"; // "dark" = translucent chrome for use on a dark card
 }) {
   const ref = useRef<HTMLAudioElement>(null);
@@ -78,7 +82,7 @@ export default function AudioQuote({
       if (!playLoggedRef.current) {
         playLoggedRef.current = true;
         const area = new URLSearchParams(window.location.search).get("area");
-        logSignal("podcast_play", area, null, { label: label ?? "audio", startMs });
+        logSignal("podcast_play", area, eventId ?? null, { label: eventLabel ?? label ?? "audio", startMs });
       }
       // one clip at a time — pause any other player on the page
       document.querySelectorAll("audio").forEach((a) => {
@@ -90,7 +94,7 @@ export default function AudioQuote({
     } else {
       el.pause();
     }
-  }, [applyStart]);
+  }, [applyStart, eventId, eventLabel, label, startMs]);
 
   const scrub = (e: React.ChangeEvent<HTMLInputElement>) => {
     const el = ref.current;

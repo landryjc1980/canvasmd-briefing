@@ -21,11 +21,12 @@ export function logSignal(kind: BriefSignalKind, area?: string | null, storyId?:
 // can tell "seen this exact version" from "seen an older version" (→ UPDATED chip). De-duped
 // per page load so swiping back and forth doesn't spam events.
 const seenLogged = new Set<string>();
-export function logStorySeen(area: string, storyId: string, fp?: string) {
+export function logStorySeen(area: string, storyId: string, fp?: string, details?: { label?: string; kind?: string }) {
   const key = `${area}:${storyId}`;
   if (seenLogged.has(key)) return;
   seenLogged.add(key);
-  logSignal("story_view", area, storyId, fp ? { fp } : undefined);
+  const meta = { ...(fp ? { fp } : {}), ...details };
+  logSignal("story_view", area, storyId, Object.keys(meta).length ? meta : undefined);
 }
 
 /** Mint a share link and hand it off via the native share sheet, falling back to clipboard. */

@@ -33,7 +33,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {cards.map((c, i) => (
-        <article key={c.id} style={{ padding: compact ? "12px 2px" : "18px 0", borderTop: i ? `1px solid ${ink.line}` : "none" }}>
+        <article key={c.id} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={{ padding: compact ? "12px 2px" : "18px 0", borderTop: i ? `1px solid ${ink.line}` : "none" }}>
           {/* ≤640px the gutter ordinal collapses into the kicker line (brief.css .hero-row) —
               a 32px side gutter on a 390px phone squishes every serif headline into extra wraps. */}
           <div className="hero-row" style={{ alignItems: "baseline", gap: 10 }}>
@@ -67,7 +67,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                 {ev && c.kind !== "episode" && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={drawerId}
-                    data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`}
+                    data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`} data-brief-label={c.headline}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                     {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
                   </button>
@@ -83,13 +83,13 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   moment" (Codex acceptance item). */}
               {c.kind === "episode" && c.startMs != null && c.url && (
                 <div style={{ marginTop: 10, width: "100%" }}>
-                  <AudioQuote audioUrl={c.url} startMs={c.startMs} durationSeconds={c.durationSeconds} label={`Listen @ ${clipTs(c.startMs)}`} accent={accent} tone="dark" />
+                  <AudioQuote audioUrl={c.url} startMs={c.startMs} durationSeconds={c.durationSeconds} label={`Listen @ ${clipTs(c.startMs)}`} eventId={c.id} eventLabel={c.headline} accent={accent} tone="dark" />
                 </div>
               )}
               {ev && c.kind === "episode" && (
                 <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                   aria-expanded={openId === c.id} aria-controls={drawerId}
-                  data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode"
+                  data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode" data-brief-label={c.headline}
                   style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                   {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
                 </button>

@@ -13,6 +13,17 @@ type Row = {
   opens: number; views: number; story_views: number; shares: number; active_weeks: number; last_event_at: string | null;
 };
 
+type ReadoutEventKind = "story_view" | "source_open" | "podcast_play" | "section_jump" | "show_more";
+type ReadoutEngagement = {
+  capturedAt: string;
+  firstEventAt: string | null;
+  uniqueReaders30: number;
+  totals: Record<ReadoutEventKind, { last7: number; last30: number; readers30: number }>;
+  byArea: Array<{ area: string; counts: Record<ReadoutEventKind, number> }>;
+  topContent: Array<{ storyId: string; label: string; area: string; views: number; sourceOpens: number; podcastPlays: number; total: number }>;
+  sectionJumps: Array<{ section: string; count: number }>;
+};
+
 // Two-sided health model, mirroring the daily pipeline-health email exactly.
 // FRESHNESS answers "did each stage produce output recently?"; BACKLOG answers "is
 // unprocessed work piling up?". Both are needed: a stage can keep writing rows while
@@ -32,6 +43,7 @@ export default function Admin() {
   const [csv, setCsv] = useState("email,name,org,role,area\n");
   const [out, setOut] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [readout, setReadout] = useState<ReadoutEngagement | null>(null);
   const [requests, setRequests] = useState<{ id: string; email: string; default_area: string | null; created_at?: string }[]>([]);
   const [testEmail, setTestEmail] = useState("");
   const [health, setHealth] = useState<Health | null>(null);
@@ -61,7 +73,7 @@ export default function Admin() {
   const loadSignal = async (k = key) => {
     // send the token only if we have one; otherwise the request rides the brief session cookie
     const r = await fetch("/api/admin/signal", { headers: k ? { "x-admin-token": k } : {} });
-    if (r.ok) { const j = await r.json(); setRows(j.rows || []); setAuthed(true); if (k) localStorage.setItem("brief_admin_key", k); loadRequests(k); loadHealth(k); }
+    if (r.ok) { const j = await r.json(); setRows(j.rows || []); setReadout(j.readout || null); setAuthed(true); if (k) localStorage.setItem("brief_admin_key", k); loadRequests(k); loadHealth(k); }
     else { setAuthed(false); if (k) setOut("Bad admin token."); } // silent when just probing the session
   };
   const decide = async (id: string, action: "approve" | "decline") => {
@@ -103,6 +115,13 @@ export default function Admin() {
   }
 
   const hot = [...rows].sort((a, b) => (b.views + b.story_views + b.shares * 3) - (a.views + a.story_views + a.shares * 3));
+  const readoutMetrics: Array<{ kind: ReadoutEventKind; label: string }> = [
+    { kind: "story_view", label: "Top stories viewed" },
+    { kind: "source_open", label: "Sources opened" },
+    { kind: "podcast_play", label: "Podcast plays" },
+    { kind: "section_jump", label: "Section jumps" },
+    { kind: "show_more", label: "Show more" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui", padding: "28px 24px", maxWidth: 1000, margin: "0 auto" }}>
@@ -206,6 +225,78 @@ export default function Admin() {
           </div>
         );
       })()}
+
+      {readout && (
+        <div style={box}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Readout engagement</div>
+              <div style={{ color: "#8b93a4", fontSize: 12, marginTop: 3 }}>
+                What readers actually use · {readout.uniqueReaders30} distinct reader{readout.uniqueReaders30 === 1 ? "" : "s"} in 30 days
+              </div>
+            </div>
+            <button style={{ ...btn, background: "rgba(255,255,255,.14)", color: "#f4f7ff" }} onClick={() => loadSignal()}>Refresh</button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 8 }}>
+            {readoutMetrics.map(({ kind, label }) => {
+              const m = readout.totals[kind];
+              return (
+                <div key={kind} style={{ padding: "11px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 7 }}>
+                  <div style={{ color: "#8b93a4", fontSize: 11.5 }}>{label}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginTop: 4 }}>
+                    <span style={{ color: "#f4f7ff", fontSize: 23, fontWeight: 650, fontVariantNumeric: "tabular-nums" }}>{m.last7.toLocaleString()}</span>
+                    <span style={{ color: "#8b93a4", fontSize: 11 }}>7d</span>
+                  </div>
+                  <div style={{ color: "#6f788b", fontSize: 11, marginTop: 2 }}>{m.last30.toLocaleString()} in 30d · {m.readers30} readers</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {readout.byArea.length > 0 && (
+            <div style={{ overflowX: "auto", marginTop: 16 }}>
+              <div style={{ fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: "#8b93a4", marginBottom: 5 }}>By edition · 30 days</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead><tr style={{ textAlign: "left", color: "#727b8d" }}>
+                  {["Area", "Stories", "Sources", "Plays", "Jumps", "More"].map((h) => <th key={h} style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>{h}</th>)}
+                </tr></thead>
+                <tbody>{readout.byArea.map((r) => (
+                  <tr key={r.area} style={{ borderBottom: "1px solid rgba(255,255,255,.05)" }}>
+                    <td style={{ padding: "6px 8px", color: "#f4f7ff", fontWeight: 600 }}>{r.area}</td>
+                    {(["story_view", "source_open", "podcast_play", "section_jump", "show_more"] as ReadoutEventKind[]).map((kind) => (
+                      <td key={kind} style={{ padding: "6px 8px", color: "#aab2c4", fontVariantNumeric: "tabular-nums" }}>{r.counts[kind].toLocaleString()}</td>
+                    ))}
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+
+          {readout.topContent.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: "#8b93a4", marginBottom: 5 }}>Most engaged content · 30 days</div>
+              {readout.topContent.slice(0, 8).map((item) => (
+                <div key={`${item.area}:${item.storyId}`} style={{ display: "flex", alignItems: "baseline", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 12.5 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: "#e9edf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+                    <div style={{ color: "#6f788b", fontSize: 11, marginTop: 2 }}>{item.area}</div>
+                  </div>
+                  <div style={{ color: "#8b93a4", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                    {item.views} viewed · {item.sourceOpens} sources · {item.podcastPlays} plays
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {readout.sectionJumps.length > 0 && (
+            <div style={{ marginTop: 13, color: "#8b93a4", fontSize: 12 }}>
+              Section jumps: {readout.sectionJumps.map((s) => `${s.section} ${s.count}`).join(" · ")}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ ...box, ...(requests.length ? { border: "1px solid rgba(122,162,255,.5)" } : {}) }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
