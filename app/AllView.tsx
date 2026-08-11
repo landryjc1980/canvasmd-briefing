@@ -389,7 +389,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {eps.slice(0, 3).map((e, j) => (
                 <div key={j} style={{ background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12, padding: "11px 13px" }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: e.audioUrl ? 9 : 0 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: e.audioUrl ? 9 : 0 }}>
                     <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,.1)", flex: "none", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px system-ui" }}>{e.showArt ? <img src={e.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(e.show ?? "P")}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "600 12px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>

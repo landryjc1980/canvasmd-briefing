@@ -137,7 +137,7 @@ export const paperMeta = (shown: number, likes: number, total?: number | null): 
 export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
-      <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
         <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "600 13.5px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
@@ -884,7 +884,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           }>
           {eps.map((ep, j) => (
             <div key={j} style={cardBox}>
-              <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
+              <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || g.name)}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "600 13.5px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</div>
@@ -961,7 +961,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           const drawerId = `epamp-drawer-${String(ep.episodeId ?? i).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
           return (
           <div key={i} className="rv-episode-row">
-            <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 11 }}>
+            <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 {/* the EPISODE is the content — it takes the headline slot (John); the show is the byline */}

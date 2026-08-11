@@ -309,7 +309,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   };
   const podCard = (p: BriefingPod, key: number | string, compact = false) => (
     <div key={key} onClick={stop} style={cardBox}>
-      <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
         <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
           {p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}
         </div>
@@ -573,7 +573,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                     {gopen && eps.length > 0 && <div onClick={stop} style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                       {eps.map((ep, j) => (
                         <div key={j} style={cardBox}>
-                          <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+                          <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
                             <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
                               {ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || g.name)}
                             </div>
@@ -614,7 +614,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {(data.episodes ?? []).filter((e) => e.audioUrl).map((ep, i) => (
                 <div key={i} onClick={stop} style={cardBox}>
-                  <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
                     <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
                     <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "600 13.5px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div><div style={{ font: "400 11px system-ui", color: "#7c7f88", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.title}</div></div>
                   </div>
