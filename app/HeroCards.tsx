@@ -25,7 +25,7 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // legacy arrays): faces for the pile, and a lazily-rendered receipts drawer. RECEIPTS RULE
 // (John, 2026-08-09): a count like "shared by 13 clinicians" must open into WHO and WHAT
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
-export type HeroEvidence = { faces: string[]; drawer: ReactNode } | null;
+export type HeroEvidence = { faces: string[]; drawer: ReactNode; abstract?: string | null; preview?: ReactNode } | null;
 
 export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "" }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -47,10 +47,22 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
                 {c.url && c.kind !== "episode" ? <a href={c.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
               </h3>
-              {c.excerpt && (
+              {c.excerpt && c.kind !== "paper" && (
                 <p className="hero-excerpt" style={{ font: compact ? "400 13.5px/1.5 system-ui" : undefined, color: ink.soft, margin: compact ? "8px 0 0" : undefined, ...(compact && openId !== c.id ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
+              )}
+              {c.kind === "paper" && ev?.abstract && !compact && (
+                <details className="readout-hero-abstract" style={{ color: accent }}>
+                  <summary>Read abstract <span aria-hidden>↓</span></summary>
+                  <p>{ev.abstract}</p>
+                </details>
+              )}
+              {c.kind === "paper" && ev?.preview && !compact && (
+                <div className="readout-hero-preview">
+                  <div>From X</div>
+                  {ev.preview}
+                </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                 {ev && ev.faces.length > 0 && (
@@ -70,11 +82,6 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                     {openId === c.id ? "Hide sources ↑" : compact ? "Sources ↓" : "See all sources ↓"}
                   </button>
-                )}
-                {c.url && !(c.kind === "episode" && c.startMs != null) && (
-                  <a href={c.url} target="_blank" rel="noreferrer" style={{ font: "600 12.5px system-ui", color: accent, textDecoration: "none" }}>
-                    {c.kind === "thread" ? "Original post ↗" : c.kind === "event" ? "Primary source ↗" : "Original ↗"}
-                  </a>
                 )}
               </div>
               {/* Episodes get the REAL seeking player (media fragment + JS re-seek) — a bare

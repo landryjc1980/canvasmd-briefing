@@ -6,7 +6,7 @@ import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongr
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
-import HeroCards from "./HeroCards";
+import HeroCards, { type HeroEvidence } from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
@@ -152,7 +152,7 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
     </div>
   );
 }
-export function TweetCard({ t }: { t: BriefingSharer }) {
+export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?: boolean }) {
   const text = cleanTweetText(t.text);
   // Classic retweet: the words below belong to someone else. Credit the amplification on the
   // name line, then set the quote apart so it can never be read as this clinician's own take.
@@ -176,8 +176,8 @@ export function TweetCard({ t }: { t: BriefingSharer }) {
         : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{text}</p>)}
     </>);
   return t.tweetUrl
-    ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
-    : <div style={cardBox}>{body}</div>;
+    ? <a className={compact ? "readout-tweet-preview" : undefined} href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
+    : <div className={compact ? "readout-tweet-preview" : undefined} style={cardBox}>{body}</div>;
 }
 
 type BriefingAmplifier = NonNullable<BriefingEpisode["amplifiers"]>[number];
@@ -689,11 +689,20 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // RECEIPTS for hero cards (John 2026-08-09: "shared by 13 clinicians" must open into WHO
   // and WHAT THEY SAID). The payload dual-publishes the full legacy evidence — join each
   // card to it by anchor and reuse the SAME StoryEvidence drawer as legacy stories.
-  const heroEvidenceOf = (c: HeroCardT): { faces: string[]; drawer: React.ReactNode } | null => {
+  const heroEvidenceOf = (c: HeroCardT): HeroEvidence => {
     const r = resolveHeroEvidence(c, rawData);
     if (!r) return null;
-    if (r.kind === "paper") return { faces: r.faces, drawer: <StoryEvidence story={{ ...(r.story as EvSource), publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
-    if (r.kind === "article") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [r.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
+    if (r.kind === "paper") {
+      const story = r.story as EvSource;
+      const paper = story.papers?.[0];
+      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? r.publisherPosts[0];
+      return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
+    }
+    if (r.kind === "article") {
+      const paper = r.paper as unknown as BriefingPaper;
+      const firstPost = r.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? r.publisherPosts[0];
+      return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
+    }
     if (r.kind === "episode") return { faces: r.faces, drawer: (
       <>
         <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" />
