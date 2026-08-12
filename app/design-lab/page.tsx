@@ -310,14 +310,32 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
   );
 }
 
-function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
+function Studio({ data, cards, media, onAreaChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void }) {
   const [active, setActive] = useState(0);
   const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
   const firstTweet = card ? firstSourceTweet(card, data) : null;
   return (
     <div className="dl-concept dl-studio">
-      <header className="dl-studio-head"><strong>The Readout</strong><span>{data.area} · {fmtDate(data.generatedAt)}</span></header>
-      <main className="dl-studio-stage">
+      <header className="dl-studio-head">
+        <strong>The Readout</strong>
+        <nav className="dl-studio-nav" aria-label="Readout sections">
+          <a href="#studio-stories">Stories</a>
+          <a href="#studio-episodes">Episodes</a>
+          <a href="#studio-papers">Papers</a>
+          <a href="#studio-people">People</a>
+          <a href="#studio-trials">Trials</a>
+        </nav>
+        <div className="dl-studio-head-tools">
+          <label>
+            <span>Specialty</span>
+            <select value={data.area} onChange={(event) => onAreaChange(event.target.value as typeof AREAS[number])}>
+              {AREAS.map((value) => <option value={value} key={value}>{value}</option>)}
+            </select>
+          </label>
+          <span>{fmtDate(data.generatedAt)}</span>
+        </div>
+      </header>
+      <main className="dl-studio-stage" id="studio-stories">
         <aside className="dl-story-index" aria-label="Top stories">
           <div className="dl-kicker">Worth your attention</div>
           <div className="dl-story-index-track">
@@ -353,8 +371,8 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
           <StorySources card={card} data={data} accent="#ff9b72" collapsedLabel="See all sources" />
         </section>}
       </main>
-      <div className="dl-studio-rails"><EpisodeRail data={data} limit={3} /><PaperRail data={data} media={media} limit={4} /></div>
-      <div className="dl-studio-rails dl-studio-lower"><PeopleRail data={data} /><TrialRail data={data} /></div>
+      <div className="dl-studio-rails"><div id="studio-episodes"><EpisodeRail data={data} limit={3} /></div><div id="studio-papers"><PaperRail data={data} media={media} limit={4} /></div></div>
+      <div className="dl-studio-rails dl-studio-lower"><div id="studio-people"><PeopleRail data={data} /></div><div id="studio-trials"><TrialRail data={data} /></div></div>
     </div>
   );
 }
@@ -519,7 +537,7 @@ export default function DesignLabPage() {
         {error && <div className="dl-loading">Couldn’t load {area}: {error}</div>}
         {data && concept === "essential" && <Essential data={data} cards={cards} media={articleMedia} />}
         {data && concept === "air" && <Air data={data} cards={cards} media={articleMedia} />}
-        {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} />}
+        {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} />}
         {data && concept === "signal" && <Signal data={data} cards={cards} media={articleMedia} />}
       </div>
     </div>
