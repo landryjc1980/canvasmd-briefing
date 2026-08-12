@@ -50,6 +50,18 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [micsMore, setMicsMore] = useState(false);
   const [xMore, setXMore] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRoot = root.style.backgroundColor;
+    const previousBody = body.style.backgroundColor;
+    root.style.backgroundColor = INK;
+    body.style.backgroundColor = INK;
+    return () => {
+      root.style.backgroundColor = previousRoot;
+      body.style.backgroundColor = previousBody;
+    };
+  }, []);
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -291,7 +303,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     }
   }
 
-  const wash = "#232a3a"; // a neutral top wash for All (no single area owns the page)
   const ini = (s: string) => s.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
   // KOL institutions arrive as raw primary_institution ("Dana-Farber Cancer Institute, Boston,
   // MA") — keep the first segment only, the same rule the edge fn already applies to guest
@@ -539,7 +550,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${wash}80 0px, ${wash}22 220px, ${wash}00 460px), ${INK}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: INK, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <style>{`
         .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
         .rv-row{transition:color .16s ease}

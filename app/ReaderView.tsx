@@ -441,8 +441,7 @@ export function FacePile({ faces, extra, ring }: { faces: string[]; extra: numbe
 }
 
 export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void }) {
-  // Ink editorial: neutral near-black page, the area's jewel tone demoted to a top
-  // "cover wash" + the accent system. See inkOf in briefVM.
+  // One publication canvas across every edition; area color is an interaction accent.
   const pal = inkOf(area);
   const [openId, setOpenId] = useState<string | null>(null);
   // Sub-tumor (indication) filter — GU → Prostate/Bladder/Kidney. `data` is the sub-filtered view
@@ -488,13 +487,19 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     mq.addEventListener("change", set);
     return () => mq.removeEventListener("change", set);
   }, [compact]);
-  // Keep the document root the same color as the page so load-in and overscroll bounce
+  // Keep the document canvas the same color as the page so load-in and overscroll bounce
   // never flash the classic design's cream (globals.css paints --paper for ?design=classic).
   useEffect(() => {
-    const el = document.documentElement;
-    const prev = el.style.backgroundColor;
-    el.style.backgroundColor = pal.bg;
-    return () => { el.style.backgroundColor = prev; };
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRoot = root.style.backgroundColor;
+    const previousBody = body.style.backgroundColor;
+    root.style.backgroundColor = pal.bg;
+    body.style.backgroundColor = pal.bg;
+    return () => {
+      root.style.backgroundColor = previousRoot;
+      body.style.backgroundColor = previousBody;
+    };
   }, [pal.bg]);
   const doShare = async () => {
     try {
@@ -608,8 +613,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // sec-top and sec-kols both sit at their column tops, so a pure position spy ties to Top Stories
   // and the clicked KOLs pill never lights. The pin is released on the reader's next genuine scroll.
   const pinnedSecRef = useRef<string | null>(null);
-  // The jump-link bar rides transparently on the cover wash at rest, and only grows its
-  // ink-glass chrome once it actually sticks — a floating bar over the masthead read as a band.
+  // The jump-link bar stays transparent at rest and gains ink-glass chrome only once it sticks.
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
     // On the wide layout the KOL/Trials sections live in the right rail; their pills now stay in
@@ -1175,7 +1179,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   };
 
   return (
-    <div onClickCapture={captureInteraction} style={{ minHeight: "100vh", overflowWrap: "break-word", background: `linear-gradient(180deg, ${pal.wash}C9 0px, ${pal.wash}55 260px, ${pal.wash}00 560px), radial-gradient(900px 420px at 50% -200px, rgba(255,255,255,.05), rgba(255,255,255,0) 70%), ${pal.bg}`, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div onClickCapture={captureInteraction} style={{ minHeight: "100vh", overflowWrap: "break-word", background: pal.bg, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       {/* rv-pills: hide the scrollbar; on mobile a right-edge fade signals there's more to scroll.
           Expandable lists use dividers and quiet text actions instead of nested pills/cards. */}
       <style>{`
@@ -1242,8 +1246,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {!compact && focusSwitcher(false)}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
-            {/* the edition's color, worn structurally: a thin area-accent rule under the masthead */}
-            {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 14, background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}47 40%, transparent)` }} />}
+            {/* A small structural cue is enough to identify the edition on the shared canvas. */}
+            {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 14, background: `${pal.accent}66` }} />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
@@ -1260,7 +1264,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             share + area controls (not floating against a 3-line stack) */}
         {compact && <>
           <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 0" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>
-          <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}47 40%, transparent)` }} />
+          <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `${pal.accent}66` }} />
         </>}
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll. Glassy over the lit page field. */}
