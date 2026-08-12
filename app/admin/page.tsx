@@ -138,6 +138,7 @@ export default function Admin() {
             </button>
           ))}
         </div>
+        <a href="/design-lab" style={{ marginLeft: "auto", color: "#aebfe8", fontSize: 13, fontWeight: 650, textDecoration: "none", whiteSpace: "nowrap" }}>Design Lab ↗</a>
       </div>
 
       {tab === "dashboard" && <Dashboard adminKey={key} />}

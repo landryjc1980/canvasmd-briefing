@@ -115,6 +115,29 @@ export async function seenStories(contactId: string, area: string): Promise<Reco
   return seen;
 }
 
+export type DesignLabArticleMedia = {
+  url: string;
+  imageUrl: string | null;
+  publisher: string | null;
+  journal: string | null;
+  domain: string | null;
+};
+
+// The live Brief payload is intentionally lean. The Design Lab can opt into the richer visual
+// layer already stored for CanvasMD articles without changing reader-facing payload contracts.
+export async function designLabArticleMedia(urls: string[]): Promise<DesignLabArticleMedia[]> {
+  const unique = [...new Set(urls.filter((url) => /^https?:\/\//.test(url)))].slice(0, 24);
+  const rows = await Promise.all(unique.map(async (url) => {
+    const found = await pg<Array<{ canonical_url: string; image_url: string | null; publisher: string | null; journal: string | null; domain: string | null }>>(
+      `x_shared_articles?canonical_url=eq.${encodeURIComponent(url)}&select=canonical_url,image_url,publisher,journal,domain&limit=1`,
+      { method: "GET", headers: headers() },
+    );
+    const row = found[0];
+    return row ? { url: row.canonical_url, imageUrl: row.image_url, publisher: row.publisher, journal: row.journal, domain: row.domain } : null;
+  }));
+  return rows.filter((row): row is DesignLabArticleMedia => row !== null);
+}
+
 // ---- invites (colleague share -> referral graph) -----------------------------------------
 export type Invite = { id: string; code: string; inviter_id: string | null; org_id: string | null; max_uses: number; uses: number; expires_at: string | null };
 export async function createInvite(inviterId: string, orgId: string | null, code: string, maxUses = 3, ttlDays = 30): Promise<Invite> {
