@@ -183,6 +183,92 @@ function AbstractDisclosure({ text, compact = false }: { text: string; compact?:
   );
 }
 
+function studioVisual(card: HeroCard, data: BriefingData, media: Map<string, ArticleMedia>): { src: string; round: boolean } | null {
+  if (card.kind === "paper" && card.url) {
+    const src = media.get(card.url)?.imageUrl;
+    const looksLikeUnvettedPreview = !src || /pbs\.twimg\.com\/news_img|(?:^|[._/-])(fig(?:ure)?|graph|chart|table)(?:[._/-]|$)/i.test(src);
+    return looksLikeUnvettedPreview ? null : { src, round: false };
+  }
+  if (card.kind === "episode") {
+    const resolved = resolveHeroEvidence(card, data);
+    const receiptArt = resolved?.kind === "episode" ? resolved.pods.find((pod) => pod.showArt)?.showArt : null;
+    const episodeArt = data.episodes?.find((episode) => episode.episodeId === card.anchorId)?.showArt;
+    const src = receiptArt ?? episodeArt;
+    return src ? { src, round: false } : null;
+  }
+  if (card.kind === "thread") {
+    const src = firstSourceTweet(card, data)?.avatar;
+    return src ? { src, round: true } : null;
+  }
+  return null;
+}
+
+function StudioVisual({ visual, headline }: { visual: { src: string; round: boolean }; headline: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      className={`dl-studio-story-visual${visual.round ? " is-round" : ""}`}
+      src={visual.src}
+      alt=""
+      aria-hidden="true"
+      title={headline}
+      onLoad={(event) => {
+        const { naturalWidth, naturalHeight } = event.currentTarget;
+        if (!visual.round && (naturalWidth < 180 || naturalHeight < 120 || naturalWidth / naturalHeight > 3 || naturalHeight / naturalWidth > 2.2)) {
+          setFailed(true);
+        }
+      }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function StudioLeadStory({ card, data, accent }: { card: HeroCard; data: BriefingData; accent: string }) {
+  const firstTweet = firstSourceTweet(card, data);
+  const abstract = paperAbstract(card, data);
+  return (
+    <article className="dl-studio-lead">
+      <div className="dl-kicker">{KICKER[card.kind]}</div>
+      <div className="dl-studio-source">{card.sourceLabel}</div>
+      <h1>{card.url && card.kind !== "episode"
+        ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a>
+        : card.headline}</h1>
+      {card.excerpt && <p>{card.excerpt}</p>}
+      {abstract && <AbstractDisclosure text={abstract} />}
+      {card.kind === "episode" && <StoryAction card={card} />}
+      {firstTweet && <div className="dl-studio-tweet"><span>From X</span><TweetCard t={firstTweet} /></div>}
+      <StorySources card={card} data={data} accent={accent} collapsedLabel="See all sources" />
+    </article>
+  );
+}
+
+function StudioStoryRow({ card, data, media, accent, index }: { card: HeroCard; data: BriefingData; media: Map<string, ArticleMedia>; accent: string; index: number }) {
+  const visual = studioVisual(card, data, media);
+  const abstract = paperAbstract(card, data);
+  return (
+    <article className="dl-studio-story">
+      <div className="dl-studio-story-source">
+        <span>{KICKER[card.kind]}</span>
+        <strong>{card.sourceLabel}</strong>
+      </div>
+      <div className={`dl-studio-story-main${visual ? " has-visual" : ""}`}>
+        {visual && <StudioVisual visual={visual} headline={card.headline} />}
+        <div className="dl-studio-story-copy">
+          <span className="dl-studio-story-number">{String(index + 1).padStart(2, "0")}</span>
+          <h2>{card.url && card.kind !== "episode"
+            ? <a href={card.url} target="_blank" rel="noreferrer" title={card.headline}>{card.headline}</a>
+            : card.headline}</h2>
+          {card.excerpt && <p>{card.excerpt}</p>}
+        </div>
+      </div>
+      {abstract && <AbstractDisclosure text={abstract} compact />}
+      {card.kind === "episode" && <StoryAction card={card} />}
+      <StorySources card={card} data={data} accent={accent} collapsedLabel="See all sources" />
+    </article>
+  );
+}
+
 function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }) {
   const episodes = (data.episodes ?? []).filter((episode) => episode.audioUrl).slice(0, limit);
   if (!episodes.length) return null;
@@ -331,10 +417,7 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
 }
 
 function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void; lightMode: boolean; onLightModeChange: (light: boolean) => void }) {
-  const [active, setActive] = useState(0);
-  const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
-  const firstTweet = card ? firstSourceTweet(card, data) : null;
-  const abstract = card ? paperAbstract(card, data) : null;
+  const [lead, ...rest] = cards;
   const studioAccent = lightMode ? "#b64b2a" : "#ff9b72";
   return (
     <div className={`dl-concept dl-studio${lightMode ? " is-light" : ""}`}>
@@ -362,42 +445,17 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
           <span>{fmtDate(data.generatedAt)}</span>
         </div>
       </header>
-      <main className="dl-studio-stage" id="studio-stories">
-        <aside className="dl-story-index" aria-label="Top stories">
-          <div className="dl-kicker">Worth your attention</div>
-          <div className="dl-story-index-track">
-            {cards.map((item, index) => (
-              <button
-                type="button"
-                className={index === active ? "active" : ""}
-                aria-current={index === active ? "true" : undefined}
-                aria-label={`Story ${index + 1}: ${item.headline}`}
-                title={item.headline}
-                onClick={() => setActive(index)}
-                key={item.id}
-              >
-                <span className="dl-story-number">{String(index + 1).padStart(2, "0")}</span>
-                <span className="dl-story-index-copy">
-                  <small>{KICKER[item.kind]}</small>
-                  <strong className="dl-story-title">{item.headline}</strong>
-                </span>
-                <span className="dl-story-arrow" aria-hidden="true">›</span>
-              </button>
-            ))}
+      <main className="dl-studio-stories" id="studio-stories">
+        <div className="dl-studio-stories-inner">
+          <div className="dl-studio-stories-heading">
+            <div className="dl-kicker">Worth your attention</div>
+            <span>{cards.length} stor{cards.length === 1 ? "y" : "ies"}</span>
           </div>
-        </aside>
-        {card && <section className="dl-studio-feature">
-          <div className="dl-kicker">{KICKER[card.kind]}</div>
-          <div className="dl-studio-meta"><strong>{card.sourceLabel}</strong></div>
-          <h1>{card.url && card.kind !== "episode"
-            ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a>
-            : card.headline}</h1>
-          <p>{card.excerpt}</p>
-          {abstract && <AbstractDisclosure text={abstract} />}
-          {card.kind === "episode" && <StoryAction card={card} />}
-          {firstTweet && <div className="dl-studio-tweet"><span>From X</span><TweetCard t={firstTweet} /></div>}
-          <StorySources card={card} data={data} accent={studioAccent} collapsedLabel="See all sources" />
-        </section>}
+          {lead && <StudioLeadStory card={lead} data={data} accent={studioAccent} />}
+          {rest.length > 0 && <section className="dl-studio-story-list" aria-label="More stories">
+            {rest.map((card, index) => <StudioStoryRow card={card} data={data} media={media} accent={studioAccent} index={index + 1} key={card.id} />)}
+          </section>}
+        </div>
       </main>
       <div className="dl-studio-rails"><div id="studio-episodes"><EpisodeRail data={data} limit={3} /></div><div id="studio-papers"><PaperRail data={data} media={media} limit={4} /></div></div>
       <div className="dl-studio-rails dl-studio-lower"><div id="studio-people"><PeopleRail data={data} /></div><div id="studio-trials"><TrialRail data={data} /></div></div>
