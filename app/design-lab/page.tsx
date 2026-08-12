@@ -24,7 +24,7 @@ const CONCEPT_LABEL: Record<Concept, string> = {
 };
 
 const KICKER: Record<HeroCard["kind"], string> = {
-  paper: "Most shared paper",
+  paper: "Paper",
   episode: "In-depth episode",
   event: "Regulatory event",
   thread: "Clinician post",
@@ -296,11 +296,23 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
       <main className="dl-studio-stage">
         <aside className="dl-story-index" aria-label="Top stories">
           <div className="dl-kicker">Worth your attention</div>
-          {cards.map((item, index) => (
-            <button className={index === active ? "active" : ""} onClick={() => setActive(index)} key={item.id}>
-              <span>0{index + 1}</span><strong>{item.headline}</strong>
-            </button>
-          ))}
+          <div className="dl-story-index-track">
+            {cards.map((item, index) => (
+              <button
+                type="button"
+                className={index === active ? "active" : ""}
+                aria-current={index === active ? "true" : undefined}
+                aria-label={`Story ${index + 1}: ${item.headline}`}
+                title={item.headline}
+                onClick={() => setActive(index)}
+                key={item.id}
+              >
+                <span className="dl-story-number">{String(index + 1).padStart(2, "0")}</span>
+                <strong className="dl-story-title">{item.headline}</strong>
+                <span className="dl-story-arrow" aria-hidden="true">›</span>
+              </button>
+            ))}
+          </div>
         </aside>
         {card && <section className="dl-studio-feature">
           <div className="dl-kicker">{KICKER[card.kind]}</div>
