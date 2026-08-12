@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { BriefingData, BriefingStory, HeroCard } from "@/lib/types";
+import type { BriefingData, BriefingPaper, BriefingStory, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
+import { AmplifierReceipts, StoryEvidence } from "../ReaderView";
 import { articleSource, cleanArticleTitle, storiesOf } from "../briefVM";
 import { heroDeckOf } from "../heroContract";
+import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
 import "./design-lab.css";
 
@@ -115,6 +117,31 @@ function StoryAction({ card }: { card: HeroCard }) {
   return card.url ? <a className="dl-arrow-link" href={card.url} target="_blank" rel="noreferrer">Open source <span aria-hidden>↗</span></a> : null;
 }
 
+function StorySources({ card, data, accent }: { card: HeroCard; data: BriefingData; accent: string }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [card.id]);
+  const resolved = resolveHeroEvidence(card, data);
+  if (!resolved) return null;
+  const regionId = `dl-sources-${card.id.replace(/[^a-z0-9]+/gi, "-")}`;
+  const faces = resolved.faces;
+  const drawer = resolved.kind === "paper"
+    ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
+    : resolved.kind === "article"
+      ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
+      : resolved.kind === "episode"
+        ? <><StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />{(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}</>
+        : <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" />;
+  return (
+    <div className="dl-sources">
+      <button type="button" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen((value) => !value)} style={{ color: accent }}>
+        <Faces urls={faces} />
+        <span>{open ? "Hide sources ↑" : "Sources ↓"}</span>
+      </button>
+      {open && <div className="dl-evidence" id={regionId}>{drawer}</div>}
+    </div>
+  );
+}
+
 function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }) {
   const episodes = (data.episodes ?? []).filter((episode) => episode.audioUrl).slice(0, limit);
   if (!episodes.length) return null;
@@ -221,7 +248,7 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
       </header>
       <nav className="dl-public-nav"><a href="#dl-stories">Stories</a><a href="#dl-listen">Listen</a><a href="#dl-papers">Papers</a><a href="#dl-people">People</a></nav>
       <main>
-        <section id="dl-stories" className={`dl-air-lead${lead?.url && media.get(lead.url)?.imageUrl ? " has-image" : ""}`}>
+        <section id="dl-stories" className="dl-air-lead">
           {lead && <>
             <div className="dl-air-lead-copy">
               <div className="dl-kicker">{KICKER[lead.kind]}</div>
@@ -229,8 +256,8 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
               <p className="dl-deck">{lead.excerpt}</p>
               <div className="dl-source-line"><SourceMark name={lead.sourceLabel} /><strong>{lead.sourceLabel}</strong><span>{lead.why}</span></div>
               <StoryAction card={lead} />
+              <StorySources card={lead} data={data} accent="#2365d8" />
             </div>
-            {lead.url && <ArticleVisual media={media.get(lead.url)} alt={lead.headline} />}
           </>}
         </section>
         <section className="dl-air-grid">
@@ -242,6 +269,7 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
               <p>{card.excerpt}</p>
               <small>{card.why}</small>
               <StoryAction card={card} />
+              <StorySources card={card} data={data} accent="#2365d8" />
             </article>
           ))}
         </section>
@@ -273,13 +301,13 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
             </button>
           ))}
         </aside>
-        {card && <section className={`dl-studio-feature${card.url && media.get(card.url)?.imageUrl ? " has-image" : ""}`}>
-          {card.url && <ArticleVisual media={media.get(card.url)} alt={card.headline} />}
+        {card && <section className="dl-studio-feature">
           <div className="dl-kicker">{KICKER[card.kind]}</div>
           <h1>{card.headline}</h1>
           <p>{card.excerpt}</p>
           <div className="dl-studio-meta"><strong>{card.sourceLabel}</strong><span>{card.why}</span></div>
           <StoryAction card={card} />
+          <StorySources card={card} data={data} accent="#ff9b72" />
         </section>}
       </main>
       <div className="dl-studio-rails"><EpisodeRail data={data} limit={3} /><PaperRail data={data} media={media} limit={4} /></div>
@@ -300,11 +328,11 @@ function Signal({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
               <div className="dl-signal-number">{String(index + 1).padStart(2, "0")}</div>
               <div>
                 <div className="dl-kicker">{KICKER[card.kind]}</div>
-                {card.url && <ArticleVisual media={media.get(card.url)} alt="" />}
                 <h2>{card.headline}</h2>
                 {card.excerpt && <p>{card.excerpt}</p>}
                 <div className="dl-signal-meta"><strong>{card.sourceLabel}</strong><span>{card.why}</span></div>
                 <StoryAction card={card} />
+                <StorySources card={card} data={data} accent="#b8322e" />
               </div>
             </article>
           ))}
