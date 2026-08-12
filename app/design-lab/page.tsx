@@ -310,12 +310,13 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
   );
 }
 
-function Studio({ data, cards, media, onAreaChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void }) {
+function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void; lightMode: boolean; onLightModeChange: (light: boolean) => void }) {
   const [active, setActive] = useState(0);
   const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
   const firstTweet = card ? firstSourceTweet(card, data) : null;
+  const studioAccent = lightMode ? "#b64b2a" : "#ff9b72";
   return (
-    <div className="dl-concept dl-studio">
+    <div className={`dl-concept dl-studio${lightMode ? " is-light" : ""}`}>
       <header className="dl-studio-head">
         <strong>The Readout</strong>
         <nav className="dl-studio-nav" aria-label="Readout sections">
@@ -326,7 +327,12 @@ function Studio({ data, cards, media, onAreaChange }: { data: BriefingData; card
           <a href="#studio-trials">Trials</a>
         </nav>
         <div className="dl-studio-head-tools">
-          <label>
+          <label className="dl-studio-theme">
+            <input type="checkbox" checked={lightMode} onChange={(event) => onLightModeChange(event.target.checked)} />
+            <i aria-hidden="true" />
+            <span>Light</span>
+          </label>
+          <label className="dl-studio-specialty">
             <span>Specialty</span>
             <select value={data.area} onChange={(event) => onAreaChange(event.target.value as typeof AREAS[number])}>
               {AREAS.map((value) => <option value={value} key={value}>{value}</option>)}
@@ -368,7 +374,7 @@ function Studio({ data, cards, media, onAreaChange }: { data: BriefingData; card
           <p>{card.excerpt}</p>
           {card.kind === "episode" && <StoryAction card={card} />}
           {firstTweet && <div className="dl-studio-tweet"><span>From X</span><TweetCard t={firstTweet} /></div>}
-          <StorySources card={card} data={data} accent="#ff9b72" collapsedLabel="See all sources" />
+          <StorySources card={card} data={data} accent={studioAccent} collapsedLabel="See all sources" />
         </section>}
       </main>
       <div className="dl-studio-rails"><div id="studio-episodes"><EpisodeRail data={data} limit={3} /></div><div id="studio-papers"><PaperRail data={data} media={media} limit={4} /></div></div>
@@ -465,6 +471,7 @@ export default function DesignLabPage() {
   const [area, setArea] = useState<typeof AREAS[number]>("GU");
   const [concept, setConcept] = useState<Concept>("essential");
   const [frame, setFrame] = useState<Frame>("full");
+  const [studioLight, setStudioLight] = useState(false);
   const [data, setData] = useState<BriefingData | null>(null);
   const [articleMedia, setArticleMedia] = useState<Map<string, ArticleMedia>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -473,6 +480,7 @@ export default function DesignLabPage() {
     const query = new URLSearchParams(window.location.search);
     setArea(safeArea(query.get("area")));
     setConcept(safeConcept(query.get("concept")));
+    setStudioLight(query.get("theme") === "light");
   }, []);
 
   useEffect(() => {
@@ -516,6 +524,14 @@ export default function DesignLabPage() {
     window.history.replaceState({}, "", url);
   };
 
+  const setStudioTheme = (light: boolean) => {
+    const url = new URL(window.location.href);
+    setStudioLight(light);
+    if (light) url.searchParams.set("theme", "light");
+    else url.searchParams.delete("theme");
+    window.history.replaceState({}, "", url);
+  };
+
   return (
     <div className="dl-lab">
       <header className="dl-toolbar">
@@ -537,7 +553,7 @@ export default function DesignLabPage() {
         {error && <div className="dl-loading">Couldn’t load {area}: {error}</div>}
         {data && concept === "essential" && <Essential data={data} cards={cards} media={articleMedia} />}
         {data && concept === "air" && <Air data={data} cards={cards} media={articleMedia} />}
-        {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} />}
+        {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} lightMode={studioLight} onLightModeChange={setStudioTheme} />}
         {data && concept === "signal" && <Signal data={data} cards={cards} media={articleMedia} />}
       </div>
     </div>
