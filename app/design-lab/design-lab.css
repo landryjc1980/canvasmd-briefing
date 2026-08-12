@@ -127,9 +127,12 @@
 .dl-essential-head div { display: flex; gap: 16px; color: #6e6e73; font-size: 12px; }
 .dl-essential-head div span:first-child { color: #1d1d1f; font-weight: 650; }
 .dl-essential main { width: min(1120px, calc(100% - 64px)); margin: 0 auto; }
-.dl-essential-story { min-height: 680px; display: grid; grid-template-columns: 72px minmax(0, 820px); gap: 36px; align-content: center; padding: 96px 0 88px; }
-.dl-essential-count { padding-top: 5px; display: flex; flex-direction: column; align-items: center; gap: 9px; color: #86868b; font: 560 11px/1 system-ui; }
-.dl-essential-count i { width: 1px; height: 42px; background: #d2d2d7; }
+.dl-essential-story { min-height: 680px; display: grid; grid-template-columns: 72px minmax(0, 820px); gap: 36px; align-content: center; padding: 96px 0 88px; border-bottom: 1px solid #d2d2d7; }
+.dl-essential-pager { padding-top: 2px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.dl-essential-pager > span { color: #86868b; font: 600 9px/1 system-ui; text-transform: uppercase; }
+.dl-essential-pager > div { display: flex; flex-direction: column; gap: 2px; }
+.dl-essential-pager button { width: 44px; min-height: 38px; padding: 0; border: 0; border-left: 1px solid #d2d2d7; background: transparent; color: #a1a1a6; font: 560 11px/1 system-ui; text-align: center; cursor: pointer; }
+.dl-essential-pager button.active { border-left: 2px solid #0066cc; color: #1d1d1f; font-weight: 700; }
 .dl-essential .dl-kicker { color: #0066cc; }
 .dl-essential-copy h1 { max-width: 820px; margin: 18px 0 28px; font: 650 46px/1.08 system-ui; }
 .dl-essential-copy > p { max-width: 720px; margin: 0; color: #6e6e73; font: 400 19px/1.55 system-ui; }
@@ -140,14 +143,6 @@
 .dl-essential-actions { display: flex; align-items: flex-start; gap: 22px; flex-wrap: wrap; margin-top: 15px; }
 .dl-essential-actions .dl-arrow-link { color: #0066cc; margin: 0; }
 .dl-essential-actions .dl-sources { margin: 0; }
-.dl-essential-index { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #d2d2d7; border-bottom: 1px solid #d2d2d7; }
-.dl-essential-index button { min-width: 0; min-height: 156px; padding: 24px 22px 24px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 13px; text-align: left; border: 0; border-right: 1px solid #d2d2d7; background: transparent; color: #86868b; cursor: pointer; }
-.dl-essential-index button + button { padding-left: 22px; }
-.dl-essential-index button:last-child { border-right: 0; }
-.dl-essential-index button span { font: 600 10px system-ui; }
-.dl-essential-index button strong { font: 560 13px/1.36 system-ui; }
-.dl-essential-index button.active { color: #1d1d1f; }
-.dl-essential-index button.active span { color: #0066cc; }
 .dl-essential-stream { width: min(780px, 100%); margin: 0 auto; padding: 106px 0 140px; }
 .dl-essential-stream .dl-section + .dl-section { margin-top: 110px; }
 .dl-essential-stream .dl-section-head { padding-bottom: 18px; border-bottom: 1px solid #d2d2d7; }
@@ -271,12 +266,13 @@
 .dl-preview.is-phone .dl-essential-head,
 .dl-preview.is-phone .dl-essential main { width: calc(100% - 40px); }
 .dl-preview.is-phone .dl-essential-story { min-height: 620px; grid-template-columns: 28px minmax(0, 1fr); gap: 13px; padding: 68px 0 58px; }
+.dl-preview.is-phone .dl-essential-pager { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 12px; }
+.dl-preview.is-phone .dl-essential-pager > div { flex-direction: row; }
+.dl-preview.is-phone .dl-essential-pager button { width: 44px; min-height: 44px; border-left: 0; border-bottom: 1px solid #d2d2d7; }
+.dl-preview.is-phone .dl-essential-pager button.active { border-left: 0; border-bottom: 2px solid #0066cc; }
+.dl-preview.is-phone .dl-essential-copy { grid-column: 1 / -1; }
 .dl-preview.is-phone .dl-essential-copy h1 { font-size: 34px; }
 .dl-preview.is-phone .dl-essential-copy > p { font-size: 17px; }
-.dl-preview.is-phone .dl-essential-index { grid-template-columns: 1fr; }
-.dl-preview.is-phone .dl-essential-index button,
-.dl-preview.is-phone .dl-essential-index button + button { min-height: 76px; padding: 16px 0; border-right: 0; border-bottom: 1px solid #d2d2d7; flex-direction: row; gap: 16px; }
-.dl-preview.is-phone .dl-essential-index button:last-child { border-bottom: 0; }
 .dl-preview.is-phone .dl-essential-stream { padding: 76px 0 100px; }
 
 @media (max-width: 900px) {
@@ -299,9 +295,6 @@
   .dl-signal-stories h2 { font-size: 30px; }
   .dl-essential-head, .dl-essential main { width: calc(100% - 40px); }
   .dl-essential-story { grid-template-columns: 40px minmax(0, 1fr); gap: 20px; }
-  .dl-essential-index { grid-template-columns: 1fr; }
-  .dl-essential-index button, .dl-essential-index button + button { min-height: 78px; padding: 17px 0; border-right: 0; border-bottom: 1px solid #d2d2d7; flex-direction: row; gap: 18px; }
-  .dl-essential-index button:last-child { border-bottom: 0; }
 }
 
 @media (max-width: 560px) {
@@ -321,7 +314,11 @@
   .dl-signal-stories h2 { font-size: 25px; }
   .dl-trial { grid-template-columns: 1fr; gap: 5px; }
   .dl-essential-head { min-height: 76px; }
-  .dl-essential-story { min-height: 590px; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; padding: 58px 0 52px; }
+  .dl-essential-story { min-height: 590px; grid-template-columns: 1fr; gap: 28px; padding: 48px 0 52px; }
+  .dl-essential-pager { flex-direction: row; align-items: center; gap: 12px; }
+  .dl-essential-pager > div { flex-direction: row; }
+  .dl-essential-pager button { width: 44px; min-height: 44px; border-left: 0; border-bottom: 1px solid #d2d2d7; }
+  .dl-essential-pager button.active { border-left: 0; border-bottom: 2px solid #0066cc; }
   .dl-essential-copy h1 { font-size: 32px; }
   .dl-essential-copy > p { font-size: 16px; }
   .dl-essential-stream .dl-section + .dl-section { margin-top: 82px; }

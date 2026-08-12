@@ -358,7 +358,22 @@ function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard
       <main>
         {card && (
           <section className="dl-essential-story">
-            <div className="dl-essential-count"><span>{String(active + 1).padStart(2, "0")}</span><i /><span>{String(cards.length).padStart(2, "0")}</span></div>
+            <nav className="dl-essential-pager" aria-label="Worth your attention">
+              <span>Stories</span>
+              <div>
+                {cards.map((item, index) => (
+                  <button
+                    type="button"
+                    className={index === active ? "active" : ""}
+                    aria-current={index === active ? "true" : undefined}
+                    aria-label={`Story ${index + 1}: ${item.headline}`}
+                    title={item.headline}
+                    onClick={() => setActive(index)}
+                    key={item.id}
+                  >{String(index + 1).padStart(2, "0")}</button>
+                ))}
+              </div>
+            </nav>
             <div className="dl-essential-copy">
               <div className="dl-kicker">{KICKER[card.kind]}</div>
               <h1>{card.headline}</h1>
@@ -371,14 +386,6 @@ function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard
             </div>
           </section>
         )}
-        <nav className="dl-essential-index" aria-label="Worth your attention">
-          {cards.map((item, index) => (
-            <button type="button" className={index === active ? "active" : ""} onClick={() => setActive(index)} key={item.id}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{item.headline}</strong>
-            </button>
-          ))}
-        </nav>
         <div className="dl-essential-stream">
           <EpisodeRail data={data} limit={3} />
           <PaperRail data={data} media={media} limit={5} />
