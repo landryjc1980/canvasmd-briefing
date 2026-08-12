@@ -166,6 +166,23 @@ function firstSourceTweet(card: HeroCard, data: BriefingData): BriefingSharer | 
   } : null;
 }
 
+function paperAbstract(card: HeroCard, data: BriefingData): string | null {
+  if (card.kind !== "paper") return null;
+  const reading = data.topArticles.find((paper) => paper.url === card.url);
+  const story = data.topStories?.find((item) => item.kind === "paper" && (item.papers?.[0]?.url === card.url || item.headline === card.headline));
+  const value = reading?.abstract ?? story?.papers?.[0]?.abstract ?? null;
+  return value?.replace(/\s+/g, " ").trim() || null;
+}
+
+function AbstractDisclosure({ text, compact = false }: { text: string; compact?: boolean }) {
+  return (
+    <details className={`dl-abstract${compact ? " is-compact" : ""}`}>
+      <summary>{compact ? "Abstract" : "Read abstract"}<span aria-hidden="true">↓</span></summary>
+      <p>{text}</p>
+    </details>
+  );
+}
+
 function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }) {
   const episodes = (data.episodes ?? []).filter((episode) => episode.audioUrl).slice(0, limit);
   if (!episodes.length) return null;
@@ -198,18 +215,21 @@ function PaperRail({ data, media, limit = 5 }: { data: BriefingData; media: Map<
       <div className="dl-section-head"><h2>Papers being shared</h2><span>{papers.length} selected</span></div>
       <div className="dl-paper-list">
         {papers.map((paper, index) => (
-          <a className={`dl-paper${media.get(paper.url)?.imageUrl ? " has-image" : ""}`} href={paper.url} target="_blank" rel="noreferrer" key={`${paper.url}-${index}`}>
-            <ArticleVisual
-              media={media.get(paper.url)}
-              alt=""
-              fallback={<SourceMark name={articleSource(paper.journal, paper.domain) ?? "Publication"} domain={paper.domain} />}
-            />
-            <span className="dl-paper-copy">
-              <strong>{cleanArticleTitle(paper.title)}</strong>
-              <small><Faces urls={paper.faces} />{articleSource(paper.journal, paper.domain) ?? "Publication"} · shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</small>
-            </span>
-            <span aria-hidden>↗</span>
-          </a>
+          <article className={`dl-paper-item${media.get(paper.url)?.imageUrl ? " has-image" : ""}`} key={`${paper.url}-${index}`}>
+            <a className={`dl-paper${media.get(paper.url)?.imageUrl ? " has-image" : ""}`} href={paper.url} target="_blank" rel="noreferrer">
+              <ArticleVisual
+                media={media.get(paper.url)}
+                alt=""
+                fallback={<SourceMark name={articleSource(paper.journal, paper.domain) ?? "Publication"} domain={paper.domain} />}
+              />
+              <span className="dl-paper-copy">
+                <strong>{cleanArticleTitle(paper.title)}</strong>
+                <small><Faces urls={paper.faces} />{articleSource(paper.journal, paper.domain) ?? "Publication"} · shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</small>
+              </span>
+              <span aria-hidden>↗</span>
+            </a>
+            {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
+          </article>
         ))}
       </div>
     </section>
@@ -314,6 +334,7 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
   const [active, setActive] = useState(0);
   const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
   const firstTweet = card ? firstSourceTweet(card, data) : null;
+  const abstract = card ? paperAbstract(card, data) : null;
   const studioAccent = lightMode ? "#b64b2a" : "#ff9b72";
   return (
     <div className={`dl-concept dl-studio${lightMode ? " is-light" : ""}`}>
@@ -372,6 +393,7 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
             ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a>
             : card.headline}</h1>
           <p>{card.excerpt}</p>
+          {abstract && <AbstractDisclosure text={abstract} />}
           {card.kind === "episode" && <StoryAction card={card} />}
           {firstTweet && <div className="dl-studio-tweet"><span>From X</span><TweetCard t={firstTweet} /></div>}
           <StorySources card={card} data={data} accent={studioAccent} collapsedLabel="See all sources" />
