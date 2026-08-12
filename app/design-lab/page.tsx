@@ -11,12 +11,13 @@ import "../brief.css";
 import "./design-lab.css";
 
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"] as const;
-const CONCEPTS = ["air", "studio", "signal"] as const;
+const CONCEPTS = ["essential", "air", "studio", "signal"] as const;
 type Concept = typeof CONCEPTS[number];
 type Frame = "full" | "phone";
 type ArticleMedia = { url: string; imageUrl: string | null; publisher: string | null; journal: string | null; domain: string | null };
 
 const CONCEPT_LABEL: Record<Concept, string> = {
+  essential: "Essential",
   air: "Air",
   studio: "Studio",
   signal: "Signal",
@@ -30,7 +31,7 @@ const KICKER: Record<HeroCard["kind"], string> = {
   trial_milestone: "Trial milestone",
 };
 
-const safeConcept = (value: string | null): Concept => CONCEPTS.includes(value as Concept) ? value as Concept : "air";
+const safeConcept = (value: string | null): Concept => CONCEPTS.includes(value as Concept) ? value as Concept : "essential";
 const safeArea = (value: string | null): typeof AREAS[number] => AREAS.includes(value as typeof AREAS[number]) ? value as typeof AREAS[number] : "GU";
 
 function legacyCards(data: BriefingData): HeroCard[] {
@@ -345,9 +346,53 @@ function Signal({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
   );
 }
 
+function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
+  const [active, setActive] = useState(0);
+  const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
+  return (
+    <div className="dl-concept dl-essential">
+      <header className="dl-essential-head">
+        <strong>The Readout</strong>
+        <div><span>{data.area}</span><span>{fmtDate(data.generatedAt)}</span></div>
+      </header>
+      <main>
+        {card && (
+          <section className="dl-essential-story">
+            <div className="dl-essential-count"><span>{String(active + 1).padStart(2, "0")}</span><i /><span>{String(cards.length).padStart(2, "0")}</span></div>
+            <div className="dl-essential-copy">
+              <div className="dl-kicker">{KICKER[card.kind]}</div>
+              <h1>{card.headline}</h1>
+              {card.excerpt && <p>{card.excerpt}</p>}
+              <div className="dl-essential-source">
+                <SourceMark name={card.sourceLabel} />
+                <div><strong>{card.sourceLabel}</strong><span>{card.why}</span></div>
+              </div>
+              <div className="dl-essential-actions"><StoryAction card={card} /><StorySources card={card} data={data} accent="#0066cc" /></div>
+            </div>
+          </section>
+        )}
+        <nav className="dl-essential-index" aria-label="Worth your attention">
+          {cards.map((item, index) => (
+            <button type="button" className={index === active ? "active" : ""} onClick={() => setActive(index)} key={item.id}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{item.headline}</strong>
+            </button>
+          ))}
+        </nav>
+        <div className="dl-essential-stream">
+          <EpisodeRail data={data} limit={3} />
+          <PaperRail data={data} media={media} limit={5} />
+          <PeopleRail data={data} />
+          <TrialRail data={data} />
+        </div>
+      </main>
+    </div>
+  );
+}
+
 export default function DesignLabPage() {
   const [area, setArea] = useState<typeof AREAS[number]>("GU");
-  const [concept, setConcept] = useState<Concept>("air");
+  const [concept, setConcept] = useState<Concept>("essential");
   const [frame, setFrame] = useState<Frame>("full");
   const [data, setData] = useState<BriefingData | null>(null);
   const [articleMedia, setArticleMedia] = useState<Map<string, ArticleMedia>>(new Map());
@@ -419,6 +464,7 @@ export default function DesignLabPage() {
       <div className={`dl-preview ${frame === "phone" ? "is-phone" : ""}`}>
         {!data && !error && <div className="dl-loading">Loading {area}…</div>}
         {error && <div className="dl-loading">Couldn’t load {area}: {error}</div>}
+        {data && concept === "essential" && <Essential data={data} cards={cards} media={articleMedia} />}
         {data && concept === "air" && <Air data={data} cards={cards} media={articleMedia} />}
         {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} />}
         {data && concept === "signal" && <Signal data={data} cards={cards} media={articleMedia} />}
