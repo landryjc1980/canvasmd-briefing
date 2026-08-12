@@ -342,8 +342,8 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
           </div>
         </aside>
         {card && <section className="dl-studio-feature">
-          <div className="dl-studio-meta"><strong>{card.sourceLabel}</strong></div>
           <div className="dl-kicker">{KICKER[card.kind]}</div>
+          <div className="dl-studio-meta"><strong>{card.sourceLabel}</strong></div>
           <h1>{card.url && card.kind !== "episode"
             ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a>
             : card.headline}</h1>
