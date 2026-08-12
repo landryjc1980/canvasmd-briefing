@@ -359,7 +359,7 @@ function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard
         {card && (
           <section className="dl-essential-story">
             <nav className="dl-essential-pager" aria-label="Worth your attention">
-              <span>Stories</span>
+              <span>Worth your attention</span>
               <div>
                 {cards.map((item, index) => (
                   <button
@@ -370,7 +370,11 @@ function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard
                     title={item.headline}
                     onClick={() => setActive(index)}
                     key={item.id}
-                  >{String(index + 1).padStart(2, "0")}</button>
+                  >
+                    <span className="dl-essential-pager-number">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="dl-essential-pager-title">{item.headline}</span>
+                    <span className="dl-essential-pager-arrow" aria-hidden="true">›</span>
+                  </button>
                 ))}
               </div>
             </nav>
