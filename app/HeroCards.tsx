@@ -38,13 +38,9 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
         const drawerId = `${idPrefix ? `${idPrefix}-` : ""}hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
         return (
           <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : undefined}>
-          {/* ≤640px the gutter ordinal collapses into the kicker line (brief.css .hero-row) —
-              a 32px side gutter on a 390px phone squishes every serif headline into extra wraps. */}
-          <div className="hero-row" style={{ alignItems: "baseline", gap: 12 }}>
-            {!compact && !lead && <span className="hero-index" style={{ color: ink.softer }}>{i + 1}</span>}
+          <div className="hero-row" style={{ alignItems: "baseline" }}>
             <div style={{ minWidth: 0 }}>
               <div className="readout-hero-kicker" style={{ font: `700 ${compact ? 9 : 11}px system-ui`, letterSpacing: compact ? "0.12em" : "0.14em", textTransform: "uppercase", color: accent }}>
-                {(compact || !lead) && <span className="hero-index-inline" style={{ color: ink.softer }}>{i + 1}</span>}
                 {KIND_KICKER[c.kind] ?? c.kind}
               </div>
               <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{c.sourceLabel}</div>

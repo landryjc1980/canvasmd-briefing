@@ -335,8 +335,6 @@
 .readout-hero-card.is-lead { padding-top: 22px; padding-bottom: 38px; border-top: 0; }
 .hero-row { display: flex; }
 .hero-row > div { flex: 1; min-width: 0; }
-.hero-index { min-width: 26px; padding-top: 2px; font: 600 17px/1 ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
-.hero-index-inline { display: none; margin-right: 8px; font: 600 13px/1 ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Georgia, serif; letter-spacing: 0; }
 .readout-hero-card:not(.is-compact) .readout-hero-source { margin: 8px 0 14px; font: 620 15px/1.3 system-ui; }
 .readout-hero-card:not(.is-compact) .readout-hero-title { max-width: 760px; margin: 0 0 12px; font: 600 23px/1.22 ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
 .readout-hero-card.is-lead .readout-hero-title { max-width: 800px; font-size: 30px; line-height: 1.15; }
@@ -345,8 +343,6 @@
 .readout-hero-card.is-lead .hero-excerpt { font-size: 16px; line-height: 1.58; }
 @media (max-width: 640px) {
   .hero-row { display: block; }
-  .hero-index { display: none; }
-  .hero-index-inline { display: inline; }
   .readout-hero-card:not(.is-compact) { padding: 25px 0 27px; }
   .readout-hero-card.is-lead { padding-top: 18px; padding-bottom: 34px; }
   .readout-hero-card:not(.is-compact) .readout-hero-source { margin: 7px 0 12px; font-size: 14px; }

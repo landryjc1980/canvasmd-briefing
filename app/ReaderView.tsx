@@ -17,7 +17,7 @@ import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 //     lit top edge + shadow, hover lift on every expandable row
 //   • desktop ≥1180px: two tracks — the editorial column + a right rail (guests, X, trials)
 //     so the width works and the rail modules stop stretching the scroll
-//   • type scale: lead story gets front-page size; rank numerals set in the area accent
+//   • type scale: lead story gets front-page size; supporting stories stay quieter
 //   • every expandable row is a real button (keyboard + screen readers), same click targets
 // Evidence expands inline as an accordion under whatever you click — unchanged.
 
@@ -836,11 +836,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div data-sid={s.id} data-sfp={s.fp ?? ""} data-stitle={s.headline} data-skind={s.kind} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
           <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
-              <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
-                {!compact && <div style={{ font: lead ? "500 34px/1 'Newsreader',Georgia,serif" : "500 26px/1.1 'Newsreader',Georgia,serif", color: pal.accent, opacity: lead ? 1 : 0.45, width: 34, flex: "none" }}>{i + 1}</div>}
+              <div style={{ display: "flex", alignItems: "flex-start", padding: "22px 2px" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    {compact && <span style={{ font: "600 15px 'Newsreader',Georgia,serif", color: pal.accent, lineHeight: 1 }}>{i + 1}</span>}
                     {s.congress && cong && (
                       <span style={{ font: "800 8.5px system-ui", letterSpacing: ".05em", color: "#12130f", background: CG, borderRadius: 4, padding: "2.5px 6px", textTransform: "uppercase" }}>{cong.shortName}</span>
                     )}
@@ -867,7 +865,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 </div>
               </div>
             }>
-            <div style={{ marginLeft: compact ? 0 : 54, display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {/* the field's read at the TOP of the evidence — receipts, only on expand */}
               <StanceBlock stance={s.stance} accent={pal.accent} />
               <StoryEvidence story={s} accent={pal.accent} paperLabel={paperBlockLabel(s)} />

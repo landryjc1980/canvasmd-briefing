@@ -461,8 +461,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" /> };
   };
 
-  // One story row — the lead gets the front-page step-up, the rest match the tumor-page
-  // rows (number, kicker, 2-line teaser, facts line) so the page is dense but scannable.
+  // One story row — the lead gets the front-page step-up, while every headline shares
+  // one clean left edge with the kicker, teaser, and facts line.
   const renderStory = (s: BriefingStory, i: number, a: string, acc: string) => {
     const lead = i === 0;
     const id = `all:${a}:${i}`;
@@ -473,11 +473,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       <div key={id} style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", ...(lead ? { borderTop: "1px solid rgba(255,255,255,.15)", borderLeft: `3px solid ${acc}` } : {}), borderRadius: 15, padding: "0 20px", marginBottom: 10 }}>
         <Row open={open} onToggle={() => toggle(id)} accent={acc} landOffset={compact ? 108 : 70}
           head={
-            <div style={{ display: "flex", alignItems: "flex-start", gap: !lead && !compact ? 16 : 0, padding: lead ? "18px 2px" : "15px 2px" }}>
-              {!lead && !compact && <div style={{ font: "500 21px/1.1 'Newsreader',Georgia,serif", color: acc, opacity: 0.45, width: 26, flex: "none" }}>{i + 1}</div>}
+            <div style={{ display: "flex", alignItems: "flex-start", padding: lead ? "18px 2px" : "15px 2px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-                  {!lead && compact && <span style={{ font: "600 13px 'Newsreader',Georgia,serif", color: acc, lineHeight: 1 }}>{i + 1}</span>}
                   <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{storyKicker(s)}</span>
                 </div>
                 <h3 style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: "#f8f9fc", letterSpacing: lead ? "-.005em" : "0", margin: 0 }}>{s.headline}</h3>
@@ -491,7 +489,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               </div>
             </div>
           }>
-          <div style={{ marginLeft: !lead && !compact ? 42 : 0, display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <StanceBlock stance={s.stance} accent={acc} />
             <StoryEvidence story={s} accent={acc} paperLabel={paperBlockLabel(s)} />
           </div>
