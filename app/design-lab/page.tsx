@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { BriefingData, BriefingPaper, BriefingStory, HeroCard } from "@/lib/types";
+import type { BriefingData, BriefingPaper, BriefingSharer, BriefingStory, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { AmplifierReceipts, StoryEvidence } from "../ReaderView";
+import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
 import { articleSource, cleanArticleTitle, storiesOf } from "../briefVM";
 import { heroDeckOf } from "../heroContract";
 import { resolveHeroEvidence } from "../heroEvidence";
@@ -141,6 +141,29 @@ function StorySources({ card, data, accent }: { card: HeroCard; data: BriefingDa
       {open && <div className="dl-evidence" id={regionId}>{drawer}</div>}
     </div>
   );
+}
+
+function firstSourceTweet(card: HeroCard, data: BriefingData): BriefingSharer | null {
+  const resolved = resolveHeroEvidence(card, data);
+  if (!resolved) return null;
+  if (resolved.kind === "paper") {
+    const story = resolved.story as BriefingStory;
+    return story.posts?.[0] ?? story.papers?.[0]?.posts?.[0] ?? resolved.publisherPosts[0] ?? null;
+  }
+  if (resolved.kind === "article") return resolved.posts[0] ?? resolved.publisherPosts[0] ?? null;
+  if (resolved.kind === "thread") return resolved.post;
+  const quote = (card.amplifiers ?? []).find((item) => item.isQuote && item.text);
+  return quote ? {
+    name: quote.name,
+    handle: quote.handle,
+    avatar: quote.avatar,
+    tweetUrl: null,
+    text: quote.text,
+    likes: quote.likes,
+    retweets: 0,
+    quotes: 0,
+    views: 0,
+  } : null;
 }
 
 function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }) {
@@ -290,6 +313,7 @@ function Air({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; me
 function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
   const [active, setActive] = useState(0);
   const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
+  const firstTweet = card ? firstSourceTweet(card, data) : null;
   return (
     <div className="dl-concept dl-studio">
       <header className="dl-studio-head"><strong>The Readout</strong><span>{data.area} · {fmtDate(data.generatedAt)}</span></header>
@@ -315,11 +339,17 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
           </div>
         </aside>
         {card && <section className="dl-studio-feature">
+          <div className="dl-studio-meta">
+            <SourceMark name={card.sourceLabel} />
+            <div><strong>{card.sourceLabel}</strong><span>{card.why}</span></div>
+          </div>
           <div className="dl-kicker">{KICKER[card.kind]}</div>
-          <h1>{card.headline}</h1>
+          <h1>{card.url && card.kind !== "episode"
+            ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a>
+            : card.headline}</h1>
           <p>{card.excerpt}</p>
-          <div className="dl-studio-meta"><strong>{card.sourceLabel}</strong><span>{card.why}</span></div>
-          <StoryAction card={card} />
+          {card.kind === "episode" && <StoryAction card={card} />}
+          {firstTweet && <div className="dl-studio-tweet"><span>From X</span><TweetCard t={firstTweet} /></div>}
           <StorySources card={card} data={data} accent="#ff9b72" />
         </section>}
       </main>
