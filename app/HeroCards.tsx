@@ -13,7 +13,7 @@ import AudioQuote from "@/components/AudioQuote";
 // callers keep the legacy Top Stories path as the fallback when cards are absent.
 
 const KIND_KICKER: Record<HeroCard["kind"], string> = {
-  paper: "Most-shared paper",
+  paper: "Paper",
   episode: "In-depth episode",
   event: "Regulatory event",
   thread: "Clinician post",
@@ -32,27 +32,30 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
   const compact = variant === "compact";
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      {cards.map((c, i) => (
-        <article key={c.id} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={{ padding: compact ? "12px 2px" : "18px 0", borderTop: i ? `1px solid ${ink.line}` : "none" }}>
+      {cards.map((c, i) => {
+        const lead = !compact && i === 0;
+        const ev = evidenceOf?.(c) ?? null;
+        const drawerId = `${idPrefix ? `${idPrefix}-` : ""}hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+        return (
+          <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : undefined}>
           {/* ≤640px the gutter ordinal collapses into the kicker line (brief.css .hero-row) —
               a 32px side gutter on a 390px phone squishes every serif headline into extra wraps. */}
-          <div className="hero-row" style={{ alignItems: "baseline", gap: 10 }}>
-            {!compact && <span className="hero-index" style={{ font: "600 22px Georgia, serif", color: ink.softer, minWidth: 22 }}>{i + 1}</span>}
+          <div className="hero-row" style={{ alignItems: "baseline", gap: 12 }}>
+            {!compact && !lead && <span className="hero-index" style={{ color: ink.softer }}>{i + 1}</span>}
             <div style={{ minWidth: 0 }}>
-              <div style={{ font: `700 ${compact ? 9 : 11}px system-ui`, letterSpacing: compact ? "0.12em" : "0.14em", textTransform: "uppercase", color: accent }}>
-                {!compact && <span className="hero-index-inline" style={{ font: "600 14px Georgia, serif", color: ink.softer, letterSpacing: "normal", marginRight: 8 }}>{i + 1}</span>}
+              <div className="readout-hero-kicker" style={{ font: `700 ${compact ? 9 : 11}px system-ui`, letterSpacing: compact ? "0.12em" : "0.14em", textTransform: "uppercase", color: accent }}>
+                {(compact || !lead) && <span className="hero-index-inline" style={{ color: ink.softer }}>{i + 1}</span>}
                 {KIND_KICKER[c.kind] ?? c.kind}
               </div>
-              <h3 style={{ font: compact ? "500 16px/1.4 'Newsreader',Georgia,serif" : "600 20px/1.3 Georgia, serif", margin: compact ? "4px 0" : "6px 0 4px" }}>
+              <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{c.sourceLabel}</div>
+              <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
                 {c.url && c.kind !== "episode" ? <a href={c.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
               </h3>
-              <div style={{ font: compact ? "400 12px system-ui" : "500 13px system-ui", color: ink.soft }}>{c.sourceLabel}</div>
               {c.excerpt && (
-                <p className="hero-excerpt" style={{ font: compact ? "400 13.5px/1.5 system-ui" : "400 14.5px/1.55 system-ui", color: ink.soft, margin: "8px 0 0", ...(compact && openId !== c.id ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>
+                <p className="hero-excerpt" style={{ font: compact ? "400 13.5px/1.5 system-ui" : undefined, color: ink.soft, margin: compact ? "8px 0 0" : undefined, ...(compact && openId !== c.id ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
               )}
-              {(() => { const ev = evidenceOf?.(c) ?? null; const drawerId = `${idPrefix ? `${idPrefix}-` : ""}hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`; return (<>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                 {ev && ev.faces.length > 0 && (
                   <div style={{ display: "flex", alignItems: "center" }}>
@@ -69,7 +72,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                     aria-expanded={openId === c.id} aria-controls={drawerId}
                     data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`} data-brief-label={c.headline}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
-                    {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
+                    {openId === c.id ? "Hide sources ↑" : compact ? "Sources ↓" : "See all sources ↓"}
                   </button>
                 )}
                 {c.url && !(c.kind === "episode" && c.startMs != null) && (
@@ -91,11 +94,10 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   aria-expanded={openId === c.id} aria-controls={drawerId}
                   data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode" data-brief-label={c.headline}
                   style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
-                  {openId === c.id ? "Hide sources ↑" : "Sources ↓"}
+                  {openId === c.id ? "Hide sources ↑" : compact ? "Sources ↓" : "See all sources ↓"}
                 </button>
               )}
               {ev && openId === c.id && <div id={drawerId} style={{ marginTop: 12 }}>{ev.drawer}</div>}
-              </>); })()}
               {!!c.siblings?.length && (
                 <div style={{ font: "400 12px system-ui", color: ink.softer, marginTop: 6 }}>
                   Related: {c.siblings.map((sb, j) => sb.url
@@ -105,8 +107,9 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               )}
             </div>
           </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }

@@ -186,11 +186,11 @@ export const isNewsItem = (x: { peerReviewed?: boolean; journal?: string | null;
   : x.peerReviewed === false ? true
   : isNewsDomain(x.domain) && !x.journal; // legacy fallback
 
-// Small uppercase kicker naming the atom kind on the story card. A "paper" story whose lead item
-// is trade/news coverage (not peer-reviewed) is honestly kickered "Most-shared read", never "paper".
+// Small uppercase kicker naming the atom kind on the story card. Trade/news coverage stays
+// distinct from peer-reviewed papers in legacy payloads.
 export const storyKicker = (s: BriefingStory): string =>
   s.kind === "drug" ? "Trending drug"
-    : s.kind === "paper" ? (isNewsItem(s.papers?.[0]) ? "Most-shared read" : "Most-shared paper")
+    : s.kind === "paper" ? (isNewsItem(s.papers?.[0]) ? "News" : "Paper")
     : s.kind === "trial" ? "Trial in discussion" : "In focus";
 
 // Header for a story's evidence block ("The paper" / "The read" / "Papers"), honest about trade vs peer-reviewed.
