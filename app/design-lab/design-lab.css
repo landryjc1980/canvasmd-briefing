@@ -333,7 +333,8 @@
 .dl-preview.is-phone .dl-story-arrow { transform: rotate(90deg) translateX(-3px); }
 .dl-preview.is-phone .dl-story-index button.active .dl-story-arrow { transform: rotate(90deg) translateX(0); }
 .dl-preview.is-phone .dl-studio-feature { padding: 30px 22px 54px; }
-.dl-preview.is-phone .dl-studio-feature h1 { font-size: 30px; }
+.dl-preview.is-phone .dl-studio-feature h1 { margin-bottom: 18px; font-size: 24px; line-height: 1.18; }
+.dl-preview.is-phone .dl-studio-feature > p { font-size: 16px; line-height: 1.5; }
 .dl-preview.is-phone .dl-studio-rails { gap: 50px; padding: 48px 22px; }
 .dl-preview.is-phone .dl-signal-head { padding: 22px; }
 .dl-preview.is-phone .dl-signal-title { padding: 38px 22px 18px; }
@@ -387,7 +388,8 @@
   .dl-studio-nav::-webkit-scrollbar { display: none; }
   .dl-studio-nav a { flex: 0 0 auto; }
   .dl-studio-feature { padding: 34px 24px 64px; }
-  .dl-studio-feature h1 { font-size: 32px; }
+  .dl-studio-feature h1 { margin-bottom: 18px; font-size: 26px; line-height: 1.18; }
+  .dl-studio-feature > p { font-size: 16px; line-height: 1.5; }
   .dl-studio-rails { padding: 52px 24px; gap: 54px; }
   .dl-signal-stories article { grid-template-columns: 54px 1fr; }
   .dl-signal-stories h2 { font-size: 30px; }
@@ -406,7 +408,7 @@
   .dl-air-lead h2 { font-size: 32px; }
   .dl-air-grid h3 { font-size: 24px; }
   .dl-studio-head { padding: 0 20px; }
-  .dl-studio-feature h1 { font-size: 28px; }
+  .dl-studio-feature h1 { font-size: 24px; }
   .dl-signal-head { padding: 22px 20px; }
   .dl-signal-head h1 { font-size: 28px; }
   .dl-signal-stories article { grid-template-columns: 38px 1fr; gap: 10px; padding: 32px 20px; }
