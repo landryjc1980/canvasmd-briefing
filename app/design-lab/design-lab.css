@@ -67,7 +67,8 @@
 .dl-sources { margin-top: 2px; }
 .dl-sources > button { min-height: 44px; padding: 0; display: inline-flex; align-items: center; gap: 9px; border: 0; background: transparent; font: 650 13px system-ui; cursor: pointer; }
 .dl-sources .dl-faces { margin-right: 0; }
-.dl-sources .dl-faces img { border-color: #15171b; }
+.dl-sources .dl-faces img { width: 30px; height: 30px; margin-left: -8px; border-color: #15171b; }
+.dl-sources .dl-faces img:first-child { margin-left: 0; }
 .dl-evidence { margin: 10px 0 22px; padding: 22px; border-radius: 8px; background: #15171b; color: #f4f7ff; }
 .dl-evidence > div + div { margin-top: 22px; }
 .dl-art { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; flex: none; }
