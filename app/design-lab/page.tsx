@@ -332,7 +332,10 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
                 key={item.id}
               >
                 <span className="dl-story-number">{String(index + 1).padStart(2, "0")}</span>
-                <strong className="dl-story-title">{item.headline}</strong>
+                <span className="dl-story-index-copy">
+                  <small>{KICKER[item.kind]}</small>
+                  <strong className="dl-story-title">{item.headline}</strong>
+                </span>
                 <span className="dl-story-arrow" aria-hidden="true">›</span>
               </button>
             ))}
