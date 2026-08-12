@@ -118,7 +118,7 @@ function StoryAction({ card }: { card: HeroCard }) {
   return card.url ? <a className="dl-arrow-link" href={card.url} target="_blank" rel="noreferrer">Open source <span aria-hidden>↗</span></a> : null;
 }
 
-function StorySources({ card, data, accent }: { card: HeroCard; data: BriefingData; accent: string }) {
+function StorySources({ card, data, accent, collapsedLabel = "Sources" }: { card: HeroCard; data: BriefingData; accent: string; collapsedLabel?: string }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [card.id]);
   const resolved = resolveHeroEvidence(card, data);
@@ -136,7 +136,7 @@ function StorySources({ card, data, accent }: { card: HeroCard; data: BriefingDa
     <div className="dl-sources">
       <button type="button" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen((value) => !value)} style={{ color: accent }}>
         <Faces urls={faces} />
-        <span>{open ? "Hide sources ↑" : "Sources ↓"}</span>
+        <span>{open ? "Hide sources ↑" : `${collapsedLabel} ↓`}</span>
       </button>
       {open && <div className="dl-evidence" id={regionId}>{drawer}</div>}
     </div>
@@ -342,10 +342,7 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
           </div>
         </aside>
         {card && <section className="dl-studio-feature">
-          <div className="dl-studio-meta">
-            <SourceMark name={card.sourceLabel} />
-            <div><strong>{card.sourceLabel}</strong><span>{card.why}</span></div>
-          </div>
+          <div className="dl-studio-meta"><strong>{card.sourceLabel}</strong></div>
           <div className="dl-kicker">{KICKER[card.kind]}</div>
           <h1>{card.url && card.kind !== "episode"
             ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a>
@@ -353,7 +350,7 @@ function Studio({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
           <p>{card.excerpt}</p>
           {card.kind === "episode" && <StoryAction card={card} />}
           {firstTweet && <div className="dl-studio-tweet"><span>From X</span><TweetCard t={firstTweet} /></div>}
-          <StorySources card={card} data={data} accent="#ff9b72" />
+          <StorySources card={card} data={data} accent="#ff9b72" collapsedLabel="See all sources" />
         </section>}
       </main>
       <div className="dl-studio-rails"><EpisodeRail data={data} limit={3} /><PaperRail data={data} media={media} limit={4} /></div>
