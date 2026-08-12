@@ -573,6 +573,23 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       </div>
     );
   };
+  const focusSwitcher = (mobile: boolean) => {
+    if (subAreaOpts.length < 2) return null;
+    return (
+      <div className={`rv-pills${mobile ? " rv-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: mobile ? 8 : 6, flexWrap: mobile ? "nowrap" : "wrap", overflowX: mobile ? "auto" : "visible", margin: mobile ? "12px -20px 0" : 0, padding: mobile ? "0 20px" : 0, minWidth: 0 }}>
+        <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, alignSelf: "center", marginRight: 2, flex: "none" }}>Focus</span>
+        {[{ key: null as string | null, label: "All" }, ...subAreaOpts.map((s) => ({ key: s.key as string | null, label: s.label }))].map((c) => {
+          const on = subArea === c.key;
+          return (
+            <button key={c.label} type="button" className="rv-focus-chip" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
+              style={{ cursor: "pointer", font: "600 12px system-ui", padding: mobile ? "5px 13px" : "5px 10px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? pal.accent : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
   // sticky section nav — jump-links + scroll-spy. On the wide layout the rail sections
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const carriedKols = [...data.topKols]
@@ -1158,6 +1175,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         .rv-pills::-webkit-scrollbar{display:none}.rv-pills{scrollbar-width:none}
         .rv-edition{position:relative}
         .rv-edition::after{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
+        .rv-focus-chip{position:relative}
+        .rv-focus-chip::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:max(100%,44px);height:44px}
         .rv-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
         .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
         .rv-row{transition:color .16s ease}
@@ -1213,6 +1232,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {/* the edition chip rides beside the wordmark on EVERY size (2026-07-24: the mobile
                   bare-text variant read differently from the All page — one switcher, one look) */}
               {areaSwitcher("chip")}
+              {!compact && focusSwitcher(false)}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
             {/* the edition's color, worn structurally: a thin area-accent rule under the masthead */}
@@ -1249,23 +1269,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           })}
         </div>
 
-        {/* Sub-tumor "Focus" filter — GU → Prostate/Bladder/Kidney. Doctors practice, and pharma
-            buys, BY INDICATION. Only shown when ≥2 sub-indications actually have content this week
-            (rawData.subAreas); "All" is the default whole brief. Not sticky — a top-of-read control. */}
-        {subAreaOpts.length >= 2 && (
-          <div className={`rv-pills${compact ? " rv-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", margin: compact ? "12px -20px 0" : "14px 0 0", padding: compact ? "0 20px" : 0 }}>
-            <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, alignSelf: "center", marginRight: 2, flex: "none" }}>Focus</span>
-            {[{ key: null as string | null, label: "All" }, ...subAreaOpts.map((s) => ({ key: s.key as string | null, label: s.label }))].map((c) => {
-              const on = subArea === c.key;
-              return (
-                <button key={c.label} type="button" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
-                  style={{ cursor: "pointer", font: "600 12px system-ui", padding: "5px 13px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? pal.accent : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: compact ? 44 : undefined, minWidth: compact ? 44 : undefined }}>
-                  {c.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* On desktop Focus shares the masthead line with the specialty picker. Phones retain
+            the horizontally scrollable strip here, where every option keeps a 44px target. */}
+        {compact && focusSwitcher(true)}
 
         {/* No AI cover hero on either platform: lead with the #1 story — a real headline the
             field wrote, not a whole-week thesis the AI could get wrong (John: drop it on desktop
