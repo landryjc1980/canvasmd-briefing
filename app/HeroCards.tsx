@@ -52,7 +52,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
               )}
-              {c.kind === "paper" && ev?.abstract && !compact && (
+              {c.kind === "paper" && ev?.abstract && (
                 <details className="readout-hero-abstract" style={{ color: accent }}>
                   <summary>Read abstract <span aria-hidden>↓</span></summary>
                   <p>{ev.abstract}</p>
