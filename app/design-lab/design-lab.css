@@ -601,6 +601,11 @@
 .dl-editorial-evidence { display: grid; gap: 22px; }
 .dl-editorial-evidence > section { min-width: 0; }
 .dl-editorial-evidence-label { margin-bottom: 9px; color: #b94c31; font: 750 10px/1 system-ui; text-transform: uppercase; }
+.dl-editorial-evidence-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.dl-editorial-evidence-label-row .dl-editorial-evidence-label { margin-bottom: 9px; }
+.dl-editorial-evidence-label-row > span { color: #74767a; font: 600 11px/1 system-ui; }
+.dl-evidence-list-action { min-height: 44px; margin-top: 8px; padding: 0; border: 0; background: transparent; color: #b94c31; font: 700 12px/1 system-ui; cursor: pointer; }
+.dl-evidence-list-action:hover { color: #87351f; }
 .dl-editorial-publishers { margin: 2px 0 8px; color: #74767a; font: 500 12px/1.4 system-ui; }
 .dl-editorial-evidence .dl-editorial-tweet { margin-top: 9px; padding: 15px; background: #fff; border: 1px solid #d8d7d1; border-radius: 7px; }
 .dl-editorial-evidence .dl-editorial-tweet:first-of-type { margin-top: 0; }

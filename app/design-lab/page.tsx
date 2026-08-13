@@ -269,13 +269,18 @@ function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts 
   publisherPosts?: BriefingSharer[];
   amplifiers?: NonNullable<HeroCard["amplifiers"]>;
 }) {
+  const [showAllPosts, setShowAllPosts] = useState(false);
+  const postsRegionId = useId();
   const seenPosts = new Set<string>();
   const uniquePosts = [...posts, ...publisherPosts].filter((post) => {
     const key = post.tweetUrl ?? `${post.handle ?? post.name}:${post.text ?? ""}`;
     if (seenPosts.has(key)) return false;
     seenPosts.add(key);
     return true;
-  }).slice(0, 5);
+  });
+  const postIdentity = uniquePosts.map((post) => post.tweetUrl ?? `${post.handle ?? post.name}:${post.text ?? ""}`).join("|");
+  useEffect(() => setShowAllPosts(false), [postIdentity]);
+  const visiblePosts = showAllPosts ? uniquePosts : uniquePosts.slice(0, 5);
   const publisherNames = [...new Set(papers.flatMap((paper) => paper.publishers ?? []))];
   return (
     <div className="dl-editorial-evidence">
@@ -291,8 +296,22 @@ function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts 
         </article>)}
       </section>}
       {uniquePosts.length > 0 && <section>
-        <div className="dl-editorial-evidence-label">Shared on X</div>
-        {uniquePosts.map((post, index) => <EditorialTweet tweet={post} key={post.tweetUrl ?? `${post.handle}-${index}`} />)}
+        <div className="dl-editorial-evidence-label-row">
+          <div className="dl-editorial-evidence-label">Shared on X</div>
+          {uniquePosts.length > 5 && <span>{visiblePosts.length} of {uniquePosts.length}</span>}
+        </div>
+        <div id={postsRegionId}>
+          {visiblePosts.map((post, index) => <EditorialTweet tweet={post} key={post.tweetUrl ?? `${post.handle}-${index}`} />)}
+        </div>
+        {uniquePosts.length > 5 && <button
+          className="dl-evidence-list-action"
+          type="button"
+          aria-expanded={showAllPosts}
+          aria-controls={postsRegionId}
+          onClick={() => setShowAllPosts((value) => !value)}
+        >
+          {showAllPosts ? "Show fewer source posts ↑" : `Show ${uniquePosts.length - visiblePosts.length} more source posts ↓`}
+        </button>}
       </section>}
       {amplifiers.length > 0 && <section>
         <div className="dl-editorial-evidence-label">Amplified on X</div>
