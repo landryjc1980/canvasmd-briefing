@@ -796,12 +796,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [area, subArea]);
 
-  // Rail modules (guests / most-active / trials) render narrow on the wide layout, so they
+  // Rail modules (guests / most-active / trials / drugs) render narrow on the wide layout, so they
   // use the stacked/compact arrangements and no drawer indent there.
   const narrow = compact || wide;
   // Whether the desktop rail has ANY content — drives collapsing the two-column grid to one when a
-  // Focus pick empties guests + KOLs + trials (else the fixed 320px track leaves a blank gap).
-  const railHasContent = !!(data.guests?.length || carriedKols.length || data.trials.length);
+  // Focus pick empties guests + KOLs + trials + drugs (else the fixed 320px track leaves a blank gap).
+  const railHasContent = !!(data.guests?.length || carriedKols.length || data.trials.length || data.movers.length);
 
   // ---- section builders (placement differs by layout; content is identical) --------------
 
@@ -1336,21 +1336,22 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             story instead gets front-page TYPE SCALE (see headlineFont above). */}
 
         {wide ? (
-          /* two tracks: the editorial column + the rail. Rail modules (guests, trials, X voices)
+          /* two tracks: the editorial column + the rail. Rail modules (guests, trials, X voices,
+             and drug activity)
              use their narrow/stacked arrangements; evidence still expands inline. When a
-             Focus pick empties the whole rail (e.g. GU → Kidney with movers but no guests/KOLs/
-             trials), collapse to a single column so the fixed 320px track doesn't leave a blank gap. */
+             Focus pick empties the whole rail, collapse to a single column so the fixed 320px
+             track doesn't leave a blank gap. */
           <div style={{ display: "grid", gridTemplateColumns: railHasContent ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
             <div style={{ minWidth: 0 }}>
               {storiesSection}
               {episodesSection}
               {papersSection}
-              {drugsSection}
             </div>
             {railHasContent && (
               <aside style={{ minWidth: 0 }}>
                 {peopleSection}
                 {trialsSection}
+                {drugsSection}
               </aside>
             )}
           </div>
