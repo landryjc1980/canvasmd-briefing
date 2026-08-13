@@ -20,14 +20,14 @@ const KIND_KICKER: Record<HeroCard["kind"], string> = {
   trial_milestone: "Trial milestone",
 };
 
-const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", line: "rgba(255,255,255,.08)" };
+const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", line: "rgba(255,255,255,.08)", ring: "rgba(20,26,40,1)" };
 // Evidence is supplied by the mounting view (which owns the payload's dual-published
 // legacy arrays): faces for the pile, and a lazily-rendered receipts drawer. RECEIPTS RULE
 // (John, 2026-08-09): a count like "shared by 13 clinicians" must open into WHO and WHAT
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
 export type HeroEvidence = { faces: string[]; drawer: ReactNode; abstract?: string | null; preview?: ReactNode } | null;
 
-export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "" }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string }) {
+export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "" }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const compact = variant === "compact";
   return (
@@ -68,7 +68,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                 {ev && ev.faces.length > 0 && (
                   <div style={{ display: "flex", alignItems: "center" }}>
                     {ev.faces.slice(0, 4).map((f, j) => (
-                      <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(20,26,40,1)", background: "rgba(255,255,255,.12)", marginLeft: j ? -7 : 0 }}>
+                      <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ink.ring ?? "rgba(20,26,40,1)"}`, background: ink.surface ?? "rgba(255,255,255,.12)", marginLeft: j ? -7 : 0 }}>
                         <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                     ))}

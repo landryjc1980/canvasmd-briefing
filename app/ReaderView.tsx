@@ -79,12 +79,25 @@ const prettyPhase = (p: string | null): string => {
 const ini = (s: string) =>
   (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
 
-// Muted ink on the area bgs — was #7c7f88, which sat at ~3:1 on the navy (below WCAG AA
-// for the 12px metric lines). This clears 4.5:1 on every area bg in the palette.
-const MUT = "#9aa2b6";
-// Tertiary metadata (byline, drug tags) — a solid step below MUT. Solid, not a low-alpha white:
-// sub-.4 whites over ink read as *disabled/placeholder*, which made a finished page look unfinished.
-const MUT2 = "#7e8698";
+const INK = "#17181a";
+const INK_2 = "#4f5257";
+const LIGHT_MUT = "#696c71";
+const LIGHT_MUT2 = "#85878c";
+// These components are also reused by the dark All Oncology view. CSS variables let the
+// active Reader choose the light palette while the shared renderers retain dark fallbacks.
+const MUT = "var(--rv-muted, #9aa2b6)";
+const MUT2 = "var(--rv-muted-2, #7e8698)";
+const LINE = "#cfd0cb";
+const SURFACE = "#ebeae5";
+const PAPER = "#f4f4f1";
+const READER_ACCENTS: Record<string, string> = {
+  GU: "#0369a1",
+  Breast: "#be185d",
+  Lung: "#334155",
+  GI: "#a45c0a",
+  Heme: "#9b0f18",
+  Gyn: "#0d6b5f",
+};
 // Congress "marquee event" gold — the ONE accent that isn't a tumor-area jewel tone, so a congress
 // reads as a distinct dimension (event, not disease). Used only by the Congress bar + badge.
 const CG = "#E6B450";
@@ -110,18 +123,18 @@ const cleanSnippet = (s: string | null | undefined): string => {
 };
 
 function Delta({ delta }: { delta: number }) {
-  if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
+  if (!delta) return <span title="No change vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", background: "var(--rv-surface, rgba(255,255,255,.06))", color: "var(--rv-muted-2, rgba(255,255,255,.4))", font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>— flat</span>;
   const up = delta > 0, c = up ? UP : DOWN;
   return <span title="Change in source activity (episodes + X sharers + papers) vs. the prior two weeks" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, font: "700 11px system-ui", padding: "3px 9px", borderRadius: 20 }}>{(up ? "▲ " : "▼ ") + Math.abs(delta)}</span>;
 }
 
 // Raised surface: a step lighter than the page, lit top edge, soft drop — the depth system.
-export const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.065)", border: "1px solid rgba(255,255,255,.09)", borderTop: "1px solid rgba(255,255,255,.16)", borderRadius: 13, padding: 14, marginBottom: 9, boxShadow: "0 8px 22px rgba(0,0,0,.2)" };
+export const cardBox: React.CSSProperties = { background: "var(--rv-card, rgba(255,255,255,.065))", border: "1px solid var(--rv-card-line, rgba(255,255,255,.09))", borderRadius: "var(--rv-card-radius, 13px)", padding: 14, marginBottom: 9, boxShadow: "var(--rv-card-shadow, 0 8px 22px rgba(0,0,0,.2))" };
 // Story container: everything belonging to one story (headline, stance, metrics, evidence
 // peek, expanded drawer) sits inside ONE bounded panel — without it, the peek's "On the
 // podcasts" read as a brand-new page section instead of story evidence. A quiet step above
 // the page; the evidence cards inside step up again.
-const storyCard: React.CSSProperties = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, padding: "0 20px", marginBottom: 14 };
+const storyCard: React.CSSProperties = { background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, borderRadius: 0, padding: "0 2px", marginBottom: 0 };
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 
 // "shared by N · ♥ M" with zero parts dropped — never renders "shared by 0 · ♥ 0".
@@ -139,13 +152,13 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
       <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: "600 13.5px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
+          <div style={{ font: "600 13.5px/1.35 system-ui", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
           <div style={{ font: "400 11px system-ui", color: MUT, marginTop: 2 }}>{p.show}</div>
         </div>
       </div>
-      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{cleanSnippet(p.gloss)}</p>
+      <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)" }}>{cleanSnippet(p.gloss)}</p>
       {p.audioUrl
         ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} durationSeconds={p.durationSeconds} label="Listen to the clip" accent={accent} tone="dark" />
         : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
@@ -159,21 +172,21 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
   const rtOf = rtOriginal(t.text);
   const body = (<>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#f4f7ff", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
           {t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{t.handle}</span>}
-          {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>⇄ amplified <span style={{ color: "rgba(255,255,255,.62)" }}>@{rtOf}</span></div>}
+          <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{t.handle}</span>}
+          {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>⇄ amplified <span style={{ color: "var(--rv-muted, rgba(255,255,255,.62))" }}>@{rtOf}</span></div>}
         </div>
         {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
       </div>
       {text && (rtOf
-        ? <blockquote style={{ margin: "9px 0 0", paddingLeft: 11, borderLeft: "2px solid rgba(255,255,255,.14)" }}>
-            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#b6b9c3" }}>{text}</p>
+        ? <blockquote style={{ margin: "9px 0 0", paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
+            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b6b9c3)" }}>{text}</p>
             <cite style={{ display: "block", marginTop: 5, font: "400 11px system-ui", fontStyle: "normal", color: MUT }}>@{rtOf}</cite>
           </blockquote>
-        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{text}</p>)}
+        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{text}</p>)}
     </>);
   return t.tweetUrl
     ? <a className={compact ? "readout-tweet-preview" : undefined} href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
@@ -195,10 +208,10 @@ export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplif
         <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
       ))}
       {reposts.map((a, j) => (
-        <div key={`r${j}`} style={{ ...cardBox, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "#cfd4e0" }}>
-          {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,.12)", display: "inline-block" }} />}
+        <div key={`r${j}`} style={{ ...cardBox, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "var(--rv-copy, #cfd4e0)" }}>
+          {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", display: "inline-block" }} />}
           <span>
-            <b style={{ color: "#eef1f8", fontWeight: 600 }}>{a.name}</b>
+            <b style={{ color: "var(--rv-ink, #eef1f8)", fontWeight: 600 }}>{a.name}</b>
             {a.handle ? <> <a href={`https://x.com/${a.handle.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: "none" }}>@{a.handle.replace(/^@/, "")}</a></> : null}
             {" reposted the episode"}
           </span>
@@ -220,22 +233,22 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
   return (
     <div style={cardBox}>
       {url
-        ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8", textDecoration: "none" }}>{cleanArticleTitle(title)}</a>
-        : <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>}
+        ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", textDecoration: "none" }}>{cleanArticleTitle(title)}</a>
+        : <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{cleanArticleTitle(title)}</div>}
       {(src || meta) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
         <span style={{ font: "400 12px system-ui", color: MUT }}>{[src, meta].filter(Boolean).join(" · ")}</span>
-        {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+        {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
       </div>}
-      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
+      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
-        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "var(--rv-muted, #9aa0ac)", marginBottom: 9 }}>
           What clinicians said · {sharedTotal && sharedTotal > posts!.length ? `${posts!.length} of ${sharedTotal}` : posts!.length}
         </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 5, alignItems: "center" }}>
-        {canExpand && <button onClick={() => setOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{toggleLabel}</button>}
-        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
+        {canExpand && <button onClick={() => setOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{toggleLabel}</button>}
+        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "var(--rv-muted, rgba(255,255,255,.55))", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
   );
@@ -415,7 +428,7 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
       {(() => { const pp = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []); return pp.length > 0 && (
         <div><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={pp.slice(0, 2)} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
       ); })()}
-      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = (story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? [])).length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "rgba(233,237,246,.55)", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
+      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = (story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? [])).length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
       }} /></div>}
@@ -429,12 +442,12 @@ export function FacePile({ faces, extra, ring }: { faces: string[]; extra: numbe
   return (
     <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
       {faces.slice(0, 4).map((f, i) => (
-        <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "rgba(255,255,255,.12)", marginLeft: i ? -8 : 0, flex: "none" }}>
+        <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "var(--rv-line, rgba(255,255,255,.12))", marginLeft: i ? -8 : 0, flex: "none" }}>
           <img src={f} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
       ))}
       {extra > 0 && (
-        <div style={{ height: 26, minWidth: 26, padding: "0 6px", boxSizing: "border-box", borderRadius: 13, border: `2px solid ${ring}`, background: "rgba(255,255,255,.1)", marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", font: "600 10px system-ui", color: "rgba(255,255,255,.72)", flex: "none" }}>+{extra}</div>
+        <div style={{ height: 26, minWidth: 26, padding: "0 6px", boxSizing: "border-box", borderRadius: 13, border: `2px solid ${ring}`, background: "var(--rv-surface, rgba(255,255,255,.1))", marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", font: "600 10px system-ui", color: "var(--rv-ink-2, rgba(255,255,255,.72))", flex: "none" }}>+{extra}</div>
       )}
     </div>
   );
@@ -442,7 +455,8 @@ export function FacePile({ faces, extra, ring }: { faces: string[]; extra: numbe
 
 export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void }) {
   // One publication canvas across every edition; area color is an interaction accent.
-  const pal = inkOf(area);
+  const darkPal = inkOf(area);
+  const pal = { bg: PAPER, accent: READER_ACCENTS[area] ?? darkPal.accent };
   const [openId, setOpenId] = useState<string | null>(null);
   // Sub-tumor (indication) filter — GU → Prostate/Bladder/Kidney. `data` is the sub-filtered view
   // every section reads from; the switcher options come from the UNfiltered catalog (rawData.subAreas).
@@ -537,24 +551,24 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           style={chip
             ? { display: "inline-flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0, boxSizing: "border-box" }
             : { display: "flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer" }}>
-          <span style={{ font: chip ? "650 15px system-ui" : "600 14px system-ui", color: chip ? pal.accent : "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
-          <span aria-hidden style={{ width: 10, height: 10, borderRight: `2px solid ${chip ? pal.accent : "rgba(255,255,255,.72)"}`, borderBottom: `2px solid ${chip ? pal.accent : "rgba(255,255,255,.72)"}`, transform: menuOpen ? "translateY(3px) rotate(225deg)" : "translateY(-2px) rotate(45deg)", transition: "transform .18s ease", flex: "none", boxSizing: "border-box" }} />
+          <span style={{ font: chip ? "700 13px system-ui" : "600 14px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
+          <span aria-hidden style={{ width: 10, height: 10, borderRight: `2px solid ${chip ? pal.accent : "var(--rv-ink-2, rgba(255,255,255,.72))"}`, borderBottom: `2px solid ${chip ? pal.accent : "var(--rv-ink-2, rgba(255,255,255,.72))"}`, transform: menuOpen ? "translateY(3px) rotate(225deg)" : "translateY(-2px) rotate(45deg)", transition: "transform .18s ease", flex: "none", boxSizing: "border-box" }} />
         </div>
         {menuOpen && (
           <>
             <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-            <div style={{ position: "absolute", top: "calc(100% + 7px)", ...(chip ? { left: 0 } : { right: 0 }), width: 210, background: "rgba(16,18,26,.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, boxShadow: "0 20px 44px rgba(0,0,0,.4)", padding: 8, zIndex: 31 }}>
-              <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
+            <div style={{ position: "absolute", top: "calc(100% + 7px)", ...(chip ? { left: 0 } : { right: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
+              <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--rv-muted-2, rgba(255,255,255,.4))", padding: "6px 11px 8px" }}>Tumor area</div>
               {areas.map((a) => {
                 const on = a === area;
                 const isHome = a === primary;
                 return (
-                  <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent", border: 0 }}>
+                  <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "var(--rv-surface, rgba(255,255,255,.1))" : "transparent", border: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
-                    <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.78)" }}>{AREA_FULL[a] ?? a}</span>
+                    <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? pal.accent : INK_2 }}>{AREA_FULL[a] ?? a}</span>
                     {/* a filled home glyph marks the saved default, so switching to browse another
                         area is visibly distinct from your home — and you can see what you'll land on next visit */}
-                    {isHome && <span title="Your default" aria-label="Your default" style={{ color: "rgba(255,255,255,.5)", font: "700 12px system-ui" }}>⌂</span>}
+                    {isHome && <span title="Your default" aria-label="Your default" style={{ color: "var(--rv-muted-2, rgba(255,255,255,.5))", font: "700 12px system-ui" }}>⌂</span>}
                     {on && <span style={{ color: pal.accent, font: "700 13px system-ui" }}>✓</span>}
                   </button>
                 );
@@ -563,7 +577,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   it. Only shown when you're viewing an area that isn't already your home. */}
               {onSetPrimary && area !== primary && (
                 <>
-                  <div style={{ height: 1, background: "rgba(255,255,255,.08)", margin: "6px 4px" }} />
+                  <div style={{ height: 1, background: "var(--rv-line, rgba(255,255,255,.08))", margin: "6px 4px" }} />
                   <button type="button" onClick={() => { onSetPrimary(area); setMenuOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: pal.accent, font: "600 12.5px system-ui" }}>
                     <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>
                     Make {AREA_FULL[area] ?? area} my default
@@ -585,7 +599,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           const on = subArea === c.key;
           return (
             <button key={c.label} type="button" className="rv-focus-chip" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
-              style={{ cursor: "pointer", font: `${on ? "700" : "600"} 12px system-ui`, padding: "8px 1px 9px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
+              style={{ cursor: "pointer", font: `${on ? "700" : "600"} 12px system-ui`, padding: "8px 1px 9px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
               {c.label}
             </button>
           );
@@ -677,7 +691,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   };
   const sectionControls = (mobile: boolean) => sections.map((s) => {
     const on = activeSec === s.id;
-    return <button key={s.id} aria-current={on ? "page" : undefined} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "620 12.5px system-ui", letterSpacing: 0, padding: mobile ? "8px 3px 10px" : "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: mobile ? 44 : undefined }}>{s.label}</button>;
+    return <button key={s.id} aria-current={on ? "page" : undefined} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "650 13px system-ui", letterSpacing: 0, padding: mobile ? "8px 3px 10px" : "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: mobile ? 44 : undefined }}>{s.label === "Top Stories" ? "Stories" : s.label === "Episodes" ? "Listen" : s.label}</button>;
   });
   // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
   // divider, then the ones they've already read (editorial order inside each half). Sub-tumor
@@ -800,7 +814,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const storiesSection = (
     <>
       <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
-      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} evidenceOf={heroEvidenceOf} />}
+      {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} ink={{ soft: INK_2, softer: LIGHT_MUT, line: LINE, ring: PAPER, surface: SURFACE }} evidenceOf={heroEvidenceOf} />}
       {heroMode && heroCards && heroCards.length === 0 && !activeSub && !congressScope && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           A quiet week — no source-anchored stories qualified. The sections below still carry the corpus.
@@ -810,14 +824,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
             ? <>No source-anchored top stories match this live-coverage view. The sections below may still have signal.</>
-            : <>No {subLabel} top stories this week. The sections below may still have {subLabel} signal — or tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>All</b> for the full brief.</>}
+            : <>No {subLabel} top stories this week. The sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {!heroMode && stories.length === 0 && (congressScope || subArea) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
-            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>Weekly brief</b> for the full read.</>
-            : <>No {subLabel} top stories this week. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "#e9edf6", fontWeight: 600 }}>All</b> for the full brief.</>}
+            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>Weekly brief</b> for the full read.</>
+            : <>No {subLabel} top stories this week. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {part.mode === "caughtup" && (
@@ -840,12 +854,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <Fragment key={id}>
             {part.mode === "split" && i === part.freshCount && (
               <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "26px 0 10px" }}>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
+                <div style={{ flex: 1, height: 1, background: "var(--rv-line, rgba(255,255,255,.12))" }} />
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 7, font: "600 12px system-ui", color: MUT, minWidth: 0, flexShrink: 1, textAlign: "center" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pal.accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 L10 18 L19.5 6.5" /></svg>
                   You&rsquo;re caught up — {stories.length - part.freshCount} stor{stories.length - part.freshCount === 1 ? "y" : "ies"} you&rsquo;ve already read
                 </span>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.12)" }} />
+                <div style={{ flex: 1, height: 1, background: "var(--rv-line, rgba(255,255,255,.12))" }} />
               </div>
             )}
           <div data-sid={s.id} data-sfp={s.fp ?? ""} data-stitle={s.headline} data-skind={s.kind} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
@@ -858,18 +872,18 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                       <span style={{ font: "800 8.5px system-ui", letterSpacing: ".05em", color: "#12130f", background: CG, borderRadius: 4, padding: "2.5px 6px", textTransform: "uppercase" }}>{cong.shortName}</span>
                     )}
                     {(chip === "new" || chip === "updated") && (
-                      <span style={{ font: "800 8.5px system-ui", letterSpacing: ".08em", color: pal.bg, background: chip === "new" ? pal.accent : "#fff", borderRadius: 4, padding: "2.5px 6px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
+                      <span style={{ font: "800 8.5px system-ui", letterSpacing: ".08em", color: chip === "new" ? "#fff" : pal.accent, background: chip === "new" ? pal.accent : `${pal.accent}12`, border: `1px solid ${pal.accent}55`, borderRadius: 4, padding: "2.5px 6px" }}>{chip === "new" ? "NEW" : "UPDATED"}</span>
                     )}
                     <span style={{ font: compact ? "700 11px system-ui" : "600 9px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>{storyKicker(s)}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                    <span style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: "#f8f9fc", letterSpacing: lead ? "-.01em" : "0" }}>{s.headline}</span>
+                    <span style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: "var(--rv-ink, #f8f9fc)", letterSpacing: lead ? "-.01em" : "0" }}>{s.headline}</span>
                     {s.subtitle && <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: MUT }}>{s.subtitle}</span>}
                     {isDrug && s.delta !== 0 && <Delta delta={s.delta} />}
                   </div>
                   {/* Description is a 2-line teaser when closed (sans = the "gloss", not the field's
                       own words), and unclamps to the full text on expand. */}
-                  {s.description && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
+                  {s.description && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "var(--rv-muted, #aab0bf)", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
                   {/* Facts-forward: who + how many + where. The stance ("favorable") does NOT live
                       here — it only appears in the drawer, next to its receipts. */}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -912,7 +926,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           head={
             <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 2px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.name}</div>
+                <div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{g.name}</div>
                 {(g.verified || g.affiliation) && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
                     {g.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", flex: "none" }}>Verified</span>}
@@ -923,20 +937,20 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </div>
               <div style={{ flex: "none", display: "flex", gap: 8, textAlign: "center" }}>
                 <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={statTileLabel}>This wk</div></div>
-                <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={statTileLabel}>Career</div></div>
+                <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{g.career}</div><div style={statTileLabel}>Career</div></div>
               </div>
             </div>
           }>
           {eps.map((ep, j) => (
             <div key={j} style={cardBox}>
               <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || g.name)}</div>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || g.name)}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: "600 13.5px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</div>
+                  <div style={{ font: "600 13.5px/1.35 system-ui", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</div>
                   <div style={{ font: "400 11px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div>
                 </div>
               </div>
-              {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+              {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
               <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" accent={pal.accent} tone="dark" />
             </div>
           ))}
@@ -967,11 +981,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 2px" }}>
-                <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2 }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
+                <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2 }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                     {/* name clamped to 2 lines so credential-laden names ("…, MD PhD") don't run away */}
-                    <span style={{ flex: 1, minWidth: 0, font: "500 15.5px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{k.name}</span>
+                    <span style={{ flex: 1, minWidth: 0, font: "500 15.5px/1.25 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{k.name}</span>
                     <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: pal.accent, padding: "0 2px", whiteSpace: "nowrap" }}>{countLabel}</span>
                   </div>
                   {/* institution + drugs each clamped to ONE line — the ballooning multi-line
@@ -1015,13 +1029,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           return (
           <div key={i} className="rv-episode-row">
             <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 {/* the EPISODE is the content — it takes the headline slot (John); the show is the byline */}
-                <span style={{ font: "600 15px/1.35 system-ui", color: "#eef1f8", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</span>
+                <span style={{ font: "600 15px/1.35 system-ui", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</span>
                 {(heroMode ? heroDeck!.some((hc) => hc.kind === "episode" && hc.anchorId === ep.episodeId) : ep.featured) && <span style={{ flex: "none", font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}</div><div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div></div>
             </div>
-            {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
+            {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
             <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" eventId={ep.episodeId ?? null} eventLabel={ep.title} accent={pal.accent} tone="dark" />
             {amplifiers.length > 0 && (
               <div style={{ margin: "8px 0 0" }}>
@@ -1032,12 +1046,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                     <img key={j} src={a.avatar!} alt="" style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: j ? -7 : 0, border: `2px solid ${pal.bg}` }} />
                   ))}
                   </span>
-                  <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "rgba(233,237,246,.7)" }}>
+                  <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "var(--rv-muted, rgba(233,237,246,.7))" }}>
                     {amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : `Amplified by ${amplifiers.length} clinicians`}
                   </span>
                   <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
                 </button>
-                {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.08)" }}><AmplifierReceipts amplifiers={amplifiers} accent={pal.accent} /></div>}
+                {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--rv-line, rgba(255,255,255,.08))" }}><AmplifierReceipts amplifiers={amplifiers} accent={pal.accent} /></div>}
               </div>
             )}
           </div>
@@ -1058,17 +1072,17 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               /* full-width title (John: "I like full width text"), then a single meta row —
                  faces + source + the expander — so the headline never gets squeezed to a column */
               <div style={{ padding: "16px 2px" }}>
-                <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(a.title)}</div>
+                <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{cleanArticleTitle(a.title)}</div>
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
                   {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
                   <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-                  {isNewsItem(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                  {isNewsItem(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
                   {isFeaturedPaper(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
                   <SignalTag id={id} style={{ marginLeft: "auto" }} />
                 </div>
               </div>
             }>
-            {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{a.abstract}</p>}
+            {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b7bac3)" }}>{a.abstract}</p>}
             {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>What clinicians said · {a.posts.length}</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {/* link to the source — also guarantees the expand is never empty (news items carry
                 no abstract/posts, which previously made the last row look like it didn't open). */}
@@ -1098,7 +1112,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             head={
               <div style={{ padding: "13px 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ flex: 1, minWidth: 0, font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.acronym || prettyPhase(t.phase)}</span>
+                  <span style={{ flex: 1, minWidth: 0, font: "500 16px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.acronym || prettyPhase(t.phase)}</span>
                   {t.resultsFresh && <span style={{ flex: "none", font: "700 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: pal.accent, border: `1px solid ${pal.accent}55`, borderRadius: 4, padding: "2px 5px" }}>New results</span>}
                   <SignalTag id={id} style={{ flex: "none" }} />
                 </div>
@@ -1136,7 +1150,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                     {compact && <span style={{ font: "500 15px 'Newsreader',Georgia,serif", color: pal.accent, opacity: i === 0 ? 1 : 0.55, lineHeight: 1 }}>{i + 1}</span>}
-                    <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "#f8f9fc" }}>{m.drug}</span>
+                    <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f8f9fc)" }}>{m.drug}</span>
                     <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: MUT }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
                     {m.delta !== 0 && <Delta delta={m.delta} />}
                   </div>
@@ -1147,7 +1161,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                       result ends up read as this drug's fact. What survives here is only what is
                       deterministic — a dated regulatory event, the source counts, who's talking — and
                       the claims themselves stay in the linked source material below. */}
-                  {m.eventChip && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "#aab0bf" }}>{m.eventChip}</p>}
+                  {m.eventChip && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "var(--rv-muted, #aab0bf)" }}>{m.eventChip}</p>}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                     {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
                     <span style={{ font: "400 12px system-ui", color: MUT }}>{metricsLine(m)}</span>
@@ -1181,7 +1195,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   };
 
   return (
-    <div onClickCapture={captureInteraction} style={{ minHeight: "100vh", overflowWrap: "break-word", background: pal.bg, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div className="reader-editorial" onClickCapture={captureInteraction} style={{ minHeight: "100vh", overflowWrap: "break-word", background: pal.bg, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", ["--rv-accent" as string]: pal.accent, ["--rv-ink" as string]: INK, ["--rv-ink-2" as string]: INK_2, ["--rv-copy" as string]: INK_2, ["--rv-muted" as string]: LIGHT_MUT, ["--rv-muted-2" as string]: LIGHT_MUT2, ["--rv-line" as string]: LINE, ["--rv-surface" as string]: SURFACE, ["--rv-card" as string]: "#fff", ["--rv-card-line" as string]: "#d8d7d1", ["--rv-card-radius" as string]: "8px", ["--rv-card-shadow" as string]: "0 8px 22px rgba(31,35,42,.07)" }}>
       {/* rv-pills: hide the scrollbar; on mobile a right-edge fade signals there's more to scroll.
           Expandable lists use dividers and quiet text actions instead of nested pills/cards. */}
       <style>{`
@@ -1191,88 +1205,100 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         .rv-focus-chip{position:relative}
         .rv-focus-chip::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:max(100%,44px);height:44px}
         .rv-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
-        .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
+        .reader-editorial .rv-list-row{border-bottom:1px solid ${LINE}}
         .rv-row{transition:color .16s ease}
         @media(hover:hover){.rv-row:hover [data-disclosure],.rv-text-action:hover{text-decoration:underline;text-underline-offset:4px}}
-        .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
-        .rv-episode-row{padding:16px 2px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
-        .rv-text-action:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:2px;border-radius:4px}
+        .reader-editorial .rv-row:focus-visible{outline:2px solid ${pal.accent};outline-offset:-2px}
+        .reader-editorial .rv-episode-row{padding:16px 2px 18px;border-bottom:1px solid ${LINE}}
+        .reader-editorial .rv-text-action:focus-visible{outline:2px solid ${pal.accent};outline-offset:2px;border-radius:4px}
+        .reader-editorial .aq-dark{--aq-shell:#fff;--aq-border:#d8d7d1;--aq-track:#d9d8d3;background:var(--aq-shell);border-color:var(--aq-border);color:${INK};box-shadow:0 8px 22px -20px rgba(31,35,42,.6)}
+        .reader-editorial .aq-dark .aq-times,.reader-editorial .aq-dark .aq-label,.reader-editorial .aq-dark .aq-cur{color:#74767a}
+        .reader-editorial .aq-dark .aq-range::-webkit-slider-thumb{border-color:#fff}
+        .reader-editorial .aq-dark .aq-range::-moz-range-thumb{border-color:#fff}
+        .reader-editorial .readout-hero-card:not(.is-compact){border-top-color:${LINE}}
+        .reader-editorial .readout-hero-abstract>p{color:${INK_2}}
+        .reader-editorial .readout-hero-preview>div:first-child{color:${MUT}}
         .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
         @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
         .cg-pip{animation:cgPulse 2.2s ease-out infinite}
         @keyframes cgPulse{0%{box-shadow:0 0 0 0 rgba(255,92,92,.55)}70%{box-shadow:0 0 0 7px rgba(255,92,92,0)}100%{box-shadow:0 0 0 0 rgba(255,92,92,0)}}
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}.cg-pip{animation:none}}
       `}</style>
-      <div style={{ maxWidth: wide ? 1116 : 690, margin: "0 auto", padding: "34px 30px 120px" }}>
+      <div style={{ maxWidth: wide ? 1280 : 690, margin: "0 auto", padding: compact ? "18px 20px 100px" : "0 32px 120px" }}>
         {/* CONGRESS MODE bar — the ONE new element. A gold "marquee event" strip above the
             masthead: status on the left (derived client-side from the dates), a Weekly/Live toggle
             on the right. Everything below is the normal reader, scoped to congress-tagged stories
             when Live coverage is on. Wrapped-with-nothing-tagged self-suppresses. */}
         {cong && cState && !(cState.phase === "wrapped" && cong.taggedStories === 0) && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", margin: compact ? "0 -20px 16px" : "-6px -30px 20px", padding: compact ? "11px 20px" : "12px 30px", background: `linear-gradient(90deg, ${CG}29, ${CG}0d)`, borderTop: `1px solid ${CG}55`, borderBottom: `1px solid ${CG}55` }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 9, font: "700 11px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: "#f4ecd8", minWidth: 0 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 9, font: "700 11px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK_2, minWidth: 0 }}>
               <span aria-hidden className={cState.phase === "live" ? "cg-pip" : ""} style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: cState.phase === "live" ? "#FF5C5C" : cState.phase === "upcoming" ? CG : "#8a8f9c" }} />
-              {cState.phase === "live" && <span style={{ color: "#ffd9d2" }}>Live</span>}
-              <b style={{ color: "#fff", fontWeight: 700 }}>{cong.shortName}</b>
-              <span style={{ color: CG, whiteSpace: "nowrap" }}>· {cState.label}</span>
+              {cState.phase === "live" && <span style={{ color: "#a43b35" }}>Live</span>}
+              <b style={{ color: INK, fontWeight: 700 }}>{cong.shortName}</b>
+              <span style={{ color: "#70530a", whiteSpace: "nowrap" }}>· {cState.label}</span>
             </span>
-            <div role="group" aria-label="Congress coverage" style={{ marginLeft: "auto", display: "inline-flex", background: "rgba(0,0,0,.28)", border: `1px solid ${CG}55`, borderRadius: 20, padding: 3, flex: "none" }}>
+            <div role="group" aria-label="Congress coverage" style={{ marginLeft: "auto", display: "inline-flex", background: "rgba(255,255,255,.62)", border: `1px solid ${CG}66`, borderRadius: 20, padding: 3, flex: "none" }}>
               {([["Weekly brief", false], ["Live coverage", true]] as [string, boolean][]).map(([lbl, on]) => (
                 <button key={lbl} type="button" aria-pressed={congressScope === on} onClick={() => { setCongressOn(on); setOpenId(null); }}
-                  style={{ cursor: "pointer", font: "700 11px system-ui", padding: "6px 12px", borderRadius: 16, border: 0, whiteSpace: "nowrap", background: congressScope === on ? CG : "transparent", color: congressScope === on ? "#12130f" : "rgba(255,255,255,.62)" }}>{lbl}</button>
+                  style={{ cursor: "pointer", font: "700 11px system-ui", padding: "6px 12px", borderRadius: 16, border: 0, whiteSpace: "nowrap", background: congressScope === on ? CG : "transparent", color: congressScope === on ? "#12130f" : "var(--rv-muted, rgba(255,255,255,.62))" }}>{lbl}</button>
               ))}
             </div>
           </div>
         )}
-        {/* Wide desktop uses the header as a compact navigation system: product + primary
-            sections + Share on line one, then edition context + Focus + freshness below. */}
+        {/* The production masthead now follows the Editorial concept: one calm publication row
+            for brand, section navigation, and edition context; Focus remains a separate scope
+            strip because it filters the whole page rather than navigating within it. */}
         {wide && !compact && <>
-          <div style={{ position: "sticky", top: 0, zIndex: 15, margin: "0 -30px", padding: "3px 30px 5px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 30, background: stuck ? `${pal.bg}E8` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
-            <h1 style={{ font: "500 24px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em", margin: 0, whiteSpace: "nowrap" }}>The Readout</h1>
+          <div style={{ position: "sticky", top: 0, zIndex: 15, minHeight: 86, margin: "0 -32px", padding: "0 32px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 42, background: stuck ? "rgba(244,244,241,.94)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 12px 28px -22px rgba(31,35,42,.35)" : "none", transition: "box-shadow .2s ease" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ color: pal.accent, font: "750 10px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
+              <h1 style={{ font: "500 28px/1 Georgia,'Newsreader',serif", color: INK, margin: "5px 0 0", whiteSpace: "nowrap" }}>The Readout</h1>
+            </div>
             <nav aria-label="Readout sections" className="rv-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, minWidth: 0, overflow: "hidden" }}>
               {sectionControls(false)}
             </nav>
             <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-end" }}>
-              {shareMsg && <span role="status" style={{ font: "600 12px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 10px", whiteSpace: "nowrap" }}>{shareMsg}</span>}
-              <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.16)", color: "#fff", font: "600 12.5px system-ui", borderRadius: 18, padding: "7px 13px", cursor: "pointer" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
-                Share
+              {areaSwitcher("chip")}
+              <span style={{ font: "600 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>{ago(data.generatedAt)}</span>
+              {shareMsg && <span role="status" style={{ font: "600 12px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "6px 10px", whiteSpace: "nowrap" }}>{shareMsg}</span>}
+              <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "transparent", border: 0, color: MUT, width: 44, height: 44, padding: 0, cursor: "pointer" }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
               </button>
             </div>
           </div>
-          <div style={{ margin: "8px -30px 18px", padding: "8px 30px 9px", display: "flex", alignItems: "center", gap: 20, borderTop: "1px solid rgba(255,255,255,.08)", borderBottom: `2px solid ${pal.accent}66`, background: "rgba(255,255,255,.018)" }}>
-            {areaSwitcher("chip")}
-            <span aria-hidden style={{ width: 1, height: 20, background: "rgba(255,255,255,.12)", flex: "none" }} />
+          <div style={{ minHeight: 58, margin: "0 -32px 18px", padding: "0 32px", display: "flex", alignItems: "center", gap: 20, borderBottom: `1px solid ${LINE}` }}>
             {focusSwitcher(false)}
-            <span style={{ marginLeft: "auto", font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, whiteSpace: "nowrap" }}>By CanvasMD · Updated {ago(data.generatedAt)}</span>
           </div>
         </>}
 
-        {/* Mobile and medium-width layouts keep the established stacked masthead. */}
+        {/* Mobile and medium-width layouts use the same Editorial hierarchy in a compact stack. */}
         {(!wide || compact) && <>
         {/* The desktop masthead spans the same frame as the editorial column + rail. Its controls
             stay on the reading spine, while Share anchors the far edge; the rule beneath belongs
             to the whole edition rather than ending where the Focus labels happen to end. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: compact ? "center" : "flex-start", gap: 22, paddingBottom: compact ? 3 : 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, paddingBottom: 0 }}>
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
             {/* line 1: wordmark + the edition chip. line 2: byline sits UNDERNEATH the wordmark
                 (John: byline next to the specialty looked weird), matching the mobile stack. */}
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 6 }}>
-              <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0, display: "inline" }}>The Readout</h1>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ color: pal.accent, font: "750 9px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
+                <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: "4px 0 0", display: "inline" }}>The Readout</h1>
+              </div>
               {/* the edition chip rides beside the wordmark on EVERY size (2026-07-24: the mobile
                   bare-text variant read differently from the All page — one switcher, one look) */}
               {areaSwitcher("chip")}
             </div>
-            {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)}</div>}
             {/* On medium-width single-column desktop, Focus still needs its own row. The wide
                 two-column layout moves it into the shared navigation band below. */}
             {!compact && !wide && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", marginTop: compact ? 0 : 2 }}>
           {!compact && <>
-            {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 11px" }}>{shareMsg}</span>}
-            <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", color: "#fff", font: "600 13px system-ui", borderRadius: 20, padding: "8px 15px", cursor: "pointer" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+            {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "6px 11px" }}>{shareMsg}</span>}
+            <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", border: `1px solid ${LINE}`, color: INK, font: "600 13px system-ui", borderRadius: 6, padding: "8px 15px", cursor: "pointer" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
               Share
             </button>
           </>}
@@ -1281,21 +1307,21 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               24px WCAG 2.2 floor and well under the platform 44px norm. Negative margin keeps the
               larger hit area from disturbing the header's optical alignment. */}
           {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, width: 44, height: 44, margin: "-11px -13px -11px 0", padding: 0, cursor: "pointer", flex: "none", order: 1 }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={MUT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
           </button>}
-          {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
+          {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.2)" }}>{shareMsg}</span>}
           </div>
         </div>
         {/* Full-width edition rule unifies the desktop editorial column and supporting rail. */}
-        {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 14px", background: `${pal.accent}66` }} />}
+        {!compact && <div aria-hidden style={{ height: 1, margin: "14px 0 12px", background: LINE }} />}
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
         {compact && <>
-          <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 0" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>
-          <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `${pal.accent}66` }} />
+          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>Updated {ago(data.generatedAt)}</div>
+          <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
         </>}
         {/* Section jumps stay sticky on compact and medium-width layouts. */}
-        <div className={`rv-pills rv-section-tabs${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "6px 20px 4px" : "7px 30px 4px", background: stuck ? `${pal.bg}A6` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: !compact && wide ? "center" : "flex-start", flexWrap: compact || wide ? "nowrap" : "wrap", gap: compact ? 18 : 26, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        <div className={`rv-pills rv-section-tabs${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -32px", padding: compact ? "4px 20px 2px" : "5px 32px 2px", background: stuck ? "rgba(244,244,241,.96)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 10px 24px -22px rgba(31,35,42,.4)" : "none", transition: "box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: compact ? 24 : 28, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sectionControls(compact)}
         </div>
 
@@ -1345,8 +1371,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         )}
 
         {/* footer — the positioning line lives here (end of the read), not stacked on the masthead */}
-        <div style={{ textAlign: "center", marginTop: 40, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)", letterSpacing: "-.01em" }}>The Readout</div>
+        <div style={{ textAlign: "center", marginTop: 40, paddingTop: 22, borderTop: `1px solid ${LINE}` }}>
+          <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "var(--rv-muted, rgba(255,255,255,.6))", letterSpacing: "-.01em" }}>The Readout</div>
           <div style={{ font: "400 12px/1.55 system-ui", color: MUT, marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from tracked oncology clinicians and selected oncology podcasts. No anonymous social accounts.</div>
         </div>
       </div>
@@ -1354,8 +1380,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   );
 }
 
-const statTile: React.CSSProperties = { background: "rgba(255,255,255,.055)", border: "1px solid rgba(255,255,255,.08)", borderTop: "1px solid rgba(255,255,255,.14)", borderRadius: 11, padding: "8px 11px", minWidth: 56 };
-const statTileLabel: React.CSSProperties = { font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#7d89a8", marginTop: 5 };
+const statTile: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 11px", minWidth: 56 };
+const statTileLabel: React.CSSProperties = { font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: MUT2, marginTop: 5 };
 
 // Section header as a real h2. Default (mobile) is centered, flanked by two accent hairlines.
 // `rail` and `left` both left-align it (label first, single trailing rule) — the desktop main
@@ -1366,7 +1392,7 @@ function SectionHead({ children, id, accent, rail = false, left = false }: { chi
   return (
     <h2 id={id} style={{ display: "flex", alignItems: "center", gap: 14, margin: rail ? "54px 0 10px" : "54px 0 18px", scrollMarginTop: 66 }}>
       {!leftAlign && <span aria-hidden style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${accent}42)` }} />}
-      <span style={{ font: "700 12.5px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#b6bccb" }}>{children}</span>
+      <span style={{ font: "700 12.5px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: INK }}>{children}</span>
       <span aria-hidden style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${accent}42, transparent)` }} />
     </h2>
   );
