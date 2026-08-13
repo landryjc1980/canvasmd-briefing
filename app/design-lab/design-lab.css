@@ -519,10 +519,11 @@
 .dl-editorial-head nav a:first-child { color: #17181a; box-shadow: inset 0 -2px #b94c31; }
 .dl-editorial-context { display: flex; align-items: center; gap: 12px; font: 650 12px system-ui; }
 .dl-editorial-context span { color: #77797e; }
-.dl-editorial-specialty { position: relative; display: inline-flex; align-items: center; }
-.dl-editorial-specialty::after { width: 7px; height: 7px; border-right: 2px solid #b94c31; border-bottom: 2px solid #b94c31; content: ""; pointer-events: none; position: absolute; right: 2px; top: 50%; transform: translateY(-65%) rotate(45deg); }
-.dl-editorial-specialty select { min-height: 44px; padding: 0 22px 0 0; appearance: none; border: 0; background: transparent; color: #b94c31; font: 700 12px/1 system-ui; cursor: pointer; }
-.dl-editorial-specialty select:focus-visible { outline: 2px solid #b94c31; outline-offset: 4px; }
+.dl-editorial-specialty { position: relative; min-height: 44px; display: inline-flex; align-items: center; gap: 9px; color: #b94c31; cursor: pointer; }
+.dl-editorial-specialty > span { font: 700 12px/1 system-ui; white-space: nowrap; }
+.dl-editorial-specialty::after { width: 7px; height: 7px; margin-top: -4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; content: ""; pointer-events: none; transform: rotate(45deg); }
+.dl-editorial-specialty select { position: absolute; inset: 0; width: 100%; height: 100%; appearance: none; border: 0; opacity: 0; cursor: pointer; }
+.dl-editorial-specialty:has(select:focus-visible) > span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
 .dl-editorial main { width: min(1280px, calc(100% - 64px)); margin: 0 auto; }
 .dl-editorial-focus { min-height: 58px; display: flex; align-items: center; gap: 26px; overflow-x: auto; border-bottom: 1px solid #cfd0cb; scrollbar-width: none; }
 .dl-editorial-focus::-webkit-scrollbar { display: none; }
@@ -531,7 +532,9 @@
 .dl-editorial-focus button::after { position: absolute; right: 0; bottom: 4px; left: 0; height: 2px; background: transparent; content: ""; }
 .dl-editorial-focus button.active { color: #17181a; }
 .dl-editorial-focus button.active::after { background: #b94c31; }
-.dl-editorial-focus button:focus-visible { outline: 2px solid #b94c31; outline-offset: 3px; }
+.dl-editorial-focus button:focus { outline: none; }
+.dl-editorial-focus button:focus-visible { color: #17181a; }
+.dl-editorial-focus button:focus-visible::after { height: 3px; background: #b94c31; }
 .dl-editorial-lead { padding: 68px 0 58px; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(310px, .65fr); align-items: center; gap: clamp(54px, 7vw, 110px); }
 .dl-editorial-lead-primary { min-width: 0; }
 .dl-editorial-lead-copy { min-width: 0; }

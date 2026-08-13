@@ -733,6 +733,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
         <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a><a href="#editorial-trials">Trials</a></nav>
         <div className="dl-editorial-context">
           <label className="dl-editorial-specialty">
+            <span aria-hidden="true">{AREA_FULL[data.area] ?? data.area}</span>
             <select aria-label="Specialty" value={data.area} onChange={(event) => onAreaChange(event.target.value as typeof AREAS[number])}>
               {AREAS.map((area) => <option value={area} key={area}>{AREA_FULL[area] ?? area}</option>)}
             </select>
