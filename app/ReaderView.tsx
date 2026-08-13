@@ -167,7 +167,13 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   );
 }
 export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
   const text = cleanTweetText(t.text);
+  const thread = (t.thread ?? []).map((part) => ({ ...part, text: cleanTweetText(part.text) })).filter((part) => part.text);
+  const canExpand = !compact && (thread.length > 0 || text.length > 320);
+  const collapsedText: React.CSSProperties = canExpand && !expanded
+    ? { display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 6, overflow: "hidden" }
+    : {};
   // Classic retweet: the words below belong to someone else. Credit the amplification on the
   // name line, then set the quote apart so it can never be read as this clinician's own take.
   const rtOf = rtOriginal(t.text);
@@ -184,14 +190,34 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
       </div>
       {text && (rtOf
         ? <blockquote style={{ margin: "9px 0 0", paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
-            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b6b9c3)" }}>{text}</p>
+            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b6b9c3)", ...collapsedText }}>{text}</p>
             <cite style={{ display: "block", marginTop: 5, font: "400 11px system-ui", fontStyle: "normal", color: MUT }}>@{rtOf}</cite>
           </blockquote>
-        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{text}</p>)}
+        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", ...collapsedText }}>{text}</p>)}
     </>);
-  return t.tweetUrl
-    ? <a className={compact ? "readout-tweet-preview" : undefined} href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>
-    : <div className={compact ? "readout-tweet-preview" : undefined} style={cardBox}>{body}</div>;
+  const root = t.tweetUrl
+    ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{body}</a>
+    : body;
+  return (
+    <div className={compact ? "readout-tweet-preview" : undefined} style={cardBox}>
+      {root}
+      {expanded && thread.map((part, i) => {
+        const continuation = (
+          <div style={{ marginTop: 13, paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
+            <div style={{ marginBottom: 5, font: "600 10.5px system-ui", color: MUT }}>{i + 2} / {thread.length + 1}</div>
+            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{part.text}</p>
+          </div>
+        );
+        return part.tweetUrl
+          ? <a key={part.id} href={part.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{continuation}</a>
+          : <Fragment key={part.id}>{continuation}</Fragment>;
+      })}
+      {canExpand && <button type="button" className="rv-text-action" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}
+        style={{ cursor: "pointer", minHeight: 44, marginTop: 5, padding: "0 2px", border: 0, background: "transparent", color: "var(--rv-accent)", font: "600 12px system-ui" }}>
+        {expanded ? "Show less ↑" : thread.length ? `Show full thread · ${thread.length + 1} posts ↓` : "Show full post ↓"}
+      </button>}
+    </div>
+  );
 }
 
 type BriefingAmplifier = NonNullable<BriefingEpisode["amplifiers"]>[number];

@@ -104,11 +104,13 @@ export function cleanTweetText(s: string | null | undefined): string {
   return (s ?? "")
     .replace(/^\s*RT @[A-Za-z0-9_]+:\s*/, "")
     .replace(/https?:\/\/t\.co\/\S+/g, "")
+    .replace(/^[ \t]*(?:Article|Paper|Link):[ \t]*$/gim, "")
     // X delivers content HTML-escaped — decode the common entities so tweets don't
     // render a literal "&amp;" ("Vedotin &amp; pembrolizumab").
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+([.,;:!?])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 

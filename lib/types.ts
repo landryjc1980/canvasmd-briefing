@@ -463,6 +463,7 @@ export type BriefingSharer = {
   avatar: string | null; // real X profile image (pbs.twimg.com), initials fallback
   tweetUrl: string | null;
   text: string | null;
+  thread?: { id: string; text: string; tweetUrl: string | null }[]; // ADDITIVE — same-author thread continuations
   likes: number;
   retweets: number;
   quotes?: number; // quote-posts (absent on pre-2026-07-24 snapshots)
