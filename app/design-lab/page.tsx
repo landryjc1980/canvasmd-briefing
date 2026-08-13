@@ -515,7 +515,11 @@ function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; med
                 />}
                 <span className="dl-paper-copy">
                   <strong>{cleanArticleTitle(paper.title)}</strong>
-                  <small>{!accent && <Faces urls={paper.faces} />}{articleSource(paper.journal, paper.domain) ?? "Publication"} · shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</small>
+                  <small>
+                    {!accent && <Faces urls={paper.faces} />}
+                    <span className="dl-paper-journal">{articleSource(paper.journal, paper.domain) ?? "Publication"}</span>
+                    <span className="dl-paper-activity">· shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</span>
+                  </small>
                 </span>
                 <span aria-hidden>↗</span>
               </a>
@@ -827,7 +831,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
                 <div className="dl-editorial-story-summary">
                   <div className="dl-editorial-story-copy">
                     <div className="dl-kicker">{KICKER[card.kind]}</div>
-                    <small>{card.sourceLabel}</small>
+                    <small className={card.kind === "paper" ? "is-journal" : undefined}>{card.sourceLabel}</small>
                     <h3>{card.url && card.kind !== "episode" ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a> : card.headline}</h3>
                     <div className="dl-editorial-story-meta"><span>{card.why}</span></div>
                   </div>
