@@ -95,7 +95,12 @@ function ArticleVisual({ media, alt, fallback = null }: { media?: ArticleMedia; 
       src={media.imageUrl}
       alt={alt}
       onError={(event) => {
-        event.currentTarget.closest(".has-image")?.classList.remove("has-image");
+        const row = event.currentTarget.closest(".dl-paper");
+        const item = event.currentTarget.closest(".dl-paper-item");
+        row?.classList.remove("has-image");
+        row?.classList.add("no-visual");
+        item?.classList.remove("has-image");
+        item?.classList.add("no-visual");
         setFailed(true);
       }}
     />
@@ -450,54 +455,84 @@ function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; med
     <section className="dl-section dl-papers">
       <div className="dl-section-head"><h2>Papers being shared</h2><span>{papers.length} selected</span></div>
       <div className="dl-paper-list">
-        {papers.map((paper, index) => (
-          <article className={`dl-paper-item${media.get(paper.url)?.imageUrl ? " has-image" : ""}`} key={`${paper.url}-${index}`}>
-            <a className={`dl-paper${media.get(paper.url)?.imageUrl ? " has-image" : ""}`} href={paper.url} target="_blank" rel="noreferrer">
-              <ArticleVisual
-                media={media.get(paper.url)}
-                alt=""
-                fallback={<SourceMark name={articleSource(paper.journal, paper.domain) ?? "Publication"} domain={paper.domain} />}
-              />
-              <span className="dl-paper-copy">
-                <strong>{cleanArticleTitle(paper.title)}</strong>
-                <small><Faces urls={paper.faces} />{articleSource(paper.journal, paper.domain) ?? "Publication"} · shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</small>
-              </span>
-              <span aria-hidden>↗</span>
-            </a>
-            <div className="dl-paper-controls">
-              {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
-              {accent && <PaperSources paper={paper} />}
-            </div>
-          </article>
-        ))}
+        {papers.map((paper, index) => {
+          const hasImage = !!media.get(paper.url)?.imageUrl;
+          const showFallbackMark = !accent;
+          const hasVisual = hasImage || showFallbackMark;
+          const visualClass = hasImage ? " has-image" : hasVisual ? "" : " no-visual";
+          return (
+            <article className={`dl-paper-item${visualClass}`} key={`${paper.url}-${index}`}>
+              <a className={`dl-paper${visualClass}`} href={paper.url} target="_blank" rel="noreferrer">
+                {hasVisual && <ArticleVisual
+                  media={media.get(paper.url)}
+                  alt=""
+                  fallback={showFallbackMark ? <SourceMark name={articleSource(paper.journal, paper.domain) ?? "Publication"} domain={paper.domain} /> : null}
+                />}
+                <span className="dl-paper-copy">
+                  <strong>{cleanArticleTitle(paper.title)}</strong>
+                  <small>{!accent && <Faces urls={paper.faces} />}{articleSource(paper.journal, paper.domain) ?? "Publication"} · shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</small>
+                </span>
+                <span aria-hidden>↗</span>
+              </a>
+              <div className="dl-paper-controls">
+                {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
+                {accent && <PaperSources paper={paper} />}
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
 }
 
 function PeopleRail({ data }: { data: BriefingData }) {
-  const guests = (data.guests ?? []).slice(0, 3);
-  const voices = [...data.topKols].filter((person) => (person.amp ?? 0) > 0).sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0)).slice(0, 3);
+  const [showAllGuests, setShowAllGuests] = useState(false);
+  const [showAllVoices, setShowAllVoices] = useState(false);
+  useEffect(() => {
+    setShowAllGuests(false);
+    setShowAllVoices(false);
+  }, [data.area]);
+  const allGuests = data.guests ?? [];
+  const allVoices = [...data.topKols]
+    .filter((person) => (person.amp ?? 0) > 0)
+    .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes);
+  const guests = showAllGuests ? allGuests : allGuests.slice(0, 4);
+  const voices = showAllVoices ? allVoices : allVoices.slice(0, 4);
   if (!guests.length && !voices.length) return null;
   return (
     <section className="dl-section dl-people">
       <div className="dl-section-head"><h2>People</h2><span>This week</span></div>
-      <div className="dl-people-list">
-        {guests.map((person) => (
-          <div className="dl-person" key={`guest-${person.name}`}>
-            <Artwork src={person.avatar} label={person.name} round />
-            <div><strong>{person.name}</strong><small>{person.affiliation ?? person.shows[0] ?? "Podcast guest"}</small></div>
-            <span>{person.thisWeek} ep</span>
-          </div>
-        ))}
-        {voices.map((person) => (
-          <div className="dl-person" key={`voice-${person.handle ?? person.name}`}>
-            <Artwork src={person.avatar} label={person.name} round />
-            <div><strong>{person.name}</strong><small>{person.institution ?? (person.handle ? `@${person.handle}` : "On X")}</small></div>
-            <span>{person.amp} R/Q</span>
-          </div>
-        ))}
-      </div>
+      {allGuests.length > 0 && <div className="dl-people-group">
+        <div className="dl-people-group-head"><h3>Podcast guests</h3><span>On the mics</span></div>
+        <div className="dl-people-list">
+          {guests.map((person) => (
+            <div className={`dl-person${person.avatar ? "" : " no-avatar"}`} key={`guest-${person.name}`}>
+              {person.avatar && <Artwork src={person.avatar} label={person.name} round />}
+              <div><strong>{person.name}</strong><small>{person.affiliation ?? person.shows[0] ?? "Podcast guest"}</small></div>
+              <span>{person.thisWeek} ep</span>
+            </div>
+          ))}
+        </div>
+        {allGuests.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllGuests((value) => !value)}>
+          {showAllGuests ? "Show fewer guests ↑" : `Show ${allGuests.length - guests.length} more guests ↓`}
+        </button>}
+      </div>}
+      {allVoices.length > 0 && <div className="dl-people-group">
+        <div className="dl-people-group-head"><h3>Amplified on X</h3><span>Verified clinicians</span></div>
+        <div className="dl-people-list">
+          {voices.map((person) => (
+            <div className={`dl-person${person.avatar ? "" : " no-avatar"}`} key={`voice-${person.handle ?? person.name}`}>
+              {person.avatar && <Artwork src={person.avatar} label={person.name} round />}
+              <div><strong>{person.name}</strong><small>{person.institution ?? (person.handle ? `@${person.handle}` : "On X")}</small></div>
+              <span>{person.amp} R/Q</span>
+            </div>
+          ))}
+        </div>
+        {allVoices.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllVoices((value) => !value)}>
+          {showAllVoices ? "Show fewer clinicians ↑" : `Show ${allVoices.length - voices.length} more clinicians ↓`}
+        </button>}
+      </div>}
     </section>
   );
 }
