@@ -1162,27 +1162,26 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     </>
   );
 
-  // Drugs — the full ranked drug board, relocated so the drug overview isn't lost
-  // (unchanged rendering, sibling to Trials).
+  // Drugs — the full drug board, relocated so the drug overview isn't lost.
   const drugsSection = data.movers.length > 0 && (
     <>
       <SectionHead id="sec-drugs" accent={pal.accent} left>Drug activity</SectionHead>
-      {data.movers.map((m, i) => {
+      {data.movers.map((m) => {
         const id = "m:" + m.drugId;
         const open = openId === id;
+        const drugMeta = [m.brand, m.company].filter(Boolean).join(" · ");
         return (
           <div key={id} style={storyCard}>
           <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
-              <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 0 : 20, padding: "22px 2px" }}>
-                {!compact && <div style={{ font: "500 26px/1.1 'Newsreader',Georgia,serif", color: pal.accent, opacity: i === 0 ? 1 : 0.45, width: 34, flex: "none" }}>{i + 1}</div>}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                    {compact && <span style={{ font: "500 15px 'Newsreader',Georgia,serif", color: pal.accent, opacity: i === 0 ? 1 : 0.55, lineHeight: 1 }}>{i + 1}</span>}
-                    <span style={{ font: "500 22px/1.1 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f8f9fc)" }}>{m.drug}</span>
-                    <span style={{ font: "500 12px system-ui", letterSpacing: ".02em", color: MUT }}>{[m.brand, m.company].filter(Boolean).join(" · ")}</span>
-                    {m.delta !== 0 && <Delta delta={m.delta} />}
+              <div style={{ padding: compact ? "18px 2px" : "22px 2px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "start", columnGap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ font: "500 22px/1.18 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f8f9fc)" }}>{m.drug}</div>
+                    {drugMeta && <div style={{ marginTop: 5, font: "500 12px/1.4 system-ui", color: MUT }}>{drugMeta}</div>}
                   </div>
+                  {m.delta !== 0 && <Delta delta={m.delta} />}
+                </div>
                   {/* The Drugs board is a compact INDEX into sources, not a synthesized drug profile.
                       It deliberately does NOT render `why` (the highest-mention gloss, verbatim): a
                       gloss is written from a dense, often multi-drug passage, so presenting it as this
@@ -1190,12 +1189,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                       result ends up read as this drug's fact. What survives here is only what is
                       deterministic — a dated regulatory event, the source counts, who's talking — and
                       the claims themselves stay in the linked source material below. */}
-                  {m.eventChip && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "var(--rv-muted, #aab0bf)" }}>{m.eventChip}</p>}
-                  <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                    {pileFaces(m).length > 0 && <FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} />}
-                    <span style={{ font: "400 12px system-ui", color: MUT }}>{metricsLine(m)}</span>
-                    {!open && <SignalTag id={id} style={{ marginLeft: "auto" }} />}
+                {m.eventChip && <p style={{ margin: "10px 0 0", font: "400 13px/1.5 system-ui", color: "var(--rv-muted, #aab0bf)" }}>{m.eventChip}</p>}
+                <div style={{ marginTop: 15, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", columnGap: 12 }}>
+                  <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                    {pileFaces(m).length > 0 && <span style={{ flex: "none" }}><FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} /></span>}
+                    <span style={{ minWidth: 0, font: "400 12px/1.45 system-ui", color: MUT }}>{metricsLine(m)}</span>
                   </div>
+                  {!open && <SignalTag id={id} />}
                 </div>
               </div>
             }>
@@ -1305,16 +1305,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* The desktop masthead spans the same frame as the editorial column + rail. Its controls
             stay on the reading spine, while Share anchors the far edge; the rule beneath belongs
             to the whole edition rather than ending where the Focus labels happen to end. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: compact ? 8 : 18, paddingBottom: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: compact ? 8 : 18, paddingBottom: 0 }}>
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-            {/* The compact masthead keeps the publication identity on one line. The specialty
-                switcher moves beside Share below, where it stays visible without wrapping under
-                the wordmark on narrow phones. */}
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ color: pal.accent, font: "750 9px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
-                <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: "4px 0 0", display: "inline" }}>The Readout</h1>
-              </div>
+            <span style={{ display: "block", color: pal.accent, font: "750 9px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
+            <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 18, marginTop: 1 }}>
+              <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0, display: "inline" }}>The Readout</h1>
               {!compact && areaSwitcher("chip")}
             </div>
             {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)}</div>}
@@ -1322,7 +1317,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 two-column layout moves it into the shared navigation band below. */}
             {!compact && !wide && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: compact ? 8 : 14, flex: "none", marginTop: compact ? 0 : 2 }}>
+          <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 14, flex: "none", marginTop: compact ? 10 : 2 }}>
           {!compact && <>
             {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "6px 11px" }}>{shareMsg}</span>}
             <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", border: `1px solid ${LINE}`, color: INK, font: "600 13px system-ui", borderRadius: 6, padding: "8px 15px", cursor: "pointer" }}>
