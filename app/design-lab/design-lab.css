@@ -556,7 +556,8 @@
 .dl-editorial .dl-abstract summary { color: #b94c31; }
 .dl-editorial .dl-abstract > p { color: #55585d; }
 .dl-editorial .dl-sources > button { color: #b94c31; }
-.dl-editorial .dl-sources .dl-faces img { border-color: #f4f4f1; }
+.dl-editorial .dl-sources .dl-faces img { width: 36px; height: 36px; margin-left: -10px; border-color: #f4f4f1; }
+.dl-editorial .dl-sources .dl-faces img:first-child { margin-left: 0; }
 .dl-editorial-receipt { min-width: 0; padding: 22px; background: #ebeae5; color: #1b1c1f; border: 1px solid #dad8d1; border-radius: 8px; box-shadow: 0 24px 58px rgba(31, 35, 42, .13); transform: translateY(18px); }
 .dl-editorial-receipt > .dl-studio-story-visual { width: 100%; height: 210px; margin: 0 0 18px; border-radius: 6px; object-fit: cover; float: none; }
 .dl-editorial-receipt > .dl-studio-story-visual.is-round { width: 92px; height: 92px; border-radius: 50%; }
@@ -564,8 +565,8 @@
 .dl-editorial-receipt.is-episode.is-art-only > .dl-studio-story-visual { height: auto; aspect-ratio: 1; margin: 0; border-radius: 8px; }
 .dl-editorial-receipt-label { display: block; margin: 0 0 10px; color: #d57a5f; font: 750 10px system-ui; text-transform: uppercase; }
 .dl-editorial-tweet { display: block; color: inherit; text-decoration: none; }
-.dl-editorial-tweet-head { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.dl-editorial-tweet-head img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; }
+.dl-editorial-tweet-head { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 13px; }
+.dl-editorial-tweet-head img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; }
 .dl-editorial-tweet-head div { min-width: 0; display: flex; flex-direction: column; }
 .dl-editorial-tweet-head strong { font: 700 14px/1.2 system-ui; }
 .dl-editorial-tweet-head span { margin-top: 3px; color: #76777a; font: 500 12px system-ui; }
@@ -650,6 +651,7 @@
 .dl-editorial-evidence .dl-editorial-tweet { margin-top: 9px; padding: 15px; background: #fff; border: 1px solid #d8d7d1; border-radius: 7px; }
 .dl-editorial-evidence .dl-editorial-tweet:first-of-type { margin-top: 0; }
 .dl-editorial-evidence .dl-editorial-tweet > p { margin-top: 14px; font-size: 15px; }
+.dl-editorial-evidence .dl-avatar { width: 52px; height: 52px; }
 .dl-editorial-pod { margin-top: 9px; padding: 15px; background: #fff; border: 1px solid #d8d7d1; border-radius: 7px; }
 .dl-editorial-pod:first-of-type { margin-top: 0; }
 .dl-editorial-pod-head { display: flex; align-items: flex-start; gap: 11px; }
@@ -678,6 +680,11 @@
 .dl-preview.is-phone .dl-editorial-head nav::-webkit-scrollbar { display: none; }
 .dl-preview.is-phone .dl-editorial-context > span { display: none; }
 .dl-preview.is-phone .dl-editorial-focus { margin: 0 -20px; padding: 0 20px; gap: 22px; }
+.dl-preview.is-phone .dl-editorial .dl-sources .dl-faces img { width: 40px; height: 40px; margin-left: -11px; }
+.dl-preview.is-phone .dl-editorial .dl-sources .dl-faces img:first-child { margin-left: 0; }
+.dl-preview.is-phone .dl-editorial-tweet-head { grid-template-columns: 58px minmax(0, 1fr) auto; }
+.dl-preview.is-phone .dl-editorial-tweet-head img { width: 58px; height: 58px; }
+.dl-preview.is-phone .dl-editorial-evidence .dl-avatar { width: 56px; height: 56px; }
 .dl-preview.is-phone .dl-editorial-lead { padding: 42px 0 46px; grid-template-columns: 1fr; gap: 38px; }
 .dl-preview.is-phone .dl-editorial-lead-primary { display: contents; }
 .dl-preview.is-phone .dl-editorial-lead-copy { grid-column: 1; order: 1; }
@@ -710,6 +717,11 @@
   .dl-editorial-head nav { grid-column: 1 / -1; justify-content: flex-start; overflow-x: auto; order: 3; border-top: 1px solid #d4d4cf; }
   .dl-editorial-context > span { display: none; }
   .dl-editorial-focus { margin: 0 -20px; padding: 0 20px; gap: 22px; }
+  .dl-editorial .dl-sources .dl-faces img { width: 40px; height: 40px; margin-left: -11px; }
+  .dl-editorial .dl-sources .dl-faces img:first-child { margin-left: 0; }
+  .dl-editorial-tweet-head { grid-template-columns: 58px minmax(0, 1fr) auto; }
+  .dl-editorial-tweet-head img { width: 58px; height: 58px; }
+  .dl-editorial-evidence .dl-avatar { width: 56px; height: 56px; }
   .dl-editorial-lead { padding: 52px 0 46px; grid-template-columns: 1fr; gap: 38px; }
   .dl-editorial-lead-primary { display: contents; }
   .dl-editorial-lead-copy { grid-column: 1; order: 1; }
