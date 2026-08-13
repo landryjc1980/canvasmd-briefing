@@ -513,10 +513,18 @@
 .dl-editorial .dl-abstract summary { color: #b94c31; }
 .dl-editorial .dl-sources > button { color: #b94c31; }
 .dl-editorial .dl-sources .dl-faces img { border-color: #f4f4f1; }
-.dl-editorial-receipt { min-width: 0; padding: 18px; background: #17191e; color: #f4f7ff; border: 1px solid #2b2f38; border-radius: 8px; box-shadow: 0 24px 58px rgba(31, 35, 42, .2); transform: translateY(18px); }
+.dl-editorial-receipt { min-width: 0; padding: 22px; background: #ebeae5; color: #1b1c1f; border: 1px solid #dad8d1; border-radius: 8px; box-shadow: 0 24px 58px rgba(31, 35, 42, .13); transform: translateY(18px); }
 .dl-editorial-receipt > .dl-studio-story-visual { width: 100%; height: 210px; margin: 0 0 18px; border-radius: 6px; object-fit: cover; float: none; }
 .dl-editorial-receipt > .dl-studio-story-visual.is-round { width: 92px; height: 92px; border-radius: 50%; }
 .dl-editorial-receipt-label { display: block; margin: 0 0 10px; color: #d57a5f; font: 750 10px system-ui; text-transform: uppercase; }
+.dl-editorial-tweet { display: block; color: inherit; text-decoration: none; }
+.dl-editorial-tweet-head { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.dl-editorial-tweet-head img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; }
+.dl-editorial-tweet-head div { min-width: 0; display: flex; flex-direction: column; }
+.dl-editorial-tweet-head strong { font: 700 14px/1.2 system-ui; }
+.dl-editorial-tweet-head span { margin-top: 3px; color: #76777a; font: 500 12px system-ui; }
+.dl-editorial-tweet-head small { color: #b94c62; font: 700 12px system-ui; white-space: nowrap; }
+.dl-editorial-tweet > p { margin: 22px 0 2px; color: #343538; font: 400 18px/1.48 Georgia, serif; }
 .dl-editorial-receipt-note { min-height: 220px; padding: 24px; display: flex; flex-direction: column; justify-content: flex-end; background: #17191e; border-radius: 6px; color: #f6f6f3; }
 .dl-editorial-receipt-note span { color: #d57a5f; font: 750 10px system-ui; text-transform: uppercase; }
 .dl-editorial-receipt-note strong { margin-top: 12px; font: 500 24px/1.28 Georgia, serif; }

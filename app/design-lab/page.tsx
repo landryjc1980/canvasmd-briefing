@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { BriefingData, BriefingPaper, BriefingSharer, BriefingStory, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
-import { articleSource, cleanArticleTitle, storiesOf } from "../briefVM";
+import { articleSource, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
 import { heroDeckOf } from "../heroContract";
 import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
@@ -165,6 +165,20 @@ function firstSourceTweet(card: HeroCard, data: BriefingData): BriefingSharer | 
     quotes: 0,
     views: 0,
   } : null;
+}
+
+function EditorialTweet({ tweet }: { tweet: BriefingSharer }) {
+  const content = <>
+    <div className="dl-editorial-tweet-head">
+      {tweet.avatar && <img src={tweet.avatar} alt="" />}
+      <div><strong>{tweet.name}</strong>{tweet.handle && <span>@{tweet.handle.replace(/^@/, "")}</span>}</div>
+      {(tweet.likes ?? 0) > 0 && <small>♥ {tweet.likes}</small>}
+    </div>
+    <p>{cleanTweetText(tweet.text)}</p>
+  </>;
+  return tweet.tweetUrl
+    ? <a className="dl-editorial-tweet" href={tweet.tweetUrl} target="_blank" rel="noreferrer">{content}</a>
+    : <div className="dl-editorial-tweet">{content}</div>;
 }
 
 function paperAbstract(card: HeroCard, data: BriefingData): string | null {
@@ -489,7 +503,7 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
           </div>
           <aside className="dl-editorial-receipt" aria-label="Why this story surfaced">
             {leadVisual && <StudioVisual visual={leadVisual} headline={lead.headline} />}
-            {leadTweet ? <><span className="dl-editorial-receipt-label">A clinician shared</span><TweetCard t={leadTweet} /></> : <div className="dl-editorial-receipt-note"><span>Why it surfaced</span><strong>{lead.why}</strong></div>}
+            {leadTweet ? <><span className="dl-editorial-receipt-label">A clinician shared</span><EditorialTweet tweet={leadTweet} /></> : <div className="dl-editorial-receipt-note"><span>Why it surfaced</span><strong>{lead.why}</strong></div>}
           </aside>
         </section>}
 
