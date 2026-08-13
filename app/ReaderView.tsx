@@ -490,15 +490,21 @@ function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured }: { 
   const hasPublisherPosts = !!paper.publisherPosts?.length;
   const hasPublisherNames = paper.publishers.length > 0;
   const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasPublisherNames || !!paper.url;
+  const source = articleSource(paper.journal, paper.domain);
 
   return (
     <div className="rv-list-row">
       <div className="rv-paper-share" style={{ padding: "16px 2px" }}>
+        {(source || isNewsItem(paper)) && (
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 7 }}>
+            {source && <span style={{ font: "600 14px system-ui", color: MUT }}>{source}</span>}
+            {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+          </div>
+        )}
         <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{cleanArticleTitle(paper.title)}</div>
         <div className="rv-paper-meta" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
           {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
-          <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(paper.journal, paper.domain), paper.kolSharers ? `shared by ${paper.kolSharers} clinician${paper.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-          {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</span>}
         </div>
         <div className="rv-paper-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0 14px", marginTop: 5 }}>
           {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
