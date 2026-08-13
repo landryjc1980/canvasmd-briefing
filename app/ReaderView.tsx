@@ -1227,7 +1227,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* Wide desktop uses the header as a compact navigation system: product + primary
             sections + Share on line one, then edition context + Focus + freshness below. */}
         {wide && !compact && <>
-          <div style={{ position: "sticky", top: 0, zIndex: 15, margin: "0 -30px", padding: "9px 30px 8px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 30, background: stuck ? `${pal.bg}F2` : "rgba(255,255,255,.028)", borderBottom: "1px solid rgba(255,255,255,.075)", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 15, margin: "0 -30px", padding: "3px 30px 5px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 30, background: stuck ? `${pal.bg}E8` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
             <h1 style={{ font: "500 24px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em", margin: 0, whiteSpace: "nowrap" }}>The Readout</h1>
             <nav aria-label="Readout sections" className="rv-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, minWidth: 0, overflow: "hidden" }}>
               {sectionControls(false)}
@@ -1240,7 +1240,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </button>
             </div>
           </div>
-          <div style={{ margin: "0 -30px 18px", padding: "8px 30px 9px", display: "flex", alignItems: "center", gap: 20, borderBottom: `2px solid ${pal.accent}66`, background: "rgba(255,255,255,.028)" }}>
+          <div style={{ margin: "8px -30px 18px", padding: "8px 30px 9px", display: "flex", alignItems: "center", gap: 20, borderTop: "1px solid rgba(255,255,255,.08)", borderBottom: `2px solid ${pal.accent}66`, background: "rgba(255,255,255,.018)" }}>
             {areaSwitcher("chip")}
             <span aria-hidden style={{ width: 1, height: 20, background: "rgba(255,255,255,.12)", flex: "none" }} />
             {focusSwitcher(false)}
