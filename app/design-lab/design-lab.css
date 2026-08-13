@@ -696,6 +696,9 @@
 .dl-preview.is-phone .dl-editorial-tweet-head { grid-template-columns: 58px minmax(0, 1fr) auto; }
 .dl-preview.is-phone .dl-editorial-tweet-head img { width: 58px; height: 58px; }
 .dl-preview.is-phone .dl-editorial-evidence .dl-avatar { width: 56px; height: 56px; }
+.dl-preview.is-phone .dl-editorial-receipt.has-tweet .dl-editorial-tweet-head { grid-template-columns: 46px minmax(0, 1fr) auto; gap: 11px; }
+.dl-preview.is-phone .dl-editorial-receipt.has-tweet .dl-editorial-tweet-head img { width: 46px; height: 46px; }
+.dl-preview.is-phone .dl-editorial-receipt.has-tweet .dl-editorial-tweet > p { margin-top: 16px; font-size: 16px; line-height: 1.45; }
 .dl-preview.is-phone .dl-editorial-lead { padding: 42px 0 46px; grid-template-columns: 1fr; gap: 38px; }
 .dl-preview.is-phone .dl-editorial-lead-primary { display: contents; }
 .dl-preview.is-phone .dl-editorial-lead-copy { grid-column: 1; order: 1; }
@@ -742,6 +745,9 @@
   .dl-editorial-tweet-head { grid-template-columns: 58px minmax(0, 1fr) auto; }
   .dl-editorial-tweet-head img { width: 58px; height: 58px; }
   .dl-editorial-evidence .dl-avatar { width: 56px; height: 56px; }
+  .dl-editorial-receipt.has-tweet .dl-editorial-tweet-head { grid-template-columns: 46px minmax(0, 1fr) auto; gap: 11px; }
+  .dl-editorial-receipt.has-tweet .dl-editorial-tweet-head img { width: 46px; height: 46px; }
+  .dl-editorial-receipt.has-tweet .dl-editorial-tweet > p { margin-top: 16px; font-size: 16px; line-height: 1.45; }
   .dl-editorial-lead { padding: 52px 0 46px; grid-template-columns: 1fr; gap: 38px; }
   .dl-editorial-lead-primary { display: contents; }
   .dl-editorial-lead-copy { grid-column: 1; order: 1; }
