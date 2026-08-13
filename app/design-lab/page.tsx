@@ -762,8 +762,8 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
                 </div>
                 {card.kind === "episode" && <StoryAction card={card} />}
                 <div className="dl-editorial-story-actions">
-                  {abstract && <AbstractDisclosure text={abstract} compact />}
                   <StorySources card={card} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
+                  {abstract && <AbstractDisclosure text={abstract} compact />}
                 </div>
               </article>;
             })}

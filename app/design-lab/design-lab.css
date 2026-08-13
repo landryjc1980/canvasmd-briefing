@@ -579,8 +579,9 @@
 .dl-editorial-story-grid article > .dl-abstract.is-compact { margin: 4px 0 0; }
 .dl-editorial-story-grid article > .aq { width: 100%; margin-top: 14px; }
 .dl-editorial-story-grid article > .dl-sources { margin-top: 4px; }
-.dl-editorial-story-actions { margin-top: 4px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 22px; }
+.dl-editorial-story-actions { margin-top: 4px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 22px; }
 .dl-editorial-story-actions .dl-abstract.is-compact { margin: 0; }
+.dl-editorial-story-actions .dl-abstract.is-compact summary { min-height: 44px; }
 .dl-editorial-story-actions .dl-sources { display: contents; }
 .dl-editorial-story-actions .dl-sources > button { justify-self: start; }
 .dl-editorial-story-actions .dl-sources > .dl-evidence { width: 100%; margin-top: 0; grid-column: 1 / -1; }
