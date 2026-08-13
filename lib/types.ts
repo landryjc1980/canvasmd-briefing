@@ -854,7 +854,7 @@ export type HeroCard = {
   kind: "paper" | "episode" | "event" | "thread" | "trial_milestone";
   anchorId: string;
   headline: string;
-  why: string; // anchor-inclusive counts line ("1 paper · shared by 7 clinicians · …")
+  why: string; // server-authored source activity line
   sourceLabel: string;
   url: string | null;
   startMs?: number | null; // episode: audio receipt, from the SAME gloss as the excerpt
