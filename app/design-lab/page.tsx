@@ -5,7 +5,7 @@ import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, Brie
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
 import { AREA_FULL, articleSource, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
-import { heroDeckOf } from "../heroContract";
+import { heroDeckOf, scopedHeroCards } from "../heroContract";
 import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
 import "./design-lab.css";
@@ -47,6 +47,22 @@ function legacyCards(data: BriefingData): HeroCard[] {
     excerpt: story.description,
     excerptVerbatim: false,
   }));
+}
+
+function filterBriefBySubArea(data: BriefingData, subArea: string | null): BriefingData {
+  if (!subArea) return data;
+  const keep = (item: { subAreas?: string[] }) => (item.subAreas ?? []).includes(subArea);
+  return {
+    ...data,
+    movers: data.movers.filter(keep),
+    topKols: data.topKols.filter(keep),
+    topArticles: data.topArticles.filter(keep),
+    trials: data.trials.filter(keep),
+    guests: data.guests?.filter(keep),
+    hosts: data.hosts?.filter(keep),
+    episodes: data.episodes?.filter(keep),
+    topStories: data.topStories?.filter(keep),
+  };
 }
 
 function fmtDate(iso: string): string {
@@ -700,10 +716,16 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
 }
 
 function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void }) {
-  const [lead, ...rest] = cards;
-  const leadTweet = lead ? firstSourceTweet(lead, data) : null;
-  const leadAbstract = lead ? paperAbstract(lead, data) : null;
-  const leadVisual = lead ? studioVisual(lead, data, media) : null;
+  const [focus, setFocus] = useState<string | null>(null);
+  useEffect(() => setFocus(null), [data.area]);
+  const focusOptions = data.subAreas ?? [];
+  const activeFocus = focus && focusOptions.some((option) => option.key === focus) ? focus : null;
+  const focusedData = useMemo(() => filterBriefBySubArea(data, activeFocus), [data, activeFocus]);
+  const focusedCards = useMemo(() => scopedHeroCards(cards, activeFocus, false), [cards, activeFocus]);
+  const [lead, ...rest] = focusedCards;
+  const leadTweet = lead ? firstSourceTweet(lead, focusedData) : null;
+  const leadAbstract = lead ? paperAbstract(lead, focusedData) : null;
+  const leadVisual = lead ? studioVisual(lead, focusedData, media) : null;
   return (
     <div className="dl-concept dl-editorial">
       <header className="dl-editorial-head">
@@ -719,6 +741,13 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
         </div>
       </header>
       <main>
+        {focusOptions.length > 1 && <nav className="dl-editorial-focus" aria-label="Tumor focus">
+          <span>Focus</span>
+          {[{ key: null as string | null, label: "All" }, ...focusOptions.map((option) => ({ key: option.key as string | null, label: option.label }))].map((option) => {
+            const selected = activeFocus === option.key;
+            return <button type="button" aria-pressed={selected} className={selected ? "active" : ""} onClick={() => setFocus(option.key)} key={option.label}>{option.label}</button>;
+          })}
+        </nav>}
         {lead && <section className="dl-editorial-lead" id="editorial-stories">
           <div className="dl-editorial-lead-primary">
             <div className="dl-editorial-lead-copy">
@@ -735,7 +764,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
               {lead.kind === "episode" && <StoryAction card={lead} />}
             </div>
             <div className="dl-editorial-lead-sources">
-              <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
+              <StorySources card={lead} data={focusedData} accent="#b94c31" collapsedLabel="See all sources" editorial />
             </div>
           </div>
           <aside className={`dl-editorial-receipt${lead.kind === "episode" ? " is-episode" : ""}${leadTweet ? " has-tweet" : " is-art-only"}`} aria-label={leadTweet ? "A clinician source" : lead.kind === "episode" ? "Podcast artwork" : "Why this story surfaced"}>
@@ -748,8 +777,8 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
           <div className="dl-editorial-section-head"><h2>More stories</h2><span>This week</span></div>
           <div className="dl-editorial-story-grid">
             {rest.map((card) => {
-              const visual = studioVisual(card, data, media);
-              const abstract = paperAbstract(card, data);
+              const visual = studioVisual(card, focusedData, media);
+              const abstract = paperAbstract(card, focusedData);
               return <article key={card.id}>
                 <div className="dl-editorial-story-summary">
                   <div className="dl-editorial-story-copy">
@@ -762,7 +791,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
                 </div>
                 {card.kind === "episode" && <StoryAction card={card} />}
                 <div className="dl-editorial-story-actions">
-                  <StorySources card={card} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
+                  <StorySources card={card} data={focusedData} accent="#b94c31" collapsedLabel="See all sources" editorial />
                   {abstract && <AbstractDisclosure text={abstract} compact />}
                 </div>
               </article>;
@@ -770,12 +799,13 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
           </div>
         </section>}
 
-        <div id="editorial-people" className="dl-editorial-people"><PeopleRail data={data} accent="#b94c31" /></div>
+        {!lead && activeFocus && <div className="dl-editorial-empty">No source-anchored stories in this focus this week.</div>}
+        <div id="editorial-people" className="dl-editorial-people"><PeopleRail data={focusedData} accent="#b94c31" /></div>
         <div className="dl-editorial-columns dl-editorial-media-columns">
-          <div id="editorial-listen"><EpisodeRail data={data} limit={3} accent="#b94c31" /></div>
-          <div id="editorial-papers"><PaperRail data={data} media={media} limit={5} accent="#b94c31" /></div>
+          <div id="editorial-listen"><EpisodeRail data={focusedData} limit={3} accent="#b94c31" /></div>
+          <div id="editorial-papers"><PaperRail data={focusedData} media={media} limit={5} accent="#b94c31" /></div>
         </div>
-        <div id="editorial-trials" className="dl-editorial-trials"><TrialRail data={data} accent="#b94c31" /></div>
+        <div id="editorial-trials" className="dl-editorial-trials"><TrialRail data={focusedData} accent="#b94c31" /></div>
       </main>
     </div>
   );
