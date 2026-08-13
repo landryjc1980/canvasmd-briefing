@@ -675,6 +675,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     window.addEventListener("wheel", cancel, { passive: true });
     window.addEventListener("touchstart", cancel, { passive: true });
   };
+  const sectionControls = (mobile: boolean) => sections.map((s) => {
+    const on = activeSec === s.id;
+    return <button key={s.id} aria-current={on ? "page" : undefined} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "620 12.5px system-ui", letterSpacing: 0, padding: mobile ? "8px 3px 10px" : "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: mobile ? 44 : undefined }}>{s.label}</button>;
+  });
   // "Since your last read": returning readers get NEW/UPDATED stories first, then a caught-up
   // divider, then the ones they've already read (editorial order inside each half). Sub-tumor
   // filtering happens HERE (off the full hero list) — not via storiesOf(data), whose empty-array
@@ -1220,6 +1224,32 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             </div>
           </div>
         )}
+        {/* Wide desktop uses the header as a compact navigation system: product + primary
+            sections + Share on line one, then edition context + Focus + freshness below. */}
+        {wide && !compact && <>
+          <div style={{ position: "sticky", top: 0, zIndex: 15, margin: "0 -30px", padding: "3px 30px 5px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 30, background: stuck ? `${pal.bg}E8` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
+            <h1 style={{ font: "500 24px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em", margin: 0, whiteSpace: "nowrap" }}>The Readout</h1>
+            <nav aria-label="Readout sections" className="rv-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, minWidth: 0, overflow: "hidden" }}>
+              {sectionControls(false)}
+            </nav>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-end" }}>
+              {shareMsg && <span role="status" style={{ font: "600 12px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 10px", whiteSpace: "nowrap" }}>{shareMsg}</span>}
+              <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.16)", color: "#fff", font: "600 12.5px system-ui", borderRadius: 18, padding: "7px 13px", cursor: "pointer" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+                Share
+              </button>
+            </div>
+          </div>
+          <div style={{ margin: "8px -30px 18px", padding: "8px 30px 9px", display: "flex", alignItems: "center", gap: 20, borderTop: "1px solid rgba(255,255,255,.08)", borderBottom: `2px solid ${pal.accent}66`, background: "rgba(255,255,255,.018)" }}>
+            {areaSwitcher("chip")}
+            <span aria-hidden style={{ width: 1, height: 20, background: "rgba(255,255,255,.12)", flex: "none" }} />
+            {focusSwitcher(false)}
+            <span style={{ marginLeft: "auto", font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, whiteSpace: "nowrap" }}>By CanvasMD · Updated {ago(data.generatedAt)}</span>
+          </div>
+        </>}
+
+        {/* Mobile and medium-width layouts keep the established stacked masthead. */}
+        {(!wide || compact) && <>
         {/* The desktop masthead spans the same frame as the editorial column + rail. Its controls
             stay on the reading spine, while Share anchors the far edge; the rule beneath belongs
             to the whole edition rather than ending where the Focus labels happen to end. */}
@@ -1264,20 +1294,15 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 0" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>
           <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `${pal.accent}66` }} />
         </>}
-        {/* Shared control band: section jumps and Focus are one centered, site-wide control line
-            on wide desktop. The divider distinguishes their jobs without assigning either group
-            to a content column. Mobile keeps Focus beneath the scrollable section tabs. */}
+        {/* Section jumps stay sticky on compact and medium-width layouts. */}
         <div className={`rv-pills rv-section-tabs${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "6px 20px 4px" : "7px 30px 4px", background: stuck ? `${pal.bg}A6` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: !compact && wide ? "center" : "flex-start", flexWrap: compact || wide ? "nowrap" : "wrap", gap: compact ? 18 : 26, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
-          {sections.map((s) => {
-            const on = activeSec === s.id;
-            return <button key={s.id} aria-current={on ? "page" : undefined} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "620 12.5px system-ui", letterSpacing: 0, padding: compact ? "8px 3px 10px" : "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: compact ? 44 : undefined }}>{s.label}</button>;
-          })}
-          {!compact && wide && <div style={{ marginLeft: 2, paddingLeft: 28, borderLeft: "1px solid rgba(255,255,255,.12)", flex: "none" }}>{focusSwitcher(false)}</div>}
+          {sectionControls(compact)}
         </div>
 
         {/* On desktop Focus shares the masthead line with the specialty picker. Phones retain
             the horizontally scrollable strip here, where every option keeps a 44px target. */}
         {compact && focusSwitcher(true)}
+        </>}
 
         {/* No AI cover hero on either platform: lead with the #1 story — a real headline the
             field wrote, not a whole-week thesis the AI could get wrong (John: drop it on desktop
