@@ -461,8 +461,27 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const heroEvidenceFor = (card: HeroCard, brief: BriefingData, accent: string): HeroEvidence => {
     const resolved = resolveHeroEvidence(card, brief);
     if (!resolved) return null;
-    if (resolved.kind === "paper") return { faces: resolved.faces, drawer: <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" /> };
-    if (resolved.kind === "article") return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" /> };
+    if (resolved.kind === "paper") {
+      const story = resolved.story as BriefingStory;
+      const paper = story.papers?.[0];
+      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? resolved.publisherPosts[0];
+      return {
+        faces: resolved.faces,
+        abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null,
+        preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
+        drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />,
+      };
+    }
+    if (resolved.kind === "article") {
+      const paper = resolved.paper as unknown as BriefingPaper;
+      const firstPost = resolved.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? resolved.publisherPosts[0];
+      return {
+        faces: resolved.faces,
+        abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null,
+        preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
+        drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />,
+      };
+    }
     if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
       <>
         <StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />
@@ -514,9 +533,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area"
         onClick={() => setMenuOpen((o) => !o)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
         className="rv-edition"
-        style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 1px 7px", cursor: "pointer", background: "transparent", border: 0, borderBottom: "2px solid rgba(255,255,255,.55)", borderRadius: 0 }}>
-        <span style={{ font: "600 13.5px system-ui", color: "#fff", whiteSpace: "nowrap" }}>All oncology</span>
-        <span style={{ font: "700 11px system-ui", color: "#c7cbd6", lineHeight: 1 }}>▾</span>
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0 }}>
+        <span style={{ font: "650 15px system-ui", color: "#c7cbd6", whiteSpace: "nowrap" }}>All oncology</span>
+        <span aria-hidden style={{ font: "700 20px system-ui", color: "#c7cbd6", lineHeight: 1 }}>▾</span>
       </div>
       {menuOpen && (
         <>
@@ -584,16 +603,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {/* the rainbow rule — the one place that signals "everything" */}
         <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
 
-        {/* jump-pills — sticky with scroll-spy, glass chrome once stuck (tumor-page parity).
+        {/* Specialty jump tabs — sticky with scroll-spy, glass chrome once stuck.
             COMPACT: two rows — areas scroll horizontally on top, the cross-area sections
             (Voices · Papers) sit on their own always-visible row beneath (John: hidden behind
             the scroll when appended to the area row). Desktop: one wrapping row. */}
         {(() => {
-          const pillStyle = (on: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: "600 12.5px system-ui", padding: "7px 13px", borderRadius: 9, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.14)"}`, background: on ? "#fff" : "rgba(255,255,255,.04)", color: on ? INK : "#cdd2de", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s" });
+          const tabStyle = (on: boolean, activeColor: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 44, cursor: "pointer", font: `${on ? "700" : "600"} 12.5px system-ui`, padding: "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? activeColor : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s" });
           const areaPills = orderedAreas.map((a) => {
             const on = activeSec === areaId(a);
             return (
-              <button key={a} onClick={() => goArea(a)} style={pillStyle(on)}>
+              <button key={a} onClick={() => goArea(a)} style={tabStyle(on, palOf(a).accent)}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />{a}
               </button>
             );
@@ -601,12 +620,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           {/* Voices rides the rail on wide (always visible → no pill, same rule as the tumor
               pages' rail sections); on narrow it's an inline section that earns a jump */}
           const voicesPill = !wide && micsRanked.length + xRanked.length > 0 && (
-            <button key="voices" onClick={() => goTo("all-voices")} style={pillStyle(activeSec === "all-voices")}>
+            <button key="voices" onClick={() => goTo("all-voices")} style={tabStyle(activeSec === "all-voices", "#7fb6ff")}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #46C7B8, #9B8CFF)", flex: "none" }} />Voices
             </button>
           );
           const papersPill = reading.length > 0 && (
-            <button key="papers" onClick={() => goTo("all-reading")} style={pillStyle(activeSec === "all-reading")}>
+            <button key="papers" onClick={() => goTo("all-reading")} style={tabStyle(activeSec === "all-reading", "#c39bff")}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
             </button>
           );
@@ -615,19 +634,19 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           // anywhere in the groups; Voices / Papers take over in their sections.
           const inSection = activeSec === "all-voices" || activeSec === "all-reading";
           const topPill = (
-            <button key="top" onClick={() => goArea(orderedAreas[0])} style={pillStyle(!inSection)}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: inSection ? "rgba(255,255,255,.55)" : INK, flex: "none" }} />Top Stories
+            <button key="top" onClick={() => goArea(orderedAreas[0])} style={tabStyle(!inSection, "rgba(255,255,255,.72)")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,.55)", flex: "none" }} />Top Stories
             </button>
           );
           return (
             <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}F5` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
-              <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ display: "flex", gap: 8, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
+              <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ display: "flex", gap: compact ? 18 : 24, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
                 {areaPills}
                 {!compact && voicesPill}
                 {!compact && papersPill}
               </div>
               {compact && (voicesPill || papersPill) && (
-                <div style={{ display: "flex", gap: 8, padding: rowPad }}>
+                <div style={{ display: "flex", gap: 20, padding: rowPad }}>
                   {topPill}
                   {voicesPill}
                   {papersPill}
@@ -675,7 +694,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                         {heroDeck !== null && heroDeck.length > 0 && <HeroCards
                           cards={visibleAllHeroCards(heroDeck, compact, !!expandedAreas[a])}
                           accent={acc}
-                          variant="compact"
                           idPrefix={`all-${a}`}
                           evidenceOf={(card) => heroEvidenceFor(card, brief, acc)}
                         />}

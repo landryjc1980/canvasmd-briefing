@@ -532,13 +532,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           onClick={() => setMenuOpen((o) => !o)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
           className={chip ? "rv-edition" : undefined}
-          // .rv-edition::after carries the 44px hit area; the visible control stays
-          // as compact as its type and short selection rule.
+          // .rv-edition::after carries the 44px hit area; color and the larger
+          // chevron communicate interactivity without a capsule or hanging rule.
           style={chip
-            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 1px 7px", cursor: "pointer", background: "transparent", border: 0, borderBottom: `2px solid ${pal.accent}`, borderRadius: 0, boxSizing: "border-box" }
+            ? { display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0, boxSizing: "border-box" }
             : { display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
-          <span style={{ font: chip ? "600 13.5px system-ui" : "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
-          <span style={{ font: "700 11px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
+          <span style={{ font: chip ? "650 15px system-ui" : "600 14px system-ui", color: chip ? pal.accent : "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
+          <span aria-hidden style={{ font: "700 20px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
         </div>
         {menuOpen && (
           <>
