@@ -92,6 +92,16 @@ const sourceTone = (source: string | null | undefined): string => {
   return "default";
 };
 
+function EditorialSectionNav({ mobile = false }: { mobile?: boolean }) {
+  return <nav className={mobile ? "dl-editorial-mobile-nav" : undefined} aria-label={mobile ? "Readout sections, sticky" : "Readout sections"}>
+    <a href="#editorial-stories">Stories</a>
+    <a href="#editorial-listen">Listen</a>
+    <a href="#editorial-papers">Papers</a>
+    <a href="#editorial-people">People</a>
+    <a href="#editorial-trials">Trials</a>
+  </nav>;
+}
+
 function SourceMark({ name, domain }: { name: string; domain?: string | null }) {
   const letters = name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
   return <span className={`dl-source-mark tone-${sourceTone(`${name} ${domain ?? ""}`)}`} title={name}>{letters || "P"}</span>;
@@ -747,7 +757,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
     <div className="dl-concept dl-editorial">
       <header className="dl-editorial-head">
         <div className="dl-editorial-brand"><small>CanvasMD</small><strong>The Readout</strong></div>
-        <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a><a href="#editorial-trials">Trials</a></nav>
+        <EditorialSectionNav />
         <div className="dl-editorial-context">
           <div className="dl-editorial-specialty" ref={specialtyRef}>
             <button type="button" className="dl-editorial-specialty-trigger" aria-haspopup="menu" aria-expanded={specialtyOpen} aria-controls="editorial-specialty-menu" onClick={() => setSpecialtyOpen((open) => !open)}>
@@ -760,6 +770,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
           <span>{fmtDate(data.generatedAt)}</span>
         </div>
       </header>
+      <EditorialSectionNav mobile />
       <main>
         {focusOptions.length > 1 && <nav className="dl-editorial-focus" aria-label="Tumor focus">
           <span>Focus</span>
