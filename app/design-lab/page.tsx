@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, BriefingStory, BriefingTrial, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
@@ -717,7 +717,24 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
 
 function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void }) {
   const [focus, setFocus] = useState<string | null>(null);
+  const [specialtyOpen, setSpecialtyOpen] = useState(false);
+  const specialtyRef = useRef<HTMLDivElement>(null);
   useEffect(() => setFocus(null), [data.area]);
+  useEffect(() => {
+    if (!specialtyOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!specialtyRef.current?.contains(event.target as Node)) setSpecialtyOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSpecialtyOpen(false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [specialtyOpen]);
   const focusOptions = data.subAreas ?? [];
   const activeFocus = focus && focusOptions.some((option) => option.key === focus) ? focus : null;
   const focusedData = useMemo(() => filterBriefBySubArea(data, activeFocus), [data, activeFocus]);
@@ -732,12 +749,14 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
         <div className="dl-editorial-brand"><small>CanvasMD</small><strong>The Readout</strong></div>
         <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a><a href="#editorial-trials">Trials</a></nav>
         <div className="dl-editorial-context">
-          <label className="dl-editorial-specialty">
-            <span aria-hidden="true">{AREA_FULL[data.area] ?? data.area}</span>
-            <select aria-label="Specialty" value={data.area} onChange={(event) => onAreaChange(event.target.value as typeof AREAS[number])}>
-              {AREAS.map((area) => <option value={area} key={area}>{AREA_FULL[area] ?? area}</option>)}
-            </select>
-          </label>
+          <div className="dl-editorial-specialty" ref={specialtyRef}>
+            <button type="button" className="dl-editorial-specialty-trigger" aria-haspopup="menu" aria-expanded={specialtyOpen} aria-controls="editorial-specialty-menu" onClick={() => setSpecialtyOpen((open) => !open)}>
+              <span>{AREA_FULL[data.area] ?? data.area}</span><i aria-hidden="true" />
+            </button>
+            {specialtyOpen && <div className="dl-editorial-specialty-menu" id="editorial-specialty-menu" role="menu">
+              {AREAS.map((area) => <button type="button" role="menuitem" aria-current={area === data.area ? "true" : undefined} onClick={() => { setSpecialtyOpen(false); onAreaChange(area); }} key={area}>{AREA_FULL[area] ?? area}</button>)}
+            </div>}
+          </div>
           <span>{fmtDate(data.generatedAt)}</span>
         </div>
       </header>
