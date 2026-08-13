@@ -1017,7 +1017,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
-    <>
+    <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? 800 : undefined }}>
       <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>This week on the podcasts</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
         {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
@@ -1057,12 +1057,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </div>
         );}} />
       </div>
-    </>
+    </div>
   );
 
   // papers
   const papersSection = data.topArticles.length > 0 && (
-    <>
+    <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? 800 : undefined }}>
       <SectionHead id="sec-papers" accent={pal.accent} left={!compact}>Papers being shared</SectionHead>
       <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
         const id = "p:" + i;
@@ -1090,7 +1090,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </Row>
         );
       }} />
-    </>
+    </div>
   );
 
   // trials
