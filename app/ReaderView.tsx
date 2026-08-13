@@ -422,14 +422,16 @@ function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string
 type EvSource = EvidenceSource;
 type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[] };
 export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
+  const publisherPosts = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []);
+  const sourceGroupEnd: React.CSSProperties = { borderBottom: `1px solid ${LINE}`, paddingBottom: 16, marginBottom: 16 };
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
-      {story.posts.length > 0 && <div><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
-      {(() => { const pp = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []); return pp.length > 0 && (
-        <div><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={pp.slice(0, 2)} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
-      ); })()}
-      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = (story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? [])).length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
+      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {publisherPosts.length > 0 && (
+        <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts.slice(0, 2)} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
+      )}
+      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = publisherPosts.length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
       }} /></div>}
