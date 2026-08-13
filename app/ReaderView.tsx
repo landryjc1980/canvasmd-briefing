@@ -1234,9 +1234,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {areaSwitcher("chip")}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
-            {/* Edition identity and indication filtering are different decisions. Giving Focus
-                its own row keeps the masthead from reading like one long toolbar. */}
-            {!compact && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
+            {/* On medium-width single-column desktop, Focus still needs its own row. The wide
+                two-column layout moves it into the shared navigation band below. */}
+            {!compact && !wide && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", marginTop: compact ? 0 : 2 }}>
           {!compact && <>
@@ -1264,18 +1264,15 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 0" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>
           <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `${pal.accent}66` }} />
         </>}
-        {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
-            reader can skip ahead/back without a long scroll. Glassy over the lit page field. */}
-        {/* wide: the rail is quiet context, so the jump-links center on the EDITORIAL column
-            (right padding = rail 320 + gap 46), not the full wrapper. The hard border under the
-            bar read as cheap — replaced by the glass blur + a soft cast shadow. */}
-        {/* Text tabs stay left-aligned to the wordmark's edge, keeping navigation on the
-            masthead's reading spine while avoiding another row of large pills. */}
+        {/* Shared control band: section jumps govern the editorial stream; Focus governs every
+            column, so it occupies the opposite side of the same full-width band on wide desktop.
+            The whole band stays sticky. Mobile keeps Focus beneath the scrollable section tabs. */}
         <div className={`rv-pills rv-section-tabs${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "6px 20px 4px" : "7px 30px 4px", background: stuck ? `${pal.bg}A6` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: compact ? 18 : 26, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
             return <button key={s.id} aria-current={on ? "page" : undefined} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "620 12.5px system-ui", letterSpacing: 0, padding: compact ? "8px 3px 10px" : "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: compact ? 44 : undefined }}>{s.label}</button>;
           })}
+          {!compact && wide && <div style={{ marginLeft: "auto", flex: "none" }}>{focusSwitcher(false)}</div>}
         </div>
 
         {/* On desktop Focus shares the masthead line with the specialty picker. Phones retain
