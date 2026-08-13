@@ -1199,15 +1199,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         @keyframes cgPulse{0%{box-shadow:0 0 0 0 rgba(255,92,92,.55)}70%{box-shadow:0 0 0 7px rgba(255,92,92,0)}100%{box-shadow:0 0 0 0 rgba(255,92,92,0)}}
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}.cg-pip{animation:none}}
       `}</style>
-      {/* share with a colleague — spreads the brief inside the account (referral graph). Desktop
-          only: on mobile it collided with the area dropdown, so a share icon sits in the masthead. */}
-      {!compact && <div style={{ position: "fixed", top: 18, right: 18, zIndex: 20, display: "flex", alignItems: "center", gap: 10 }}>
-        {shareMsg && <span style={{ font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 11px" }}>{shareMsg}</span>}
-        <button onClick={doShare} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", color: "#fff", font: "600 13px system-ui", borderRadius: 20, padding: "8px 15px", cursor: "pointer" }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
-          Share
-        </button>
-      </div>}
       <div style={{ maxWidth: wide ? 1116 : 690, margin: "0 auto", padding: "34px 30px 120px" }}>
         {/* CONGRESS MODE bar — the ONE new element. A gold "marquee event" strip above the
             masthead: status on the left (derived client-side from the dates), a Weekly/Live toggle
@@ -1229,11 +1220,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             </div>
           </div>
         )}
-        {/* masthead — ONE line: wordmark · byline · freshness on the left, the tumor-area
-            switcher as a dropdown on the right (mobile parity). Folding the area picker up here
-            kills the whole separate tabs row — header is now just masthead + section pills. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingBottom: compact ? 3 : 14 }}>
-          <div style={{ minWidth: 0 }}>
+        {/* The desktop masthead spans the same frame as the editorial column + rail. Its controls
+            stay on the reading spine, while Share anchors the far edge; the rule beneath belongs
+            to the whole edition rather than ending where the Focus labels happen to end. */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 22, paddingBottom: compact ? 3 : 0 }}>
+          <div style={{ minWidth: 0, flex: "1 1 auto" }}>
             {/* line 1: wordmark + the edition chip. line 2: byline sits UNDERNEATH the wordmark
                 (John: byline next to the specialty looked weird), matching the mobile stack. */}
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 6 }}>
@@ -1244,10 +1235,15 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {!compact && focusSwitcher(false)}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
-            {/* A small structural cue is enough to identify the edition on the shared canvas. */}
-            {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 14, background: `${pal.accent}66` }} />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
+          {!compact && <>
+            {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 11px" }}>{shareMsg}</span>}
+            <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", color: "#fff", font: "600 13px system-ui", borderRadius: 20, padding: "8px 15px", cursor: "pointer" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+              Share
+            </button>
+          </>}
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
           {/* 44px box around a 17px glyph: the icon measured 21x21 as a tap target, under the
               24px WCAG 2.2 floor and well under the platform 44px norm. Negative margin keeps the
@@ -1258,6 +1254,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           {compact && shareMsg && <span style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>{shareMsg}</span>}
           </div>
         </div>
+        {/* Full-width edition rule unifies the desktop editorial column and supporting rail. */}
+        {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "14px 0", background: `${pal.accent}66` }} />}
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
         {compact && <>
