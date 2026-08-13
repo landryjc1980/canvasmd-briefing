@@ -723,19 +723,24 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
           <div className="dl-editorial-lead-primary">
             <div className="dl-editorial-lead-copy">
               <div className="dl-kicker">{KICKER[lead.kind]}</div>
-              <div className="dl-editorial-source">{lead.sourceLabel}</div>
+              {lead.kind === "episode" && leadVisual && <div className="dl-editorial-mobile-episode-identity">
+                <StudioVisual visual={leadVisual} headline={lead.headline} />
+                <span>{lead.sourceLabel}</span>
+              </div>}
+              <div className={`dl-editorial-source${lead.kind === "episode" ? " is-episode" : ""}`}>{lead.sourceLabel}</div>
               <h1>{lead.url && lead.kind !== "episode" ? <a href={lead.url} target="_blank" rel="noreferrer">{lead.headline}</a> : lead.headline}</h1>
               {lead.excerpt && <p>{lead.excerpt}</p>}
               {leadAbstract && <AbstractDisclosure text={leadAbstract} />}
+              {lead.kind === "episode" && <div className="dl-editorial-episode-meta">{lead.why}</div>}
               {lead.kind === "episode" && <StoryAction card={lead} />}
             </div>
             <div className="dl-editorial-lead-sources">
               <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
             </div>
           </div>
-          <aside className="dl-editorial-receipt" aria-label="Why this story surfaced">
+          <aside className={`dl-editorial-receipt${lead.kind === "episode" ? " is-episode" : ""}${leadTweet ? " has-tweet" : " is-art-only"}`} aria-label={leadTweet ? "A clinician source" : lead.kind === "episode" ? "Podcast artwork" : "Why this story surfaced"}>
             {leadVisual && <StudioVisual visual={leadVisual} headline={lead.headline} />}
-            {leadTweet ? <><span className="dl-editorial-receipt-label">A clinician shared</span><EditorialTweet tweet={leadTweet} /></> : <div className="dl-editorial-receipt-note"><span>Why it surfaced</span><strong>{lead.why}</strong></div>}
+            {leadTweet ? <><span className="dl-editorial-receipt-label">A clinician shared</span><EditorialTweet tweet={leadTweet} /></> : lead.kind !== "episode" && <div className="dl-editorial-receipt-note"><span>Why it surfaced</span><strong>{lead.why}</strong></div>}
           </aside>
         </section>}
 
