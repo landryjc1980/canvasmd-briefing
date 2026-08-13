@@ -538,7 +538,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // Tumor-area / "edition" switcher — one menu, two homes. The trigger is an
   // editorial text tab rather than a capsule; its invisible pseudo-element keeps
   // the platform-sized tap target without adding visual bulk.
-  const areaSwitcher = (variant: "chip" | "plain") => {
+  const areaSwitcher = (variant: "chip" | "plain", menuSide: "left" | "right" = "left") => {
     const chip = variant === "chip";
     return (
       <div style={{ position: "relative", flex: "none" }}>
@@ -557,7 +557,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {menuOpen && (
           <>
             <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-            <div style={{ position: "absolute", top: "calc(100% + 7px)", ...(chip ? { left: 0 } : { right: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
+            <div style={{ position: "absolute", top: "calc(100% + 7px)", ...(menuSide === "right" ? { right: 0 } : { left: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
               <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--rv-muted-2, rgba(255,255,255,.4))", padding: "6px 11px 8px" }}>Tumor area</div>
               {areas.map((a) => {
                 const on = a === area;
@@ -813,7 +813,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   const storiesSection = (
     <>
-      <SectionHead id="sec-top" accent={pal.accent} left={!compact}>{heroMode ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
+      <SectionHead id="sec-top" accent={pal.accent} left>{heroMode ? "Top stories" : part.mode === "split" ? "Since your last read" : "Top stories"}</SectionHead>
       {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} ink={{ soft: INK_2, softer: LIGHT_MUT, line: LINE, ring: PAPER, surface: SURFACE }} evidenceOf={heroEvidenceOf} />}
       {heroMode && heroCards && heroCards.length === 0 && !activeSub && !congressScope && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
@@ -918,7 +918,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // This week's guests — box score (recent form + lifetime career)
   const guestsSection = !!data.guests?.length && (
     <>
-      <SectionHead accent={pal.accent} rail={wide}>This week&rsquo;s guests</SectionHead>
+      <SectionHead accent={pal.accent} rail={wide} left>This week&rsquo;s guests</SectionHead>
       <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
         const eps = g.episodes.filter((e) => e.audioUrl);
         return (
@@ -963,7 +963,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // a compatibility guard for older frozen snapshots that still carried activity-first order.
   const kolsSection = carriedKols.length > 0 && (
     <>
-      <SectionHead accent={pal.accent} rail={wide}>Carried on X</SectionHead>
+      <SectionHead accent={pal.accent} rail={wide} left>Carried on X</SectionHead>
       <Capped items={carriedKols} cap={6} accent={pal.accent} render={(k, i) => {
         const id = "k:" + i;
         const open = openId === id;
@@ -1018,7 +1018,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
     <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? 800 : undefined }}>
-      <SectionHead id="sec-episodes" accent={pal.accent} left={!compact}>This week on the podcasts</SectionHead>
+      <SectionHead id="sec-episodes" accent={pal.accent} left>This week on the podcasts</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
         {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => {
@@ -1063,7 +1063,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // papers
   const papersSection = data.topArticles.length > 0 && (
     <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? 800 : undefined }}>
-      <SectionHead id="sec-papers" accent={pal.accent} left={!compact}>Papers being shared</SectionHead>
+      <SectionHead id="sec-papers" accent={pal.accent} left>Papers being shared</SectionHead>
       <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
         const id = "p:" + i;
         return (
@@ -1096,7 +1096,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // trials
   const trialsSection = data.trials.length > 0 && (
     <>
-      <SectionHead id="sec-trials" accent={pal.accent} rail={wide}>Trials being discussed</SectionHead>
+      <SectionHead id="sec-trials" accent={pal.accent} rail={wide} left>Trials being discussed</SectionHead>
       <Capped items={data.trials} cap={6} accent={pal.accent} render={(t, i) => {
         const id = "t:" + i;
         const open = openId === id;
@@ -1137,7 +1137,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // (unchanged rendering, sibling to Trials).
   const drugsSection = data.movers.length > 0 && (
     <>
-      <SectionHead id="sec-drugs" accent={pal.accent} left={!compact}>Drug activity</SectionHead>
+      <SectionHead id="sec-drugs" accent={pal.accent} left>Drug activity</SectionHead>
       {data.movers.map((m, i) => {
         const id = "m:" + m.drugId;
         const open = openId === id;
@@ -1276,25 +1276,24 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* The desktop masthead spans the same frame as the editorial column + rail. Its controls
             stay on the reading spine, while Share anchors the far edge; the rule beneath belongs
             to the whole edition rather than ending where the Focus labels happen to end. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, paddingBottom: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: compact ? 8 : 18, paddingBottom: 0 }}>
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-            {/* line 1: wordmark + the edition chip. line 2: byline sits UNDERNEATH the wordmark
-                (John: byline next to the specialty looked weird), matching the mobile stack. */}
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 12, rowGap: 6 }}>
+            {/* The compact masthead keeps the publication identity on one line. The specialty
+                switcher moves beside Share below, where it stays visible without wrapping under
+                the wordmark on narrow phones. */}
+            <div style={{ display: "flex", alignItems: "center" }}>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <span style={{ color: pal.accent, font: "750 9px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
                 <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: "4px 0 0", display: "inline" }}>The Readout</h1>
               </div>
-              {/* the edition chip rides beside the wordmark on EVERY size (2026-07-24: the mobile
-                  bare-text variant read differently from the All page — one switcher, one look) */}
-              {areaSwitcher("chip")}
+              {!compact && areaSwitcher("chip")}
             </div>
             {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)}</div>}
             {/* On medium-width single-column desktop, Focus still needs its own row. The wide
                 two-column layout moves it into the shared navigation band below. */}
             {!compact && !wide && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", marginTop: compact ? 0 : 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: compact ? 8 : 14, flex: "none", marginTop: compact ? 0 : 2 }}>
           {!compact && <>
             {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "6px 11px" }}>{shareMsg}</span>}
             <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", border: `1px solid ${LINE}`, color: INK, font: "600 13px system-ui", borderRadius: 6, padding: "8px 15px", cursor: "pointer" }}>
@@ -1302,6 +1301,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               Share
             </button>
           </>}
+          {compact && areaSwitcher("chip", "right")}
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
           {/* 44px box around a 17px glyph: the icon measured 21x21 as a tap target, under the
               24px WCAG 2.2 floor and well under the platform 44px norm. Negative margin keeps the
@@ -1384,10 +1384,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 const statTile: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 11px", minWidth: 56 };
 const statTileLabel: React.CSSProperties = { font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: MUT2, marginTop: 5 };
 
-// Section header as a real h2. Default (mobile) is centered, flanked by two accent hairlines.
-// `rail` and `left` both left-align it (label first, single trailing rule) — the desktop main
-// column passes left={!compact} so its headers share the masthead/pills left spine, while the
-// rail keeps its tighter top margin.
+// Section header as a real h2. ReaderView left-aligns every section on desktop and mobile;
+// `rail` only tightens the spacing for the supporting column. The optional centered form remains
+// available for other callers.
 function SectionHead({ children, id, accent, rail = false, left = false }: { children: React.ReactNode; id?: string; accent: string; rail?: boolean; left?: boolean }) {
   const leftAlign = rail || left;
   return (
