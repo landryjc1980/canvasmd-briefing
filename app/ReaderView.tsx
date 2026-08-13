@@ -465,12 +465,14 @@ function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured }: { 
 
   return (
     <div className="rv-list-row">
-      <div style={{ padding: "16px 2px" }}>
+      <div className="rv-paper-share" style={{ padding: "16px 2px" }}>
         <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{cleanArticleTitle(paper.title)}</div>
-        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
+        <div className="rv-paper-meta" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
           {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
           <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(paper.journal, paper.domain), paper.kolSharers ? `shared by ${paper.kolSharers} clinician${paper.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
           {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+        </div>
+        <div className="rv-paper-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0 14px", marginTop: 5 }}>
           {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
           <span style={{ display: "inline-flex", alignItems: "center", gap: 14, minHeight: 44, marginLeft: "auto" }}>
             {abstract && (
@@ -1240,6 +1242,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         .reader-editorial .rv-row:focus-visible{outline:2px solid ${pal.accent};outline-offset:-2px}
         .reader-editorial .rv-episode-row{padding:16px 2px 18px;border-bottom:1px solid ${LINE}}
         .reader-editorial .rv-text-action:focus-visible{outline:2px solid ${pal.accent};outline-offset:2px;border-radius:4px}
+        @media(max-width:600px){
+          .reader-editorial .rv-paper-share{padding:16px 0!important}
+          .reader-editorial .rv-paper-meta{align-items:flex-start!important}
+          .reader-editorial .rv-paper-actions{justify-content:space-between}
+          .reader-editorial .rv-paper-actions>span:last-child{margin-left:auto!important}
+        }
         .reader-editorial .aq-dark{--aq-shell:#fff;--aq-border:#d8d7d1;--aq-track:#d9d8d3;background:var(--aq-shell);border-color:var(--aq-border);color:${INK};box-shadow:0 8px 22px -20px rgba(31,35,42,.6)}
         .reader-editorial .aq-dark .aq-times,.reader-editorial .aq-dark .aq-label,.reader-editorial .aq-dark .aq-cur{color:#74767a}
         .reader-editorial .aq-dark .aq-range::-webkit-slider-thumb{border-color:#fff}
