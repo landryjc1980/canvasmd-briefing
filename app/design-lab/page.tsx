@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { BriefingData, BriefingPaper, BriefingSharer, BriefingStory, HeroCard } from "@/lib/types";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, BriefingStory, BriefingTrial, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
 import { articleSource, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
@@ -119,20 +119,34 @@ function StoryAction({ card }: { card: HeroCard }) {
   return card.url ? <a className="dl-arrow-link" href={card.url} target="_blank" rel="noreferrer">Open source <span aria-hidden>↗</span></a> : null;
 }
 
-function StorySources({ card, data, accent, collapsedLabel = "Sources" }: { card: HeroCard; data: BriefingData; accent: string; collapsedLabel?: string }) {
+function StorySources({ card, data, accent, collapsedLabel = "Sources", editorial = false }: { card: HeroCard; data: BriefingData; accent: string; collapsedLabel?: string; editorial?: boolean }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [card.id]);
   const resolved = resolveHeroEvidence(card, data);
   if (!resolved) return null;
   const regionId = `dl-sources-${card.id.replace(/[^a-z0-9]+/gi, "-")}`;
   const faces = resolved.faces;
-  const drawer = resolved.kind === "paper"
-    ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
-    : resolved.kind === "article"
-      ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
-      : resolved.kind === "episode"
-        ? <><StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />{(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}</>
-        : <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" />;
+  const drawer = editorial
+    ? resolved.kind === "paper"
+      ? <EditorialEvidence
+          posts={(resolved.story as BriefingStory).posts ?? []}
+          pods={(resolved.story as BriefingStory).podcast ?? []}
+          papers={(resolved.story as BriefingStory).papers ?? []}
+          publisherPosts={resolved.publisherPosts}
+          amplifiers={card.amplifiers ?? []}
+        />
+      : resolved.kind === "article"
+        ? <EditorialEvidence posts={resolved.posts} papers={[resolved.paper as unknown as BriefingPaper]} publisherPosts={resolved.publisherPosts} amplifiers={card.amplifiers ?? []} />
+        : resolved.kind === "episode"
+          ? <EditorialEvidence pods={resolved.pods} amplifiers={card.amplifiers ?? []} />
+          : <EditorialEvidence posts={[resolved.post]} />
+    : resolved.kind === "paper"
+      ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
+      : resolved.kind === "article"
+        ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
+        : resolved.kind === "episode"
+          ? <><StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />{(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}</>
+          : <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" />;
   return (
     <div className="dl-sources">
       <button type="button" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen((value) => !value)} style={{ color: accent }}>
@@ -141,6 +155,68 @@ function StorySources({ card, data, accent, collapsedLabel = "Sources" }: { card
       </button>
       {open && <div className="dl-evidence" id={regionId}>{drawer}</div>}
     </div>
+  );
+}
+
+function SourceDisclosure({ faces, label = "See sources", children }: { faces: string[]; label?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const regionId = useId();
+  return (
+    <div className="dl-sources">
+      <button type="button" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen((value) => !value)}>
+        <Faces urls={faces} />
+        <span>{open ? "Hide sources ↑" : `${label} ↓`}</span>
+      </button>
+      {open && <div className="dl-evidence" id={regionId}>{children}</div>}
+    </div>
+  );
+}
+
+function PaperSources({ paper }: { paper: BriefingArticle }) {
+  const clinicianPosts = paper.posts ?? [];
+  const publisherPosts = paper.publisherPosts ?? [];
+  if (!clinicianPosts.length && !publisherPosts.length && !paper.publishers.length) return null;
+  const evidencePaper: BriefingPaper = {
+    title: paper.title,
+    url: paper.url,
+    journal: paper.journal,
+    domain: paper.domain,
+    abstract: paper.abstract,
+    sharers: clinicianPosts,
+    sharerCount: paper.kolSharers,
+    topLikes: paper.topLikes,
+    posts: clinicianPosts,
+    publishers: paper.publishers,
+    publisherPosts,
+    peerReviewed: paper.peerReviewed,
+  };
+  return (
+    <SourceDisclosure faces={paper.faces}>
+      <EditorialEvidence posts={clinicianPosts} papers={[evidencePaper]} publisherPosts={publisherPosts} />
+    </SourceDisclosure>
+  );
+}
+
+function EpisodeSources({ episode }: { episode: NonNullable<BriefingData["episodes"]>[number] }) {
+  const amplifiers = episode.amplifiers ?? [];
+  if (!amplifiers.length) return null;
+  return (
+    <SourceDisclosure faces={amplifiers.map((item) => item.avatar).filter((avatar): avatar is string => !!avatar)} label="See amplification">
+      <EditorialEvidence amplifiers={amplifiers} />
+    </SourceDisclosure>
+  );
+}
+
+function TrialSources({ trial }: { trial: BriefingTrial }) {
+  const faces = [
+    ...trial.posts.map((post) => post.avatar),
+    ...trial.pods.map((pod) => pod.showArt),
+  ].filter((avatar): avatar is string => !!avatar);
+  if (!trial.posts.length && !trial.pods.length && !trial.articles.length) return null;
+  return (
+    <SourceDisclosure faces={faces}>
+      <EditorialEvidence posts={trial.posts} pods={trial.pods} papers={trial.articles} />
+    </SourceDisclosure>
   );
 }
 
@@ -179,6 +255,64 @@ function EditorialTweet({ tweet }: { tweet: BriefingSharer }) {
   return tweet.tweetUrl
     ? <a className="dl-editorial-tweet" href={tweet.tweetUrl} target="_blank" rel="noreferrer">{content}</a>
     : <div className="dl-editorial-tweet">{content}</div>;
+}
+
+function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts = [], amplifiers = [] }: {
+  posts?: BriefingSharer[];
+  pods?: BriefingStory["podcast"];
+  papers?: BriefingPaper[];
+  publisherPosts?: BriefingSharer[];
+  amplifiers?: NonNullable<HeroCard["amplifiers"]>;
+}) {
+  const seenPosts = new Set<string>();
+  const uniquePosts = [...posts, ...publisherPosts].filter((post) => {
+    const key = post.tweetUrl ?? `${post.handle ?? post.name}:${post.text ?? ""}`;
+    if (seenPosts.has(key)) return false;
+    seenPosts.add(key);
+    return true;
+  }).slice(0, 5);
+  const publisherNames = [...new Set(papers.flatMap((paper) => paper.publishers ?? []))];
+  return (
+    <div className="dl-editorial-evidence">
+      {pods.length > 0 && <section>
+        <div className="dl-editorial-evidence-label">Podcast moments</div>
+        {pods.map((pod, index) => <article className="dl-editorial-pod" key={`${pod.episodeId}-${pod.startMs ?? index}`}>
+          <div className="dl-editorial-pod-head">
+            <Artwork src={pod.showArt} label={pod.show ?? "Podcast"} />
+            <div><strong>{pod.episodeTitle}</strong><small>{pod.show}</small></div>
+          </div>
+          <p>{pod.gloss}</p>
+          {pod.audioUrl && <AudioQuote audioUrl={pod.audioUrl} startMs={pod.startMs} durationSeconds={pod.durationSeconds} label="Play this moment" eventId={pod.episodeId} eventLabel={pod.episodeTitle} tone="dark" />}
+        </article>)}
+      </section>}
+      {uniquePosts.length > 0 && <section>
+        <div className="dl-editorial-evidence-label">Shared on X</div>
+        {uniquePosts.map((post, index) => <EditorialTweet tweet={post} key={post.tweetUrl ?? `${post.handle}-${index}`} />)}
+      </section>}
+      {amplifiers.length > 0 && <section>
+        <div className="dl-editorial-evidence-label">Amplified on X</div>
+        <div className="dl-editorial-amplifiers">
+          {amplifiers.map((item, index) => <div key={`${item.handle ?? item.name}-${index}`}>
+            <Artwork src={item.avatar} label={item.name} round />
+            <span>
+              <strong>{item.name}</strong>
+              {item.handle && <small>@{item.handle.replace(/^@/, "")}</small>}
+              {item.text && <p>{cleanTweetText(item.text)}</p>}
+            </span>
+          </div>)}
+        </div>
+      </section>}
+      {papers.length > 0 && <section>
+        <div className="dl-editorial-evidence-label">Original papers</div>
+        {publisherNames.length > 0 && <div className="dl-editorial-publishers">Also shared by {publisherNames.join(" · ")}</div>}
+        {papers.slice(0, 3).map((paper, index) => <a className="dl-editorial-evidence-paper" href={paper.url} target="_blank" rel="noreferrer" key={`${paper.url}-${index}`}>
+          <span>{paper.journal ?? paper.domain ?? "Publication"}</span>
+          <strong>{cleanArticleTitle(paper.title)}</strong>
+          <i aria-hidden="true">↗</i>
+        </a>)}
+      </section>}
+    </div>
+  );
 }
 
 function paperAbstract(card: HeroCard, data: BriefingData): string | null {
@@ -284,7 +418,7 @@ function StudioStoryRow({ card, data, media, accent, index }: { card: HeroCard; 
   );
 }
 
-function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }) {
+function EpisodeRail({ data, limit = 4, accent }: { data: BriefingData; limit?: number; accent?: string }) {
   const episodes = (data.episodes ?? []).filter((episode) => episode.audioUrl).slice(0, limit);
   if (!episodes.length) return null;
   return (
@@ -301,6 +435,7 @@ function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }
               </div>
             </div>
             <AudioQuote audioUrl={episode.audioUrl!} startMs={0} durationSeconds={episode.durationSeconds} label="Play episode" eventId={episode.episodeId ?? null} eventLabel={episode.title} tone="dark" />
+            {accent && <EpisodeSources episode={episode} />}
           </article>
         ))}
       </div>
@@ -308,7 +443,7 @@ function EpisodeRail({ data, limit = 4 }: { data: BriefingData; limit?: number }
   );
 }
 
-function PaperRail({ data, media, limit = 5 }: { data: BriefingData; media: Map<string, ArticleMedia>; limit?: number }) {
+function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; media: Map<string, ArticleMedia>; limit?: number; accent?: string }) {
   const papers = data.topArticles.slice(0, limit);
   if (!papers.length) return null;
   return (
@@ -329,7 +464,10 @@ function PaperRail({ data, media, limit = 5 }: { data: BriefingData; media: Map<
               </span>
               <span aria-hidden>↗</span>
             </a>
-            {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
+            <div className="dl-paper-controls">
+              {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
+              {accent && <PaperSources paper={paper} />}
+            </div>
           </article>
         ))}
       </div>
@@ -364,7 +502,7 @@ function PeopleRail({ data }: { data: BriefingData }) {
   );
 }
 
-function TrialRail({ data }: { data: BriefingData }) {
+function TrialRail({ data, accent }: { data: BriefingData; accent?: string }) {
   const trials = data.trials.slice(0, 4);
   if (!trials.length) return null;
   return (
@@ -372,11 +510,12 @@ function TrialRail({ data }: { data: BriefingData }) {
       <div className="dl-section-head"><h2>Trials in discussion</h2><span>{trials.length} selected</span></div>
       <div className="dl-trial-list">
         {trials.map((trial) => (
-          <div className="dl-trial" key={trial.nctId ?? trial.acronym}>
-            <strong>{trial.acronym || trial.nctId}</strong>
+          <article className="dl-trial" key={trial.nctId ?? trial.acronym}>
+            <a className="dl-trial-name" href={trial.url} target="_blank" rel="noreferrer"><strong>{trial.acronym || trial.nctId}</strong></a>
             <p>{trial.title}</p>
             <span>{trial.phase ?? "Clinical trial"}</span>
-          </div>
+            {accent && <div className="dl-trial-sources"><TrialSources trial={trial} /></div>}
+          </article>
         ))}
       </div>
     </section>
@@ -487,7 +626,7 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
     <div className="dl-concept dl-editorial">
       <header className="dl-editorial-head">
         <div className="dl-editorial-brand"><small>CanvasMD</small><strong>The Readout</strong></div>
-        <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a></nav>
+        <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a><a href="#editorial-trials">Trials</a></nav>
         <div className="dl-editorial-context"><strong>{data.area}</strong><span>{fmtDate(data.generatedAt)}</span></div>
       </header>
       <main>
@@ -499,7 +638,7 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
             {lead.excerpt && <p>{lead.excerpt}</p>}
             {leadAbstract && <AbstractDisclosure text={leadAbstract} />}
             {lead.kind === "episode" && <StoryAction card={lead} />}
-            <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" />
+            <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
           </div>
           <aside className="dl-editorial-receipt" aria-label="Why this story surfaced">
             {leadVisual && <StudioVisual visual={leadVisual} headline={lead.headline} />}
@@ -512,25 +651,33 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
           <div className="dl-editorial-story-grid">
             {rest.map((card) => {
               const visual = studioVisual(card, data, media);
-              const resolved = resolveHeroEvidence(card, data);
+              const abstract = paperAbstract(card, data);
               return <article key={card.id}>
-                <div className="dl-editorial-story-copy">
-                  <div className="dl-kicker">{KICKER[card.kind]}</div>
-                  <small>{card.sourceLabel}</small>
-                  <h3>{card.url && card.kind !== "episode" ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a> : card.headline}</h3>
-                  <div className="dl-editorial-story-meta"><Faces urls={resolved?.faces ?? []} /><span>{card.why}</span></div>
+                <div className="dl-editorial-story-summary">
+                  <div className="dl-editorial-story-copy">
+                    <div className="dl-kicker">{KICKER[card.kind]}</div>
+                    <small>{card.sourceLabel}</small>
+                    <h3>{card.url && card.kind !== "episode" ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a> : card.headline}</h3>
+                    <div className="dl-editorial-story-meta"><span>{card.why}</span></div>
+                  </div>
+                  {visual && <StudioVisual visual={visual} headline={card.headline} />}
                 </div>
-                {visual && <StudioVisual visual={visual} headline={card.headline} />}
+                {card.kind === "episode" && <StoryAction card={card} />}
+                <div className="dl-editorial-story-actions">
+                  {abstract && <AbstractDisclosure text={abstract} compact />}
+                  <StorySources card={card} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
+                </div>
               </article>;
             })}
           </div>
         </section>}
 
         <div className="dl-editorial-columns">
-          <div id="editorial-listen"><EpisodeRail data={data} limit={3} /></div>
+          <div id="editorial-listen"><EpisodeRail data={data} limit={3} accent="#b94c31" /></div>
           <div id="editorial-people"><PeopleRail data={data} /></div>
         </div>
-        <div id="editorial-papers" className="dl-editorial-papers"><PaperRail data={data} media={media} limit={5} /></div>
+        <div id="editorial-papers" className="dl-editorial-papers"><PaperRail data={data} media={media} limit={5} accent="#b94c31" /></div>
+        <div id="editorial-trials" className="dl-editorial-trials"><TrialRail data={data} accent="#b94c31" /></div>
       </main>
     </div>
   );
