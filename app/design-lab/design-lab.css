@@ -517,6 +517,7 @@
 .dl-editorial-lead-copy > p { max-width: 760px; margin: 28px 0 12px; color: #57595e; font: 400 19px/1.55 Georgia, serif; }
 .dl-editorial .dl-abstract { margin-top: 22px; }
 .dl-editorial .dl-abstract summary { color: #b94c31; }
+.dl-editorial .dl-abstract > p { color: #55585d; }
 .dl-editorial .dl-sources > button { color: #b94c31; }
 .dl-editorial .dl-sources .dl-faces img { border-color: #f4f4f1; }
 .dl-editorial-receipt { min-width: 0; padding: 22px; background: #ebeae5; color: #1b1c1f; border: 1px solid #dad8d1; border-radius: 8px; box-shadow: 0 24px 58px rgba(31, 35, 42, .13); transform: translateY(18px); }
