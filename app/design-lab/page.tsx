@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, BriefingStory, BriefingTrial, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
@@ -559,10 +559,23 @@ function PersonPostDisclosure({ posts }: { posts: BriefingSharer[] }) {
 function PeopleRail({ data, accent }: { data: BriefingData; accent?: string }) {
   const [showAllGuests, setShowAllGuests] = useState(false);
   const [showAllVoices, setShowAllVoices] = useState(false);
+  const collapseAnchor = useRef<{ button: HTMLButtonElement; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const anchor = collapseAnchor.current;
+    if (!anchor) return;
+    const delta = anchor.button.getBoundingClientRect().top - anchor.top;
+    if (delta) window.scrollBy({ top: delta, behavior: "auto" });
+    anchor.button.focus({ preventScroll: true });
+    collapseAnchor.current = null;
+  }, [showAllGuests, showAllVoices]);
   useEffect(() => {
     setShowAllGuests(false);
     setShowAllVoices(false);
   }, [data.area]);
+  const toggleList = (open: boolean, setOpen: (value: boolean) => void, button: HTMLButtonElement) => {
+    if (open) collapseAnchor.current = { button, top: button.getBoundingClientRect().top };
+    setOpen(!open);
+  };
   const allGuests = data.guests ?? [];
   const allVoices = [...data.topKols]
     .filter((person) => (person.amp ?? 0) > 0)
@@ -585,7 +598,7 @@ function PeopleRail({ data, accent }: { data: BriefingData; accent?: string }) {
               </div>
             ))}
           </div>
-          {allGuests.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllGuests((value) => !value)}>
+          {allGuests.length > 4 && <button className="dl-list-action" type="button" aria-expanded={showAllGuests} onClick={(event) => toggleList(showAllGuests, setShowAllGuests, event.currentTarget)}>
             {showAllGuests ? "Show fewer guests ↑" : `Show ${allGuests.length - guests.length} more guests ↓`}
           </button>}
         </div>}
@@ -601,7 +614,7 @@ function PeopleRail({ data, accent }: { data: BriefingData; accent?: string }) {
               </div>
             ))}
           </div>
-          {allVoices.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllVoices((value) => !value)}>
+          {allVoices.length > 4 && <button className="dl-list-action" type="button" aria-expanded={showAllVoices} onClick={(event) => toggleList(showAllVoices, setShowAllVoices, event.currentTarget)}>
             {showAllVoices ? "Show fewer clinicians ↑" : `Show ${allVoices.length - voices.length} more clinicians ↓`}
           </button>}
         </div>}
