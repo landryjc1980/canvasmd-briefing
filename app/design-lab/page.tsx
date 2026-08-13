@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, BriefingStory, BriefingTrial, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
-import { articleSource, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
+import { AREA_FULL, articleSource, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
 import { heroDeckOf } from "../heroContract";
 import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
@@ -699,7 +699,7 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
   );
 }
 
-function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
+function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia>; onAreaChange: (area: typeof AREAS[number]) => void }) {
   const [lead, ...rest] = cards;
   const leadTweet = lead ? firstSourceTweet(lead, data) : null;
   const leadAbstract = lead ? paperAbstract(lead, data) : null;
@@ -709,7 +709,14 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
       <header className="dl-editorial-head">
         <div className="dl-editorial-brand"><small>CanvasMD</small><strong>The Readout</strong></div>
         <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a><a href="#editorial-trials">Trials</a></nav>
-        <div className="dl-editorial-context"><strong>{data.area}</strong><span>{fmtDate(data.generatedAt)}</span></div>
+        <div className="dl-editorial-context">
+          <label className="dl-editorial-specialty">
+            <select aria-label="Specialty" value={data.area} onChange={(event) => onAreaChange(event.target.value as typeof AREAS[number])}>
+              {AREAS.map((area) => <option value={area} key={area}>{AREA_FULL[area] ?? area}</option>)}
+            </select>
+          </label>
+          <span>{fmtDate(data.generatedAt)}</span>
+        </div>
       </header>
       <main>
         {lead && <section className="dl-editorial-lead" id="editorial-stories">
@@ -936,7 +943,7 @@ export default function DesignLabPage() {
         {data && concept === "essential" && <Essential data={data} cards={cards} media={articleMedia} />}
         {data && concept === "air" && <Air data={data} cards={cards} media={articleMedia} />}
         {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} lightMode={studioLight} onLightModeChange={setStudioTheme} />}
-        {data && concept === "editorial" && <Editorial data={data} cards={cards} media={articleMedia} />}
+        {data && concept === "editorial" && <Editorial data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} />}
         {data && concept === "signal" && <Signal data={data} cards={cards} media={articleMedia} />}
       </div>
     </div>
