@@ -463,7 +463,7 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
       <main className="dl-studio-stories" id="studio-stories">
         <div className="dl-studio-stories-inner">
           <div className="dl-studio-stories-heading">
-            <div className="dl-kicker">Worth your attention</div>
+            <div className="dl-kicker">Top stories</div>
             <span>{cards.length} stor{cards.length === 1 ? "y" : "ies"}</span>
           </div>
           {lead && <StudioLeadStory card={lead} data={data} accent={studioAccent} />}
@@ -493,7 +493,7 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
       <main>
         {lead && <section className="dl-editorial-lead" id="editorial-stories">
           <div className="dl-editorial-lead-copy">
-            <div className="dl-kicker">{KICKER[lead.kind]} · Worth your attention</div>
+            <div className="dl-kicker">{KICKER[lead.kind]}</div>
             <div className="dl-editorial-source">{lead.sourceLabel}</div>
             <h1>{lead.url && lead.kind !== "episode" ? <a href={lead.url} target="_blank" rel="noreferrer">{lead.headline}</a> : lead.headline}</h1>
             {lead.excerpt && <p>{lead.excerpt}</p>}
@@ -508,7 +508,7 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
         </section>}
 
         {rest.length > 0 && <section className="dl-editorial-more" aria-label="More stories">
-          <div className="dl-editorial-section-head"><h2>More worth your time</h2><span>Selected from this week</span></div>
+          <div className="dl-editorial-section-head"><h2>More stories</h2><span>This week</span></div>
           <div className="dl-editorial-story-grid">
             {rest.map((card) => {
               const visual = studioVisual(card, data, media);
@@ -541,7 +541,7 @@ function Signal({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
     <div className="dl-concept dl-signal">
       <header className="dl-signal-head"><h1>The Readout</h1><div><strong>{data.area}</strong><span>{fmtDate(data.generatedAt)}</span></div></header>
       <main>
-        <div className="dl-signal-title"><span>Worth your attention</span><strong>{cards.length}</strong></div>
+        <div className="dl-signal-title"><span>Top stories</span><strong>{cards.length}</strong></div>
         <section className="dl-signal-stories">
           {cards.map((card, index) => (
             <article className={`kind-${card.kind}`} key={card.id}>
@@ -577,8 +577,8 @@ function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard
       <main>
         {card && (
           <section className="dl-essential-story">
-            <nav className="dl-essential-pager" aria-label="Worth your attention">
-              <span>Worth your attention</span>
+            <nav className="dl-essential-pager" aria-label="Top stories">
+              <span>Top stories</span>
               <div>
                 {cards.map((item, index) => (
                   <button
