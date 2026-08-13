@@ -494,8 +494,8 @@ function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; med
                 <span aria-hidden>↗</span>
               </a>
               <div className="dl-paper-controls">
-                {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
                 {accent && <PaperSources paper={paper} />}
+                {paper.abstract?.trim() && <AbstractDisclosure text={paper.abstract.replace(/\s+/g, " ").trim()} compact />}
               </div>
             </article>
           );
@@ -505,7 +505,32 @@ function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; med
   );
 }
 
-function PeopleRail({ data }: { data: BriefingData }) {
+function PersonPostDisclosure({ posts }: { posts: BriefingSharer[] }) {
+  const [open, setOpen] = useState(false);
+  const regionId = useId();
+  const postCount = posts.length;
+  if (!postCount) return null;
+  return (
+    <div className="dl-person-posts">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={regionId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {open ? "Hide posts ↑" : `View ${postCount} post${postCount === 1 ? "" : "s"} ↓`}
+      </button>
+      {open && <div className="dl-editorial-evidence dl-person-post-drawer" id={regionId}>
+        <section>
+          <div className="dl-editorial-evidence-label">Posts on X</div>
+          {posts.map((post, index) => <EditorialTweet tweet={post} key={post.tweetUrl ?? `${post.handle}-${index}`} />)}
+        </section>
+      </div>}
+    </div>
+  );
+}
+
+function PeopleRail({ data, accent }: { data: BriefingData; accent?: string }) {
   const [showAllGuests, setShowAllGuests] = useState(false);
   const [showAllVoices, setShowAllVoices] = useState(false);
   useEffect(() => {
@@ -522,36 +547,39 @@ function PeopleRail({ data }: { data: BriefingData }) {
   return (
     <section className="dl-section dl-people">
       <div className="dl-section-head"><h2>People</h2><span>This week</span></div>
-      {allGuests.length > 0 && <div className="dl-people-group">
-        <div className="dl-people-group-head"><h3>Podcast guests</h3><span>On the mics</span></div>
-        <div className="dl-people-list">
-          {guests.map((person) => (
-            <div className={`dl-person${person.avatar ? "" : " no-avatar"}`} key={`guest-${person.name}`}>
-              {person.avatar && <Artwork src={person.avatar} label={person.name} round />}
-              <div><strong>{person.name}</strong><small>{person.affiliation ?? person.shows[0] ?? "Podcast guest"}</small></div>
-              <span>{person.thisWeek} ep</span>
-            </div>
-          ))}
-        </div>
-        {allGuests.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllGuests((value) => !value)}>
-          {showAllGuests ? "Show fewer guests ↑" : `Show ${allGuests.length - guests.length} more guests ↓`}
-        </button>}
-      </div>}
-      {allVoices.length > 0 && <div className="dl-people-group">
-        <div className="dl-people-group-head"><h3>Amplified on X</h3><span>Verified clinicians</span></div>
-        <div className="dl-people-list">
-          {voices.map((person) => (
-            <div className={`dl-person${person.avatar ? "" : " no-avatar"}`} key={`voice-${person.handle ?? person.name}`}>
-              {person.avatar && <Artwork src={person.avatar} label={person.name} round />}
-              <div><strong>{person.name}</strong><small>{person.institution ?? (person.handle ? `@${person.handle}` : "On X")}</small></div>
-              <span>{person.amp} R/Q</span>
-            </div>
-          ))}
-        </div>
-        {allVoices.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllVoices((value) => !value)}>
-          {showAllVoices ? "Show fewer clinicians ↑" : `Show ${allVoices.length - voices.length} more clinicians ↓`}
-        </button>}
-      </div>}
+      <div className="dl-people-groups">
+        {allGuests.length > 0 && <div className="dl-people-group">
+          <div className="dl-people-group-head"><h3>Podcast guests</h3><span>On the mics</span></div>
+          <div className="dl-people-list">
+            {guests.map((person) => (
+              <div className={`dl-person${person.avatar ? "" : " no-avatar"}`} key={`guest-${person.name}`}>
+                {person.avatar && <Artwork src={person.avatar} label={person.name} round />}
+                <div><strong>{person.name}</strong><small>{person.affiliation ?? person.shows[0] ?? "Podcast guest"}</small></div>
+                <span>{person.thisWeek} ep</span>
+              </div>
+            ))}
+          </div>
+          {allGuests.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllGuests((value) => !value)}>
+            {showAllGuests ? "Show fewer guests ↑" : `Show ${allGuests.length - guests.length} more guests ↓`}
+          </button>}
+        </div>}
+        {allVoices.length > 0 && <div className="dl-people-group">
+          <div className="dl-people-group-head"><h3>Amplified on X</h3><span>Verified clinicians</span></div>
+          <div className="dl-people-list">
+            {voices.map((person) => (
+              <div className={`dl-person${person.avatar ? "" : " no-avatar"}`} key={`voice-${person.handle ?? person.name}`}>
+                {person.avatar && <Artwork src={person.avatar} label={person.name} round />}
+                <div><strong>{person.name}</strong><small>{person.institution ?? (person.handle ? `@${person.handle}` : "On X")}</small></div>
+                <span>{person.amp} R/Q</span>
+                {accent && <PersonPostDisclosure posts={person.posts} />}
+              </div>
+            ))}
+          </div>
+          {allVoices.length > 4 && <button className="dl-list-action" type="button" onClick={() => setShowAllVoices((value) => !value)}>
+            {showAllVoices ? "Show fewer clinicians ↑" : `Show ${allVoices.length - voices.length} more clinicians ↓`}
+          </button>}
+        </div>}
+      </div>
     </section>
   );
 }
@@ -726,11 +754,11 @@ function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard
           </div>
         </section>}
 
-        <div className="dl-editorial-columns">
+        <div id="editorial-people" className="dl-editorial-people"><PeopleRail data={data} accent="#b94c31" /></div>
+        <div className="dl-editorial-columns dl-editorial-media-columns">
           <div id="editorial-listen"><EpisodeRail data={data} limit={3} accent="#b94c31" /></div>
-          <div id="editorial-people"><PeopleRail data={data} /></div>
+          <div id="editorial-papers"><PaperRail data={data} media={media} limit={5} accent="#b94c31" /></div>
         </div>
-        <div id="editorial-papers" className="dl-editorial-papers"><PaperRail data={data} media={media} limit={5} accent="#b94c31" /></div>
         <div id="editorial-trials" className="dl-editorial-trials"><TrialRail data={data} accent="#b94c31" /></div>
       </main>
     </div>
