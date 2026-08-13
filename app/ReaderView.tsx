@@ -1264,15 +1264,15 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div style={{ font: "600 9.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: MUT2, margin: "5px 0 0" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>
           <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 13px", background: `${pal.accent}66` }} />
         </>}
-        {/* Shared control band: section jumps govern the editorial stream; Focus governs every
-            column, so it occupies the opposite side of the same full-width band on wide desktop.
-            The whole band stays sticky. Mobile keeps Focus beneath the scrollable section tabs. */}
-        <div className={`rv-pills rv-section-tabs${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "6px 20px 4px" : "7px 30px 4px", background: stuck ? `${pal.bg}A6` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: compact ? 18 : 26, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        {/* Shared control band: section jumps and Focus are one centered, site-wide control line
+            on wide desktop. The divider distinguishes their jobs without assigning either group
+            to a content column. Mobile keeps Focus beneath the scrollable section tabs. */}
+        <div className={`rv-pills rv-section-tabs${compact ? " rv-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "6px 20px 4px" : "7px 30px 4px", background: stuck ? `${pal.bg}A6` : "transparent", backdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", WebkitBackdropFilter: stuck ? "blur(16px) saturate(1.2)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease", display: "flex", justifyContent: !compact && wide ? "center" : "flex-start", flexWrap: compact || wide ? "nowrap" : "wrap", gap: compact ? 18 : 26, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {sections.map((s) => {
             const on = activeSec === s.id;
             return <button key={s.id} aria-current={on ? "page" : undefined} onClick={() => goSec(s.id)} style={{ cursor: "pointer", font: "620 12.5px system-ui", letterSpacing: 0, padding: compact ? "8px 3px 10px" : "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", minHeight: compact ? 44 : undefined }}>{s.label}</button>;
           })}
-          {!compact && wide && <div style={{ marginLeft: "auto", flex: "none" }}>{focusSwitcher(false)}</div>}
+          {!compact && wide && <div style={{ marginLeft: 2, paddingLeft: 28, borderLeft: "1px solid rgba(255,255,255,.12)", flex: "none" }}>{focusSwitcher(false)}</div>}
         </div>
 
         {/* On desktop Focus shares the masthead line with the specialty picker. Phones retain
