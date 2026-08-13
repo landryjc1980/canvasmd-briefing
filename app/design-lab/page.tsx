@@ -720,14 +720,18 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
       </header>
       <main>
         {lead && <section className="dl-editorial-lead" id="editorial-stories">
-          <div className="dl-editorial-lead-copy">
-            <div className="dl-kicker">{KICKER[lead.kind]}</div>
-            <div className="dl-editorial-source">{lead.sourceLabel}</div>
-            <h1>{lead.url && lead.kind !== "episode" ? <a href={lead.url} target="_blank" rel="noreferrer">{lead.headline}</a> : lead.headline}</h1>
-            {lead.excerpt && <p>{lead.excerpt}</p>}
-            {leadAbstract && <AbstractDisclosure text={leadAbstract} />}
-            {lead.kind === "episode" && <StoryAction card={lead} />}
-            <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
+          <div className="dl-editorial-lead-primary">
+            <div className="dl-editorial-lead-copy">
+              <div className="dl-kicker">{KICKER[lead.kind]}</div>
+              <div className="dl-editorial-source">{lead.sourceLabel}</div>
+              <h1>{lead.url && lead.kind !== "episode" ? <a href={lead.url} target="_blank" rel="noreferrer">{lead.headline}</a> : lead.headline}</h1>
+              {lead.excerpt && <p>{lead.excerpt}</p>}
+              {leadAbstract && <AbstractDisclosure text={leadAbstract} />}
+              {lead.kind === "episode" && <StoryAction card={lead} />}
+            </div>
+            <div className="dl-editorial-lead-sources">
+              <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" editorial />
+            </div>
           </div>
           <aside className="dl-editorial-receipt" aria-label="Why this story surfaced">
             {leadVisual && <StudioVisual visual={leadVisual} headline={lead.headline} />}
