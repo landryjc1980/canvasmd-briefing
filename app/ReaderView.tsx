@@ -521,9 +521,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     } catch { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); }
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
-  // Tumor-area / "edition" switcher — one menu, two homes: a chip anchored to the masthead
-  // wordmark on desktop (so the specialty isn't orphaned at the far-right edge) and the plain
-  // trigger in the mobile header. Shared menuOpen state; the menu aligns to the trigger's side.
+  // Tumor-area / "edition" switcher — one menu, two homes. The trigger is an
+  // editorial text tab rather than a capsule; its invisible pseudo-element keeps
+  // the platform-sized tap target without adding visual bulk.
   const areaSwitcher = (variant: "chip" | "plain") => {
     const chip = variant === "chip";
     return (
@@ -532,12 +532,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           onClick={() => setMenuOpen((o) => !o)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
           className={chip ? "rv-edition" : undefined}
-          // The 44px tap target used to be the pill's own minHeight, which made the edition chip
-          // nearly twice the height of the 24px wordmark it sits beside. Keep the target, drop the
-          // bulk: the pill is sized to its text and .rv-edition::after carries an invisible 44px
-          // hit area (a pseudo-element hit-tests as part of its parent).
+          // .rv-edition::after carries the 44px hit area; the visible control stays
+          // as compact as its type and short selection rule.
           style={chip
-            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 20, boxSizing: "border-box" }
+            ? { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 1px 7px", cursor: "pointer", background: "transparent", border: 0, borderBottom: `2px solid ${pal.accent}`, borderRadius: 0, boxSizing: "border-box" }
             : { display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
           <span style={{ font: chip ? "600 13.5px system-ui" : "600 14px system-ui", color: "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
           <span style={{ font: "700 11px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
@@ -581,13 +579,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const focusSwitcher = (mobile: boolean) => {
     if (subAreaOpts.length < 2) return null;
     return (
-      <div className={`rv-pills${mobile ? " rv-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: mobile ? 8 : 6, flexWrap: mobile ? "nowrap" : "wrap", overflowX: mobile ? "auto" : "visible", margin: mobile ? "12px -20px 0" : 0, padding: mobile ? "0 20px" : 0, minWidth: 0 }}>
-        <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, alignSelf: "center", marginRight: 2, flex: "none" }}>Focus</span>
+      <div className={`rv-pills${mobile ? " rv-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: mobile ? 18 : 16, flexWrap: mobile ? "nowrap" : "wrap", overflowX: mobile ? "auto" : "visible", margin: mobile ? "10px -20px 0" : 0, padding: mobile ? "0 20px" : 0, minWidth: 0 }}>
+        <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, alignSelf: "center", marginRight: mobile ? -4 : -2, flex: "none" }}>Focus</span>
         {[{ key: null as string | null, label: "All" }, ...subAreaOpts.map((s) => ({ key: s.key as string | null, label: s.label }))].map((c) => {
           const on = subArea === c.key;
           return (
             <button key={c.label} type="button" className="rv-focus-chip" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
-              style={{ cursor: "pointer", font: "600 12px system-ui", padding: mobile ? "5px 13px" : "5px 10px", borderRadius: 20, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.16)"}`, background: on ? pal.accent : "rgba(255,255,255,.05)", color: on ? pal.bg : "rgba(255,255,255,.72)", whiteSpace: "nowrap", flex: "none", transition: "background .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
+              style={{ cursor: "pointer", font: `${on ? "700" : "600"} 12px system-ui`, padding: "8px 1px 9px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
               {c.label}
             </button>
           );

@@ -513,7 +513,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     <div style={{ position: "relative", flex: "none" }}>
       <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area"
         onClick={() => setMenuOpen((o) => !o)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
-        style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 13px", cursor: "pointer", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 20 }}>
+        className="rv-edition"
+        style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 1px 7px", cursor: "pointer", background: "transparent", border: 0, borderBottom: "2px solid rgba(255,255,255,.55)", borderRadius: 0 }}>
         <span style={{ font: "600 13.5px system-ui", color: "#fff", whiteSpace: "nowrap" }}>All oncology</span>
         <span style={{ font: "700 11px system-ui", color: "#c7cbd6", lineHeight: 1 }}>▾</span>
       </div>
@@ -553,6 +554,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     <div style={{ minHeight: "100vh", background: INK, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <style>{`
         .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
+        .rv-edition{position:relative}
+        .rv-edition::after{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
         .rv-row{transition:color .16s ease}
         @media(hover:hover){.rv-row:hover [data-disclosure],.rv-text-action:hover{text-decoration:underline;text-underline-offset:4px}}
         .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
