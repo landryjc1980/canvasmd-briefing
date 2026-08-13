@@ -190,10 +190,10 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
       </div>
       {text && (rtOf
         ? <blockquote style={{ margin: "9px 0 0", paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
-            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b6b9c3)", ...collapsedText }}>{text}</p>
+            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b6b9c3)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>
             <cite style={{ display: "block", marginTop: 5, font: "400 11px system-ui", fontStyle: "normal", color: MUT }}>@{rtOf}</cite>
           </blockquote>
-        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", ...collapsedText }}>{text}</p>)}
+        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>)}
     </>);
   const root = t.tweetUrl
     ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{body}</a>
@@ -205,7 +205,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         const continuation = (
           <div style={{ marginTop: 13, paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
             <div style={{ marginBottom: 5, font: "600 10.5px system-ui", color: MUT }}>{i + 2} / {thread.length + 1}</div>
-            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{part.text}</p>
+            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere" }}>{part.text}</p>
           </div>
         );
         return part.tweetUrl
@@ -235,9 +235,9 @@ export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplif
         <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
       ))}
       {reposts.map((a, j) => (
-        <div key={`r${j}`} style={{ ...cardBox, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "var(--rv-copy, #cfd4e0)" }}>
-          {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", display: "inline-block" }} />}
-          <span>
+        <div key={`r${j}`} style={{ ...cardBox, boxSizing: "border-box", width: "100%", minWidth: 0, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "var(--rv-copy, #cfd4e0)" }}>
+          {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%", flex: "none" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", display: "inline-block", flex: "none" }} />}
+          <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
             <b style={{ color: "var(--rv-ink, #eef1f8)", fontWeight: 600 }}>{a.name}</b>
             {a.handle ? <> <a href={`https://x.com/${a.handle.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: "none" }}>@{a.handle.replace(/^@/, "")}</a></> : null}
             {" reposted the episode"}

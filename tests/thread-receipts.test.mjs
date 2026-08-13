@@ -6,6 +6,10 @@ const webCard = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url
 const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
 const nativeCard = fs.readFileSync(new URL("../../canvasmd/components/readout/cards.tsx", import.meta.url), "utf8");
 const nativeVm = fs.readFileSync(new URL("../../canvasmd/components/readout/vm.ts", import.meta.url), "utf8");
+const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
+const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
+const nativeHero = fs.readFileSync(new URL("../../canvasmd/components/readout/HeroCards.tsx", import.meta.url), "utf8");
+const nativeAmplified = fs.readFileSync(new URL("../../canvasmd/components/readout/AmplifiedBy.tsx", import.meta.url), "utf8");
 const ingest = fs.readFileSync(new URL("../../canvasmd/supabase/functions/x-official-ingest/index.ts", import.meta.url), "utf8");
 const briefing = fs.readFileSync(new URL("../../canvasmd/supabase/functions/briefing/index.ts", import.meta.url), "utf8");
 
@@ -28,4 +32,18 @@ test("web and native remove labels orphaned by t.co cleanup", () => {
   const orphanLabelPattern = /\(\?:Article\|Paper\|Link\)/;
   assert.match(webVm, orphanLabelPattern);
   assert.match(nativeVm, orphanLabelPattern);
+});
+
+test("podcast stories expose a play icon before their listen action", () => {
+  assert.match(webHero, /label={`Listen @/);
+  assert.match(webAudio, /aria-label={playing \? "Pause" : "Play"}/);
+  assert.match(nativeHero, /name="play\.circle\.fill"/);
+  assert.match(nativeHero, />Listen @ /);
+});
+
+test("native source drawers card every receipt type and contain repost text", () => {
+  assert.match(nativeCard, /flat \? sourceReceiptCard : cardBox/g);
+  assert.match(nativeAmplified, /flat \? sourceReceiptCard : cardBox/);
+  assert.match(nativeAmplified, /fontSize: 13, flex: 1, minWidth: 0/);
+  assert.match(webCard, /overflowWrap: "anywhere"/);
 });
