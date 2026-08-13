@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, HeroCard as HeroCardT } from "@/lib/types";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
@@ -136,6 +136,7 @@ export const cardBox: React.CSSProperties = { background: "var(--rv-card, rgba(2
 // the page; the evidence cards inside step up again.
 const storyCard: React.CSSProperties = { background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, borderRadius: 0, padding: "0 2px", marginBottom: 0 };
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
+const EDITORIAL_MEASURE = 760;
 
 // "shared by N · ♥ M" with zero parts dropped — never renders "shared by 0 · ♥ 0".
 // `shown` is the length of the serialized sharer list — a display cap, not a census. When the
@@ -448,6 +449,56 @@ export function FacePile({ faces, extra, ring }: { faces: string[]; extra: numbe
       ))}
       {extra > 0 && (
         <div style={{ height: 26, minWidth: 26, padding: "0 6px", boxSizing: "border-box", borderRadius: 13, border: `2px solid ${ring}`, background: "var(--rv-surface, rgba(255,255,255,.1))", marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", font: "600 10px system-ui", color: "var(--rv-ink-2, rgba(255,255,255,.72))", flex: "none" }}>+{extra}</div>
+      )}
+    </div>
+  );
+}
+
+function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean }) {
+  const [abstractOpen, setAbstractOpen] = useState(false);
+  const abstract = paper.abstract?.replace(/\s+/g, " ").trim() || null;
+  const sourceId = `paper-source-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  const abstractId = `paper-abstract-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  const hasPublisherPosts = !!paper.publisherPosts?.length;
+  const hasPublisherNames = paper.publishers.length > 0;
+  const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasPublisherNames || !!paper.url;
+
+  return (
+    <div className="rv-list-row">
+      <div style={{ padding: "16px 2px" }}>
+        <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{cleanArticleTitle(paper.title)}</div>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
+          {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
+          <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(paper.journal, paper.domain), paper.kolSharers ? `shared by ${paper.kolSharers} clinician${paper.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
+          {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+          {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 14, minHeight: 44, marginLeft: "auto" }}>
+            {abstract && (
+              <button type="button" aria-expanded={abstractOpen} aria-controls={abstractId} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action"
+                style={{ background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
+                {abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}
+              </button>
+            )}
+            {hasSources && (
+              <button type="button" aria-expanded={open} aria-controls={sourceId} onClick={onToggle} data-brief-event="source_open" data-brief-open={open} data-brief-target="list" className="rv-text-action"
+                style={{ background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
+                {open ? "Hide sources ↑" : "See all sources ↓"}
+              </button>
+            )}
+          </span>
+        </div>
+        {abstractOpen && abstract && <p id={abstractId} style={{ margin: "3px 0 0", maxWidth: 740, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b7bac3)" }}>{abstract}</p>}
+      </div>
+      {open && (
+        <div id={sourceId} className="rv-drawer">
+          <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>
+            {paper.posts.length > 0 && <div><div style={evLabel(accent)}>What clinicians said · {paper.posts.length}</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div>{paper.publisherPosts!.slice(0, 2).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {hasPublisherNames && !hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))" }}>Shared by: {paper.publishers.join(" · ")}</div></div>}
+            {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: accent, textDecoration: "none" }}>Open article ↗</a>}
+            <button type="button" onClick={onToggle} className="rv-text-action" style={{ alignSelf: "flex-start", background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "10px 2px", minHeight: 44, cursor: "pointer", marginTop: 2 }}>Hide sources ↑</button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1017,7 +1068,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
-    <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? 800 : undefined }}>
+    <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? EDITORIAL_MEASURE : undefined }}>
       <SectionHead id="sec-episodes" accent={pal.accent} left>This week on the podcasts</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
         {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
@@ -1062,33 +1113,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   // papers
   const papersSection = data.topArticles.length > 0 && (
-    <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? 800 : undefined }}>
+    <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? EDITORIAL_MEASURE : undefined }}>
       <SectionHead id="sec-papers" accent={pal.accent} left>Papers being shared</SectionHead>
       <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
         const id = "p:" + i;
-        return (
-          <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
-            head={
-              /* full-width title (John: "I like full width text"), then a single meta row —
-                 faces + source + the expander — so the headline never gets squeezed to a column */
-              <div style={{ padding: "16px 2px" }}>
-                <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{cleanArticleTitle(a.title)}</div>
-                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
-                  {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
-                  <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-                  {isNewsItem(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
-                  {isFeaturedPaper(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: pal.accent, background: `${pal.accent}17`, border: `1px solid ${pal.accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
-                  <SignalTag id={id} style={{ marginLeft: "auto" }} />
-                </div>
-              </div>
-            }>
-            {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b7bac3)" }}>{a.abstract}</p>}
-            {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>What clinicians said · {a.posts.length}</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {/* link to the source — also guarantees the expand is never empty (news items carry
-                no abstract/posts, which previously made the last row look like it didn't open). */}
-            {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: pal.accent, textDecoration: "none" }}>Open article ↗</a>}
-          </Row>
-        );
+        return <PaperShareRow key={id} paper={a} id={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent} ring={pal.bg} featured={isFeaturedPaper(a)} />;
       }} />
     </div>
   );
