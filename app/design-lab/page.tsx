@@ -11,7 +11,7 @@ import "../brief.css";
 import "./design-lab.css";
 
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"] as const;
-const CONCEPTS = ["essential", "air", "studio", "signal"] as const;
+const CONCEPTS = ["essential", "air", "studio", "editorial", "signal"] as const;
 type Concept = typeof CONCEPTS[number];
 type Frame = "full" | "phone";
 type ArticleMedia = { url: string; imageUrl: string | null; publisher: string | null; journal: string | null; domain: string | null };
@@ -20,6 +20,7 @@ const CONCEPT_LABEL: Record<Concept, string> = {
   essential: "Essential",
   air: "Air",
   studio: "Studio",
+  editorial: "Editorial",
   signal: "Signal",
 };
 
@@ -463,6 +464,64 @@ function Studio({ data, cards, media, onAreaChange, lightMode, onLightModeChange
   );
 }
 
+function Editorial({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
+  const [lead, ...rest] = cards;
+  const leadTweet = lead ? firstSourceTweet(lead, data) : null;
+  const leadAbstract = lead ? paperAbstract(lead, data) : null;
+  const leadVisual = lead ? studioVisual(lead, data, media) : null;
+  return (
+    <div className="dl-concept dl-editorial">
+      <header className="dl-editorial-head">
+        <div className="dl-editorial-brand"><small>CanvasMD</small><strong>The Readout</strong></div>
+        <nav aria-label="Readout sections"><a href="#editorial-stories">Stories</a><a href="#editorial-listen">Listen</a><a href="#editorial-papers">Papers</a><a href="#editorial-people">People</a></nav>
+        <div className="dl-editorial-context"><strong>{data.area}</strong><span>{fmtDate(data.generatedAt)}</span></div>
+      </header>
+      <main>
+        {lead && <section className="dl-editorial-lead" id="editorial-stories">
+          <div className="dl-editorial-lead-copy">
+            <div className="dl-kicker">{KICKER[lead.kind]} · Worth your attention</div>
+            <div className="dl-editorial-source">{lead.sourceLabel}</div>
+            <h1>{lead.url && lead.kind !== "episode" ? <a href={lead.url} target="_blank" rel="noreferrer">{lead.headline}</a> : lead.headline}</h1>
+            {lead.excerpt && <p>{lead.excerpt}</p>}
+            {leadAbstract && <AbstractDisclosure text={leadAbstract} />}
+            {lead.kind === "episode" && <StoryAction card={lead} />}
+            <StorySources card={lead} data={data} accent="#b94c31" collapsedLabel="See all sources" />
+          </div>
+          <aside className="dl-editorial-receipt" aria-label="Why this story surfaced">
+            {leadVisual && <StudioVisual visual={leadVisual} headline={lead.headline} />}
+            {leadTweet ? <><span className="dl-editorial-receipt-label">A clinician shared</span><TweetCard t={leadTweet} /></> : <div className="dl-editorial-receipt-note"><span>Why it surfaced</span><strong>{lead.why}</strong></div>}
+          </aside>
+        </section>}
+
+        {rest.length > 0 && <section className="dl-editorial-more" aria-label="More stories">
+          <div className="dl-editorial-section-head"><h2>More worth your time</h2><span>Selected from this week</span></div>
+          <div className="dl-editorial-story-grid">
+            {rest.map((card) => {
+              const visual = studioVisual(card, data, media);
+              const resolved = resolveHeroEvidence(card, data);
+              return <article key={card.id}>
+                <div className="dl-editorial-story-copy">
+                  <div className="dl-kicker">{KICKER[card.kind]}</div>
+                  <small>{card.sourceLabel}</small>
+                  <h3>{card.url && card.kind !== "episode" ? <a href={card.url} target="_blank" rel="noreferrer">{card.headline}</a> : card.headline}</h3>
+                  <div className="dl-editorial-story-meta"><Faces urls={resolved?.faces ?? []} /><span>{card.why}</span></div>
+                </div>
+                {visual && <StudioVisual visual={visual} headline={card.headline} />}
+              </article>;
+            })}
+          </div>
+        </section>}
+
+        <div className="dl-editorial-columns">
+          <div id="editorial-listen"><EpisodeRail data={data} limit={3} /></div>
+          <div id="editorial-people"><PeopleRail data={data} /></div>
+        </div>
+        <div id="editorial-papers" className="dl-editorial-papers"><PaperRail data={data} media={media} limit={5} /></div>
+      </main>
+    </div>
+  );
+}
+
 function Signal({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
   return (
     <div className="dl-concept dl-signal">
@@ -634,6 +693,7 @@ export default function DesignLabPage() {
         {data && concept === "essential" && <Essential data={data} cards={cards} media={articleMedia} />}
         {data && concept === "air" && <Air data={data} cards={cards} media={articleMedia} />}
         {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} lightMode={studioLight} onLightModeChange={setStudioTheme} />}
+        {data && concept === "editorial" && <Editorial data={data} cards={cards} media={articleMedia} />}
         {data && concept === "signal" && <Signal data={data} cards={cards} media={articleMedia} />}
       </div>
     </div>
