@@ -349,6 +349,7 @@
 .readout-hero-abstract > p { margin: 0 0 9px; color: var(--rv-copy, rgba(233,237,246,.72)); font: 400 14px/1.6 system-ui; }
 .readout-hero-preview { max-width: 740px; margin: 6px 0 2px; }
 .readout-hero-preview > div:first-child { margin: 0 0 8px; color: var(--rv-muted, rgba(233,237,246,.5)); font: 700 9.5px/1 system-ui; letter-spacing: .14em; text-transform: uppercase; }
+.readout-hero-preview .readout-tweet-preview { background: var(--rv-preview, #f8f8f5) !important; border: 1px solid var(--rv-line, #d8d7d1) !important; border-radius: 7px !important; box-shadow: none !important; }
 .readout-tweet-preview p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 @media (max-width: 640px) {
   .hero-row { display: block; }
