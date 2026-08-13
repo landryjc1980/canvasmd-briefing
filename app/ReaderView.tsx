@@ -1223,7 +1223,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* The desktop masthead spans the same frame as the editorial column + rail. Its controls
             stay on the reading spine, while Share anchors the far edge; the rule beneath belongs
             to the whole edition rather than ending where the Focus labels happen to end. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 22, paddingBottom: compact ? 3 : 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: compact ? "center" : "flex-start", gap: 22, paddingBottom: compact ? 3 : 0 }}>
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
             {/* line 1: wordmark + the edition chip. line 2: byline sits UNDERNEATH the wordmark
                 (John: byline next to the specialty looked weird), matching the mobile stack. */}
@@ -1232,11 +1232,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {/* the edition chip rides beside the wordmark on EVERY size (2026-07-24: the mobile
                   bare-text variant read differently from the All page — one switcher, one look) */}
               {areaSwitcher("chip")}
-              {!compact && focusSwitcher(false)}
             </div>
             {!compact && <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 9 }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+            {/* Edition identity and indication filtering are different decisions. Giving Focus
+                its own row keeps the masthead from reading like one long toolbar. */}
+            {!compact && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", marginTop: compact ? 0 : 2 }}>
           {!compact && <>
             {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: pal.bg, background: "#fff", borderRadius: 8, padding: "6px 11px" }}>{shareMsg}</span>}
             <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", color: "#fff", font: "600 13px system-ui", borderRadius: 20, padding: "8px 15px", cursor: "pointer" }}>
@@ -1255,7 +1257,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </div>
         </div>
         {/* Full-width edition rule unifies the desktop editorial column and supporting rail. */}
-        {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "14px 0", background: `${pal.accent}66` }} />}
+        {!compact && <div aria-hidden style={{ height: 2, borderRadius: 2, margin: "12px 0 14px", background: `${pal.accent}66` }} />}
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
         {compact && <>
