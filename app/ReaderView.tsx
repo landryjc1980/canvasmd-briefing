@@ -535,10 +535,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           // .rv-edition::after carries the 44px hit area; color and the larger
           // chevron communicate interactivity without a capsule or hanging rule.
           style={chip
-            ? { display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0, boxSizing: "border-box" }
-            : { display: "flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer" }}>
+            ? { display: "inline-flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0, boxSizing: "border-box" }
+            : { display: "flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer" }}>
           <span style={{ font: chip ? "650 15px system-ui" : "600 14px system-ui", color: chip ? pal.accent : "#fff", whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
-          <span aria-hidden style={{ font: "700 20px system-ui", color: chip ? pal.accent : "rgba(255,255,255,.6)", lineHeight: 1 }}>▾</span>
+          <span aria-hidden style={{ width: 10, height: 10, borderRight: `2px solid ${chip ? pal.accent : "rgba(255,255,255,.72)"}`, borderBottom: `2px solid ${chip ? pal.accent : "rgba(255,255,255,.72)"}`, transform: menuOpen ? "translateY(3px) rotate(225deg)" : "translateY(-2px) rotate(45deg)", transition: "transform .18s ease", flex: "none", boxSizing: "border-box" }} />
         </div>
         {menuOpen && (
           <>
