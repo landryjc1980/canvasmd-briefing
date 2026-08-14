@@ -353,8 +353,18 @@
 .readout-tweet-preview p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 @media (max-width: 640px) {
   .hero-row { display: block; }
-  .readout-hero-card:not(.is-compact) { padding: 25px 0 27px; }
+  .readout-hero-card:not(.is-compact),
+  .readout-story-card {
+    box-sizing: border-box;
+    margin: 0 8px 12px;
+    background: var(--rv-card, #fff) !important;
+    border: 1px solid var(--rv-card-line, #d8d7d1) !important;
+    border-radius: var(--rv-card-radius, 8px) !important;
+    box-shadow: var(--rv-card-shadow, 0 8px 22px rgba(31,35,42,.07));
+  }
+  .readout-hero-card:not(.is-compact) { padding: 25px 16px 27px; }
   .readout-hero-card.is-lead { padding-top: 18px; padding-bottom: 34px; }
+  .readout-story-card { overflow: hidden; }
   .readout-hero-card:not(.is-compact) .readout-hero-source { margin: 7px 0 12px; font-size: 14px; }
   .readout-hero-card:not(.is-compact) .readout-hero-title { font-size: 21px; line-height: 1.22; }
   .readout-hero-card.is-lead .readout-hero-title { font-size: 25px; line-height: 1.17; }

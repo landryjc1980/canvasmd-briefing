@@ -949,7 +949,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ flex: 1, height: 1, background: "var(--rv-line, rgba(255,255,255,.12))" }} />
               </div>
             )}
-          <div data-sid={s.id} data-sfp={s.fp ?? ""} data-stitle={s.headline} data-skind={s.kind} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
+          <div className="readout-story-card" data-sid={s.id} data-sfp={s.fp ?? ""} data-stitle={s.headline} data-skind={s.kind} style={lead ? { ...storyCard, borderLeft: `3px solid ${pal.accent}` } : storyCard}>
           <Row open={open} onToggle={() => toggle(id)} accent={pal.accent}
             head={
               <div style={{ display: "flex", alignItems: "flex-start", padding: "22px 2px" }}>
