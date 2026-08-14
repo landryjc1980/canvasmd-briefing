@@ -849,6 +849,18 @@ export type BriefingEpisode = { title: string; show: string | null; showArt: str
 
 // One source-anchored hero card (spec: one card = one editorial proposition anchored to one
 // identifiable source object). Server-authored; clients render, never re-rank.
+export type HeroSupportPost = {
+  name: string; handle: string | null; avatar: string | null;
+  tweetUrl: string | null; text: string | null;
+  likes: number; retweets: number; quotes: number; views: number;
+};
+export type HeroSupportLink = {
+  kind: "article" | "paper" | "episode"; id: string; title: string; url: string;
+  sourceLabel: string; relationshipType: string; occurredAt: string | null;
+};
+export type HeroSupportBundle = {
+  clinicianPosts: HeroSupportPost[]; publisherPosts: HeroSupportPost[]; links: HeroSupportLink[];
+};
 export type HeroCard = {
   id: string; // anchor-derived, stable across builds
   kind: "paper" | "episode" | "event" | "thread" | "trial_milestone";
@@ -868,6 +880,7 @@ export type HeroCard = {
   congress?: boolean;
   nct?: string | null;
   siblings?: { kind: string; label: string; url?: string | null }[];
+  support?: HeroSupportBundle; // exact receipts only; never a ranking input
 };
 
 export type BriefingData = {

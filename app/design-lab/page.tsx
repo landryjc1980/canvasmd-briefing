@@ -170,14 +170,18 @@ function StorySources({ card, data, accent, collapsedLabel = "Sources", editoria
         ? <EditorialEvidence posts={resolved.posts} papers={[resolved.paper as unknown as BriefingPaper]} publisherPosts={resolved.publisherPosts} amplifiers={card.amplifiers ?? []} />
         : resolved.kind === "episode"
           ? <EditorialEvidence pods={resolved.pods} amplifiers={card.amplifiers ?? []} />
-          : <EditorialEvidence posts={[resolved.post]} />
+          : resolved.kind === "event"
+            ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" />
+            : <EditorialEvidence posts={[resolved.post]} />
     : resolved.kind === "paper"
-      ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
+      ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />
       : resolved.kind === "article"
-        ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />
+        ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />
         : resolved.kind === "episode"
           ? <><StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />{(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}</>
-          : <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" />;
+          : resolved.kind === "event"
+            ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" />
+            : <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" />;
   return (
     <div className="dl-sources">
       <button type="button" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen((value) => !value)} style={{ color: accent }}>

@@ -55,3 +55,28 @@ test("paper receipts include publisher POSTS from the reading row on both join p
   const viaStory = resolveHeroEvidence({ kind: "paper", anchorId: "u3", url: "u3", headline: "T3" }, { topStories: [st], topArticles: [art], movers: [] });
   assert.deepEqual(viaStory.publisherPosts, [pubPost], "story-matched papers still carry the reading row's publisher posts");
 });
+
+test("paper receipts preserve exact supporting coverage without using it to resolve the anchor", () => {
+  const link = { kind: "article", id: "a1", title: "Author discusses the study", url: "https://example.com/a1", sourceLabel: "OncLive", relationshipType: "interviews_author", occurredAt: "2026-08-14T00:00:00Z" };
+  const st = { kind: "paper", headline: "H", papers: [{ url: "u4" }], posts: [] };
+  const r = resolveHeroEvidence({ kind: "paper", anchorId: "u4", url: "u4", headline: "H", support: { clinicianPosts: [], publisherPosts: [], links: [link] } }, { topStories: [st], topArticles: [], movers: [] });
+  assert.equal(r?.kind, "paper");
+  assert.deepEqual(r.supportLinks, [link]);
+});
+
+test("event receipts resolve exact clinician, publisher, and coverage support", () => {
+  const clinician = { name: "Dr C", handle: "doctor", avatar: "c.jpg", tweetUrl: "https://x.com/doctor/status/1", text: "Approval reaction", likes: 4, retweets: 0, quotes: 0, views: 10 };
+  const publisher = { name: "OncLive", handle: "OncLive", avatar: "p.jpg", tweetUrl: "https://x.com/OncLive/status/2", text: "Approval coverage", likes: 2, retweets: 0, quotes: 0, views: 8 };
+  const link = { kind: "article", id: "a2", title: "FDA expands Pluvicto", url: "https://example.com/a2", sourceLabel: "OncLive", relationshipType: "covers_approval", occurredAt: null };
+  const r = resolveHeroEvidence({ kind: "event", anchorId: "event:fda-1", url: "https://fda.gov/approval", headline: "Pluvicto approval", support: { clinicianPosts: [clinician], publisherPosts: [publisher], links: [link] } }, { topStories: [], topArticles: [], movers: [] });
+  assert.equal(r?.kind, "event");
+  assert.deepEqual(r.posts, [clinician]);
+  assert.deepEqual(r.publisherPosts, [publisher]);
+  assert.deepEqual(r.supportLinks, [link]);
+  assert.deepEqual(r.faces, ["c.jpg", "p.jpg"]);
+});
+
+test("event without support has no drawer", () => {
+  const card = { kind: "event", anchorId: "event:fda-2", url: "https://fda.gov/approval", headline: "Approval" };
+  assert.equal(resolveHeroEvidence(card, { topStories: [], topArticles: [], movers: [] }), null);
+});

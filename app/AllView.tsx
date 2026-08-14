@@ -512,7 +512,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         faces: resolved.faces,
         abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null,
         preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
-        drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />,
+        drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };
     }
     if (resolved.kind === "article") {
@@ -522,7 +522,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         faces: resolved.faces,
         abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null,
         preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
-        drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts }} accent={accent} paperLabel="The paper" />,
+        drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };
     }
     if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
@@ -531,6 +531,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}
       </>
     ) };
+    if (resolved.kind === "event") return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" /> };
     return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" /> };
   };
 

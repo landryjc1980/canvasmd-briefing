@@ -1,17 +1,18 @@
-import type { BriefingData, BriefingPod, BriefingSharer, HeroCard } from "@/lib/types";
+import type { BriefingData, BriefingPod, BriefingSharer, HeroCard, HeroSupportLink } from "@/lib/types";
 
 // Pure hero-card → receipts resolution (Codex: extracted and tested — exact paper, episode,
 // thread, missing-evidence, and publisher cases). Type-only imports keep this loadable under
 // node:test. Views map the resolved DATA to JSX; nothing here re-ranks or re-selects.
 export type ResolvedEvidence =
-  | { kind: "paper"; story: unknown; faces: string[]; publisherPosts: BriefingSharer[] }
-  | { kind: "article"; posts: BriefingSharer[]; faces: string[]; publishers: string[]; publisherPosts: BriefingSharer[]; paper: Record<string, unknown> }
+  | { kind: "paper"; story: unknown; faces: string[]; publisherPosts: BriefingSharer[]; supportLinks: HeroSupportLink[] }
+  | { kind: "article"; posts: BriefingSharer[]; faces: string[]; publishers: string[]; publisherPosts: BriefingSharer[]; paper: Record<string, unknown>; supportLinks: HeroSupportLink[] }
   | { kind: "episode"; pods: BriefingPod[]; faces: string[] }
   | { kind: "thread"; post: BriefingSharer; faces: string[] }
+  | { kind: "event"; posts: BriefingSharer[]; publisherPosts: BriefingSharer[]; supportLinks: HeroSupportLink[]; faces: string[] }
   | null;
 
 export function resolveHeroEvidence(
-  c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers">,
+  c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers" | "support">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
   if (c.kind === "paper") {
@@ -20,9 +21,9 @@ export function resolveHeroEvidence(
     const reading = (data.topArticles ?? []).find((x) => x.url === c.url);
     const publisherPosts = reading?.publisherPosts ?? [];
     const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
-    if (st) return { kind: "paper", story: st, faces: (st.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a).slice(0, 4), publisherPosts: st.papers?.[0]?.publisherPosts ?? publisherPosts };
+    if (st) return { kind: "paper", story: st, faces: (st.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a).slice(0, 4), publisherPosts: st.papers?.[0]?.publisherPosts ?? publisherPosts, supportLinks: c.support?.links ?? [] };
     const a = reading;
-    if (a) return { kind: "article", posts: a.posts ?? [], faces: a.faces ?? [], publishers: a.publishers ?? [], publisherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed } };
+    if (a) return { kind: "article", posts: a.posts ?? [], faces: a.faces ?? [], publishers: a.publishers ?? [], publisherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks: c.support?.links ?? [] };
     return null;
   }
   if (c.kind === "episode") {
@@ -46,5 +47,14 @@ export function resolveHeroEvidence(
     if (!post) return null;
     return { kind: "thread", post, faces: post.avatar ? [post.avatar] : [] };
   }
-  return null; // events: the primary-source link IS the receipt
+  if (c.kind === "event" && c.support) {
+    const posts = c.support.clinicianPosts;
+    const publisherPosts = c.support.publisherPosts;
+    const supportLinks = c.support.links;
+    if (!posts.length && !publisherPosts.length && !supportLinks.length) return null;
+    const faces = [...posts, ...publisherPosts].map((post) => post.avatar)
+      .filter((avatar): avatar is string => !!avatar).filter((avatar, i, all) => all.indexOf(avatar) === i).slice(0, 4);
+    return { kind: "event", posts, publisherPosts, supportLinks, faces };
+  }
+  return null;
 }

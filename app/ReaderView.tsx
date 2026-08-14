@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT } from "@/lib/types";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
@@ -446,17 +446,39 @@ function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string
 // the paper-total formula falls back to sharerCount for movers (no kind:"paper"). `paperLabel` is
 // passed by the caller so each surface keeps its exact heading ("The paper" vs "Papers shared").
 type EvSource = EvidenceSource;
-type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[] };
+type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[]; supportLinks?: HeroSupportLink[] };
+
+const supportRelationship = (relationship: string) => ({
+  interviews_author: "Author interview",
+  interviews_investigator: "Investigator interview",
+  covers_approval: "Approval coverage",
+  discusses_publication: "Publication discussion",
+  discusses_trial: "Trial discussion",
+  reports_results: "Results coverage",
+  clinician_shared: "Shared source",
+}[relationship] ?? "Related coverage");
+
+function SupportLinkRow({ link, accent }: { link: HeroSupportLink; accent: string }) {
+  return (
+    <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "10px 2px", borderBottom: `1px solid ${LINE}`, color: "inherit", textDecoration: "none" }}>
+      <div style={{ font: "600 11px/1.35 system-ui", color: accent }}>{link.sourceLabel} · {supportRelationship(link.relationshipType)}</div>
+      <div style={{ marginTop: 3, font: "500 14px/1.4 system-ui", color: "var(--rv-ink, #f4f7ff)" }}>{link.title} <span aria-hidden>↗</span></div>
+    </a>
+  );
+}
+
 export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
   const publisherPosts = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []);
+  const supportLinks = story.supportLinks ?? [];
   const sourceGroupEnd: React.CSSProperties = { borderBottom: `1px solid ${LINE}`, paddingBottom: 16, marginBottom: 16 };
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
-      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
       {publisherPosts.length > 0 && (
-        <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts.slice(0, 2)} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
+        <div style={(supportLinks.length > 0 || story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
       )}
+      {supportLinks.length > 0 && <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Related coverage</div><Capped items={supportLinks} cap={4} accent={accent} render={(link, j) => <SupportLinkRow key={`${link.kind}:${link.id}:${j}`} link={link} accent={accent} />} /></div>}
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = publisherPosts.length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
@@ -804,12 +826,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       const story = r.story as EvSource;
       const paper = story.papers?.[0];
       const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? r.publisherPosts[0];
-      return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
+      return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "article") {
       const paper = r.paper as unknown as BriefingPaper;
       const firstPost = r.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? r.publisherPosts[0];
-      return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts }} accent={pal.accent} paperLabel="The paper" /> };
+      return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "episode") return { faces: r.faces, drawer: (
       <>
@@ -819,6 +841,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         )}
       </>
     ) };
+    if (r.kind === "event") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" /> };
     return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
   };
   const part = partitionStories(heroMode ? [] : visibleStories, seen);
