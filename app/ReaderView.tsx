@@ -482,7 +482,7 @@ export function FacePile({ faces, extra, ring }: { faces: string[]; extra: numbe
   );
 }
 
-function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean }) {
+export function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured, contextLabel }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean; contextLabel?: string }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const abstract = paper.abstract?.replace(/\s+/g, " ").trim() || null;
   const sourceId = `paper-source-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
@@ -495,8 +495,9 @@ function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured }: { 
   return (
     <div className="rv-list-row">
       <div className="rv-paper-share" style={{ padding: "16px 2px" }}>
-        {(source || isNewsItem(paper)) && (
+        {(contextLabel || source || isNewsItem(paper)) && (
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 7 }}>
+            {contextLabel && <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accent, background: `${accent}12`, border: `1px solid ${accent}40`, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{contextLabel}</span>}
             {source && <span style={{ font: "600 14px system-ui", color: MUT }}>{source}</span>}
             {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
           </div>

@@ -26,3 +26,12 @@ test("All Oncology uses the current light Readout shell and Hero tokens", () => 
   assert.match(source, /ink=\{\{ soft: INK_2, softer: MUT, line: LINE, ring: PAPER, surface: SURFACE \}\}/);
   assert.doesNotMatch(source, /root\.style\.backgroundColor = INK/);
 });
+
+test("All Oncology exposes the same listening and paper interactions as specialty editions", () => {
+  const source = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+  assert.match(source, /id="all-listen"/);
+  assert.match(source, />This week on the podcasts</);
+  assert.match(source, />Papers being shared</);
+  assert.match(source, /contextLabel=\{area\}/);
+  assert.match(source, /\{groupsJsx\}\{podcastsJsx\}\{readingJsx\}\{voicesInline\}/);
+});
