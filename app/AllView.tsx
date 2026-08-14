@@ -7,7 +7,7 @@ import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingP
 import { Row, TweetCard, PaperCard, FacePile, evLabel, StoryEvidence, AmplifierReceipts } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
-import { inkOf, palOf, AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem, heroDeckOf } from "./briefVM";
+import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, cleanArticleTitle, articleSource, isNewsItem, heroDeckOf } from "./briefVM";
 import HeroCards, { HeroEvidence } from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
@@ -20,9 +20,23 @@ import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 // comparable count of verified clinicians who shared them.
 
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"];
-const INK = "#0D1017";
-const MUT = "#9aa2b6";
-const MUT2 = "#7e8698";
+const INK = "#17181a";
+const INK_2 = "#4f5257";
+const MUT = "#696c71";
+const MUT2 = "#85878c";
+const LINE = "#cfd0cb";
+const SURFACE = "#ebeae5";
+const PAPER = "#f4f4f1";
+const ALL_ACCENT = "#475569";
+const AREA_ACCENTS: Record<string, string> = {
+  GU: "#0369a1",
+  Breast: "#be185d",
+  Lung: "#334155",
+  GI: "#a45c0a",
+  Heme: "#9b0f18",
+  Gyn: "#0d6b5f",
+};
+const accentOf = (area: string) => AREA_ACCENTS[area] ?? ALL_ACCENT;
 const ago = (iso: string) => {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 60) return mins < 1 ? "just now" : `${mins}m ago`;
@@ -55,8 +69,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const body = document.body;
     const previousRoot = root.style.backgroundColor;
     const previousBody = body.style.backgroundColor;
-    root.style.backgroundColor = INK;
-    body.style.backgroundColor = INK;
+    root.style.backgroundColor = PAPER;
+    body.style.backgroundColor = PAPER;
     return () => {
       root.style.backgroundColor = previousRoot;
       body.style.backgroundColor = previousBody;
@@ -316,7 +330,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     return t || null;
   };
   const miniTag = (a: string) => (
-    <span key={a} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: inkOf(a).accent, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{a}</span>
+    <span key={a} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(a), background: `${accentOf(a)}12`, border: `1px solid ${accentOf(a)}40`, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{a}</span>
   );
 
   // One rail-style voice row — mirrors the tumor pages' "Most active on X" module anatomy
@@ -328,24 +342,24 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // the ranking and never truncate — a long affiliation ("Medstar Medical Group Ii LLC") was
   // eating "· 30 posts · 10 papers" off the end of the line (John, 2026-07-24).
   const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
-    const acc = inkOf(opts.areas[0] ?? "GU").accent;
+    const acc = accentOf(opts.areas[0] ?? "GU");
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
     return (
       <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc} landOffset={compact ? 108 : 70}
         head={
           <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 2px" }}>
-            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: "2px solid rgba(255,255,255,.13)" }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: SURFACE, color: INK_2, font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: `2px solid ${PAPER}` }}>
               {opts.avatar ? <img src={opts.avatar} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(opts.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: "#f4f7ff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
-                <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? "#eef1f8" : "#cdd2de", padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
+                <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
+                <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? acc : INK_2, padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                 {opts.areas.map(miniTag)}
-                {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: "rgba(255,255,255,.6)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
+                {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
                 {(opts.sub || opts.facts) && (
                   <span style={{ display: "flex", alignItems: "baseline", gap: 5, minWidth: 0, flex: "1 1 auto", font: "400 11.5px system-ui", color: MUT }}>
                     {opts.sub && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
@@ -371,12 +385,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 
   const voicesModules = (
     <div>
-      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de", margin: 0 }}>Voices of the week</h2>
+      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Voices of the week</h2>
       <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 5 }}>who the field heard · who it amplified</div>
 
       {/* ── On the mics ── */}
       {micsRanked.length > 0 && <div style={{ margin: "18px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>On the mics</span>
+        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: INK }}>On the mics</span>
         <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by podcast appearances</span>
       </div>}
       {micsShown.map((m) => {
@@ -399,15 +413,15 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           children: eps.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {eps.slice(0, 3).map((e, j) => (
-                <div key={j} style={{ background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12, padding: "11px 13px" }}>
+                <div key={j} style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "11px 13px" }}>
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: e.audioUrl ? 9 : 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,.1)", flex: "none", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px system-ui" }}>{e.showArt ? <img src={e.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(e.show ?? "P")}</div>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: SURFACE, color: INK_2, flex: "none", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px system-ui" }}>{e.showArt ? <img src={e.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(e.show ?? "P")}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: "600 12px system-ui", color: "#eef1f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
+                      <div style={{ font: "600 12px system-ui", color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
                       {e.show && <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{e.show}</div>}
                     </div>
                   </div>
-                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} durationSeconds={e.durationSeconds} label="Listen to the episode" accent={inkOf(m.areas[0] ?? "GU").accent} tone="dark" />}
+                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} durationSeconds={e.durationSeconds} label="Listen to the episode" accent={accentOf(m.areas[0] ?? "GU")} />}
                 </div>
               ))}
             </div>
@@ -418,11 +432,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 
       {/* ── Carried on X ── */}
       {xRanked.length > 0 && <div style={{ margin: "26px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>Carried on X</span>
+        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: INK }}>Carried on X</span>
         <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by reposts + quotes earned</span>
       </div>}
       {xShown.map((v) => {
-        const acc = inkOf(v.areas[0] ?? "GU").accent;
+        const acc = accentOf(v.areas[0] ?? "GU");
         const onMics = micKeys.has(norm(v.name));
         // displayed counts must never be smaller than the union the drawer renders beneath
         // them (MAX-across-areas undercounts when a cross-area voice's posts are disjoint)
@@ -448,7 +462,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       })}
       {moreBtn(xRanked.length, X_CAP, xMore, () => setXMore((v) => !v))}
 
-      <div style={{ font: "400 10.5px/1.6 system-ui", color: MUT2, marginTop: 16, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.05)" }}>
+      <div style={{ font: "400 10.5px/1.6 system-ui", color: MUT2, marginTop: 16, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
         Episode counts = this week&rsquo;s briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Ranked by guest appearances — hosting credits one per week; ties by lifetime appearances. Amplified = reposts + quote-posts earned on their own posts this week; cross-area voices show their busiest area&rsquo;s count. Every number shown is a plain count.
       </div>
     </div>
@@ -500,7 +514,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const faces = pileFaces(s);
     const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
     return (
-      <div key={id} style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", ...(lead ? { borderTop: "1px solid rgba(255,255,255,.15)", borderLeft: `3px solid ${acc}` } : {}), borderRadius: 15, padding: "0 20px", marginBottom: 10 }}>
+      <div key={id} className="readout-story-card" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0 }}>
         <Row open={open} onToggle={() => toggle(id)} accent={acc} landOffset={compact ? 108 : 70}
           head={
             <div style={{ display: "flex", alignItems: "flex-start", padding: lead ? "18px 2px" : "15px 2px" }}>
@@ -508,11 +522,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
                   <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{storyKicker(s)}</span>
                 </div>
-                <h3 style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: "#f8f9fc", letterSpacing: lead ? "-.005em" : "0", margin: 0 }}>{s.headline}</h3>
+                <h3 style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: INK, letterSpacing: 0, margin: 0 }}>{s.headline}</h3>
                 {s.subtitle && <div style={{ font: "500 11.5px system-ui", color: MUT, marginTop: 6 }}>{s.subtitle}</div>}
                 {s.description && <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
                 <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  {faces.length > 0 && <FacePile faces={faces} extra={0} ring={INK} />}
+                  {faces.length > 0 && <FacePile faces={faces} extra={0} ring={PAPER} />}
                   <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
                   {!open && evidenceChip(acc)}
                 </div>
@@ -534,31 +548,31 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         onClick={() => setMenuOpen((o) => !o)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
         className="rv-edition"
         style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0 }}>
-        <span style={{ font: "650 15px system-ui", color: "#c7cbd6", whiteSpace: "nowrap" }}>All oncology</span>
-        <span aria-hidden style={{ font: "700 20px system-ui", color: "#c7cbd6", lineHeight: 1 }}>▾</span>
+        <span style={{ font: "700 13px system-ui", color: ALL_ACCENT, whiteSpace: "nowrap" }}>All oncology</span>
+        <span aria-hidden style={{ width: 10, height: 10, borderRight: `2px solid ${ALL_ACCENT}`, borderBottom: `2px solid ${ALL_ACCENT}`, transform: menuOpen ? "translateY(3px) rotate(225deg)" : "translateY(-2px) rotate(45deg)", transition: "transform .18s ease", flex: "none", boxSizing: "border-box" }} />
       </div>
       {menuOpen && (
         <>
           <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-          <div style={{ position: "absolute", top: "calc(100% + 7px)", left: 0, width: 220, background: "rgba(16,18,26,.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, boxShadow: "0 20px 44px rgba(0,0,0,.4)", padding: 8, zIndex: 31 }}>
-            <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", padding: "6px 11px 8px" }}>Tumor area</div>
+          <div style={{ position: "absolute", top: "calc(100% + 7px)", right: compact ? 0 : undefined, left: compact ? undefined : 0, width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
+            <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: MUT2, padding: "6px 11px 8px" }}>Tumor area</div>
             {areas.map((a) => {
               const on = a === "All";
               const label = a === "All" ? "All oncology" : (AREA_FULL[a] ?? a);
               const isHome = a === primary;
               return (
-                <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (!on) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "rgba(255,255,255,.1)" : "transparent", border: 0 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: a === "All" ? "conic-gradient(from 0deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0, #7AA2FF)" : palOf(a).accent }} />
-                  <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? "#fff" : "rgba(255,255,255,.78)" }}>{label}</span>
-                  {isHome && <span title="Your default" style={{ color: "rgba(255,255,255,.5)", font: "700 12px system-ui" }}>⌂</span>}
-                  {on && <span style={{ color: "#c7cbd6", font: "700 13px system-ui" }}>✓</span>}
+                <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (!on) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? SURFACE : "transparent", border: 0 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: a === "All" ? ALL_ACCENT : accentOf(a) }} />
+                  <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? ALL_ACCENT : INK_2 }}>{label}</span>
+                  {isHome && <span title="Your default" style={{ color: MUT2, font: "700 12px system-ui" }}>⌂</span>}
+                  {on && <span style={{ color: ALL_ACCENT, font: "700 13px system-ui" }}>✓</span>}
                 </button>
               );
             })}
             {onSetPrimary && primary !== "All" && (
               <>
-                <div style={{ height: 1, background: "rgba(255,255,255,.08)", margin: "6px 4px" }} />
-                <button type="button" onClick={() => { onSetPrimary("All"); setMenuOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: "#c7cbd6", font: "600 12.5px system-ui" }}>
+                <div style={{ height: 1, background: LINE, margin: "6px 4px" }} />
+                <button type="button" onClick={() => { onSetPrimary("All"); setMenuOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: ALL_ACCENT, font: "600 12.5px system-ui" }}>
                   <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>Make All oncology my default
                 </button>
               </>
@@ -570,88 +584,96 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: INK, color: "#eef1f8", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div className="reader-editorial" style={{ minHeight: "100vh", background: PAPER, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", ["--rv-accent" as string]: ALL_ACCENT, ["--rv-ink" as string]: INK, ["--rv-ink-2" as string]: INK_2, ["--rv-copy" as string]: INK_2, ["--rv-muted" as string]: MUT, ["--rv-muted-2" as string]: MUT2, ["--rv-line" as string]: LINE, ["--rv-surface" as string]: SURFACE, ["--rv-card" as string]: "#fff", ["--rv-card-line" as string]: "#d8d7d1", ["--rv-card-radius" as string]: "8px", ["--rv-card-shadow" as string]: "0 8px 22px rgba(31,35,42,.07)" }}>
       <style>{`
-        .rv-list-row{border-bottom:1px solid rgba(255,255,255,.08)}
+        .rv-list-row{border-bottom:1px solid ${LINE}}
         .rv-edition{position:relative}
         .rv-edition::after{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
         .rv-row{transition:color .16s ease}
         @media(hover:hover){.rv-row:hover [data-disclosure],.rv-text-action:hover{text-decoration:underline;text-underline-offset:4px}}
-        .rv-row:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:-2px}
-        .rv-text-action:focus-visible{outline:2px solid rgba(255,255,255,.45);outline-offset:2px;border-radius:4px}
+        .rv-row:focus-visible{outline:2px solid ${ALL_ACCENT};outline-offset:-2px}
+        .rv-text-action:focus-visible{outline:2px solid ${ALL_ACCENT};outline-offset:2px;border-radius:4px}
         .rv-drawer{animation:rvDrawerIn .26s cubic-bezier(.4,0,.2,1)}
         @keyframes rvDrawerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
         .all-pills::-webkit-scrollbar{display:none}.all-pills{scrollbar-width:none}
         .all-fade{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 36px),transparent)}
+        .reader-editorial .aq-dark{--aq-shell:#fff;--aq-border:#d8d7d1;--aq-track:#d9d8d3;background:var(--aq-shell);border-color:var(--aq-border);color:${INK}}
+        .reader-editorial .aq-dark .aq-times,.reader-editorial .aq-dark .aq-label,.reader-editorial .aq-dark .aq-cur{color:#74767a}
+        .reader-editorial .readout-hero-card:not(.is-compact){border-top-color:${LINE}}
+        .reader-editorial .readout-hero-abstract>p{color:${INK_2}}
+        .reader-editorial .readout-hero-preview>div:first-child{color:${MUT}}
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
       `}</style>
 
-      <div style={{ maxWidth: wide ? 1116 : compact ? 690 : 760, margin: "0 auto", padding: wide ? "34px 30px 120px" : "34px 26px 120px" }}>
-        {/* masthead */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h1 style={{ font: `500 ${compact ? 21 : 24}px/1 'Newsreader',Georgia,serif`, color: "#fff", letterSpacing: "-.01em", margin: 0 }}>The Readout</h1>
-          {editionMenu}
-          <button onClick={doShare} aria-label="Share this edition" style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, width: compact ? 44 : undefined, height: 44, marginRight: compact ? -13 : 0, padding: compact ? 0 : "0 15px", background: compact ? "none" : "rgba(255,255,255,.12)", border: compact ? 0 : "1px solid rgba(255,255,255,.18)", borderRadius: 20, color: "#fff", font: "600 13px system-ui", cursor: "pointer", flex: "none" }}>
+      <div style={{ maxWidth: wide ? 1116 : 760, margin: "0 auto", padding: compact ? "18px 20px 100px" : wide ? "0 30px 120px" : "0 32px 120px" }}>
+        {/* Publication masthead: same hierarchy as every specialty edition. */}
+        <div style={{ minHeight: compact ? undefined : 86, display: "flex", alignItems: compact ? "flex-start" : "center", justifyContent: "space-between", gap: compact ? 8 : 18 }}>
+          <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+            <span style={{ display: "block", color: ALL_ACCENT, font: `750 ${compact ? 9 : 10}px/1 system-ui`, textTransform: "uppercase" }}>CanvasMD</span>
+            <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 18, marginTop: 1 }}>
+              <h1 style={{ font: `500 ${compact ? 22 : 28}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0 }}>The Readout</h1>
+              {!compact && editionMenu}
+            </div>
+          </div>
+          <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 14, flex: "none", marginTop: compact ? 10 : 0 }}>
+            {compact && editionMenu}
+            {!compact && oldestStamp && <span style={{ font: "600 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>{ago(oldestStamp)}</span>}
+          <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, width: compact ? 44 : undefined, height: 44, margin: compact ? "-11px -13px -11px 0" : 0, padding: compact ? 0 : "0 15px", background: "transparent", border: compact ? 0 : `1px solid ${LINE}`, borderRadius: 6, color: compact ? MUT : INK, font: "600 13px system-ui", cursor: "pointer", flex: "none" }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
             {!compact && "Share"}
           </button>
+          </div>
         </div>
-        {shareMsg && <div role="status" style={{ font: "500 12px system-ui", color: "#cdd2de", marginTop: 8 }}>{shareMsg}</div>}
-        <div style={{ font: "600 9.5px system-ui", letterSpacing: ".2em", textTransform: "uppercase", color: MUT2, marginTop: 10 }}>
-          By CanvasMD · Busiest first{oldestStamp ? <> · Updated {ago(oldestStamp)}</> : null}
+        {shareMsg && <div role="status" style={{ font: "600 12px system-ui", color: INK, marginTop: 8 }}>{shareMsg}</div>}
+        <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: compact ? 7 : 0 }}>
+          Busiest first{compact && oldestStamp ? <> · Updated {ago(oldestStamp)}</> : null}
         </div>
-        {/* the rainbow rule — the one place that signals "everything" */}
-        <div aria-hidden style={{ height: 2, borderRadius: 2, marginTop: 13, background: "linear-gradient(90deg, #7AA2FF, #F08AA6, #46C7B8, #E2803B, #9B8CFF, #E070C0)" }} />
+        <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
 
-        {/* Specialty jump tabs — sticky with scroll-spy, glass chrome once stuck.
-            COMPACT: two rows — areas scroll horizontally on top, the cross-area sections
-            (Voices · Papers) sit on their own always-visible row beneath (John: hidden behind
-            the scroll when appended to the area row). Desktop: one wrapping row. */}
+        {/* Section navigation mirrors the specialty editions; the second row is the All-page
+            equivalent of Focus, scoping the cross-oncology scan by tumor area. */}
         {(() => {
-          const tabStyle = (on: boolean, activeColor: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 44, cursor: "pointer", font: `${on ? "700" : "600"} 12.5px system-ui`, padding: "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? activeColor : "transparent"}`, background: "transparent", color: on ? "#fff" : "rgba(255,255,255,.58)", whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s" });
+          const tabStyle = (on: boolean, activeColor: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 44, cursor: "pointer", font: `${on ? "700" : "600"} 12.5px system-ui`, padding: "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? activeColor : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s" });
           const areaPills = orderedAreas.map((a) => {
             const on = activeSec === areaId(a);
             return (
-              <button key={a} onClick={() => goArea(a)} style={tabStyle(on, palOf(a).accent)}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />{a}
+              <button key={a} onClick={() => goArea(a)} style={tabStyle(on, accentOf(a))}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: accentOf(a), flex: "none" }} />{a}
               </button>
             );
           });
           {/* Voices rides the rail on wide (always visible → no pill, same rule as the tumor
               pages' rail sections); on narrow it's an inline section that earns a jump */}
           const voicesPill = !wide && micsRanked.length + xRanked.length > 0 && (
-            <button key="voices" onClick={() => goTo("all-voices")} style={tabStyle(activeSec === "all-voices", "#7fb6ff")}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #46C7B8, #9B8CFF)", flex: "none" }} />Voices
+            <button key="voices" onClick={() => goTo("all-voices")} style={tabStyle(activeSec === "all-voices", ALL_ACCENT)}>
+              Voices
             </button>
           );
           const papersPill = reading.length > 0 && (
-            <button key="papers" onClick={() => goTo("all-reading")} style={tabStyle(activeSec === "all-reading", "#c39bff")}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "linear-gradient(135deg, #7AA2FF, #E070C0)", flex: "none" }} />Papers
+            <button key="papers" onClick={() => goTo("all-reading")} style={tabStyle(activeSec === "all-reading", ALL_ACCENT)}>
+              Papers
             </button>
           );
-          const rowPad = wide ? "0 30px" : "0 26px";
+          const rowPad = compact ? "0 20px" : wide ? "0 30px" : "0 32px";
           // Compact section row reads like the tumor pages' tabs: Top Stories lit while you're
           // anywhere in the groups; Voices / Papers take over in their sections.
           const inSection = activeSec === "all-voices" || activeSec === "all-reading";
           const topPill = (
-            <button key="top" onClick={() => goArea(orderedAreas[0])} style={tabStyle(!inSection, "rgba(255,255,255,.72)")}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(255,255,255,.55)", flex: "none" }} />Top Stories
+            <button key="top" onClick={() => goArea(orderedAreas[0])} style={tabStyle(!inSection, ALL_ACCENT)}>
+              Stories
             </button>
           );
           return (
-            <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", gap: 8, margin: wide ? "16px -30px 0" : "16px -26px 0", padding: "10px 0", background: stuck ? `${INK}F5` : "transparent", backdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", WebkitBackdropFilter: stuck ? "blur(10px) saturate(1.15)" : "none", boxShadow: stuck ? "0 14px 28px -18px rgba(0,0,0,.55)" : "none", transition: "background .2s ease, box-shadow .2s ease" }}>
-              <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ display: "flex", gap: compact ? 18 : 24, flexWrap: compact ? "nowrap" : "wrap", overflowX: compact ? "auto" : "visible", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
-                {areaPills}
-                {!compact && voicesPill}
-                {!compact && papersPill}
+            <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", margin: compact ? "0 -20px" : wide ? "0 -30px" : "0 -32px", background: stuck ? "rgba(244,244,241,.96)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 10px 24px -22px rgba(31,35,42,.4)" : "none", transition: "box-shadow .2s ease" }}>
+              <div style={{ display: "flex", gap: 24, padding: rowPad }}>
+                {topPill}
+                {voicesPill}
+                {papersPill}
               </div>
-              {compact && (voicesPill || papersPill) && (
-                <div style={{ display: "flex", gap: 20, padding: rowPad }}>
-                  {topPill}
-                  {voicesPill}
-                  {papersPill}
-                </div>
-              )}
+              <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: compact ? 18 : 20, flexWrap: "nowrap", overflowX: "auto", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
+                <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, flex: "none" }}>Areas</span>
+                {areaPills}
+              </div>
             </div>
           );
         })()}
@@ -665,7 +687,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             <>
               {orderedAreas.map((a) => {
                 const brief = briefsByArea[a];
-                const acc = inkOf(a).accent;
+                const acc = accentOf(a);
                 // Hero contract (Codex cutover review): in hero mode the deck is authoritative —
                 // an empty deck is a quiet week, never a fallback to legacy stories.
                 const heroDeck = brief ? heroDeckOf(brief) : null;
@@ -677,10 +699,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                       <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
                       {/* a real h2: the story titles below are h3, and without this the page is
                           42 same-level headings under one h1 with no way to skip between areas */}
-                      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#e7eaf2", margin: 0 }}>{full}</h2>
-                      {activity[a] > 0 && <span title="Distinct source anchors and published receipts behind this area's featured cards" style={{ font: "400 11px system-ui", color: MUT2 }}>· {activity[a]} sources</span>}
-                      {lagOf(a) && <span title="This area's snapshot is older than the rest of the page" style={{ font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "2px 6px" }}>{lagOf(a)}</span>}
-                      <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc }}>Full {a} brief →</button>
+                      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>{full}</h2>
+                      {activity[a] > 0 && <span title="Distinct source anchors and published receipts behind this area's featured cards" style={{ font: "400 11px system-ui", color: MUT2, whiteSpace: "nowrap" }}>· {activity[a]}{compact ? "" : " sources"}</span>}
+                      {lagOf(a) && <span title="This area's snapshot is older than the rest of the page" style={{ font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 5, padding: "2px 6px" }}>{lagOf(a)}</span>}
+                      <button onClick={() => onArea(a)} style={{ marginLeft: "auto", background: "none", border: 0, cursor: "pointer", font: "600 12px system-ui", color: acc, whiteSpace: "nowrap" }}>{compact ? "Full brief" : `Full ${a} brief`} →</button>
                     </div>
                     {/* A brief that never arrived is NOT a quiet week — say which one it is. */}
                     {!brief ? (
@@ -694,6 +716,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                         {heroDeck !== null && heroDeck.length > 0 && <HeroCards
                           cards={visibleAllHeroCards(heroDeck, compact, !!expandedAreas[a])}
                           accent={acc}
+                          ink={{ soft: INK_2, softer: MUT, line: LINE, ring: PAPER, surface: SURFACE }}
                           idPrefix={`all-${a}`}
                           evidenceOf={(card) => heroEvidenceFor(card, brief, acc)}
                         />}
@@ -719,38 +742,38 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           {/* the ONE merged section — honest by a comparable count; rows behave exactly like
               the tumor pages' "What's being read" (expand → abstract + what clinicians said) */}
           const readingJsx = reading.length > 0 && (
-            <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: compact ? 100 : 62 }}>
+            <div id="all-reading" style={{ marginTop: 40, paddingTop: 26, borderTop: `1px solid ${LINE}`, scrollMarginTop: compact ? 100 : 62 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-                <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: "#cdd2de", margin: 0 }}>What the field is reading</h2>
+                <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>What the field is reading</h2>
                 <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>· the week’s top ten across every area · ranked by clinicians who shared it · includes papers featured above</span>
               </div>
               {reading.map(({ p, area }, i) => {
-                const acc = inkOf(area).accent;
+                const acc = accentOf(area);
                 const id = "r:" + i;
                 const open = openId === id;
                 return (
-                  <div key={id} style={{ borderBottom: i < reading.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
+                  <div key={id} style={{ borderBottom: i < reading.length - 1 ? `1px solid ${LINE}` : "none" }}>
                     <Row open={open} onToggle={() => toggle(id)} accent={acc} landOffset={compact ? 108 : 70}
                       head={
                         <div style={{ padding: "16px 2px" }}>
-                          <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(p.title)}</div>
+                          <div style={{ font: "500 16px/1.4 'Newsreader',Georgia,serif", color: INK }}>{cleanArticleTitle(p.title)}</div>
                           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
-                            <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: INK, background: acc, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{area}</span>
-                            {p.faces.length > 0 && <FacePile faces={p.faces} extra={p.kolSharers - p.faces.length} ring={INK} />}
+                            <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: acc, background: `${acc}12`, border: `1px solid ${acc}40`, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{area}</span>
+                            {p.faces.length > 0 && <FacePile faces={p.faces} extra={p.kolSharers - p.faces.length} ring={PAPER} />}
                             <span style={{ font: "400 12px system-ui", color: MUT }}>{[articleSource(p.journal, p.domain), p.kolSharers ? `shared by ${p.kolSharers} clinician${p.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
                             {featuredIn.has(norm(p.title)) && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); goArea(featuredIn.get(norm(p.title))!); }}
                                 title="This paper also leads a story earlier on the page"
-                                style={{ background: "none", border: "1px solid rgba(255,255,255,.16)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.55)" }}
+                                style={{ background: "none", border: `1px solid ${LINE}`, borderRadius: 5, padding: "2px 6px", cursor: "pointer", font: "600 9px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: MUT }}
                               >↑ Above in {featuredIn.get(norm(p.title))}</button>
                             )}
-                            {isNewsItem(p) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+                            {isNewsItem(p) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
                             {!open && evidenceChip(acc)}
                           </div>
                         </div>
                       }>
-                      {p.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{p.abstract}</p>}
+                      {p.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: INK_2 }}>{p.abstract}</p>}
                       {p.posts.length > 0 && <div><div style={evLabel(acc)}>What clinicians said · {p.kolSharers > p.posts.length ? `${p.posts.length} of ${p.kolSharers}` : p.posts.length}</div>{p.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                       {/* link to the source — also guarantees the expand is never empty */}
                       {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: acc, textDecoration: "none" }}>Open article ↗</a>}
@@ -761,7 +784,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </div>
           );
           const voicesInline = micsRanked.length + xRanked.length > 0 && (
-            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,.08)", scrollMarginTop: compact ? 100 : 62 }}>{voicesModules}</div>
+            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: `1px solid ${LINE}`, scrollMarginTop: compact ? 100 : 62 }}>{voicesModules}</div>
           );
           // old snapshots ship no hosts/amp — collapse the rail rather than render an empty shell
           const hasVoices = micsRanked.length + xRanked.length > 0;
@@ -775,8 +798,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           );
         })()}
 
-        <div style={{ textAlign: "center", marginTop: 44, paddingTop: 22, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: "rgba(255,255,255,.6)" }}>The Readout</div>
+        <div style={{ textAlign: "center", marginTop: 44, paddingTop: 22, borderTop: `1px solid ${LINE}` }}>
+          <div style={{ font: "500 15px/1 'Newsreader',Georgia,serif", color: MUT }}>The Readout</div>
           <div style={{ font: "400 12px/1.55 system-ui", color: MUT, marginTop: 12, maxWidth: 440, marginLeft: "auto", marginRight: "auto" }}>Signal from tracked oncology clinicians and selected oncology podcasts. Pick an area above to go deep.</div>
         </div>
       </div>

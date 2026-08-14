@@ -8,7 +8,7 @@ import BriefView from "./BriefView";
 import ReaderView from "./ReaderView";
 import ReaderViewFlat from "./ReaderViewFlat";
 import AllView from "./AllView";
-import { palOf, INK_BG } from "./briefVM";
+import { palOf } from "./briefVM";
 import { logSignal } from "./gateClient";
 import "./briefing.css";
 import "./brief.css";
@@ -27,6 +27,8 @@ const isValidArea = (a: string | null | undefined) => a === "All" || AREAS.inclu
 
 type ViewMode = "broadsheet" | "brief";
 type Design = "default" | "flat" | "classic";
+const READER_PAPER = "#f4f4f1";
+const READER_MUTED = "#696c71";
 
 // The briefing edge fn can return a transient 546 (WORKER_RESOURCE_LIMIT) when a
 // page load coincides with the twice-daily snapshot rebuild (03:15/15:15 UTC)
@@ -216,16 +218,16 @@ export default function BriefingPage() {
     const settled = AREAS.every((a) => cacheRef.current[a]?.briefing || areaErr[a]);
     if (isMobile === null || (!landed.length && !settled)) {
       return (
-        <div style={{ position: "fixed", inset: 0, background: INK_BG, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui" }}>
+        <div style={{ position: "fixed", inset: 0, background: READER_PAPER, display: "flex", alignItems: "center", justifyContent: "center", color: READER_MUTED, font: "500 14px system-ui" }}>
           Loading all oncology…
         </div>
       );
     }
     if (!landed.length) {
       return (
-        <div style={{ position: "fixed", inset: 0, background: INK_BG, display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui", padding: 24, textAlign: "center" }}>
+        <div style={{ position: "fixed", inset: 0, background: READER_PAPER, display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", color: READER_MUTED, font: "500 14px system-ui", padding: 24, textAlign: "center" }}>
           <div>Couldn’t load the briefing: {Object.values(areaErr)[0] ?? "unknown error"}</div>
-          <button onClick={() => retryArea()} style={{ background: "none", border: "1px solid rgba(255,255,255,.22)", borderRadius: 8, padding: "8px 16px", cursor: "pointer", font: "600 13px system-ui", color: "#e9edf6" }}>Try again</button>
+          <button onClick={() => retryArea()} style={{ background: "none", border: "1px solid #cfd0cb", borderRadius: 6, padding: "8px 16px", cursor: "pointer", font: "600 13px system-ui", color: "#17181a" }}>Try again</button>
         </div>
       );
     }
@@ -234,12 +236,12 @@ export default function BriefingPage() {
   }
 
   // ---- DEFAULT: responsive story / reader ----
-  // Loading field matches the design about to mount: ink for the default reader,
+  // Loading field matches the design about to mount: paper for the current reader,
   // the area jewel tone only for the frozen ?design=flat fallback.
-  const bg = design === "flat" ? palOf(area ?? "GU").bg : INK_BG;
+  const bg = design === "flat" ? palOf(area ?? "GU").bg : READER_PAPER;
   if (!data || !area || isMobile === null) {
     return (
-      <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.6)", font: "500 14px system-ui" }}>
+      <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center", color: design === "flat" ? "rgba(255,255,255,.6)" : READER_MUTED, font: "500 14px system-ui" }}>
         {error ? `Couldn’t load the briefing: ${error}` : `Loading ${area ?? ""}…`}
       </div>
     );
