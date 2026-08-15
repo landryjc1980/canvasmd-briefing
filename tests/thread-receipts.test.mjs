@@ -11,6 +11,7 @@ const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.
 const nativeHero = fs.readFileSync(new URL("../../canvasmd/components/readout/HeroCards.tsx", import.meta.url), "utf8");
 const ingest = fs.readFileSync(new URL("../../canvasmd/supabase/functions/x-official-ingest/index.ts", import.meta.url), "utf8");
 const briefing = fs.readFileSync(new URL("../../canvasmd/supabase/functions/briefing/index.ts", import.meta.url), "utf8");
+const heroCards = fs.readFileSync(new URL("../../canvasmd/supabase/functions/_shared/heroCards.ts", import.meta.url), "utf8");
 
 test("X ingestion preserves long posts and bounded same-author threads", () => {
   assert.match(ingest, /note_tweet/);
@@ -57,8 +58,19 @@ test("classic reposts render the original account as author on web and native", 
 
 test("podcast receipts show the source-authored announcement separately from amplification", () => {
   for (const source of [webCard, nativeCard]) {
+    assert.match(source, /AmplifiedAnnouncementReceipt/);
+    assert.match(source, /quoted this post/);
+    assert.match(source, /reposted this post/);
     assert.match(source, /From the show on X/);
     assert.match(source, /Clinician commentary/);
     assert.match(source, /announcementId/);
   }
+});
+
+test("every briefing receipt lane preserves classic repost attribution", () => {
+  assert.match(briefing, /const repostOriginal =/);
+  assert.match(briefing, /x_posts_product[\s\S]*rt_tweet_id,rt_author_handle/);
+  assert.match(briefing, /x_article_shares[\s\S]*rt_tweet_id,rt_author_handle/);
+  assert.ok((briefing.match(/original: repostOriginal/g) ?? []).length >= 3);
+  assert.match(heroCards, /!\/\^RT @\/i/);
 });

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
-import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, evLabel, StoryEvidence, AmplifierReceipts } from "./ReaderView";
+import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, heroDeckOf } from "./briefVM";
@@ -528,7 +528,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
       <>
         <StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />
-        {(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}
+        {((card.announcements ?? []).length > 0 || (card.amplifiers ?? []).length > 0) && <EpisodeXReceipts announcements={card.announcements ?? []} amplifiers={card.amplifiers ?? []} accent={accent} />}
       </>
     ) };
     if (resolved.kind === "event") return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" /> };
@@ -797,6 +797,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   const ep = entry.episode;
                   const acc = accentOf(entry.areas[0] ?? "GU");
                   const amplifiers = ep.amplifiers ?? [];
+                  const announcements = ep.announcements ?? [];
+                  const hasXReceipts = amplifiers.length > 0 || announcements.length > 0;
                   const ampId = `all-epamp:${entry.key}`;
                   const ampOpen = openId === ampId;
                   const drawerId = `all-epamp-drawer-${entry.key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
@@ -817,17 +819,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                       </div>
                       {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: INK_2, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
                       <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" eventId={ep.episodeId ?? null} eventLabel={ep.title} accent={acc} tone="dark" />
-                      {amplifiers.length > 0 && (
+                      {hasXReceipts && (
                         <div style={{ marginTop: 8 }}>
                           <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
                             style={{ width: "100%", minHeight: 44, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: "4px 0", cursor: "pointer", textAlign: "left" }}>
                             <span style={{ display: "flex", alignItems: "center", flex: "none" }}>
                               {amplifiers.filter((a) => a.avatar).slice(0, 4).map((a, j) => <img key={j} src={a.avatar!} alt="" style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: j ? -7 : 0, border: `2px solid ${PAPER}` }} />)}
                             </span>
-                            <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: MUT }}>{amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : `Amplified by ${amplifiers.length} clinicians`}</span>
+                            <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: MUT }}>{amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : amplifiers.length > 1 ? `Amplified by ${amplifiers.length} clinicians` : `From ${announcements[0]?.name ?? "the show"} on X`}</span>
                             <span data-disclosure style={{ color: acc, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
                           </button>
-                          {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: `1px solid ${LINE}`, minWidth: 0, overflow: "hidden" }}><AmplifierReceipts amplifiers={amplifiers} accent={acc} /></div>}
+                          {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: `1px solid ${LINE}`, minWidth: 0, overflow: "hidden" }}><EpisodeXReceipts announcements={announcements} amplifiers={amplifiers} accent={acc} /></div>}
                         </div>
                       )}
                     </article>

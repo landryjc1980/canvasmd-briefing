@@ -248,29 +248,67 @@ export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplif
   );
 }
 
+function AmplifiedAnnouncementReceipt({ amplifier, announcement, accent }: { amplifier: BriefingAmplifier; announcement: BriefingSharer; accent: string }) {
+  const amplifierHandle = amplifier.handle?.replace(/^@/, "") ?? null;
+  const announcementHandle = announcement.handle?.replace(/^@/, "") ?? null;
+  const amplifierText = amplifier.isQuote ? cleanTweetText(amplifier.text) : "";
+  const announcementText = cleanTweetText(announcement.text);
+  const original = (
+    <div style={{ marginTop: amplifierText ? 12 : 9, padding: "11px 0 0 12px", borderTop: "1px solid var(--rv-line, rgba(255,255,255,.12))", borderLeft: `2px solid ${accent}66` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 9px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
+          {announcement.avatar ? <img src={announcement.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(announcement.name)}
+        </div>
+        <div style={{ minWidth: 0, font: "600 12.5px system-ui", color: "var(--rv-ink, #eef1f8)" }}>
+          {announcement.name}{announcementHandle ? <span style={{ color: MUT, fontWeight: 400 }}> @{announcementHandle}</span> : null}
+        </div>
+      </div>
+      {announcementText && <p style={{ margin: "8px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere" }}>{announcementText}</p>}
+    </div>
+  );
+  return (
+    <div style={{ ...cardBox, boxSizing: "border-box", width: "100%", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
+          {amplifier.avatar ? <img src={amplifier.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(amplifier.name)}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{amplifier.name}</span>
+          {amplifierHandle ? <span style={{ font: "400 11.5px system-ui", color: MUT }}> @{amplifierHandle}</span> : null}
+          <div style={{ marginTop: 1, font: "400 11.5px system-ui", color: MUT }}>{amplifier.isQuote ? "quoted this post" : "reposted this post"}</div>
+        </div>
+        {amplifier.isQuote && amplifier.likes > 0 ? <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {amplifier.likes}</span> : null}
+      </div>
+      {amplifierText && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere" }}>{amplifierText}</p>}
+      {announcement.tweetUrl ? <a href={announcement.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{original}</a> : original}
+    </div>
+  );
+}
+
 export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announcements: BriefingSharer[]; amplifiers: BriefingAmplifier[]; accent: string }) {
-  const quotes = amplifiers.filter((a) => a.isQuote && a.text);
-  const reposts = amplifiers.filter((a) => !(a.isQuote && a.text));
   const announcementIdOf = (post: BriefingSharer) => post.tweetUrl?.match(/\/status\/(\d+)/)?.[1] ?? null;
+  const paired = amplifiers.map((amplifier) => ({
+    amplifier,
+    announcement: announcements.find((post) => announcementIdOf(post) === amplifier.announcementId),
+  })).filter((pair): pair is { amplifier: BriefingAmplifier; announcement: BriefingSharer } => !!pair.announcement);
+  const pairedAmplifiers = new Set(paired.map((pair) => pair.amplifier));
+  const pairedAnnouncementIds = new Set(paired.map((pair) => pair.amplifier.announcementId));
+  const unpairedAnnouncements = announcements.filter((post) => !pairedAnnouncementIds.has(announcementIdOf(post)));
+  const unmatched = amplifiers.filter((amplifier) => !pairedAmplifiers.has(amplifier));
+  const quotes = unmatched.filter((a) => a.isQuote && a.text);
+  const reposts = unmatched.filter((a) => !(a.isQuote && a.text));
   return (
     <div>
-      {announcements.length > 0 && <div style={evLabel(accent)}>From the show on X</div>}
-      {announcements.map((post, index) => {
-        const announcementId = announcementIdOf(post);
-        const linked = reposts.filter((a) => announcementId && a.announcementId === announcementId);
-        return <div key={post.tweetUrl ?? index}>
-          <TweetCard t={post} />
-          {linked.length > 0 && <div style={{ margin: "-2px 0 12px 10px", font: "500 12px system-ui", color: MUT }}>
-            Reposted by {linked.map((a) => a.name).join(", ")}
-          </div>}
-        </div>;
-      })}
+      {paired.length > 0 && <><div style={evLabel(accent)}>Amplified on X</div>{paired.map(({ amplifier, announcement }, index) => (
+        <AmplifiedAnnouncementReceipt key={`${amplifier.tweetUrl ?? amplifier.handle ?? amplifier.name}-${index}`} amplifier={amplifier} announcement={announcement} accent={accent} />
+      ))}</>}
+      {unpairedAnnouncements.length > 0 && <><div style={evLabel(accent)}>From the show on X</div>{unpairedAnnouncements.map((post, index) => (
+        <TweetCard key={post.tweetUrl ?? index} t={post} />
+      ))}</>}
       {quotes.length > 0 && <><div style={evLabel(accent)}>Clinician commentary</div>{quotes.map((a, j) => (
         <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: a.tweetUrl ?? null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
       ))}</>}
-      {reposts.filter((a) => !announcements.some((post) => announcementIdOf(post) === a.announcementId)).length > 0 && (
-        <AmplifierReceipts amplifiers={reposts.filter((a) => !announcements.some((post) => announcementIdOf(post) === a.announcementId))} accent={accent} />
-      )}
+      {reposts.length > 0 && <AmplifierReceipts amplifiers={reposts} accent={accent} />}
     </div>
   );
 }
