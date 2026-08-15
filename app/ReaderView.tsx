@@ -177,26 +177,26 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
   // Classic retweet: the words below belong to someone else. Credit the amplification on the
   // name line, then set the quote apart so it can never be read as this clinician's own take.
   const rtOf = rtOriginal(t.text);
+  const original = rtOf ? t.original : undefined;
+  const authorName = original?.name ?? (rtOf ? `@${rtOf}` : t.name);
+  const authorHandle = original?.handle ?? (rtOf ? rtOf : t.handle);
+  const authorAvatar = original?.avatar ?? (rtOf ? null : t.avatar);
   const body = (<>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
-          {t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}
+          {authorAvatar ? <img src={authorAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(authorName)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{t.handle}</span>}
-          {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>⇄ amplified <span style={{ color: "var(--rv-muted, rgba(255,255,255,.62))" }}>@{rtOf}</span></div>}
+          <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{authorName}</span> {authorHandle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{authorHandle.replace(/^@/, "")}</span>}
+          {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>Reposted by <span style={{ color: "var(--rv-muted, rgba(255,255,255,.62))" }}>{t.name}{t.handle ? ` @${t.handle.replace(/^@/, "")}` : ""}</span></div>}
         </div>
-        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
+        {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
       </div>
-      {text && (rtOf
-        ? <blockquote style={{ margin: "9px 0 0", paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
-            <p style={{ margin: 0, font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b6b9c3)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>
-            <cite style={{ display: "block", marginTop: 5, font: "400 11px system-ui", fontStyle: "normal", color: MUT }}>@{rtOf}</cite>
-          </blockquote>
-        : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>)}
+      {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
     </>);
-  const root = t.tweetUrl
-    ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{body}</a>
+  const postUrl = original?.tweetUrl ?? t.tweetUrl;
+  const root = postUrl
+    ? <a href={postUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{body}</a>
     : body;
   return (
     <div className={compact ? "readout-tweet-preview" : undefined} style={cardBox}>
@@ -244,6 +244,33 @@ export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplif
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announcements: BriefingSharer[]; amplifiers: BriefingAmplifier[]; accent: string }) {
+  const quotes = amplifiers.filter((a) => a.isQuote && a.text);
+  const reposts = amplifiers.filter((a) => !(a.isQuote && a.text));
+  const announcementIdOf = (post: BriefingSharer) => post.tweetUrl?.match(/\/status\/(\d+)/)?.[1] ?? null;
+  return (
+    <div>
+      {announcements.length > 0 && <div style={evLabel(accent)}>From the show on X</div>}
+      {announcements.map((post, index) => {
+        const announcementId = announcementIdOf(post);
+        const linked = reposts.filter((a) => announcementId && a.announcementId === announcementId);
+        return <div key={post.tweetUrl ?? index}>
+          <TweetCard t={post} />
+          {linked.length > 0 && <div style={{ margin: "-2px 0 12px 10px", font: "500 12px system-ui", color: MUT }}>
+            Reposted by {linked.map((a) => a.name).join(", ")}
+          </div>}
+        </div>;
+      })}
+      {quotes.length > 0 && <><div style={evLabel(accent)}>Clinician commentary</div>{quotes.map((a, j) => (
+        <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: a.tweetUrl ?? null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
+      ))}</>}
+      {reposts.filter((a) => !announcements.some((post) => announcementIdOf(post) === a.announcementId)).length > 0 && (
+        <AmplifierReceipts amplifiers={reposts.filter((a) => !announcements.some((post) => announcementIdOf(post) === a.announcementId))} accent={accent} />
+      )}
     </div>
   );
 }
@@ -836,8 +863,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     if (r.kind === "episode") return { faces: r.faces, drawer: (
       <>
         <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" />
-        {(c.amplifiers ?? []).length > 0 && (
-          <AmplifierReceipts amplifiers={c.amplifiers ?? []} accent={pal.accent} />
+        {((c.announcements ?? []).length > 0 || (c.amplifiers ?? []).length > 0) && (
+          <EpisodeXReceipts announcements={c.announcements ?? []} amplifiers={c.amplifiers ?? []} accent={pal.accent} />
         )}
       </>
     ) };
@@ -1134,6 +1161,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => {
           const amplifiers = ep.amplifiers ?? [];
+          const announcements = ep.announcements ?? [];
+          const hasXReceipts = amplifiers.length > 0 || announcements.length > 0;
           const ampId = `epamp:${ep.episodeId ?? i}`;
           const ampOpen = openId === ampId;
           const drawerId = `epamp-drawer-${String(ep.episodeId ?? i).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
@@ -1148,7 +1177,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
             <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" eventId={ep.episodeId ?? null} eventLabel={ep.title} accent={pal.accent} tone="dark" />
-            {amplifiers.length > 0 && (
+            {hasXReceipts && (
               <div style={{ margin: "8px 0 0" }}>
                 <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
                   style={{ width: "100%", minHeight: 44, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: "4px 0", cursor: "pointer", textAlign: "left" }}>
@@ -1158,11 +1187,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   ))}
                   </span>
                   <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "var(--rv-muted, rgba(233,237,246,.7))" }}>
-                    {amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : `Amplified by ${amplifiers.length} clinicians`}
+                    {amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : amplifiers.length > 1 ? `Amplified by ${amplifiers.length} clinicians` : `From ${announcements[0]?.name ?? "the show"} on X`}
                   </span>
                   <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
                 </button>
-                {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--rv-line, rgba(255,255,255,.08))" }}><AmplifierReceipts amplifiers={amplifiers} accent={pal.accent} /></div>}
+                {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--rv-line, rgba(255,255,255,.08))" }}><EpisodeXReceipts announcements={announcements} amplifiers={amplifiers} accent={pal.accent} /></div>}
               </div>
             )}
           </div>

@@ -9,7 +9,6 @@ const nativeVm = fs.readFileSync(new URL("../../canvasmd/components/readout/vm.t
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
 const nativeHero = fs.readFileSync(new URL("../../canvasmd/components/readout/HeroCards.tsx", import.meta.url), "utf8");
-const nativeAmplified = fs.readFileSync(new URL("../../canvasmd/components/readout/AmplifiedBy.tsx", import.meta.url), "utf8");
 const ingest = fs.readFileSync(new URL("../../canvasmd/supabase/functions/x-official-ingest/index.ts", import.meta.url), "utf8");
 const briefing = fs.readFileSync(new URL("../../canvasmd/supabase/functions/briefing/index.ts", import.meta.url), "utf8");
 
@@ -43,7 +42,23 @@ test("podcast stories expose a play icon before their listen action", () => {
 
 test("native source drawers card every receipt type and contain repost text", () => {
   assert.match(nativeCard, /flat \? sourceReceiptCard : cardBox/g);
-  assert.match(nativeAmplified, /flat \? sourceReceiptCard : cardBox/);
-  assert.match(nativeAmplified, /fontSize: 13, flex: 1, minWidth: 0/);
+  assert.match(nativeCard, /function EpisodeXReceipts/);
+  assert.match(nativeCard, /fontSize: 13, flex: 1, minWidth: 0/);
   assert.match(webCard, /overflowWrap: "anywhere"/);
+});
+
+test("classic reposts render the original account as author on web and native", () => {
+  for (const source of [webCard, nativeCard]) {
+    assert.match(source, /const original = rtOf \? t\.original : undefined/);
+    assert.match(source, /Reposted by/);
+    assert.match(source, /original\?\.tweetUrl \?\? t\.tweetUrl/);
+  }
+});
+
+test("podcast receipts show the source-authored announcement separately from amplification", () => {
+  for (const source of [webCard, nativeCard]) {
+    assert.match(source, /From the show on X/);
+    assert.match(source, /Clinician commentary/);
+    assert.match(source, /announcementId/);
+  }
 });

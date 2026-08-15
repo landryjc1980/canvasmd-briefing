@@ -468,6 +468,12 @@ export type BriefingSharer = {
   retweets: number;
   quotes?: number; // quote-posts (absent on pre-2026-07-24 snapshots)
   views: number;
+  original?: {
+    name: string;
+    handle: string | null;
+    avatar: string | null;
+    tweetUrl: string | null;
+  };
 };
 // One journal paper about a mover drug, with the verified oncologists who shared it.
 export type BriefingPaper = {
@@ -845,7 +851,8 @@ export type BriefingGuest = {
 
 // "This week on the podcasts" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
-export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; durationSeconds?: number | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number ; amplifiers?: { name: string; handle: string | null; avatar: string | null; isQuote: boolean; text: string | null; likes: number }[] };
+export type BriefingEpisodeAmplifier = { name: string; handle: string | null; avatar: string | null; isQuote: boolean; text: string | null; likes: number; announcementId?: string | null; tweetUrl?: string | null };
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; durationSeconds?: number | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number ; amplifiers?: BriefingEpisodeAmplifier[]; announcements?: BriefingSharer[] };
 
 // One source-anchored hero card (spec: one card = one editorial proposition anchored to one
 // identifiable source object). Server-authored; clients render, never re-rank.
@@ -853,6 +860,7 @@ export type HeroSupportPost = {
   name: string; handle: string | null; avatar: string | null;
   tweetUrl: string | null; text: string | null;
   likes: number; retweets: number; quotes: number; views: number;
+  original?: { name: string; handle: string | null; avatar: string | null; tweetUrl: string | null };
 };
 export type HeroSupportLink = {
   kind: "article" | "paper" | "episode"; id: string; title: string; url: string;
@@ -872,7 +880,8 @@ export type HeroCard = {
   startMs?: number | null; // episode: audio receipt, from the SAME gloss as the excerpt
   durationSeconds?: number | null;
   momentStartMs?: number[]; // episode: EXACT selected-moment refs — resolve receipts, never re-select
-  amplifiers?: { name: string; handle: string | null; avatar: string | null; isQuote: boolean; text: string | null; likes: number }[];
+  amplifiers?: BriefingEpisodeAmplifier[];
+  announcements?: HeroSupportPost[];
   excerpt?: string | null;
   excerptVerbatim?: boolean;
   drugTags?: string[];
