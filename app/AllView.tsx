@@ -94,8 +94,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       for (const card of hero) {
         receipts.add(`${card.kind}:${card.anchorId}`);
         const resolved = resolveHeroEvidence(card, brief);
-        if (resolved?.kind === "paper") for (const post of [...((resolved.story as BriefingStory).posts ?? []), ...resolved.publisherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
-        if (resolved?.kind === "article") for (const post of [...resolved.posts, ...resolved.publisherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
+        if (resolved?.kind === "paper") for (const post of [...((resolved.story as BriefingStory).posts ?? []), ...resolved.publisherPosts, ...resolved.otherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
+        if (resolved?.kind === "article") for (const post of [...resolved.posts, ...resolved.publisherPosts, ...resolved.otherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
         if (resolved?.kind === "episode") for (const pod of resolved.pods) receipts.add(`clip:${pod.episodeId}:${pod.startMs ?? ""}`);
         for (const amplifier of card.amplifiers ?? []) receipts.add(`amp:${card.anchorId}:${amplifier.handle ?? amplifier.name}:${amplifier.text ?? "repost"}`);
       }
@@ -507,22 +507,22 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     if (resolved.kind === "paper") {
       const story = resolved.story as BriefingStory;
       const paper = story.papers?.[0];
-      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? resolved.publisherPosts[0];
+      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0];
       return {
         faces: resolved.faces,
         abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null,
         preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
-        drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
+        drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };
     }
     if (resolved.kind === "article") {
       const paper = resolved.paper as unknown as BriefingPaper;
-      const firstPost = resolved.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? resolved.publisherPosts[0];
+      const firstPost = resolved.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0];
       return {
         faces: resolved.faces,
         abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null,
         preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
-        drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
+        drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };
     }
     if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
@@ -531,7 +531,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {((card.announcements ?? []).length > 0 || (card.amplifiers ?? []).length > 0) && <EpisodeXReceipts announcements={card.announcements ?? []} amplifiers={card.amplifiers ?? []} accent={accent} />}
       </>
     ) };
-    if (resolved.kind === "event") return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" /> };
+    if (resolved.kind === "event") return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" /> };
     return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" /> };
   };
 

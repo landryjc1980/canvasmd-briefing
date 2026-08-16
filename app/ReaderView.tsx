@@ -198,6 +198,8 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
   const root = postUrl
     ? <a href={postUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{body}</a>
     : body;
+  const reposters = t.repostedBy ?? [];
+  const visibleReposters = compact ? reposters.slice(0, 3) : reposters;
   return (
     <div className={compact ? "readout-tweet-preview" : undefined} style={cardBox}>
       {root}
@@ -216,6 +218,27 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         style={{ cursor: "pointer", minHeight: 44, marginTop: 5, padding: "0 2px", border: 0, background: "transparent", color: "var(--rv-accent)", font: "600 12px system-ui" }}>
         {expanded ? "Show less ↑" : thread.length ? `Show full thread · ${thread.length + 1} posts ↓` : "Show full post ↓"}
       </button>}
+      {reposters.length > 0 && (
+        <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <div aria-hidden style={{ display: "flex", alignItems: "center", flex: "none", paddingTop: 1 }}>
+            {visibleReposters.slice(0, 4).map((reposter, i) => (
+              <span key={`${reposter.handle ?? reposter.name}:${i}`} style={{ width: 20, height: 20, marginLeft: i ? -6 : 0, borderRadius: "50%", overflow: "hidden", border: "2px solid var(--rv-surface, #fff)", background: "var(--rv-line, rgba(0,0,0,.08))", display: "inline-flex", alignItems: "center", justifyContent: "center", color: MUT, font: "600 8px system-ui" }}>
+                {reposter.avatar ? <img src={reposter.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(reposter.name)}
+              </span>
+            ))}
+          </div>
+          <div style={{ minWidth: 0, font: "400 11.5px/1.45 system-ui", color: MUT }}>
+            <span style={{ fontWeight: 600, color: "var(--rv-ink-2, #555)" }}>Reposted by </span>
+            {visibleReposters.map((reposter, i) => (
+              <Fragment key={`${reposter.handle ?? reposter.name}:label:${i}`}>
+                {i > 0 ? " · " : ""}
+                {reposter.tweetUrl ? <a href={reposter.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{reposter.name}</a> : reposter.name}
+              </Fragment>
+            ))}
+            {compact && reposters.length > visibleReposters.length ? ` · +${reposters.length - visibleReposters.length}` : ""}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -511,7 +534,7 @@ function PodcastEvidence({ pods, accent }: { pods: BriefingPod[]; accent: string
 // the paper-total formula falls back to sharerCount for movers (no kind:"paper"). `paperLabel` is
 // passed by the caller so each surface keeps its exact heading ("The paper" vs "Papers shared").
 type EvSource = EvidenceSource;
-type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[]; supportLinks?: HeroSupportLink[] };
+type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; supportLinks?: HeroSupportLink[] };
 
 const supportRelationship = (relationship: string) => ({
   interviews_author: "Author interview",
@@ -534,15 +557,17 @@ function SupportLinkRow({ link, accent }: { link: HeroSupportLink; accent: strin
 
 export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
   const publisherPosts = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []);
+  const otherPosts = story.otherPosts ?? story.papers.flatMap((x) => x.otherPosts ?? []);
   const supportLinks = story.supportLinks ?? [];
   const sourceGroupEnd: React.CSSProperties = { borderBottom: `1px solid ${LINE}`, paddingBottom: 16, marginBottom: 16 };
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
-      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
       {publisherPosts.length > 0 && (
-        <div style={(supportLinks.length > 0 || story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
+        <div style={(otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
       )}
+      {otherPosts.length > 0 && <div style={(supportLinks.length > 0 || story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Other posts on X</div><Capped items={otherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
       {supportLinks.length > 0 && <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Related coverage</div><Capped items={supportLinks} cap={4} accent={accent} render={(link, j) => <SupportLinkRow key={`${link.kind}:${link.id}:${j}`} link={link} accent={accent} />} /></div>}
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = publisherPosts.length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
@@ -575,8 +600,9 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const sourceId = `paper-source-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const abstractId = `paper-abstract-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const hasPublisherPosts = !!paper.publisherPosts?.length;
+  const hasOtherPosts = !!paper.otherPosts?.length;
   const hasPublisherNames = paper.publishers.length > 0;
-  const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasPublisherNames || !!paper.url;
+  const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames || !!paper.url;
   const source = articleSource(paper.journal, paper.domain);
 
   return (
@@ -618,6 +644,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
           <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>
             {paper.posts.length > 0 && <div><div style={evLabel(accent)}>What clinicians said · {paper.posts.length}</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div>{paper.publisherPosts!.slice(0, 2).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {hasOtherPosts && <div><div style={evLabel(accent)}>Other posts on X</div>{paper.otherPosts!.slice(0, 2).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {hasPublisherNames && !hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))" }}>Shared by: {paper.publishers.join(" · ")}</div></div>}
             {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: accent, textDecoration: "none" }}>Open article ↗</a>}
             <button type="button" onClick={onToggle} className="rv-text-action" style={{ alignSelf: "flex-start", background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "10px 2px", minHeight: 44, cursor: "pointer", marginTop: 2 }}>Hide sources ↑</button>
@@ -890,13 +917,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     if (r.kind === "paper") {
       const story = r.story as EvSource;
       const paper = story.papers?.[0];
-      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? r.publisherPosts[0];
-      return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
+      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? r.publisherPosts[0] ?? r.otherPosts[0];
+      return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "article") {
       const paper = r.paper as unknown as BriefingPaper;
-      const firstPost = r.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? r.publisherPosts[0];
-      return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
+      const firstPost = r.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? r.publisherPosts[0] ?? r.otherPosts[0];
+      return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "episode") return { faces: r.faces, drawer: (
       <>
@@ -906,7 +933,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         )}
       </>
     ) };
-    if (r.kind === "event") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" /> };
+    if (r.kind === "event") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" /> };
     return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
   };
   const part = partitionStories(heroMode ? [] : visibleStories, seen);

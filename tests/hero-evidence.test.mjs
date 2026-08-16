@@ -48,12 +48,15 @@ test("episode moments resolve via the dedicated receipts channel when capped out
 
 test("paper receipts include publisher POSTS from the reading row on both join paths", () => {
   const pubPost = { name: "OncLive", handle: "OncLive", avatar: null, tweetUrl: "pt", text: "New data...", likes: 9, retweets: 1 };
-  const art = { url: "u3", title: "T3", journal: "J", domain: null, abstract: null, topLikes: 1, faces: [], posts: [], publishers: ["OncLive"], publisherPosts: [pubPost], kolSharers: 2 };
+  const otherPost = { name: "Research group", handle: "research", avatar: null, tweetUrl: "ot", text: "Study context...", likes: 3, retweets: 0 };
+  const art = { url: "u3", title: "T3", journal: "J", domain: null, abstract: null, topLikes: 1, faces: [], posts: [], publishers: ["OncLive"], publisherPosts: [pubPost], otherPosts: [otherPost], kolSharers: 2 };
   const viaArticle = resolveHeroEvidence({ kind: "paper", anchorId: "u3", url: "u3", headline: "T3" }, { topStories: [], topArticles: [art], movers: [] });
   assert.deepEqual(viaArticle.publisherPosts, [pubPost]);
+  assert.deepEqual(viaArticle.otherPosts, [otherPost]);
   const st = { kind: "paper", headline: "T3", papers: [{ url: "u3" }], posts: [] };
   const viaStory = resolveHeroEvidence({ kind: "paper", anchorId: "u3", url: "u3", headline: "T3" }, { topStories: [st], topArticles: [art], movers: [] });
   assert.deepEqual(viaStory.publisherPosts, [pubPost], "story-matched papers still carry the reading row's publisher posts");
+  assert.deepEqual(viaStory.otherPosts, [otherPost], "neutral evidence survives both paper join paths");
 });
 
 test("paper receipts preserve exact supporting coverage without using it to resolve the anchor", () => {
@@ -67,13 +70,15 @@ test("paper receipts preserve exact supporting coverage without using it to reso
 test("event receipts resolve exact clinician, publisher, and coverage support", () => {
   const clinician = { name: "Dr C", handle: "doctor", avatar: "c.jpg", tweetUrl: "https://x.com/doctor/status/1", text: "Approval reaction", likes: 4, retweets: 0, quotes: 0, views: 10 };
   const publisher = { name: "OncLive", handle: "OncLive", avatar: "p.jpg", tweetUrl: "https://x.com/OncLive/status/2", text: "Approval coverage", likes: 2, retweets: 0, quotes: 0, views: 8 };
+  const other = { name: "Research group", handle: "research", avatar: "o.jpg", tweetUrl: "https://x.com/research/status/3", text: "Approval context", likes: 1, retweets: 0, quotes: 0, views: 4 };
   const link = { kind: "article", id: "a2", title: "FDA expands Pluvicto", url: "https://example.com/a2", sourceLabel: "OncLive", relationshipType: "covers_approval", occurredAt: null };
-  const r = resolveHeroEvidence({ kind: "event", anchorId: "event:fda-1", url: "https://fda.gov/approval", headline: "Pluvicto approval", support: { clinicianPosts: [clinician], publisherPosts: [publisher], links: [link] } }, { topStories: [], topArticles: [], movers: [] });
+  const r = resolveHeroEvidence({ kind: "event", anchorId: "event:fda-1", url: "https://fda.gov/approval", headline: "Pluvicto approval", support: { clinicianPosts: [clinician], publisherPosts: [publisher], otherPosts: [other], links: [link] } }, { topStories: [], topArticles: [], movers: [] });
   assert.equal(r?.kind, "event");
   assert.deepEqual(r.posts, [clinician]);
   assert.deepEqual(r.publisherPosts, [publisher]);
+  assert.deepEqual(r.otherPosts, [other]);
   assert.deepEqual(r.supportLinks, [link]);
-  assert.deepEqual(r.faces, ["c.jpg", "p.jpg"]);
+  assert.deepEqual(r.faces, ["c.jpg", "p.jpg", "o.jpg"]);
 });
 
 test("event without support has no drawer", () => {

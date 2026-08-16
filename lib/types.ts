@@ -468,6 +468,13 @@ export type BriefingSharer = {
   retweets: number;
   quotes?: number; // quote-posts (absent on pre-2026-07-24 snapshots)
   views: number;
+  repostedBy?: {
+    name: string;
+    handle: string | null;
+    avatar: string | null;
+    tweetUrl: string | null;
+  }[]; // classic reposts grouped under this authored/quote post
+  sourceLane?: "clinician" | "publisher" | "other"; // lane follows this post's author
   original?: {
     name: string;
     handle: string | null;
@@ -486,7 +493,7 @@ export type BriefingPaper = {
   sharerCount?: number; // the real number of verified clinicians who shared it (uncapped)
   topLikes: number;
   posts?: BriefingSharer[]; // the clinicians' actual tweets about the paper (expandable "what they said")
-  publishers?: string[]; publisherPosts?: BriefingSharer[]; // institutional/journal/news accounts that posted it (the "via" badge)
+  publishers?: string[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; // institutional + uncategorized authored evidence
   peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
 };
 // One podcast conversation about a mover drug — the AI gloss of what was SAID,
@@ -564,6 +571,8 @@ export type BriefingMover = {
   showArt: string[]; // up to 4 podcast show artwork urls (fills the pile when X is sparse)
   shows: string[]; // up to 3 podcast show names for the collapsed row
   posts: BriefingSharer[]; // drawer: the KOL tweets that named this drug (their takes)
+  publisherPosts?: BriefingSharer[];
+  otherPosts?: BriefingSharer[];
   papers: BriefingPaper[]; // drawer: journal papers a KOL shared while naming this drug
   podcast: BriefingPod[]; // drawer: podcast evidence
   subAreas?: string[]; // within-area sub-indications this item touches (sub-tumor filter)
@@ -604,7 +613,7 @@ export type BriefingArticle = {
   abstract: string | null; // PubMed abstract, for the expandable read
   sharers: number; // distinct accounts total (KOL + publisher)
   kolSharers: number; // distinct KOL (verified-clinician) accounts that shared it
-  publishers: string[]; publisherPosts?: BriefingSharer[]; // institutional/journal/news accounts that posted it (OncLive, NEJM…) — the "via" badge
+  publishers: string[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; // institutional + uncategorized authored evidence
   faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
@@ -630,6 +639,8 @@ export type BriefingTrial = {
   resultsFresh: boolean; // results posted in the last ~120d (a real readout)
   pods: BriefingPod[]; // the podcast conversations that named it (clip + listen)
   posts: BriefingSharer[]; // the tweets that named it
+  publisherPosts?: BriefingSharer[];
+  otherPosts?: BriefingSharer[];
   articles: BriefingPaper[]; // the papers that named it (title/abstract)
   url: string; // clinicaltrials.gov permalink
   subAreas?: string[];
@@ -826,6 +837,8 @@ export type BriefingStory = {
   topLikes: number;
   podcast: BriefingPod[]; // evidence — the web derives the ONE lead card from these; sheet shows all
   posts: BriefingSharer[];
+  publisherPosts?: BriefingSharer[];
+  otherPosts?: BriefingSharer[];
   papers: BriefingPaper[];
   drugId: string | null; // drug stories → the Drugs board row
   stance?: BriefingStance | null; // drug stories only: directional takes detected (null / thin otherwise)
@@ -860,6 +873,8 @@ export type HeroSupportPost = {
   name: string; handle: string | null; avatar: string | null;
   tweetUrl: string | null; text: string | null;
   likes: number; retweets: number; quotes: number; views: number;
+  repostedBy?: { name: string; handle: string | null; avatar: string | null; tweetUrl: string | null }[];
+  sourceLane?: "clinician" | "publisher" | "other";
   original?: { name: string; handle: string | null; avatar: string | null; tweetUrl: string | null };
 };
 export type HeroSupportLink = {
@@ -867,7 +882,7 @@ export type HeroSupportLink = {
   sourceLabel: string; relationshipType: string; occurredAt: string | null;
 };
 export type HeroSupportBundle = {
-  clinicianPosts: HeroSupportPost[]; publisherPosts: HeroSupportPost[]; links: HeroSupportLink[];
+  clinicianPosts: HeroSupportPost[]; publisherPosts: HeroSupportPost[]; otherPosts?: HeroSupportPost[]; links: HeroSupportLink[];
 };
 export type HeroCard = {
   id: string; // anchor-derived, stable across builds

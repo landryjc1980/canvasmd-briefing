@@ -164,23 +164,24 @@ function StorySources({ card, data, accent, collapsedLabel = "Sources", editoria
           pods={(resolved.story as BriefingStory).podcast ?? []}
           papers={(resolved.story as BriefingStory).papers ?? []}
           publisherPosts={resolved.publisherPosts}
+          otherPosts={resolved.otherPosts}
           amplifiers={card.amplifiers ?? []}
         />
       : resolved.kind === "article"
-        ? <EditorialEvidence posts={resolved.posts} papers={[resolved.paper as unknown as BriefingPaper]} publisherPosts={resolved.publisherPosts} amplifiers={card.amplifiers ?? []} />
+        ? <EditorialEvidence posts={resolved.posts} papers={[resolved.paper as unknown as BriefingPaper]} publisherPosts={resolved.publisherPosts} otherPosts={resolved.otherPosts} amplifiers={card.amplifiers ?? []} />
         : resolved.kind === "episode"
           ? <EditorialEvidence pods={resolved.pods} amplifiers={card.amplifiers ?? []} />
           : resolved.kind === "event"
-            ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" />
+            ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" />
             : <EditorialEvidence posts={[resolved.post]} />
     : resolved.kind === "paper"
-      ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />
+      ? <StoryEvidence story={{ ...(resolved.story as BriefingStory), publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />
       : resolved.kind === "article"
-        ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />
+        ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [resolved.paper as unknown as BriefingPaper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />
         : resolved.kind === "episode"
           ? <><StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />{(card.amplifiers ?? []).length > 0 && <AmplifierReceipts amplifiers={card.amplifiers ?? []} accent={accent} />}</>
           : resolved.kind === "event"
-            ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" />
+            ? <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [], kind: "event", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="Papers" />
             : <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" />;
   return (
     <div className="dl-sources">
@@ -210,7 +211,8 @@ function SourceDisclosure({ faces, label = "See sources", children }: { faces: s
 function PaperSources({ paper }: { paper: BriefingArticle }) {
   const clinicianPosts = paper.posts ?? [];
   const publisherPosts = paper.publisherPosts ?? [];
-  if (!clinicianPosts.length && !publisherPosts.length && !paper.publishers.length) return null;
+  const otherPosts = paper.otherPosts ?? [];
+  if (!clinicianPosts.length && !publisherPosts.length && !otherPosts.length && !paper.publishers.length) return null;
   const evidencePaper: BriefingPaper = {
     title: paper.title,
     url: paper.url,
@@ -223,11 +225,12 @@ function PaperSources({ paper }: { paper: BriefingArticle }) {
     posts: clinicianPosts,
     publishers: paper.publishers,
     publisherPosts,
+    otherPosts,
     peerReviewed: paper.peerReviewed,
   };
   return (
     <SourceDisclosure faces={paper.faces}>
-      <EditorialEvidence posts={clinicianPosts} papers={[evidencePaper]} publisherPosts={publisherPosts} />
+      <EditorialEvidence posts={clinicianPosts} papers={[evidencePaper]} publisherPosts={publisherPosts} otherPosts={otherPosts} />
     </SourceDisclosure>
   );
 }
@@ -260,9 +263,9 @@ function firstSourceTweet(card: HeroCard, data: BriefingData): BriefingSharer | 
   if (!resolved) return null;
   if (resolved.kind === "paper") {
     const story = resolved.story as BriefingStory;
-    return story.posts?.[0] ?? story.papers?.[0]?.posts?.[0] ?? resolved.publisherPosts[0] ?? null;
+    return story.posts?.[0] ?? story.papers?.[0]?.posts?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0] ?? null;
   }
-  if (resolved.kind === "article") return resolved.posts[0] ?? resolved.publisherPosts[0] ?? null;
+  if (resolved.kind === "article") return resolved.posts[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0] ?? null;
   if (resolved.kind === "thread") return resolved.post;
   const quote = (card.amplifiers ?? []).find((item) => item.isQuote && item.text);
   return quote ? {
@@ -292,17 +295,18 @@ function EditorialTweet({ tweet }: { tweet: BriefingSharer }) {
     : <div className="dl-editorial-tweet">{content}</div>;
 }
 
-function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts = [], amplifiers = [] }: {
+function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts = [], otherPosts = [], amplifiers = [] }: {
   posts?: BriefingSharer[];
   pods?: BriefingStory["podcast"];
   papers?: BriefingPaper[];
   publisherPosts?: BriefingSharer[];
+  otherPosts?: BriefingSharer[];
   amplifiers?: NonNullable<HeroCard["amplifiers"]>;
 }) {
   const [showAllPosts, setShowAllPosts] = useState(false);
   const postsRegionId = useId();
   const seenPosts = new Set<string>();
-  const uniquePosts = [...posts, ...publisherPosts].filter((post) => {
+  const uniquePosts = [...posts, ...publisherPosts, ...otherPosts].filter((post) => {
     const key = post.tweetUrl ?? `${post.handle ?? post.name}:${post.text ?? ""}`;
     if (seenPosts.has(key)) return false;
     seenPosts.add(key);

@@ -12,6 +12,7 @@ const nativeHero = fs.readFileSync(new URL("../../canvasmd/components/readout/He
 const ingest = fs.readFileSync(new URL("../../canvasmd/supabase/functions/x-official-ingest/index.ts", import.meta.url), "utf8");
 const briefing = fs.readFileSync(new URL("../../canvasmd/supabase/functions/briefing/index.ts", import.meta.url), "utf8");
 const heroCards = fs.readFileSync(new URL("../../canvasmd/supabase/functions/_shared/heroCards.ts", import.meta.url), "utf8");
+const xEvidence = fs.readFileSync(new URL("../../canvasmd/supabase/functions/_shared/xEvidence.ts", import.meta.url), "utf8");
 
 test("X ingestion preserves long posts and bounded same-author threads", () => {
   assert.match(ingest, /note_tweet/);
@@ -67,10 +68,14 @@ test("podcast receipts show the source-authored announcement separately from amp
   }
 });
 
-test("every briefing receipt lane preserves classic repost attribution", () => {
-  assert.match(briefing, /const repostOriginal =/);
+test("every briefing receipt lane groups classic reposts under the exact original", () => {
+  assert.match(briefing, /makeEvidenceEntry/);
+  assert.match(briefing, /mergeEvidenceEntry/);
+  assert.match(briefing, /partitionEvidence/);
   assert.match(briefing, /x_posts_product[\s\S]*rt_tweet_id,rt_author_handle/);
   assert.match(briefing, /x_article_shares[\s\S]*rt_tweet_id,rt_author_handle/);
-  assert.ok((briefing.match(/original: repostOriginal/g) ?? []).length >= 3);
+  assert.match(xEvidence, /const isClassicRepost/);
+  assert.match(xEvidence, /repostedBy/);
+  assert.match(xEvidence, /sourceLaneFor\(originSource/);
   assert.match(heroCards, /!\/\^RT @\/i/);
 });
