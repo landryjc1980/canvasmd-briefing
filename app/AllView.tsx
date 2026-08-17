@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
-import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
+import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
-import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFaces, heroDeckOf } from "./briefVM";
+import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf } from "./briefVM";
 import HeroCards, { HeroEvidence } from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
@@ -378,9 +378,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc} landOffset={compact ? 108 : 70}
         head={
           <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 2px" }}>
-            <div style={{ width: 38, height: 38, borderRadius: "50%", background: SURFACE, color: INK_2, font: "600 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2, border: `2px solid ${PAPER}` }}>
-              {opts.avatar ? <img src={opts.avatar} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(opts.name)}
-            </div>
+            <Coin src={opts.avatar} label={opts.name} size={34} ring={PAPER} style={{ marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
@@ -444,7 +442,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               {eps.slice(0, 3).map((e, j) => (
                 <div key={j} style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "11px 13px" }}>
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: e.audioUrl ? 9 : 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 8, background: SURFACE, color: INK_2, flex: "none", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px system-ui" }}>{e.showArt ? <img src={e.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(e.show ?? "P")}</div>
+                    <Coin src={e.showArt} label={e.show ?? "P"} size={30} radius={8} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "600 12px system-ui", color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
                       {e.show && <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{e.show}</div>}
@@ -541,7 +539,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const lead = i === 0;
     const id = `all:${a}:${i}`;
     const open = openId === id;
-    const faces = pileFaces(s);
+    const faces = pileFacesL(s);
     const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
     return (
       <div key={id} className="readout-story-card" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0 }}>
@@ -805,9 +803,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   return (
                     <article key={entry.key} className="rv-episode-row">
                       <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 8, background: SURFACE, color: INK, font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
-                          {ep.showArt ? <img src={ep.showArt} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}
-                        </div>
+                        <Coin src={ep.showArt} label={ep.show || "Podcast"} size={34} radius={8} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ font: "600 15px/1.35 system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 5 }}>
@@ -824,7 +820,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
                             style={{ width: "100%", minHeight: 44, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: "4px 0", cursor: "pointer", textAlign: "left" }}>
                             <span style={{ display: "flex", alignItems: "center", flex: "none" }}>
-                              {amplifiers.filter((a) => a.avatar).slice(0, 4).map((a, j) => <img key={j} src={a.avatar!} alt="" style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: j ? -7 : 0, border: `2px solid ${PAPER}` }} />)}
+                              {amplifiers.slice(0, 4).map((a, j) => <Coin key={j} src={a.avatar} label={a.name} size={18} ring={PAPER} style={{ marginLeft: j ? -7 : 0 }} />)}
                             </span>
                             <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: MUT }}>{amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : amplifiers.length > 1 ? `Amplified by ${amplifiers.length} clinicians` : `From ${announcements[0]?.name ?? "the show"} on X`}</span>
                             <span data-disclosure style={{ color: acc, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>

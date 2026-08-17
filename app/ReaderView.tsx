@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
@@ -78,6 +78,33 @@ const prettyPhase = (p: string | null): string => {
 };
 const ini = (s: string) =>
   (s || "?").replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "·";
+
+// Every avatar/show-art coin renders through Coin so a missing image NEVER reads as a broken
+// gray disc: tinted initials sit underneath, the photo paints over them, and onError peels the
+// photo away (X rotates pbs.twimg profile-image URLs on photo change, so a baked snapshot can
+// hold a 404 for up to a rebuild cycle; ~22 panel accounts are deactivated and have no photo at
+// all). Tint is deterministic per label — the same person gets the same color everywhere.
+const COIN_TINTS = ["#0369a1", "#be185d", "#a45c0a", "#0d6b5f", "#9b0f18", "#334155"];
+const coinTint = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return COIN_TINTS[h % COIN_TINTS.length];
+};
+export function Coin({ src, label, size, radius = "50%", ring, style }: { src?: string | null; label?: string; size: number; radius?: number | string; ring?: string; style?: React.CSSProperties }) {
+  const tint = coinTint(label || src || "?");
+  return (
+    <span aria-hidden style={{
+      position: "relative", width: size, height: size, borderRadius: radius, overflow: "hidden", flex: "none",
+      background: `${tint}24`, color: tint, font: `600 ${Math.max(7, Math.round(size * 0.33))}px system-ui`,
+      display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: ring ? "content-box" : undefined,
+      ...(ring ? { border: `2px solid ${ring}` } : {}), ...style,
+    }}>
+      {label ? ini(label) : null}
+      {src && <img src={src} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+    </span>
+  );
+}
 
 const INK = "#17181a";
 const INK_2 = "#4f5257";
@@ -153,7 +180,7 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
       <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{p.showArt ? <img src={p.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(p.show)}</div>
+        <Coin src={p.showArt} label={p.show} size={34} radius={9} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "600 13.5px/1.35 system-ui", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.episodeTitle}</div>
           <div style={{ font: "400 11px system-ui", color: MUT, marginTop: 2 }}>{p.show}</div>
@@ -183,9 +210,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
   const authorAvatar = original?.avatar ?? (rtOf ? null : t.avatar);
   const body = (<>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
-          {authorAvatar ? <img src={authorAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(authorName)}
-        </div>
+        <Coin src={authorAvatar} label={authorName} size={30} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{authorName}</span> {authorHandle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{authorHandle.replace(/^@/, "")}</span>}
           {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>Reposted by <span style={{ color: "var(--rv-muted, rgba(255,255,255,.62))" }}>{t.name}{t.handle ? ` @${t.handle.replace(/^@/, "")}` : ""}</span></div>}
@@ -222,9 +247,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "flex-start", gap: 8 }}>
           <div aria-hidden style={{ display: "flex", alignItems: "center", flex: "none", paddingTop: 1 }}>
             {visibleReposters.slice(0, 4).map((reposter, i) => (
-              <span key={`${reposter.handle ?? reposter.name}:${i}`} style={{ width: 20, height: 20, marginLeft: i ? -6 : 0, borderRadius: "50%", overflow: "hidden", border: "2px solid var(--rv-surface, #fff)", background: "var(--rv-line, rgba(0,0,0,.08))", display: "inline-flex", alignItems: "center", justifyContent: "center", color: MUT, font: "600 8px system-ui" }}>
-                {reposter.avatar ? <img src={reposter.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(reposter.name)}
-              </span>
+              <Coin key={`${reposter.handle ?? reposter.name}:${i}`} src={reposter.avatar} label={reposter.name} size={16} ring="var(--rv-surface, #fff)" style={{ marginLeft: i ? -6 : 0 }} />
             ))}
           </div>
           <div style={{ minWidth: 0, font: "400 11.5px/1.45 system-ui", color: MUT }}>
@@ -259,7 +282,7 @@ export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplif
       ))}
       {reposts.map((a, j) => (
         <div key={`r${j}`} style={{ ...cardBox, boxSizing: "border-box", width: "100%", minWidth: 0, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "var(--rv-copy, #cfd4e0)" }}>
-          {a.avatar ? <img src={a.avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%", flex: "none" }} /> : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", display: "inline-block", flex: "none" }} />}
+          <Coin src={a.avatar} label={a.name} size={26} />
           <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
             <b style={{ color: "var(--rv-ink, #eef1f8)", fontWeight: 600 }}>{a.name}</b>
             {a.handle ? <> <a href={`https://x.com/${a.handle.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: "none" }}>@{a.handle.replace(/^@/, "")}</a></> : null}
@@ -279,9 +302,7 @@ function AmplifiedAnnouncementReceipt({ amplifier, announcement, accent }: { amp
   const original = (
     <div style={{ marginTop: amplifierText ? 12 : 9, padding: "11px 0 0 12px", borderTop: "1px solid var(--rv-line, rgba(255,255,255,.12))", borderLeft: `2px solid ${accent}66` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 9px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
-          {announcement.avatar ? <img src={announcement.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(announcement.name)}
-        </div>
+        <Coin src={announcement.avatar} label={announcement.name} size={26} />
         <div style={{ minWidth: 0, font: "600 12.5px system-ui", color: "var(--rv-ink, #eef1f8)" }}>
           {announcement.name}{announcementHandle ? <span style={{ color: MUT, fontWeight: 400 }}> @{announcementHandle}</span> : null}
         </div>
@@ -292,9 +313,7 @@ function AmplifiedAnnouncementReceipt({ amplifier, announcement, accent }: { amp
   return (
     <div style={{ ...cardBox, boxSizing: "border-box", width: "100%", minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--rv-line, rgba(255,255,255,.12))", color: "var(--rv-ink, #f4f7ff)", font: "600 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>
-          {amplifier.avatar ? <img src={amplifier.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(amplifier.name)}
-        </div>
+        <Coin src={amplifier.avatar} label={amplifier.name} size={30} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{amplifier.name}</span>
           {amplifierHandle ? <span style={{ font: "400 11.5px system-ui", color: MUT }}> @{amplifierHandle}</span> : null}
@@ -579,14 +598,14 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
 
 // Overlapping avatars of the clinicians who shared an article (the "who's reading this" face-pile,
 // mirrors the pharma dashboard). `ring` = page bg so the overlap reads as clean separated coins.
-export function FacePile({ faces, extra, ring }: { faces: string[]; extra: number; ring: string }) {
+// Accepts labeled faces (initials fallback) or plain URL strings from older payload fields.
+export function FacePile({ faces, extra, ring }: { faces: (Face | string)[]; extra: number; ring: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", flex: "none" }}>
-      {faces.slice(0, 4).map((f, i) => (
-        <div key={i} style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ring}`, background: "var(--rv-line, rgba(255,255,255,.12))", marginLeft: i ? -8 : 0, flex: "none" }}>
-          <img src={f} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        </div>
-      ))}
+      {faces.slice(0, 4).map((raw, i) => {
+        const f: Face = typeof raw === "string" ? { src: raw } : raw;
+        return <Coin key={i} src={f.src} label={f.label} size={22} ring={ring} style={{ marginLeft: i ? -8 : 0 }} />;
+      })}
       {extra > 0 && (
         <div style={{ height: 26, minWidth: 26, padding: "0 6px", boxSizing: "border-box", borderRadius: 13, border: `2px solid ${ring}`, background: "var(--rv-surface, rgba(255,255,255,.1))", marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", font: "600 10px system-ui", color: "var(--rv-ink-2, rgba(255,255,255,.72))", flex: "none" }}>+{extra}</div>
       )}
@@ -1047,7 +1066,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         const id = "s:" + s.id;
         const isDrug = s.kind === "drug";
         const lead = i === 0;
-        const faces = pileFaces(s);
+        const faces = pileFacesL(s);
         const chip = part.mode === "split" ? part.status.get(s.id) : undefined;
         // Denser, scannable scale (2026-07-22 redesign): the lead is a step up, not a poster —
         // the old 34px front-page headline ate most of a phone screen before story #2.
@@ -1147,7 +1166,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           {eps.map((ep, j) => (
             <div key={j} style={cardBox}>
               <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || g.name)}</div>
+                <Coin src={ep.showArt} label={ep.show || g.name} size={34} radius={9} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "600 13.5px/1.35 system-ui", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</div>
                   <div style={{ font: "400 11px system-ui", color: MUT, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.show || "Podcast"}</div>
@@ -1184,7 +1203,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
             head={
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 2px" }}>
-                <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden", marginTop: 2 }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
+                <Coin src={k.avatar} label={k.name} size={38} style={{ marginTop: 2 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                     {/* name clamped to 2 lines so credential-laden names ("…, MD PhD") don't run away */}
@@ -1234,7 +1253,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           return (
           <div key={i} className="rv-episode-row">
             <div style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 11 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rv-surface, rgba(255,255,255,.1))", color: "var(--rv-ink, #f4f7ff)", font: "700 10px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{ep.showArt ? <img src={ep.showArt} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(ep.show || "Podcast")}</div>
+              <Coin src={ep.showArt} label={ep.show || "Podcast"} size={34} radius={9} />
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 {/* the EPISODE is the content — it takes the headline slot (John); the show is the byline */}
                 <span style={{ font: "600 15px/1.35 system-ui", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.title}</span>
@@ -1247,8 +1266,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
                   style={{ width: "100%", minHeight: 44, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: "4px 0", cursor: "pointer", textAlign: "left" }}>
                   <span style={{ display: "flex", alignItems: "center", flex: "none" }}>
-                  {amplifiers.filter((a) => a.avatar).slice(0, 4).map((a, j) => (
-                    <img key={j} src={a.avatar!} alt="" style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: j ? -7 : 0, border: `2px solid ${pal.bg}` }} />
+                  {amplifiers.slice(0, 4).map((a, j) => (
+                    <Coin key={j} src={a.avatar} label={a.name} size={18} ring={pal.bg} style={{ marginLeft: j ? -7 : 0 }} />
                   ))}
                   </span>
                   <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "var(--rv-muted, rgba(233,237,246,.7))" }}>
@@ -1287,7 +1306,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         if (t.podMentions) parts.push(`${t.podMentions} episode${t.podMentions === 1 ? "" : "s"}`);
         if (t.xMentions) parts.push(`${t.xMentions} X post${t.xMentions === 1 ? "" : "s"}`);
         if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
-        const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
+        const tFaces = pileFacesL({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
         return (
           /* One flat row owns the trial header and its expanded evidence. Title clamps to two
              lines when closed and shows in full when open. */
@@ -1352,7 +1371,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {m.eventChip && <p style={{ margin: "10px 0 0", font: "400 13px/1.5 system-ui", color: "var(--rv-muted, #aab0bf)" }}>{m.eventChip}</p>}
                 <div style={{ marginTop: 15, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", columnGap: 12 }}>
                   <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
-                    {pileFaces(m).length > 0 && <span style={{ flex: "none" }}><FacePile faces={pileFaces(m)} extra={0} ring={pal.bg} /></span>}
+                    {pileFacesL(m).length > 0 && <span style={{ flex: "none" }}><FacePile faces={pileFacesL(m)} extra={0} ring={pal.bg} /></span>}
                     <span style={{ minWidth: 0, font: "400 12px/1.45 system-ui", color: MUT }}>{metricsLine(m)}</span>
                   </div>
                   {!open && <SignalTag id={id} />}

@@ -68,9 +68,12 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                 {ev && ev.faces.length > 0 && (
                   <div style={{ display: "flex", alignItems: "center" }}>
+                    {/* Hero faces are URL-only (nulls filtered upstream), so the only failure here is a
+                        stale pbs.twimg URL — onError peels the photo to an accent-tinted coin instead
+                        of the browser's broken-image glyph. */}
                     {ev.faces.slice(0, 4).map((f, j) => (
-                      <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ink.ring ?? "rgba(20,26,40,1)"}`, background: ink.surface ?? "rgba(255,255,255,.12)", marginLeft: j ? -7 : 0 }}>
-                        <img src={f} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: `2px solid ${ink.ring ?? "rgba(20,26,40,1)"}`, background: `${accent}24`, marginLeft: j ? -7 : 0 }}>
+                        <img src={f} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                     ))}
                   </div>

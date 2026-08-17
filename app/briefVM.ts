@@ -77,6 +77,34 @@ export function pileFaces(x: {
   return [...new Set([...xs, ...pods])].slice(0, 4);
 }
 
+// Labeled variant: keeps the person/show NAME beside each image URL so the renderer can fall
+// back to tinted initials when the avatar is missing OR its pbs.twimg URL has gone stale (X
+// rotates profile-image URLs on photo change, so a baked snapshot can hold a 404). A sharer
+// with no avatar at all (deactivated X account, podcast-only voice) now KEEPS their coin as
+// initials instead of silently dropping out of "who's discussing this". Movers carry URL-only
+// `avatars`/`showArt` arrays, so their faces are unlabeled and fall back to a blank tinted coin.
+export type Face = { src: string | null; label?: string };
+export function pileFacesL(x: {
+  avatars?: string[]; showArt?: string[];
+  posts?: { avatar: string | null; name?: string | null }[]; podcast?: { showArt: string | null; show?: string | null }[];
+}): Face[] {
+  const xs: Face[] = x.avatars
+    ? x.avatars.map((src) => ({ src }))
+    : (x.posts ?? []).map((p) => ({ src: p.avatar, label: p.name ?? undefined }));
+  const pods: Face[] = x.showArt
+    ? x.showArt.map((src) => ({ src }))
+    : (x.podcast ?? []).map((p) => ({ src: p.showArt, label: p.show ?? undefined }));
+  const seen = new Set<string>();
+  const out: Face[] = [];
+  for (const f of [...xs, ...pods]) {
+    const key = f.src ?? (f.label ? `label:${f.label}` : "");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(f);
+  }
+  return out.slice(0, 4);
+}
+
 // "4 conversations · 2 on X · 3 papers · ♥ 214" — zeros omitted.
 export function metricsLine(m: BriefingMover): string {
   const parts: string[] = [];
