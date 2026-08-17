@@ -63,6 +63,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [micsMore, setMicsMore] = useState(false);
+  const [dailyOpen, setDailyOpen] = useState(false);
   const [xMore, setXMore] = useState(false);
   const [episodesMore, setEpisodesMore] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
@@ -760,8 +761,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
               <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date}</span>
             </div>
-            {daily.lead && <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK }}>{daily.lead}</p>}
-            {(daily.payload.narrative ?? []).length ? (
+            {/* Collapsed by default: the lead is the 3-line teaser (it IS the summary); expanding
+                reveals the narrative paragraphs. Sources stay behind their own <details>. */}
+            {daily.lead && <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{daily.lead}</p>}
+            {dailyOpen && (daily.payload.narrative ?? []).length ? (
               <div style={{ marginTop: 6 }}>
                 {(daily.payload.narrative ?? []).map((p, i) => (
                   <p key={i} style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: INK_2 }}>
@@ -773,7 +776,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 ))}
               </div>
             ) : null}
-            <details style={{ margin: "14px 0 4px" }}>
+            {(daily.payload.narrative ?? []).length ? (
+              <button onClick={() => setDailyOpen((o) => !o)} style={{ margin: "10px 0 2px", padding: 0, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: ALL_ACCENT }}>
+                {dailyOpen ? "Show less ↑" : "Read the daily ↓"}
+              </button>
+            ) : null}
+            {dailyOpen && <details style={{ margin: "14px 0 4px" }}>
               <summary style={{ cursor: "pointer", font: "600 11.5px system-ui", color: MUT, listStyle: "none" }}>Sources & items ↓</summary>
               <div style={{ display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: wide ? "0 34px" : 0, marginTop: 8 }}>
                 {daily.payload.sections.map((s) => (
@@ -798,7 +806,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   </div>
                 ))}
               </div>
-            </details>
+            </details>}
           </section>
         ) : null}
 

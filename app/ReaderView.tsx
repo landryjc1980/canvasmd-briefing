@@ -1052,16 +1052,31 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   // THE DAILY, area slice (John 2026-08-18): narrative paragraphs tagged for THIS area,
   // rendered above Top stories; hidden entirely when today's edition has nothing here.
+  const [dailyOpen, setDailyOpen] = useState(false);
   const dailyParas = (daily?.payload?.narrative ?? []).filter((p) => (p.areas ?? []).includes(area));
+  // Collapsed by default to a 3-line teaser — the Daily is an entry point, not a wall
+  // above Top Stories. The toggle only appears when there is actually more to read.
+  const dailyLong = dailyParas.length > 1 || (dailyParas[0]?.text.length ?? 0) > 200;
   const dailySection = dailyParas.length > 0 && (
     <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <span style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
         <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
       </div>
-      {dailyParas.map((p, i) => (
-        <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{p.text}</p>
-      ))}
+      {dailyOpen || !dailyLong ? (
+        dailyParas.map((p, i) => (
+          <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{p.text}</p>
+        ))
+      ) : (
+        <p style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+          {dailyParas.map((p) => p.text).join(" ")}
+        </p>
+      )}
+      {dailyLong && (
+        <button onClick={() => setDailyOpen((o) => !o)} style={{ margin: "9px 0 0", padding: 0, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: pal.accent }}>
+          {dailyOpen ? "Show less ↑" : "Read more ↓"}
+        </button>
+      )}
     </section>
   );
 
