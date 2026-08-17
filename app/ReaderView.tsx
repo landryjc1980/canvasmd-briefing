@@ -1604,6 +1604,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 directly under the stories), then the papers trusted accounts are circulating (a
                 first-class editorial signal, not a footnote), and only then trials, the unified
                 People block, and drug context. */}
+            {dailySection}
             {storiesSection}
             {episodesSection}
             {papersSection}
