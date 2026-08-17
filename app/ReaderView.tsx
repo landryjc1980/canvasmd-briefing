@@ -1585,8 +1585,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div style={{ display: "grid", gridTemplateColumns: railHasContent ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
             <div style={{ minWidth: 0 }}>
               {dailySection}
-              {dailySection}
-            {storiesSection}
+              {storiesSection}
               {episodesSection}
               {papersSection}
             </div>
