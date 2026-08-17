@@ -76,9 +76,9 @@ export default function Admin() {
     if (r.ok) { const j = await r.json(); setRows(j.rows || []); setReadout(j.readout || null); setAuthed(true); if (k) localStorage.setItem("brief_admin_key", k); loadRequests(k); loadHealth(k); }
     else { setAuthed(false); if (k) setOut("Bad admin token."); } // silent when just probing the session
   };
-  const decide = async (id: string, action: "approve" | "decline") => {
+  const decide = async (id: string, action: "approve" | "decline", area?: string) => {
     setRequests((rs) => rs.filter((x) => x.id !== id)); // optimistic
-    await fetch("/api/admin/requests", { method: "POST", headers: hdr(), body: JSON.stringify({ id, action }) });
+    await fetch("/api/admin/requests", { method: "POST", headers: hdr(), body: JSON.stringify({ id, action, area: area || undefined }) });
     loadSignal();
   };
 
@@ -311,9 +311,16 @@ export default function Admin() {
                 <div key={q.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", background: "rgba(255,255,255,.04)", border: "0.5px solid rgba(255,255,255,.1)", borderRadius: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ color: "#f4f7ff", fontSize: 14 }}>{q.email}</div>
-                    <div style={{ color: "#6b7280", fontSize: 11 }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : ""}{q.default_area ? ` · viewed ${q.default_area}` : ""}</div>
+                    <div style={{ color: "#6b7280", fontSize: 11 }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : ""}{q.default_area ? ` · ${q.default_area}` : ""}</div>
                   </div>
-                  <button style={btn} onClick={() => decide(q.id, "approve")}>Approve</button>
+                  {/* Edition on approve — defaults to what they picked (or the link they arrived on);
+                      the select's value rides the approve call so a correction is one gesture. */}
+                  <select defaultValue={q.default_area || ""} id={`req-area-${q.id}`}
+                    style={{ background: "rgba(255,255,255,.06)", color: "#c3cadb", border: "0.5px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "7px 8px", fontSize: 12.5 }}>
+                    <option value="">edition…</option>
+                    {["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn"].map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                  <button style={btn} onClick={() => decide(q.id, "approve", (document.getElementById(`req-area-${q.id}`) as HTMLSelectElement | null)?.value || undefined)}>Approve</button>
                   <button style={{ ...btn, background: "transparent", color: "#8b93a4", border: "0.5px solid rgba(255,255,255,.2)" }} onClick={() => decide(q.id, "decline")}>Decline</button>
                 </div>
               ))}

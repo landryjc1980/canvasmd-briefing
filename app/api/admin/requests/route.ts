@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdmin, siteUrl, areaLabel } from "@/lib/gateServer";
 import { mintMagicToken, mintUnsubToken } from "@/lib/gate";
 import { sendMagicLink } from "@/lib/mail";
-import { listRequests, getContact, setContactStatus } from "@/lib/db";
+import { listRequests, getContact, setContactStatus, setDefaultArea } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,10 @@ export async function POST(req: NextRequest) {
   }
   if (action === "approve") {
     await setContactStatus(id, "active");
+    // Optional edition assignment at approval — the admin can set/correct the requester's
+    // specialty here (their default_area may only reflect which link they hit the wall on).
+    const area = typeof body?.area === "string" && ["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(body.area) ? body.area : null;
+    if (area) await setDefaultArea(id, area).catch(() => {});
     const c = await getContact(id).catch(() => null);
     if (c) {
       const base = siteUrl(req);

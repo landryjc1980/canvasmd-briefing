@@ -12,6 +12,7 @@ export default function Welcome() {
   const [msg, setMsg] = useState("");
   const [expired, setExpired] = useState(false);
   const [area, setArea] = useState<string | null>(null);
+  const [chosen, setChosen] = useState(false); // true once they TAP a focus chip (vs URL-derived)
   const [daily, setDaily] = useState(false);
 
   useEffect(() => {
@@ -31,7 +32,9 @@ export default function Welcome() {
     try {
       const r = await fetch("/api/brief-request", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, area, daily }),
+        // Submitting with a visibly highlighted chip counts as an answer, even if it was
+        // pre-filled from the URL they arrived on and they never tapped it.
+        body: JSON.stringify({ email, area, chosen: chosen || area !== null, daily }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) { setState("error"); setMsg(j.error || "Something went wrong."); return; }
@@ -71,6 +74,23 @@ export default function Welcome() {
                 placeholder="you@company.com" autoComplete="email"
                 style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 10, padding: "13px 15px", color: "#f4f7ff", fontSize: 15, outline: "none" }}
               />
+              {/* The specialty question, asked ONCE at the door — it decides which edition of the
+                  brief and The Daily this reader gets, so it can't stay an accident of which link
+                  they arrived on. Pre-highlighted from the URL when they came via an area link. */}
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#6f7684", margin: "2px 0 8px" }}>Your focus</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {[["GU", "GU"], ["Breast", "Breast"], ["Lung", "Lung"], ["GI", "GI"], ["Heme", "Heme"], ["Gyn", "Gyn"], ["All", "All of oncology"]].map(([v, label]) => {
+                    const on = area === v || (v === "All" && area === null && chosen);
+                    return (
+                      <button key={v} type="button" onClick={() => { setArea(v === "All" ? null : v); setChosen(true); }}
+                        style={{ background: on ? "#7aa2ff" : "rgba(255,255,255,.06)", color: on ? "#0e1524" : "#c3cadb", fontWeight: on ? 700 : 500, fontSize: 12.5, border: `1px solid ${on ? "#7aa2ff" : "rgba(255,255,255,.16)"}`, borderRadius: 999, padding: "7px 13px", cursor: "pointer" }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <button type="submit" disabled={state === "sending"}
                 style={{ background: "#7aa2ff", color: "#0e1524", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
                 {state === "sending" ? "Sending…" : expired ? "Send me a fresh link" : "Request access"}

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { attachSession } from "@/lib/gateServer";
-import { getInvite, bumpInviteUse, upsertContact, findContactByEmail, logEvent } from "@/lib/db";
+import { getInvite, bumpInviteUse, upsertContact, findContactByEmail, setDefaultArea, setDailyOptIn, logEvent } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +23,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "This invite has expired or been used up." }, { status: 410 });
   }
 
+  // Focus + Daily from the redemption form (the specialty question asked at this door too).
+  const rawArea = typeof body?.area === "string" ? body.area : null;
+  const chosen = body?.chosen === true && (rawArea === null || ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(rawArea));
+  const daily = body?.daily === true;
+
   // Existing contact keeps their identity/source; a brand-new one is attributed to the sharer.
   const existing = await findContactByEmail(email).catch(() => null);
   const contact = existing
     ? existing
-    : await upsertContact({ email, name, orgId: invite.org_id, source: "invite", invitedBy: invite.inviter_id, status: "active" });
+    : await upsertContact({
+        email, name, orgId: invite.org_id, source: "invite", invitedBy: invite.inviter_id, status: "active",
+        defaultArea: chosen ? (rawArea ?? "All") : undefined, dailyOptIn: daily || undefined,
+      });
+  if (existing) {
+    if (chosen) await setDefaultArea(existing.id, rawArea ?? "All").catch(() => {});
+    if (daily && !existing.daily_opt_in) await setDailyOptIn(existing.id, true).catch(() => {});
+  }
 
   await bumpInviteUse(invite.id, invite.uses).catch(() => {});
   await logEvent({ contactId: contact.id, kind: "invite_redeemed", meta: { code, inviter: invite.inviter_id, alreadyKnown: !!existing } }).catch(() => {});
