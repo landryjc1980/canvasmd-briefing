@@ -15,7 +15,7 @@ export function resolveHeroEvidence(
   c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers" | "support">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
-  if (c.kind === "paper") {
+  if (c.kind === "paper" || c.kind === "readout") {
     // Publisher POSTS are receipts too (John: the drawer named publishers but never showed
     // their tweet) — they live on the reading-list row, so look them up for BOTH join paths.
     const reading = (data.topArticles ?? []).find((x) => x.url === c.url);

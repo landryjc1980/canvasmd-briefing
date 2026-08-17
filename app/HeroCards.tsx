@@ -17,6 +17,7 @@ const KIND_KICKER: Record<HeroCard["kind"], string> = {
   episode: "In-depth episode",
   event: "Regulatory event",
   thread: "Clinician post",
+  readout: "Trial readout",
   trial_milestone: "Trial milestone",
 };
 
