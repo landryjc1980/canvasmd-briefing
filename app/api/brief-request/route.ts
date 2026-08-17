@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mintMagicToken, mintUnsubToken } from "@/lib/gate";
 import { siteUrl, areaLabel } from "@/lib/gateServer";
-import { findContactByEmail, upsertContact, logEvent } from "@/lib/db";
+import { findContactByEmail, upsertContact, setDailyOptIn, logEvent } from "@/lib/db";
 import { sendMagicLink } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({} as any));
   const email = String(body?.email ?? "").trim().toLowerCase();
   const area = typeof body?.area === "string" ? body.area : null;
+  const daily = body?.daily === true; // "email me The Daily" checkbox — explicit opt-in only
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ ok: false, error: "Enter a valid work email." }, { status: 400 });
   }
@@ -34,9 +35,10 @@ export async function POST(req: NextRequest) {
   // sign-in link, and shown the same generic reply as an approved user (no membership leak).
   if (!contact || contact.status !== "active") {
     if (!contact) {
-      const pending = await upsertContact({ email, source: "self", status: "pending", defaultArea: area });
+      const pending = await upsertContact({ email, source: "self", status: "pending", defaultArea: area, dailyOptIn: daily });
       await logEvent({ contactId: pending.id, kind: "access_request", area, meta: { domain, newDomain: !FREEMAIL.has(domain), source: "welcome" } }).catch(() => {});
     } else if (contact.status === "pending") {
+      if (daily && !contact.daily_opt_in) await setDailyOptIn(contact.id, true).catch(() => {});
       await logEvent({ contactId: contact.id, kind: "access_request", area, meta: { domain, repeat: true } }).catch(() => {});
     }
     return generic(); // pending / blocked / unsubscribed → no link
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
   // actively viewing (URL `area`), else the neutral "oncology" — never fall back to default_area
   // (seed/URL-derived, not a deliberate specialty choice).
   const base = siteUrl(req);
+  if (daily && !contact.daily_opt_in) await setDailyOptIn(contact.id, true).catch(() => {});
   const token = await mintMagicToken(contact.id);
   const link = `${base}/api/brief-auth?t=${token}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
   const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(contact.id)}`;

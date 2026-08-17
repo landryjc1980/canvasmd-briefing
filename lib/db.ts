@@ -26,6 +26,7 @@ const norm = (email: string) => email.trim().toLowerCase();
 export type Contact = {
   id: string; email: string; name: string | null; org_id: string | null; role: string | null;
   default_area: string | null; source: string; invited_by: string | null; status: string;
+  daily_opt_in?: boolean;
 };
 
 // ---- orgs --------------------------------------------------------------------------------
@@ -42,6 +43,7 @@ export async function upsertOrg(name: string, tumorFocus: string[] = []): Promis
 export async function upsertContact(c: {
   email: string; name?: string | null; orgId?: string | null; role?: string | null;
   defaultArea?: string | null; source?: string; invitedBy?: string | null; status?: string;
+  dailyOptIn?: boolean;
 }): Promise<Contact> {
   const row: Record<string, unknown> = { email: norm(c.email) };
   if (c.name !== undefined) row.name = c.name;
@@ -51,6 +53,7 @@ export async function upsertContact(c: {
   if (c.source !== undefined) row.source = c.source;
   if (c.invitedBy !== undefined) row.invited_by = c.invitedBy;
   if (c.status !== undefined) row.status = c.status;
+  if (c.dailyOptIn !== undefined) row.daily_opt_in = c.dailyOptIn;
   // merge-duplicates so a re-upload / re-capture updates rather than 409s; never downgrade an
   // existing row's source/invited_by (only set them on first insert) — so we omit them when null.
   const rows = await pg<Contact[]>("brief_contacts?on_conflict=email", {
@@ -76,6 +79,26 @@ export async function listContacts(orgId?: string): Promise<Contact[]> {
   const q = orgId ? `&org_id=eq.${orgId}` : "";
   return pg<Contact[]>(`brief_contacts?status=neq.unsubscribed${q}&order=created_at.desc`, { method: "GET", headers: headers() });
 }
+// The Daily email — opted-in active contacts, and the per-(contact, date) send ledger that
+// makes cron re-runs and manual invokes idempotent.
+export async function listDailyOptIns(): Promise<Contact[]> {
+  return pg<Contact[]>(`brief_contacts?status=eq.active&daily_opt_in=is.true&order=created_at.asc`, { method: "GET", headers: headers() });
+}
+export async function setDailyOptIn(id: string, optIn: boolean): Promise<void> {
+  await pg(`brief_contacts?id=eq.${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify({ daily_opt_in: optIn }) });
+}
+export async function dailySendsFor(date: string): Promise<Set<string>> {
+  const rows = await pg<{ contact_id: string }[]>(`brief_daily_sends?date=eq.${date}&select=contact_id`, { method: "GET", headers: headers() });
+  return new Set(rows.map((r) => r.contact_id));
+}
+export async function recordDailySend(contactId: string, date: string, area: string | null): Promise<void> {
+  await pg(`brief_daily_sends`, {
+    method: "POST",
+    headers: headers({ Prefer: "resolution=ignore-duplicates" }),
+    body: JSON.stringify([{ contact_id: contactId, date, area }]),
+  });
+}
+
 // Pending access requests (people who hit the public wall but weren't added/shared) — the admin
 // review queue. Newest first.
 export async function listRequests(): Promise<(Contact & { created_at?: string })[]> {

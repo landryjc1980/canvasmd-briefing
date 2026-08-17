@@ -12,6 +12,7 @@ export default function Welcome() {
   const [msg, setMsg] = useState("");
   const [expired, setExpired] = useState(false);
   const [area, setArea] = useState<string | null>(null);
+  const [daily, setDaily] = useState(false);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -30,7 +31,7 @@ export default function Welcome() {
     try {
       const r = await fetch("/api/brief-request", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, area }),
+        body: JSON.stringify({ email, area, daily }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) { setState("error"); setMsg(j.error || "Something went wrong."); return; }
@@ -74,6 +75,10 @@ export default function Welcome() {
                 style={{ background: "#7aa2ff", color: "#0e1524", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
                 {state === "sending" ? "Sending…" : expired ? "Send me a fresh link" : "Request access"}
               </button>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: "#aab2c4" }}>
+                <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: "#7aa2ff" }} />
+                <span>Also email me <strong style={{ color: "#dbe2f2" }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
+              </label>
             </form>
             {state === "error" && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{msg}</p>}
             <p style={{ fontSize: 12, lineHeight: 1.5, color: "#6b7280", marginTop: 18 }}>A private benefit for oncology-focused teams. No password — the link signs you in.</p>
