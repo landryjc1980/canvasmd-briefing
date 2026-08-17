@@ -624,6 +624,23 @@ export type BriefingArticle = {
 // A clinical trial the field is TALKING ABOUT this week — matched by acronym against
 // podcast conversations, KOL tweets and shared-article title/abstracts (not the raw
 // CT.gov update feed). Enriched with CT.gov metadata for the card.
+// Readout Watch (trial-stories Phase 1): registry-anchored anticipation card. Every string
+// the server sends is a templated CT.gov fact — render `line`/`move.line` verbatim; never
+// compose copy client-side (the language control lives server-side by design).
+export type ReadoutWatchCard = {
+  storyId: string;
+  nctId: string;
+  acronym: string | null;
+  title: string;
+  phase: string;
+  primaryCompletionDate: string;
+  sponsor: string | null;
+  intervention: string | null;
+  line: string;                 // "Registry lists primary completion September 2026"
+  move?: { from: string; to: string; occurredOn: string; line: string } | null;
+  url: string;                  // CT.gov study page
+};
+
 export type BriefingTrial = {
   nctId: string;
   acronym: string | null;
@@ -922,6 +939,7 @@ export type BriefingData = {
   topKols: BriefingKol[]; // "Most active on X" section
   topArticles: BriefingArticle[]; // "What the field is reading" section
   trials: BriefingTrial[]; // "Trials moving" section (CT.gov)
+  readoutWatch?: ReadoutWatchCard[]; // ADDITIVE — registry-anchored anticipation rail (trial-stories Phase 1)
   guests?: BriefingGuest[]; // ADDITIVE — "This week's guests" box score (optional: old snapshots omit it)
   hosts?: BriefingGuest[]; // ADDITIVE — working-clinician hosts this week (pro_interview networks excluded); Voices rail
   episodes?: BriefingEpisode[]; // ADDITIVE — "This week on the podcasts" episode rail (optional: old snapshots omit it)
