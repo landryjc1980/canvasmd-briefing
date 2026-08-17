@@ -257,5 +257,5 @@ export default function BriefingPage() {
   // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
   // (no AI cover line) + horizontally-scrolling section pills.
   if (design === "flat" && !heroActive) return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
-  return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
+  return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} daily={daily} />;
 }

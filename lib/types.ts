@@ -962,6 +962,6 @@ export type DailyItem = { title: string; line?: string | null; sub?: string | nu
 export type DailyReadout = {
   date: string;
   lead: string | null; // the ONLY model prose — digit-banned, validated server-side
-  payload: { sections: { key: string; title: string; items: DailyItem[] }[] };
+  payload: { sections: { key: string; title: string; items: DailyItem[] }[]; narrative?: { text: string; areas: string[] }[] | null };
   generated_at?: string;
 };

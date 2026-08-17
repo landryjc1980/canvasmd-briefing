@@ -691,7 +691,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   );
 }
 
-export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void }) {
+export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary, daily }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void; daily?: import("@/lib/types").DailyReadout | null }) {
   // One publication canvas across every edition; area color is an interaction accent.
   const darkPal = inkOf(area);
   const pal = { bg: PAPER, accent: READER_ACCENTS[area] ?? darkPal.accent };
@@ -1049,6 +1049,21 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const MOBILE_STORY_CAP = 4;
   const storiesCapped = compact && !showAllStories && stories.length > MOBILE_STORY_CAP;
   const deckStories = storiesCapped ? stories.slice(0, MOBILE_STORY_CAP) : stories;
+
+  // THE DAILY, area slice (John 2026-08-18): narrative paragraphs tagged for THIS area,
+  // rendered above Top stories; hidden entirely when today's edition has nothing here.
+  const dailyParas = (daily?.payload?.narrative ?? []).filter((p) => (p.areas ?? []).includes(area));
+  const dailySection = dailyParas.length > 0 && (
+    <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
+        <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
+      </div>
+      {dailyParas.map((p, i) => (
+        <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{p.text}</p>
+      ))}
+    </section>
+  );
 
   const storiesSection = (
     <>
@@ -1569,7 +1584,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
              track doesn't leave a blank gap. */
           <div style={{ display: "grid", gridTemplateColumns: railHasContent ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
             <div style={{ minWidth: 0 }}>
-              {storiesSection}
+              {dailySection}
+              {dailySection}
+            {storiesSection}
               {episodesSection}
               {papersSection}
             </div>

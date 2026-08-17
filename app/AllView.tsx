@@ -612,6 +612,36 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     </div>
   );
 
+  // Section jump pills — same jump-link pattern as the specialty editions (Stories/Listen/Papers,
+  // plus Voices only when it isn't already pinned to the always-visible wide rail).
+  const tabStyle = (on: boolean, activeColor: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 44, cursor: "pointer", font: `${on ? "700" : "600"} 12.5px system-ui`, padding: "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? activeColor : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s" });
+  const inSection = activeSec === "all-listen" || activeSec === "all-reading" || activeSec === "all-voices";
+  const navPills = [
+    <button key="top" onClick={() => goArea(orderedAreas[0])} style={tabStyle(!inSection, ALL_ACCENT)}>Stories</button>,
+    allEpisodes.length > 0 && <button key="listen" onClick={() => goTo("all-listen")} style={tabStyle(activeSec === "all-listen", ALL_ACCENT)}>Listen</button>,
+    reading.length > 0 && <button key="papers" onClick={() => goTo("all-reading")} style={tabStyle(activeSec === "all-reading", ALL_ACCENT)}>Papers</button>,
+    // Voices rides the rail on wide (always visible → no jump pill needed there); on narrow it's an
+    // inline section that earns one, same rule as the tumor pages' rail sections.
+    !wide && micsRanked.length + xRanked.length > 0 && <button key="voices" onClick={() => goTo("all-voices")} style={tabStyle(activeSec === "all-voices", ALL_ACCENT)}>People</button>,
+  ].filter(Boolean);
+
+  // Area scope row — the All page's equivalent of the specialty editions' Focus row: same position
+  // (shares the masthead line on wide, its own row on medium, below the sticky pills on mobile) and
+  // the same non-sticky treatment; styled with each area's own accent dot.
+  const areasRow = (mobile: boolean) => (
+    <div className={`all-pills${mobile ? " all-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: mobile ? 18 : 20, flexWrap: mobile ? "nowrap" : "wrap", overflowX: mobile ? "auto" : "visible", margin: mobile ? "10px -20px 0" : 0, padding: mobile ? "0 20px" : 0, minWidth: 0 }}>
+      <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, flex: "none" }}>Areas</span>
+      {orderedAreas.map((a) => {
+        const on = activeSec === areaId(a);
+        return (
+          <button key={a} onClick={() => goArea(a)} style={tabStyle(on, accentOf(a))}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: accentOf(a), flex: "none" }} />{a}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="reader-editorial" style={{ minHeight: "100vh", background: PAPER, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", ["--rv-accent" as string]: ALL_ACCENT, ["--rv-ink" as string]: INK, ["--rv-ink-2" as string]: INK_2, ["--rv-copy" as string]: INK_2, ["--rv-muted" as string]: MUT, ["--rv-muted-2" as string]: MUT2, ["--rv-line" as string]: LINE, ["--rv-surface" as string]: SURFACE, ["--rv-card" as string]: "#fff", ["--rv-card-line" as string]: "#d8d7d1", ["--rv-card-radius" as string]: "8px", ["--rv-card-shadow" as string]: "0 8px 22px rgba(31,35,42,.07)" }}>
       <style>{`
@@ -726,35 +756,50 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             from anchored rows server-side; the lead is the only model prose and is
             digit-banned + validated. Area chips route into the specialty editions. */}
         {daily?.payload?.sections?.length ? (
-          <section style={{ margin: "26px 0 6px", padding: "18px 20px 8px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
+          <section style={{ margin: "26px 0 6px", padding: "20px 22px 12px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
               <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
               <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date}</span>
             </div>
-            {daily.lead && <p style={{ margin: "10px 0 2px", font: "500 16.5px/1.45 'Newsreader',Georgia,serif", color: INK }}>{daily.lead}</p>}
-            <div style={{ display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: wide ? "0 34px" : 0, marginTop: 8 }}>
-              {daily.payload.sections.map((s) => (
-                <div key={s.key} style={{ padding: "10px 0 12px", borderTop: `1px solid ${LINE}` }}>
-                  <div style={{ font: "700 10px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: MUT2 }}>{s.title}</div>
-                  {s.items.slice(0, s.key === "mics" ? 5 : 4).map((it, i) => (
-                    <div key={i} style={{ marginTop: 9 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
-                        {it.url ? (
-                          <a href={it.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, textDecoration: "none", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</a>
-                        ) : (
-                          <span style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</span>
-                        )}
-                        {(it.areas ?? []).slice(0, 2).map((a) => (
-                          <button key={a} onClick={() => onArea(a)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(a), background: `${accentOf(a)}12`, border: `1px solid ${accentOf(a)}40`, borderRadius: 4, padding: "2px 5px", flex: "none", cursor: "pointer" }}>{a}</button>
-                        ))}
+            {daily.lead && <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK }}>{daily.lead}</p>}
+            {(daily.payload.narrative ?? []).length ? (
+              <div style={{ marginTop: 6 }}>
+                {(daily.payload.narrative ?? []).map((p, i) => (
+                  <p key={i} style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: INK_2 }}>
+                    {(p.areas ?? []).slice(0, 2).map((ar) => (
+                      <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", marginRight: 7, cursor: "pointer", verticalAlign: "2px" }}>{ar}</button>
+                    ))}
+                    {p.text}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+            <details style={{ margin: "14px 0 4px" }}>
+              <summary style={{ cursor: "pointer", font: "600 11.5px system-ui", color: MUT, listStyle: "none" }}>Sources & items ↓</summary>
+              <div style={{ display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: wide ? "0 34px" : 0, marginTop: 8 }}>
+                {daily.payload.sections.map((s) => (
+                  <div key={s.key} style={{ padding: "10px 0 12px", borderTop: `1px solid ${LINE}` }}>
+                    <div style={{ font: "700 10px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: MUT2 }}>{s.title}</div>
+                    {s.items.slice(0, s.key === "mics" ? 5 : 4).map((it, i) => (
+                      <div key={i} style={{ marginTop: 9 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
+                          {it.url ? (
+                            <a href={it.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, textDecoration: "none", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</a>
+                          ) : (
+                            <span style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</span>
+                          )}
+                          {(it.areas ?? []).slice(0, 2).map((ar) => (
+                            <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", flex: "none", cursor: "pointer" }}>{ar}</button>
+                          ))}
+                        </div>
+                        {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}
+                        {it.line && <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.line}</div>}
                       </div>
-                      {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}
-                      {it.line && <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.line}</div>}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </details>
           </section>
         ) : null}
 
