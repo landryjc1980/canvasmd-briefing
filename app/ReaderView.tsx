@@ -195,7 +195,17 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
 }
 export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?: boolean }) {
   const [expanded, setExpanded] = useState(false);
-  const text = cleanTweetText(t.text);
+  // Translation lane (X-convention disclosure, John 2026-08-18): non-English posts render
+  // the stored English translation with "Translated from <Language>" + a toggle back to the
+  // original. The ORIGINAL is the receipt of record; the translation is presentation only.
+  const [showOriginal, setShowOriginal] = useState(false);
+  const hasTranslation = !!(t.textEn && t.textEn.trim() && t.textEn.trim() !== (t.text ?? "").trim());
+  const langName = (() => {
+    if (!hasTranslation) return null;
+    try { return new Intl.DisplayNames(["en"], { type: "language" }).of((t.lang ?? "").split("-")[0]) ?? t.lang; }
+    catch { return t.lang ?? "another language"; }
+  })();
+  const text = cleanTweetText(hasTranslation && !showOriginal ? t.textEn! : t.text);
   const thread = (t.thread ?? []).map((part) => ({ ...part, text: cleanTweetText(part.text) })).filter((part) => part.text);
   const canExpand = !compact && (thread.length > 0 || text.length > 320);
   const collapsedText: React.CSSProperties = canExpand && !expanded
@@ -218,6 +228,13 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
+      {hasTranslation && (
+        <button type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowOriginal((v) => !v); }}
+          style={{ background: "none", border: 0, padding: "6px 0 0", cursor: "pointer", font: "500 11px system-ui", color: MUT, textAlign: "left" }}>
+          {showOriginal ? `Show translation (from ${langName})` : `Translated from ${langName} · Show original`}
+        </button>
+      )}
     </>);
   const postUrl = original?.tweetUrl ?? t.tweetUrl;
   const root = postUrl
