@@ -122,23 +122,24 @@ export function renderDailyEmail(opts: {
     ? `<div style="margin:20px 0 0;padding-top:14px;border-top:1px solid ${LINE}">${secHdr("Top Stories" + (isAll ? "" : " · " + esc(editionLabel)))}${topsHtml}</div>`
     : "";
 
-  const html = `<!doctype html><html><body style="margin:0;background:${PAPER};font-family:${SANS};color:${INK}">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAPER};padding:32px 0"><tr><td align="center">
+  // Flat single-white-canvas layout (John, 2026-08-18): no paper-behind-card nesting — on
+  // phones the stacked backgrounds ate horizontal space and squished the serif copy. The
+  // masthead and body sit on one white ground separated by hairline rules.
+  const html = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:${SANS};color:${INK}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:28px 0"><tr><td align="center">
 <table role="presentation" width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%">
-<tr><td style="padding:0 24px 14px">
+<tr><td style="padding:0 24px">
 <a href="${esc(opts.siteLink)}" style="text-decoration:none"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${accent}">CanvasMD</div>
 <div style="font-family:Georgia,serif;font-weight:400;font-size:30px;color:${INK};letter-spacing:-.01em;margin-top:2px">The Readout</div></a>
 <div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)}</span></div>
-</td></tr>
-<tr><td style="padding:0 24px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #d8d7d1;border-radius:10px"><tr><td style="padding:22px 24px">
+<div style="height:1px;background:${LINE};margin:18px 0 20px"></div>
 ${parasHtml}
 <a href="${esc(opts.siteLink)}" style="display:inline-block;background:${INK};color:#ffffff;font-weight:700;font-size:13.5px;text-decoration:none;padding:11px 22px;border-radius:8px;margin-top:2px">Open the ${isAll ? "full" : esc(area!)} Readout →</a>
 ${topsBlock}
 ${sectionsHtml}
 ${crossLink}
-</td></tr></table>
-<p style="font-size:11px;line-height:1.6;color:${MUT};margin:18px 0 0;text-align:center">Signal from tracked oncology clinicians and selected oncology podcasts. No anonymous accounts.<br>${esc(PHYSICAL)} · <a href="${esc(opts.unsubUrl)}" style="color:${MUT}">Unsubscribe</a></p>
+<div style="height:1px;background:${LINE};margin:24px 0 14px"></div>
+<p style="font-size:11px;line-height:1.6;color:${MUT};margin:0;text-align:center">Signal from tracked oncology clinicians and selected oncology podcasts. No anonymous accounts.<br>${esc(PHYSICAL)} · <a href="${esc(opts.unsubUrl)}" style="color:${MUT}">Unsubscribe</a></p>
 </td></tr></table></td></tr></table></body></html>`;
 
   return { html, subject: `The Daily · ${editionLabel} — ${daily.date}` };
