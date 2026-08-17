@@ -955,3 +955,13 @@ export type BriefingData = {
 // Per-reader seen-state for "Since your last read": storyId -> the evidence fingerprint that
 // was on the story when the reader last actually viewed it (screen shown / scrolled into view).
 export type SeenMap = Record<string, string>;
+
+
+// ---- The Daily Readout (one global edition/day; All-oncology tab) ----------
+export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null };
+export type DailyReadout = {
+  date: string;
+  lead: string | null; // the ONLY model prose — digit-banned, validated server-side
+  payload: { sections: { key: string; title: string; items: DailyItem[] }[] };
+  generated_at?: string;
+};

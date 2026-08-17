@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard } from "@/lib/types";
+import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard, DailyReadout } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
 import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
@@ -47,13 +47,14 @@ const ago = (iso: string) => {
 };
 const areaId = (a: string) => "all-" + a;
 
-export default function AllView({ briefsByArea, areas, onArea, compact = false, primary, onSetPrimary, failed, onRetry }: {
+export default function AllView({ briefsByArea, areas, onArea, compact = false, primary, onSetPrimary, failed, onRetry, daily }: {
   // Areas may be MISSING: the page renders whatever has landed rather than holding everything
   // hostage to the slowest (or the broken) one. Every read below is optional-chained.
   briefsByArea: Record<string, BriefingData | undefined>;
   areas: string[];
   onArea: (a: string) => void;
   compact?: boolean;
+  daily?: DailyReadout | null;
   primary?: string | null;
   onSetPrimary?: (a: string) => void;
   failed?: Record<string, string>;
@@ -719,6 +720,43 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </div>
           );
         })()}
+
+        {/* THE DAILY — one global edition, shown only when the deterministic gate said the
+            day earned it (show=true rows only reach this component). Items are templated
+            from anchored rows server-side; the lead is the only model prose and is
+            digit-banned + validated. Area chips route into the specialty editions. */}
+        {daily?.payload?.sections?.length ? (
+          <section style={{ margin: "26px 0 6px", padding: "18px 20px 8px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
+              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date}</span>
+            </div>
+            {daily.lead && <p style={{ margin: "10px 0 2px", font: "500 16.5px/1.45 'Newsreader',Georgia,serif", color: INK }}>{daily.lead}</p>}
+            <div style={{ display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: wide ? "0 34px" : 0, marginTop: 8 }}>
+              {daily.payload.sections.map((s) => (
+                <div key={s.key} style={{ padding: "10px 0 12px", borderTop: `1px solid ${LINE}` }}>
+                  <div style={{ font: "700 10px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: MUT2 }}>{s.title}</div>
+                  {s.items.slice(0, s.key === "mics" ? 5 : 4).map((it, i) => (
+                    <div key={i} style={{ marginTop: 9 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
+                        {it.url ? (
+                          <a href={it.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, textDecoration: "none", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</a>
+                        ) : (
+                          <span style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</span>
+                        )}
+                        {(it.areas ?? []).slice(0, 2).map((a) => (
+                          <button key={a} onClick={() => onArea(a)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(a), background: `${accentOf(a)}12`, border: `1px solid ${accentOf(a)}40`, borderRadius: 4, padding: "2px 5px", flex: "none", cursor: "pointer" }}>{a}</button>
+                        ))}
+                      </div>
+                      {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}
+                      {it.line && <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.line}</div>}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* six area groups — compact first-pass picks with an in-place "show more";
             groups ride in activity order, and the receipt count in each header justifies the slot.

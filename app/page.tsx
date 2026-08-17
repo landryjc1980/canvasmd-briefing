@@ -61,6 +61,7 @@ export default function BriefingPage() {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [data, setData] = useState<BriefingData | null>(null);
   const [seen, setSeen] = useState<Record<string, string>>({});
+  const [daily, setDaily] = useState<import("@/lib/types").DailyReadout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [, bump] = useState(0); // re-render when a brief lands in cache (the All view reads the cache directly)
@@ -155,6 +156,12 @@ export default function BriefingPage() {
 
   // Retry a single failed area (or every failed area). `load` short-circuits on anything already
   // cached, so this only re-fetches what actually needs it.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/daily").then((r) => r.json()).then((j) => { if (alive) setDaily(j.daily ?? null); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const retryArea = useCallback((a?: string) => {
     const targets = a ? [a] : Object.keys(areaErr);
     setAreaErr((m) => { const n = { ...m }; for (const t of targets) delete n[t]; return n; });
@@ -232,7 +239,7 @@ export default function BriefingPage() {
       );
     }
     const briefsByArea = Object.fromEntries(AREAS.map((a) => [a, cacheRef.current[a]?.briefing]));
-    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} failed={areaErr} onRetry={retryArea} />;
+    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} failed={areaErr} onRetry={retryArea} daily={daily} />;
   }
 
   // ---- DEFAULT: responsive story / reader ----
