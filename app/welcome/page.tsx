@@ -3,8 +3,17 @@
 // The capture wall. Shown to anyone hitting the brief without a valid session. Colleague
 // share links skip this (they redeem directly); this is for cold / expired visitors, and
 // every submit is a lead — a new corporate domain is a sales signal.
+//
+// Styled on the paper/ink system the product itself uses (John 2026-08-18: the old navy
+// gate no longer matched the brand) — same tokens as ReaderView/AllView and the Daily email.
 
 import { useEffect, useState } from "react";
+
+const INK = "#17181a", INK2 = "#4f5257", MUT = "#696c71", MUT2 = "#85878c";
+const LINE = "#cfd0cb", PAPER = "#f4f4f1", ACCENT = "#475569";
+const AREA_ACCENTS: Record<string, string> = {
+  GU: "#0369a1", Breast: "#be185d", Lung: "#334155", GI: "#a45c0a", Heme: "#9b0f18", Gyn: "#0d6b5f", All: "#475569",
+};
 
 export default function Welcome() {
   const [email, setEmail] = useState("");
@@ -13,7 +22,7 @@ export default function Welcome() {
   const [expired, setExpired] = useState(false);
   const [area, setArea] = useState<string | null>(null);
   const [chosen, setChosen] = useState(false); // true once they TAP a focus chip (vs URL-derived)
-  const [daily, setDaily] = useState(false);
+  const [daily, setDaily] = useState(true); // default ON (John): opt-out, not opt-in
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -42,49 +51,51 @@ export default function Welcome() {
     } catch { setState("error"); setMsg("Network error — try again."); }
   };
 
+  const input: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "13px 15px", color: INK, fontSize: 15, outline: "none" };
+
   // Two layers on purpose: the fixed layer SCROLLS, the inner layer centers. Centering on the
   // fixed layer itself clips the overflow beyond reach — and this is the only place in the
   // product where a reader can convert, so the button has to survive a small phone at 200% zoom.
   return (
-    <div style={{ position: "fixed", inset: 0, overflowY: "auto", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ position: "fixed", inset: 0, overflowY: "auto", background: PAPER, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <div style={{ minHeight: "100%", boxSizing: "border-box", padding: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
-          <span style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 500, fontSize: 28, color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
-          <span style={{ fontWeight: 600, fontSize: 9.5, letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", marginTop: 6 }}>by CanvasMD</span>
+        <div style={{ lineHeight: 1.05 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".18em", textTransform: "uppercase", color: ACCENT }}>CanvasMD</div>
+          <div style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 400, fontSize: 30, color: INK, letterSpacing: "-.01em", marginTop: 2 }}>The Readout</div>
         </div>
-        <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: "#6f7684", marginTop: 8 }}>The Weekly Brief</div>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: MUT2, marginTop: 8 }}>The Weekly Brief</div>
 
         {state === "sent" ? (
           <div style={{ marginTop: 30 }}>
-            <div style={{ fontSize: 19, fontWeight: 600, color: "#f4f7ff" }}>Check your inbox</div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#aab2c4", marginTop: 12 }}>{msg}</p>
+            <div style={{ font: "500 20px/1.3 'Newsreader',Georgia,serif", color: INK }}>Check your inbox</div>
+            <p style={{ fontSize: 14.5, lineHeight: 1.55, color: INK2, marginTop: 12 }}>{msg}</p>
           </div>
         ) : (
           <>
-            <h1 style={{ font: "400 26px/1.25 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "26px 0 10px" }}>
+            <h1 style={{ font: "400 26px/1.28 'Newsreader',Georgia,serif", color: INK, margin: "24px 0 10px" }}>
               What moved this week in oncology — the conversations, papers, and approvals your field is actually discussing.
             </h1>
-            <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#aab2c4", margin: "0 0 22px" }}>
+            <p style={{ fontSize: 14.5, lineHeight: 1.55, color: INK2, margin: "0 0 20px" }}>
               {expired ? "Your sign-in expired. Enter your work email and we'll send a fresh link." : "This brief is invite-only. Enter your work email — if you're on the list we'll send your sign-in link, otherwise we'll pass your request along to join."}
             </p>
             <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input
                 type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com" autoComplete="email"
-                style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 10, padding: "13px 15px", color: "#f4f7ff", fontSize: 15, outline: "none" }}
+                placeholder="you@company.com" autoComplete="email" style={input}
               />
               {/* The specialty question, asked ONCE at the door — it decides which edition of the
                   brief and The Daily this reader gets, so it can't stay an accident of which link
                   they arrived on. Pre-highlighted from the URL when they came via an area link. */}
               <div>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#6f7684", margin: "2px 0 8px" }}>Your focus</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, margin: "2px 0 8px" }}>Your focus</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {[["GU", "GU"], ["Breast", "Breast"], ["Lung", "Lung"], ["GI", "GI"], ["Heme", "Heme"], ["Gyn", "Gyn"], ["All", "All of oncology"]].map(([v, label]) => {
                     const on = area === v || (v === "All" && area === null && chosen);
+                    const c = AREA_ACCENTS[v] ?? ACCENT;
                     return (
                       <button key={v} type="button" onClick={() => { setArea(v === "All" ? null : v); setChosen(true); }}
-                        style={{ background: on ? "#7aa2ff" : "rgba(255,255,255,.06)", color: on ? "#0e1524" : "#c3cadb", fontWeight: on ? 700 : 500, fontSize: 12.5, border: `1px solid ${on ? "#7aa2ff" : "rgba(255,255,255,.16)"}`, borderRadius: 999, padding: "7px 13px", cursor: "pointer" }}>
+                        style={{ background: on ? c : "#fff", color: on ? "#fff" : INK2, fontWeight: on ? 700 : 500, fontSize: 12.5, border: `1px solid ${on ? c : LINE}`, borderRadius: 999, padding: "7px 13px", cursor: "pointer" }}>
                         {label}
                       </button>
                     );
@@ -92,16 +103,16 @@ export default function Welcome() {
                 </div>
               </div>
               <button type="submit" disabled={state === "sending"}
-                style={{ background: "#7aa2ff", color: "#0e1524", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
+                style={{ background: INK, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
                 {state === "sending" ? "Sending…" : expired ? "Send me a fresh link" : "Request access"}
               </button>
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: "#aab2c4" }}>
-                <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: "#7aa2ff" }} />
-                <span>Also email me <strong style={{ color: "#dbe2f2" }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: INK2 }}>
+                <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: INK }} />
+                <span>Also email me <strong style={{ color: INK }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
               </label>
             </form>
-            {state === "error" && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{msg}</p>}
-            <p style={{ fontSize: 12, lineHeight: 1.5, color: "#6b7280", marginTop: 18 }}>A private benefit for oncology-focused teams. No password — the link signs you in.</p>
+            {state === "error" && <p style={{ color: AREA_ACCENTS.Heme, fontSize: 13, marginTop: 10 }}>{msg}</p>}
+            <p style={{ fontSize: 12, lineHeight: 1.5, color: MUT, marginTop: 18 }}>A private benefit for oncology-focused teams. No password — the link signs you in.</p>
           </>
         )}
       </div>

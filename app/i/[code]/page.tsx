@@ -3,9 +3,17 @@
 // Colleague invite landing (/i/<code>). A reader shared the brief; the colleague enters their
 // work email once, we redeem the invite (attributing them to the sharer), set a session, and
 // send them straight into the brief. Low friction on purpose — one field, then they're in.
+//
+// Paper/ink styling to match the product and the welcome wall (John 2026-08-18).
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+
+const INK = "#17181a", INK2 = "#4f5257", MUT2 = "#85878c";
+const LINE = "#cfd0cb", PAPER = "#f4f4f1", ACCENT = "#475569";
+const AREA_ACCENTS: Record<string, string> = {
+  GU: "#0369a1", Breast: "#be185d", Lung: "#334155", GI: "#a45c0a", Heme: "#9b0f18", Gyn: "#0d6b5f", All: "#475569",
+};
 
 export default function InviteLanding() {
   const params = useParams<{ code: string }>();
@@ -19,7 +27,7 @@ export default function InviteLanding() {
   // colleague's own answer — it becomes their default edition for the brief and The Daily.
   const [focus, setFocus] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-  const [daily, setDaily] = useState(false);
+  const [daily, setDaily] = useState(true); // default ON (John): opt-out, not opt-in
   useEffect(() => {
     const a = new URLSearchParams(window.location.search).get("area");
     if (a && ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(a)) setFocus(a);
@@ -42,48 +50,49 @@ export default function InviteLanding() {
     } catch { setState("error"); setMsg("Network error — try again."); }
   };
 
+  const input: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "13px 15px", color: INK, fontSize: 15, outline: "none" };
+
   // Two layers on purpose: the fixed layer SCROLLS, the inner layer centers — centering on the
   // fixed layer clips the overflow beyond reach on a small phone or at high zoom.
   return (
-    <div style={{ position: "fixed", inset: 0, overflowY: "auto", background: "#0e1524", color: "#e9edf6", fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div style={{ position: "fixed", inset: 0, overflowY: "auto", background: PAPER, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <div style={{ minHeight: "100%", boxSizing: "border-box", padding: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
-          <span style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 500, fontSize: 28, color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
-          <span style={{ fontWeight: 600, fontSize: 9.5, letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.5)", marginTop: 6 }}>by CanvasMD</span>
+        <div style={{ lineHeight: 1.05 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".18em", textTransform: "uppercase", color: ACCENT }}>CanvasMD</div>
+          <div style={{ fontFamily: "'Newsreader',Georgia,serif", fontWeight: 400, fontSize: 30, color: INK, letterSpacing: "-.01em", marginTop: 2 }}>The Readout</div>
         </div>
-        <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: "#6f7684", marginTop: 8 }}>The Weekly Brief</div>
-        <h1 style={{ font: "400 25px/1.25 'Newsreader',Georgia,serif", color: "#f8f9fc", margin: "26px 0 10px" }}>A colleague shared this week's brief with you.</h1>
-        <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#aab2c4", margin: "0 0 22px" }}>Enter your work email to open it. No password — this signs you in.</p>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: MUT2, marginTop: 8 }}>The Weekly Brief</div>
+        <h1 style={{ font: "400 25px/1.28 'Newsreader',Georgia,serif", color: INK, margin: "24px 0 10px" }}>A colleague shared this week&rsquo;s brief with you.</h1>
+        <p style={{ fontSize: 14.5, lineHeight: 1.55, color: INK2, margin: "0 0 20px" }}>Enter your work email to open it. No password — this signs you in.</p>
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name (optional)" autoComplete="name"
-            style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 10, padding: "13px 15px", color: "#f4f7ff", fontSize: 15, outline: "none" }} />
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email"
-            style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 10, padding: "13px 15px", color: "#f4f7ff", fontSize: 15, outline: "none" }} />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name (optional)" autoComplete="name" style={input} />
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" style={input} />
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#6f7684", margin: "2px 0 8px" }}>Your focus</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, margin: "2px 0 8px" }}>Your focus</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
               {[["GU", "GU"], ["Breast", "Breast"], ["Lung", "Lung"], ["GI", "GI"], ["Heme", "Heme"], ["Gyn", "Gyn"], ["All", "All of oncology"]].map(([v, label]) => {
                 const on = focus === v || (v === "All" && focus === null && touched);
+                const c = AREA_ACCENTS[v] ?? ACCENT;
                 return (
                   <button key={v} type="button" onClick={() => { setFocus(v === "All" ? null : v); setTouched(true); }}
-                    style={{ background: on ? "#7aa2ff" : "rgba(255,255,255,.06)", color: on ? "#0e1524" : "#c3cadb", fontWeight: on ? 700 : 500, fontSize: 12.5, border: `1px solid ${on ? "#7aa2ff" : "rgba(255,255,255,.16)"}`, borderRadius: 999, padding: "7px 13px", cursor: "pointer" }}>
+                    style={{ background: on ? c : "#fff", color: on ? "#fff" : INK2, fontWeight: on ? 700 : 500, fontSize: 12.5, border: `1px solid ${on ? c : LINE}`, borderRadius: 999, padding: "7px 13px", cursor: "pointer" }}>
                     {label}
                   </button>
                 );
               })}
             </div>
           </div>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: "#aab2c4" }}>
-            <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: "#7aa2ff" }} />
-            <span>Also email me <strong style={{ color: "#dbe2f2" }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: INK2 }}>
+            <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: INK }} />
+            <span>Also email me <strong style={{ color: INK }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
           </label>
           <button type="submit" disabled={state === "sending"}
-            style={{ background: "#7aa2ff", color: "#0e1524", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
+            style={{ background: INK, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
             {state === "sending" ? "Opening…" : "Open the brief"}
           </button>
         </form>
-        {state === "error" && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{msg}</p>}
+        {state === "error" && <p style={{ color: AREA_ACCENTS.Heme, fontSize: 13, marginTop: 10 }}>{msg}</p>}
       </div>
       </div>
     </div>
