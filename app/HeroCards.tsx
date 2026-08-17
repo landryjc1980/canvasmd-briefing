@@ -43,6 +43,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
             <div style={{ minWidth: 0 }}>
               <div className="readout-hero-kicker" style={{ font: `700 ${compact ? 9 : 11}px system-ui`, letterSpacing: compact ? "0.12em" : "0.14em", textTransform: "uppercase", color: accent }}>
                 {KIND_KICKER[c.kind] ?? c.kind}
+                {(c.drugTags ?? []).length > 0 && <span style={{ opacity: .72, textTransform: "none", letterSpacing: 0, marginLeft: 8, font: `600 ${compact ? 9.5 : 11}px system-ui` }}>· {(c.drugTags ?? [])[0]}</span>}
               </div>
               <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{c.sourceLabel}</div>
               <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
