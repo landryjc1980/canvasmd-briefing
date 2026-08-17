@@ -412,41 +412,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     <button type="button" onClick={flip} style={{ background: "none", border: 0, cursor: "pointer", font: "600 11.5px system-ui", color: MUT2, padding: "8px 2px 0", textAlign: "left" }}>{on ? "Show fewer ↑" : `Show ${Math.min(total, MORE_CAP) - cap} more ↓`}</button>
   );
 
-  // ── Readout watch (cross-area) ── merge the six areas' registry-anchored watch rails:
-  // dedupe by NCT (a multi-area trial keeps every area chip), soonest primary completion
-  // first. Strings render VERBATIM from the server (language control is server-side).
-  const watchAll = (() => {
-    const byNct = new Map<string, { w: NonNullable<BriefingData["readoutWatch"]>[number]; areas: string[] }>();
-    for (const a of AREAS) {
-      for (const w of briefsByArea[a]?.readoutWatch ?? []) {
-        const e = byNct.get(w.nctId);
-        if (e) { if (!e.areas.includes(a)) e.areas.push(a); }
-        else byNct.set(w.nctId, { w, areas: [a] });
-      }
-    }
-    return [...byNct.values()].sort((x, y) => x.w.primaryCompletionDate.localeCompare(y.w.primaryCompletionDate)).slice(0, 8);
-  })();
-  const watchModule = watchAll.length > 0 && (
-    <div style={{ marginTop: 34 }}>
-      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Readout watch</h2>
-      <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 5 }}>phase 3 trials at or nearing registered primary completion · dates are registry entries, not data timelines</div>
-      {watchAll.map(({ w, areas }) => (
-        <div key={w.nctId} style={{ padding: "11px 0", borderTop: `1px solid ${LINE}`, marginTop: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <a href={w.url} target="_blank" rel="noopener noreferrer"
-              style={{ flex: 1, minWidth: 0, font: "500 15px 'Newsreader',Georgia,serif", color: INK, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {w.acronym || w.nctId}
-            </a>
-            {areas.map((a) => <span key={a} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(a), background: `${accentOf(a)}12`, border: `1px solid ${accentOf(a)}40`, borderRadius: 4, padding: "2px 5px", flex: "none" }}>{a}</span>)}
-          </div>
-          <div style={{ font: "400 12px/1.5 system-ui", color: MUT2, marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{w.title}</div>
-          <div style={{ font: "400 11.5px/1.6 system-ui", color: INK, opacity: .8, marginTop: 5 }}>{w.line}</div>
-          {w.move && <div style={{ font: "500 11.5px/1.6 system-ui", color: accentOf(areas[0] ?? "GU"), marginTop: 2 }}>{w.move.line}</div>}
-        </div>
-      ))}
-    </div>
-  );
-
   const voicesModules = (
     <div>
       <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Voices of the week</h2>
@@ -897,14 +862,14 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </section>
           );
           const voicesInline = micsRanked.length + xRanked.length > 0 && (
-            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: `1px solid ${LINE}`, scrollMarginTop: 100 }}>{voicesModules}{watchModule}</div>
+            <div id="all-voices" style={{ marginTop: 40, paddingTop: 26, borderTop: `1px solid ${LINE}`, scrollMarginTop: 100 }}>{voicesModules}</div>
           );
           // old snapshots ship no hosts/amp — collapse the rail rather than render an empty shell
           const hasVoices = micsRanked.length + xRanked.length > 0;
           return wide ? (
             <div style={{ display: "grid", gridTemplateColumns: hasVoices ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
               <div style={{ minWidth: 0 }}>{groupsJsx}{podcastsJsx}{readingJsx}</div>
-              {hasVoices && <aside style={{ minWidth: 0, marginTop: 34 }}>{voicesModules}{watchModule}</aside>}
+              {hasVoices && <aside style={{ minWidth: 0, marginTop: 34 }}>{voicesModules}</aside>}
             </div>
           ) : (
             <>{groupsJsx}{podcastsJsx}{readingJsx}{voicesInline}</>

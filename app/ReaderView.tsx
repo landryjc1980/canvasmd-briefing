@@ -1304,6 +1304,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                   <span style={{ font: "400 11.5px system-ui", color: MUT }}>{parts.join(" · ")}</span>
                 </div>
+                {/* Registry context ANNOTATES the conversation-driven row (never a separate list —
+                    2026-08-18: the standalone watch rail was retracted as clutter). Server strings
+                    verbatim; appears only when a DISCUSSED trial nears registered completion. */}
+                {(() => { const w = (data.readoutWatch ?? []).find((x) => x.nctId === t.nctId); return w ? (
+                  <div style={{ font: "500 11px/1.5 system-ui", color: pal.accent, marginTop: 5, opacity: .9 }}>{w.line}{w.move ? ` · ${w.move.line}` : ""}</div>
+                ) : null; })()}
               </div>
             }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
@@ -1313,34 +1319,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </Row>
         );
       }} />
-    </>
-  );
-
-  // Readout Watch (trial-stories Phase 1) — registry-anchored anticipation. Compact,
-  // no drawer: each row is a phase-3 trial approaching/at primary completion, and every
-  // string is rendered VERBATIM from the server (the "never say data expected" language
-  // control is server-side by design — do not compose copy here).
-  const watch = data.readoutWatch ?? [];
-  const watchSection = watch.length > 0 && (
-    <>
-      <SectionHead id="sec-watch" accent={pal.accent} rail={wide} left>Readout watch</SectionHead>
-      <div style={{ font: "400 11.5px/1.5 system-ui", color: MUT, margin: "-4px 0 10px" }}>
-        Phase 3 trials at or nearing registered primary completion. Dates are registry entries, not data timelines.
-      </div>
-      {watch.map((w) => (
-        <div key={w.storyId} style={{ padding: "11px 0", borderTop: `1px solid ${LINE}` }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <a href={w.url} target="_blank" rel="noopener noreferrer"
-              style={{ flex: 1, minWidth: 0, font: "500 15px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {w.acronym || w.nctId}
-            </a>
-            <span style={{ flex: "none", font: "700 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: MUT, border: `1px solid ${LINE}`, borderRadius: 4, padding: "2px 5px" }}>{w.phase}</span>
-          </div>
-          <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{w.title}</div>
-          <div style={{ font: "400 11.5px/1.6 system-ui", color: "var(--rv-ink, #f4f7ff)", opacity: .85, marginTop: 5 }}>{w.line}</div>
-          {w.move && <div style={{ font: "500 11.5px/1.6 system-ui", color: pal.accent, marginTop: 2 }}>{w.move.line}</div>}
-        </div>
-      ))}
     </>
   );
 
@@ -1563,7 +1541,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <aside style={{ minWidth: 0 }}>
                 {peopleSection}
                 {trialsSection}
-                {watchSection}
                 {drugsSection}
               </aside>
             )}
@@ -1579,7 +1556,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {episodesSection}
             {papersSection}
             {trialsSection}
-            {watchSection}
             {peopleSection}
             {drugsSection}
           </>
