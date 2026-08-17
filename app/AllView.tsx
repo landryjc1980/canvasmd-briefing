@@ -267,12 +267,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   };
   const [activeSec, setActiveSec] = useState<string>(areaId(orderedAreas[0]));
   const orderKey = orderedAreas.join(",");
+  // What a jump has to clear. Each layout stickies a DIFFERENT element: wide pins the full
+  // masthead (the Areas band below it scrolls away), while medium and compact pin only the
+  // section-pill row — same values the specialty editions use.
+  const jumpOffset = wide ? 96 : compact ? 74 : 62;
   useEffect(() => {
     // ids in VISUAL order (groups are activity-ordered) — the spy takes the last one above the fold.
-    // Threshold sits below the 100px jump-landing offset so the pill you just
-    // tapped actually lights up; deps include wide/compact because both change the id set + offsets.
+    // Deps include wide/compact because both change the id set and the offsets.
     const ids = [...orderKey.split(",").map(areaId), "all-listen", "all-reading", ...(wide ? [] : ["all-voices"])];
-    const threshold = compact ? 112 : 90;
+    // Must sit BELOW where a jump lands (jumpOffset) or the pill you just tapped never lights.
+    const threshold = jumpOffset + 16;
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
@@ -291,14 +295,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [orderKey, wide, compact]);
+  }, [orderKey, wide, compact, jumpOffset]);
   // rAF glide (ported from ReaderView.goSec): the FacePile avatars above a jump target lazy-load
   // and shift layout mid-flight, so the target is re-measured every frame; wheel/touch cancels.
   const goTo = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const offset = 100; // clear the All page's two-row sticky navigation at every width
-    const targetNow = () => el.getBoundingClientRect().top + window.scrollY - offset;
+    const targetNow = () => el.getBoundingClientRect().top + window.scrollY - jumpOffset;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
     const start = window.scrollY;
     const t0 = performance.now();
@@ -673,83 +676,79 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       `}</style>
 
       <div style={{ maxWidth: wide ? 1116 : 760, margin: "0 auto", padding: compact ? "18px 20px 100px" : wide ? "0 30px 120px" : "0 32px 120px" }}>
-        {/* Publication masthead: same hierarchy as every specialty edition. */}
-        <div style={{ minHeight: compact ? undefined : 86, display: "flex", alignItems: compact ? "flex-start" : "center", justifyContent: "space-between", gap: compact ? 8 : 18 }}>
+        {/* WIDE — the specialty editions' masthead, structure for structure: brand on the left,
+            section jumps centered, edition picker + freshness + Share on the right. The Areas
+            scope row then rides its own quiet band beneath, exactly where Focus sits on a tumor
+            page, because it scopes the whole page rather than navigating within it. */}
+        {wide && !compact && <>
+          <div style={{ position: "sticky", top: 0, zIndex: 15, minHeight: 86, margin: "0 -30px", padding: "0 30px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 42, background: stuck ? "rgba(244,244,241,.94)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 12px 28px -22px rgba(31,35,42,.35)" : "none", transition: "box-shadow .2s ease" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ color: ALL_ACCENT, font: "750 10px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
+              <h1 style={{ font: "500 28px/1 Georgia,'Newsreader',serif", color: INK, margin: "5px 0 0", whiteSpace: "nowrap" }}>The Readout</h1>
+            </div>
+            <nav aria-label="Readout sections" className="all-pills" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, minWidth: 0, overflow: "hidden" }}>
+              {navPills}
+            </nav>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-end" }}>
+              {editionMenu}
+              {oldestStamp && <span style={{ font: "600 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>{ago(oldestStamp)}</span>}
+              {shareMsg && <span role="status" style={{ font: "600 12px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "6px 10px", whiteSpace: "nowrap" }}>{shareMsg}</span>}
+              <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "transparent", border: 0, color: MUT, width: 44, height: 44, padding: 0, cursor: "pointer" }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+              </button>
+            </div>
+          </div>
+          <div style={{ minHeight: 58, margin: "0 -30px 18px", padding: "0 30px", display: "flex", alignItems: "center", gap: 20, borderBottom: `1px solid ${LINE}` }}>
+            {areasRow(false)}
+            <span style={{ marginLeft: "auto", flex: "none", font: "600 10px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: MUT2, whiteSpace: "nowrap" }}>Busiest first</span>
+          </div>
+        </>}
+
+        {/* Mobile and medium-width layouts use the same Editorial hierarchy in a compact stack. */}
+        {(!wide || compact) && <>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: compact ? 8 : 18, paddingBottom: 0 }}>
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-            <span style={{ display: "block", color: ALL_ACCENT, font: `750 ${compact ? 9 : 10}px/1 system-ui`, textTransform: "uppercase" }}>CanvasMD</span>
+            <span style={{ display: "block", color: ALL_ACCENT, font: "750 9px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
             <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 18, marginTop: 1 }}>
-              <h1 style={{ font: `500 ${compact ? 22 : 28}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0 }}>The Readout</h1>
+              <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0 }}>The Readout</h1>
               {!compact && editionMenu}
             </div>
+            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}Busiest first</div>}
+            {/* On medium-width single-column desktop the Areas row still needs its own line; the
+                wide two-column layout moves it into the shared navigation band above. */}
+            {!compact && <div style={{ marginTop: 13 }}>{areasRow(false)}</div>}
           </div>
-          <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 14, flex: "none", marginTop: compact ? 10 : 0 }}>
-            {compact && editionMenu}
-            {!compact && oldestStamp && <span style={{ font: "600 12px system-ui", color: MUT, whiteSpace: "nowrap" }}>{ago(oldestStamp)}</span>}
-          <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, width: compact ? 44 : undefined, height: 44, margin: compact ? "-11px -13px -11px 0" : 0, padding: compact ? 0 : "0 15px", background: "transparent", border: compact ? 0 : `1px solid ${LINE}`, borderRadius: 6, color: compact ? MUT : INK, font: "600 13px system-ui", cursor: "pointer", flex: "none" }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
-            {!compact && "Share"}
-          </button>
+          <div style={{ minHeight: 44, display: "flex", alignItems: "center", gap: compact ? 8 : 14, flex: "none", marginTop: compact ? 10 : 2 }}>
+          {!compact && <>
+            {shareMsg && <span role="status" style={{ font: "600 12.5px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "6px 11px" }}>{shareMsg}</span>}
+            <button onClick={doShare} aria-label="Share this edition" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", border: `1px solid ${LINE}`, color: INK, font: "600 13px system-ui", borderRadius: 6, padding: "8px 15px", cursor: "pointer" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+              Share
+            </button>
+          </>}
+          {compact && editionMenu}
+          {/* 44px box around a 17px glyph keeps the tap target at the platform norm; the negative
+              margin stops the larger hit area from disturbing the header's optical alignment. */}
+          {compact && <button onClick={doShare} aria-label="Share" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "none", border: 0, width: 44, height: 44, margin: "-11px -13px -11px 0", padding: 0, cursor: "pointer", flex: "none", order: 1 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={MUT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+          </button>}
+          {compact && shareMsg && <span role="status" style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 40, font: "600 12.5px system-ui", color: "#fff", background: INK, borderRadius: 6, padding: "8px 13px", boxShadow: "0 8px 24px rgba(0,0,0,.2)" }}>{shareMsg}</span>}
           </div>
         </div>
-        {shareMsg && <div role="status" style={{ font: "600 12px system-ui", color: INK, marginTop: 8 }}>{shareMsg}</div>}
-        <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: compact ? 7 : 0 }}>
-          Busiest first{compact && oldestStamp ? <> · Updated {ago(oldestStamp)}</> : null}
+        {!compact && <div aria-hidden style={{ height: 1, margin: "14px 0 12px", background: LINE }} />}
+        {compact && <>
+          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}Busiest first</div>
+          <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
+        </>}
+        {/* Section jumps stay sticky on compact and medium-width layouts. */}
+        <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -32px", padding: compact ? "4px 20px 2px" : "5px 32px 2px", background: stuck ? "rgba(244,244,241,.96)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 10px 24px -22px rgba(31,35,42,.4)" : "none", transition: "box-shadow .2s ease", display: "flex", justifyContent: "flex-start", flexWrap: compact ? "nowrap" : "wrap", gap: compact ? 24 : 28, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+          {navPills}
         </div>
-        <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
 
-        {/* Section navigation mirrors the specialty editions; the second row is the All-page
-            equivalent of Focus, scoping the cross-oncology scan by tumor area. */}
-        {(() => {
-          const tabStyle = (on: boolean, activeColor: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, minHeight: 44, cursor: "pointer", font: `${on ? "700" : "600"} 12.5px system-ui`, padding: "8px 2px 10px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? activeColor : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s" });
-          const areaPills = orderedAreas.map((a) => {
-            const on = activeSec === areaId(a);
-            return (
-              <button key={a} onClick={() => goArea(a)} style={tabStyle(on, accentOf(a))}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: accentOf(a), flex: "none" }} />{a}
-              </button>
-            );
-          });
-          {/* Voices rides the rail on wide (always visible → no pill, same rule as the tumor
-              pages' rail sections); on narrow it's an inline section that earns a jump */}
-          const voicesPill = !wide && micsRanked.length + xRanked.length > 0 && (
-            <button key="voices" onClick={() => goTo("all-voices")} style={tabStyle(activeSec === "all-voices", ALL_ACCENT)}>
-              People
-            </button>
-          );
-          const listenPill = allEpisodes.length > 0 && (
-            <button key="listen" onClick={() => goTo("all-listen")} style={tabStyle(activeSec === "all-listen", ALL_ACCENT)}>
-              Listen
-            </button>
-          );
-          const papersPill = reading.length > 0 && (
-            <button key="papers" onClick={() => goTo("all-reading")} style={tabStyle(activeSec === "all-reading", ALL_ACCENT)}>
-              Papers
-            </button>
-          );
-          const rowPad = compact ? "0 20px" : wide ? "0 30px" : "0 32px";
-          // Compact section row reads like the tumor pages' tabs: Top Stories lit while you're
-          // anywhere in the groups; Listen / Papers / People take over in their sections.
-          const inSection = activeSec === "all-listen" || activeSec === "all-reading" || activeSec === "all-voices";
-          const topPill = (
-            <button key="top" onClick={() => goArea(orderedAreas[0])} style={tabStyle(!inSection, ALL_ACCENT)}>
-              Stories
-            </button>
-          );
-          return (
-            <div style={{ position: "sticky", top: 0, zIndex: 15, display: "flex", flexDirection: "column", margin: compact ? "0 -20px" : wide ? "0 -30px" : "0 -32px", background: stuck ? "rgba(244,244,241,.96)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 10px 24px -22px rgba(31,35,42,.4)" : "none", transition: "box-shadow .2s ease" }}>
-              <div style={{ display: "flex", gap: 24, padding: rowPad }}>
-                {topPill}
-                {listenPill}
-                {papersPill}
-                {voicesPill}
-              </div>
-              <div className={`all-pills${compact ? " all-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: compact ? 18 : 20, flexWrap: "nowrap", overflowX: "auto", padding: rowPad, WebkitOverflowScrolling: "touch" }}>
-                <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, flex: "none" }}>Areas</span>
-                {areaPills}
-              </div>
-            </div>
-          );
-        })()}
+        {/* Phones keep the horizontally scrollable Areas strip here, where every option holds a
+            44px target — the same slot Focus occupies on a tumor page. */}
+        {compact && areasRow(true)}
+        </>}
 
         {/* THE DAILY — one global edition, shown only when the deterministic gate said the
             day earned it (show=true rows only reach this component). Items are templated
