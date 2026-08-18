@@ -91,7 +91,7 @@ export function renderDailyEmail(opts: {
     : (ed ? ed.paragraphs.map((p) => ({ ...p, areas: [area!] })) : legacy.filter((p) => (p.areas ?? []).includes(area!)));
   const generalParas: Para[] = isAll
     ? [] // the composed All narrative already ends with the Frontier paragraphs
-    : (gen ? gen.paragraphs.map((p) => ({ ...p, areas: [] as string[] })) : legacy.filter((p) => (p.areas ?? []).length === 0));
+    : (gen ? gen.paragraphs.filter((p) => !((p as { dupFor?: string[] }).dupFor ?? []).includes(area!)).map((p) => ({ ...p, areas: [] as string[] })) : legacy.filter((p) => (p.areas ?? []).length === 0));
   const quiet = !isAll && areaParas.length === 0;
   if (areaParas.length === 0 && generalParas.length === 0) return null;
   const editionLead = isAll ? daily.lead : (ed?.lead ?? null);

@@ -1061,7 +1061,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const dailyGen = daily?.payload?.editions?.general ?? null;
   const legacyParas = daily?.payload?.narrative ?? [];
   const areaDailyParas = dailyEd ? dailyEd.paragraphs : legacyParas.filter((p) => (p.areas ?? []).includes(area));
-  const genDailyParas = dailyGen ? dailyGen.paragraphs : legacyParas.filter((p) => (p.areas ?? []).length === 0);
+  const genDailyParas = (dailyGen ? dailyGen.paragraphs : legacyParas.filter((p) => (p.areas ?? []).length === 0)).filter((p) => !((p as { dupFor?: string[] }).dupFor ?? []).includes(area));
   const dailyQuiet = !areaDailyParas.length && genDailyParas.length > 0;
   const dailyLead = dailyEd?.lead ?? null;
   const dailyAll = [...areaDailyParas, ...genDailyParas];
