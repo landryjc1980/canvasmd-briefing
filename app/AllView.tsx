@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { emph, stripEmph } from "@/app/emphasis";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard, DailyReadout } from "@/lib/types";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
@@ -766,7 +767,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             {(() => {
               // Teaser = the lead when the generator's validators kept one, else the first
               // narrative paragraph (the lead is optional prose and drops on any violation).
-              const teaser = daily.lead ?? (daily.payload.narrative ?? [])[0]?.text ?? null;
+              const teaser = daily.lead ?? (stripEmph((daily.payload.narrative ?? [])[0]?.text ?? "") || null);
               if (!teaser || (dailyOpen && !daily.lead)) return null; // expanded w/o lead: paragraphs alone, no duplicate
               return <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{dailyOpen ? daily.lead : teaser}</p>;
             })()}
@@ -777,7 +778,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                     {(p.areas ?? []).slice(0, 2).map((ar) => (
                       <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", marginRight: 7, cursor: "pointer", verticalAlign: "2px" }}>{ar}</button>
                     ))}
-                    {p.text}
+                    {p.head && <strong style={{ fontWeight: 700, color: INK }}>{stripEmph(p.head)}. </strong>}
+                    {emph(p.text)}
                   </p>
                 ))}
               </div>

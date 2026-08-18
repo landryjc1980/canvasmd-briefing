@@ -34,6 +34,12 @@ export type TopStory = { area: string; kind: string; title: string; why: string 
 function esc(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+// Minimal markdown from the generator: **bold** for trial/people names, *italic* for
+// journals/shows/titles. Escape first, then swap the two known forms.
+function emphHtml(s: string): string {
+  return esc(s).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+const stripEmph = (t: string) => t.replace(/\*\*?/g, "");
 
 // ---- top stories (seated hero deck, same briefing_snapshots the site renders) --------------
 export async function fetchTopStories(): Promise<Record<string, TopStory[]>> {
@@ -93,7 +99,7 @@ export function renderDailyEmail(opts: {
     ? `<p style="font-style:italic;font-size:13px;line-height:1.5;color:${MUT};margin:0 0 12px;font-family:Georgia,serif">Quiet in ${esc(editionLabel)} today — elsewhere in oncology:</p>`
     : "";
   const parasHtml = quietNote + paras.map((p) =>
-    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${isAll || quiet ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${esc(p.text)}</p>`,
+    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${isAll || quiet ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}</p>`,
   ).join("");
 
   const ORDER = ["GU", "Lung", "GI", "Breast", "Heme", "Gyn"];
@@ -107,7 +113,7 @@ export function renderDailyEmail(opts: {
   </div>`).join("");
 
   const sectionsHtml = (daily.payload?.sections ?? [])
-    .filter((s) => ["readouts", "mics", "papers"].includes(s.key))
+    .filter((s) => ["readouts", "mics", "papers", "frontier"].includes(s.key))
     .map((s) => {
       const items = s.items.filter((it) => (isAll ? true : (it.areas ?? []).includes(area!))).slice(0, 3);
       if (!items.length) return "";
@@ -139,6 +145,7 @@ export function renderDailyEmail(opts: {
 <div style="font-family:Georgia,serif;font-weight:400;font-size:30px;color:${INK};letter-spacing:-.01em;margin-top:2px">The Readout</div></a>
 <div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)}</span></div>
 <div style="height:1px;background:${LINE};margin:18px 0 20px"></div>
+${daily.lead ? `<p style="font-size:16px;line-height:1.6;color:${INK};margin:0 0 16px;font-family:Georgia,serif;font-weight:500">${esc(daily.lead)}</p>` : ""}
 ${parasHtml}
 <a href="${esc(opts.siteLink)}" style="display:inline-block;background:${INK};color:#ffffff;font-weight:700;font-size:13.5px;text-decoration:none;padding:11px 22px;border-radius:8px;margin-top:2px">Open the ${isAll ? "full" : esc(area!)} Readout →</a>
 ${topsBlock}

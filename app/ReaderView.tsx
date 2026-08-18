@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { emph, stripEmph } from "@/app/emphasis";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
@@ -1073,11 +1074,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — elsewhere in oncology:</div>}
       {dailyOpen || !dailyLong ? (
         dailyParas.map((p, i) => (
-          <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{p.text}</p>
+          <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
+            {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
+            {emph(p.text)}
+          </p>
         ))
       ) : (
         <p style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {dailyParas.map((p) => p.text).join(" ")}
+          {stripEmph(dailyParas.map((p) => (p.head ? `${p.head}. ` : "") + p.text).join(" "))}
         </p>
       )}
       {dailyLong && (
