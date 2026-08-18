@@ -763,7 +763,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             </div>
             {/* Collapsed by default: the lead is the 3-line teaser (it IS the summary); expanding
                 reveals the narrative paragraphs. Sources stay behind their own <details>. */}
-            {daily.lead && <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{daily.lead}</p>}
+            {(() => {
+              // Teaser = the lead when the generator's validators kept one, else the first
+              // narrative paragraph (the lead is optional prose and drops on any violation).
+              const teaser = daily.lead ?? (daily.payload.narrative ?? [])[0]?.text ?? null;
+              if (!teaser || (dailyOpen && !daily.lead)) return null; // expanded w/o lead: paragraphs alone, no duplicate
+              return <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{dailyOpen ? daily.lead : teaser}</p>;
+            })()}
             {dailyOpen && (daily.payload.narrative ?? []).length ? (
               <div style={{ marginTop: 6 }}>
                 {(daily.payload.narrative ?? []).map((p, i) => (
