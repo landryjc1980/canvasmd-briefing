@@ -85,8 +85,10 @@ export function renderDailyEmail(opts: {
   // Quiet-day fill (John): a light specialty still gets the general/cross-cutting paragraphs
   // — or the day's top two — under an honest "quiet in X" kicker, never an empty inbox slot.
   const quiet = !isAll && areaParas.length === 0;
-  const paras = areaParas.length ? areaParas : (generalParas.length ? generalParas : narrative.slice(0, 2));
-  if (paras.length === 0 && !daily.lead) return null;
+  // Quiet-day fill is GENERAL content only (frontier/AI/cross-cutting) — never another
+  // specialty's trials. No general material → no email for that contact today.
+  const paras = areaParas.length ? areaParas : generalParas;
+  if (paras.length === 0) return null;
 
   const chip = (a: string) => {
     const c = AREA_ACCENTS[a] ?? ACCENT;

@@ -1060,7 +1060,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const allDailyParas = daily?.payload?.narrative ?? [];
   const areaDailyParas = allDailyParas.filter((p) => (p.areas ?? []).includes(area));
   const generalDailyParas = allDailyParas.filter((p) => (p.areas ?? []).length === 0);
-  const dailyParas = areaDailyParas.length ? areaDailyParas : (generalDailyParas.length ? generalDailyParas : allDailyParas.slice(0, 2));
+  // General/frontier content ONLY on quiet days (John: a Breast reader doesn't want kidney
+  // trials — they get clinical AI / CRISPR / frontier material, or nothing).
+  const dailyParas = areaDailyParas.length ? areaDailyParas : generalDailyParas;
   const dailyQuiet = !areaDailyParas.length && dailyParas.length > 0;
   // Collapsed by default to a 3-line teaser — the Daily is an entry point, not a wall
   // above Top Stories. The toggle only appears when there is actually more to read.
