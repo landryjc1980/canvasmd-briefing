@@ -1092,7 +1092,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           {areaDailyParas.map((p, i) => dailyPara(p, i))}
           {genDailyParas.length > 0 && (
             <>
-              {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT }}>The Frontier</div>}
+              {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT }}>Frontiers</div>}
               {genDailyParas.map((p, i) => dailyPara(p, "g" + i))}
             </>
           )}

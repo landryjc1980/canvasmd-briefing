@@ -114,7 +114,7 @@ export function renderDailyEmail(opts: {
   const paraHtml = (p: Para, chips: boolean) =>
     `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${chips ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}${refsHtml(p)}</p>`;
   const frontierHtml = generalParas.length
-    ? `${quiet ? "" : `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};margin:4px 0 10px;font-family:${SANS}">The Frontier</div>`}${generalParas.map((p) => paraHtml(p, false)).join("")}`
+    ? `${quiet ? "" : `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};margin:4px 0 10px;font-family:${SANS}">Frontiers</div>`}${generalParas.map((p) => paraHtml(p, false)).join("")}`
     : "";
   const parasHtml = quietNote
     + (editionLead ? `<p style="font-size:16px;line-height:1.6;color:${INK};margin:0 0 16px;font-family:Georgia,serif;font-weight:500">${esc(stripEmph(editionLead))}</p>` : "")
