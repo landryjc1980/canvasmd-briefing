@@ -1053,7 +1053,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // THE DAILY, area slice (John 2026-08-18): narrative paragraphs tagged for THIS area,
   // rendered above Top stories; hidden entirely when today's edition has nothing here.
   const [dailyOpen, setDailyOpen] = useState(false);
-  const dailyParas = (daily?.payload?.narrative ?? []).filter((p) => (p.areas ?? []).includes(area));
+  // Area slice, with the quiet-day fill (John): when this area earned no paragraphs, show the
+  // general/cross-cutting ones — or failing that the day's top two — under an honest kicker,
+  // rather than going silent.
+  const allDailyParas = daily?.payload?.narrative ?? [];
+  const areaDailyParas = allDailyParas.filter((p) => (p.areas ?? []).includes(area));
+  const generalDailyParas = allDailyParas.filter((p) => (p.areas ?? []).length === 0);
+  const dailyParas = areaDailyParas.length ? areaDailyParas : (generalDailyParas.length ? generalDailyParas : allDailyParas.slice(0, 2));
+  const dailyQuiet = !areaDailyParas.length && dailyParas.length > 0;
   // Collapsed by default to a 3-line teaser — the Daily is an entry point, not a wall
   // above Top Stories. The toggle only appears when there is actually more to read.
   const dailyLong = dailyParas.length > 1 || (dailyParas[0]?.text.length ?? 0) > 200;
@@ -1063,6 +1070,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         <span style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
         <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
       </div>
+      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — elsewhere in oncology:</div>}
       {dailyOpen || !dailyLong ? (
         dailyParas.map((p, i) => (
           <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>{p.text}</p>

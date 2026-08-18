@@ -74,10 +74,13 @@ export function renderDailyEmail(opts: {
   const editionLabel = isAll ? "All oncology" : (AREA_LABELS[area!] ?? area!);
 
   const narrative = daily.payload?.narrative ?? [];
-  const paras = isAll ? narrative : narrative.filter((p) => (p.areas ?? []).includes(area!));
-  // The area edition only exists on days the area earned narrative coverage.
-  if (!isAll && paras.length === 0) return null;
-  if (isAll && paras.length === 0 && !daily.lead) return null;
+  const areaParas = isAll ? narrative : narrative.filter((p) => (p.areas ?? []).includes(area!));
+  const generalParas = narrative.filter((p) => (p.areas ?? []).length === 0);
+  // Quiet-day fill (John): a light specialty still gets the general/cross-cutting paragraphs
+  // — or the day's top two — under an honest "quiet in X" kicker, never an empty inbox slot.
+  const quiet = !isAll && areaParas.length === 0;
+  const paras = areaParas.length ? areaParas : (generalParas.length ? generalParas : narrative.slice(0, 2));
+  if (paras.length === 0 && !daily.lead) return null;
 
   const chip = (a: string) => {
     const c = AREA_ACCENTS[a] ?? ACCENT;
@@ -86,8 +89,11 @@ export function renderDailyEmail(opts: {
   const secHdr = (label: string) =>
     `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};font-family:${SANS}">${label}</div>`;
 
-  const parasHtml = paras.map((p) =>
-    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${isAll ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${esc(p.text)}</p>`,
+  const quietNote = quiet
+    ? `<p style="font-style:italic;font-size:13px;line-height:1.5;color:${MUT};margin:0 0 12px;font-family:Georgia,serif">Quiet in ${esc(editionLabel)} today — elsewhere in oncology:</p>`
+    : "";
+  const parasHtml = quietNote + paras.map((p) =>
+    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${isAll || quiet ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${esc(p.text)}</p>`,
   ).join("");
 
   const ORDER = ["GU", "Lung", "GI", "Breast", "Heme", "Gyn"];
