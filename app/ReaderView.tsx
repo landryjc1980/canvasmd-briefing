@@ -1066,8 +1066,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const dailyLead = dailyEd?.lead ?? null;
   const dailyAll = [...areaDailyParas, ...genDailyParas];
   const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || !!dailyLead;
-  const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null }, i: number | string) => (
-    <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
+  const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null }, i: number | string, n?: number) => (
+    <p key={i} style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
+      {n !== undefined && <strong style={{ fontWeight: 700, color: pal.accent }}>{n}. </strong>}
       {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
       {emph(p.text)}
       {(p.refs ?? []).length > 0 && (
@@ -1089,11 +1090,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       {dailyOpen || !dailyLong ? (
         <>
           {dailyLead && <p style={{ margin: "10px 0 0", font: "500 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}
-          {areaDailyParas.map((p, i) => dailyPara(p, i))}
+          {areaDailyParas.map((p, i) => dailyPara(p, i, i + 1))}
           {genDailyParas.length > 0 && (
             <>
               {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT }}>Frontiers</div>}
-              {genDailyParas.map((p, i) => dailyPara(p, "g" + i))}
+              {genDailyParas.map((p, i) => dailyPara(p, "g" + i, areaDailyParas.length + i + 1))}
             </>
           )}
         </>

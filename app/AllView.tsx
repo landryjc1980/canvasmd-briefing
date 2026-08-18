@@ -775,6 +775,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <div style={{ marginTop: 6 }}>
                 {(daily.payload.narrative ?? []).map((p, i) => (
                   <p key={i} style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: INK_2 }}>
+                    <strong style={{ fontWeight: 700, color: ALL_ACCENT }}>{i + 1}. </strong>
                     {(p.areas ?? []).slice(0, 2).map((ar) => (
                       <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", marginRight: 7, cursor: "pointer", verticalAlign: "2px" }}>{ar}</button>
                     ))}
