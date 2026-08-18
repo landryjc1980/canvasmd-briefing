@@ -37,7 +37,7 @@ function esc(s: string): string {
 // Minimal markdown from the generator: **bold** for trial/people names, *italic* for
 // journals/shows/titles. Escape first, then swap the two known forms.
 function emphHtml(s: string): string {
-  return esc(s).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return esc(s).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/“([^”]*?)”/g, "<em>“$1”</em>");
 }
 const stripEmph = (t: string) => t.replace(/\*\*?/g, "");
 
