@@ -79,16 +79,22 @@ export function renderDailyEmail(opts: {
   const accent = isAll ? AREA_ACCENTS.GU : (AREA_ACCENTS[area!] ?? ACCENT);
   const editionLabel = isAll ? "All oncology" : (AREA_LABELS[area!] ?? area!);
 
-  const narrative = daily.payload?.narrative ?? [];
-  const areaParas = isAll ? narrative : narrative.filter((p) => (p.areas ?? []).includes(area!));
-  const generalParas = narrative.filter((p) => (p.areas ?? []).length === 0);
-  // Quiet-day fill (John): a light specialty still gets the general/cross-cutting paragraphs
-  // — or the day's top two — under an honest "quiet in X" kicker, never an empty inbox slot.
+  // v4 per-area editions: the area's own mini-brief + the shared Frontier under it (or as
+  // the top on a quiet day). Legacy narrative-slicing is the fallback for old payloads.
+  const editions = daily.payload?.editions ?? null;
+  const legacy = daily.payload?.narrative ?? [];
+  const ed = !isAll && editions ? (editions[area!] ?? null) : null;
+  const gen = editions?.general ?? null;
+  type Para = { head?: string | null; text: string; areas?: string[] };
+  const areaParas: Para[] = isAll
+    ? legacy
+    : (ed ? ed.paragraphs.map((p) => ({ ...p, areas: [area!] })) : legacy.filter((p) => (p.areas ?? []).includes(area!)));
+  const generalParas: Para[] = isAll
+    ? [] // the composed All narrative already ends with the Frontier paragraphs
+    : (gen ? gen.paragraphs.map((p) => ({ ...p, areas: [] as string[] })) : legacy.filter((p) => (p.areas ?? []).length === 0));
   const quiet = !isAll && areaParas.length === 0;
-  // Quiet-day fill is GENERAL content only (frontier/AI/cross-cutting) — never another
-  // specialty's trials. No general material → no email for that contact today.
-  const paras = areaParas.length ? areaParas : generalParas;
-  if (paras.length === 0) return null;
+  if (areaParas.length === 0 && generalParas.length === 0) return null;
+  const editionLead = isAll ? daily.lead : (ed?.lead ?? null);
 
   const chip = (a: string) => {
     const c = AREA_ACCENTS[a] ?? ACCENT;
@@ -98,11 +104,17 @@ export function renderDailyEmail(opts: {
     `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};font-family:${SANS}">${label}</div>`;
 
   const quietNote = quiet
-    ? `<p style="font-style:italic;font-size:13px;line-height:1.5;color:${MUT};margin:0 0 12px;font-family:Georgia,serif">Quiet in ${esc(editionLabel)} today — elsewhere in oncology:</p>`
+    ? `<p style="font-style:italic;font-size:13px;line-height:1.5;color:${MUT};margin:0 0 12px;font-family:Georgia,serif">Quiet in ${esc(editionLabel)} today — from the frontier:</p>`
     : "";
-  const parasHtml = quietNote + paras.map((p) =>
-    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${isAll || quiet ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}</p>`,
-  ).join("");
+  const paraHtml = (p: Para, chips: boolean) =>
+    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${chips ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}</p>`;
+  const frontierHtml = generalParas.length
+    ? `${quiet ? "" : `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};margin:4px 0 10px;font-family:${SANS}">The Frontier</div>`}${generalParas.map((p) => paraHtml(p, false)).join("")}`
+    : "";
+  const parasHtml = quietNote
+    + (editionLead ? `<p style="font-size:16px;line-height:1.6;color:${INK};margin:0 0 16px;font-family:Georgia,serif;font-weight:500">${esc(stripEmph(editionLead))}</p>` : "")
+    + areaParas.map((p) => paraHtml(p, isAll)).join("")
+    + frontierHtml;
 
   const ORDER = ["GU", "Lung", "GI", "Breast", "Heme", "Gyn"];
   const topList: TopStory[] = isAll
@@ -147,7 +159,6 @@ export function renderDailyEmail(opts: {
 <div style="font-family:Georgia,serif;font-weight:400;font-size:30px;color:${INK};letter-spacing:-.01em;margin-top:2px">The Readout</div></a>
 <div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)}</span></div>
 <div style="height:1px;background:${LINE};margin:18px 0 20px"></div>
-${daily.lead ? `<p style="font-size:16px;line-height:1.6;color:${INK};margin:0 0 16px;font-family:Georgia,serif;font-weight:500">${esc(daily.lead)}</p>` : ""}
 ${parasHtml}
 <a href="${esc(opts.siteLink)}" style="display:inline-block;background:${INK};color:#ffffff;font-weight:700;font-size:13.5px;text-decoration:none;padding:11px 22px;border-radius:8px;margin-top:2px">Open the ${isAll ? "full" : esc(area!)} Readout →</a>
 ${topsBlock}

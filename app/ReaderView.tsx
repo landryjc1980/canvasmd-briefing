@@ -1054,36 +1054,45 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // THE DAILY, area slice (John 2026-08-18): narrative paragraphs tagged for THIS area,
   // rendered above Top stories; hidden entirely when today's edition has nothing here.
   const [dailyOpen, setDailyOpen] = useState(false);
-  // Area slice, with the quiet-day fill (John): when this area earned no paragraphs, show the
-  // general/cross-cutting ones — or failing that the day's top two — under an honest kicker,
-  // rather than going silent.
-  const allDailyParas = daily?.payload?.narrative ?? [];
-  const areaDailyParas = allDailyParas.filter((p) => (p.areas ?? []).includes(area));
-  const generalDailyParas = allDailyParas.filter((p) => (p.areas ?? []).length === 0);
-  // General/frontier content ONLY on quiet days (John: a Breast reader doesn't want kidney
-  // trials — they get clinical AI / CRISPR / frontier material, or nothing).
-  const dailyParas = areaDailyParas.length ? areaDailyParas : generalDailyParas;
-  const dailyQuiet = !areaDailyParas.length && dailyParas.length > 0;
-  // Collapsed by default to a 3-line teaser — the Daily is an entry point, not a wall
-  // above Top Stories. The toggle only appears when there is actually more to read.
-  const dailyLong = dailyParas.length > 1 || (dailyParas[0]?.text.length ?? 0) > 200;
-  const dailySection = dailyParas.length > 0 && (
+  // THE DAILY, v4 per-area editions (John): this area's own mini-brief (lead + paragraphs),
+  // with the shared Frontier section under it — or AS the top on a quiet day. Legacy
+  // narrative-slicing remains the fallback for pre-editions payloads.
+  const dailyEd = daily?.payload?.editions?.[area] ?? null;
+  const dailyGen = daily?.payload?.editions?.general ?? null;
+  const legacyParas = daily?.payload?.narrative ?? [];
+  const areaDailyParas = dailyEd ? dailyEd.paragraphs : legacyParas.filter((p) => (p.areas ?? []).includes(area));
+  const genDailyParas = dailyGen ? dailyGen.paragraphs : legacyParas.filter((p) => (p.areas ?? []).length === 0);
+  const dailyQuiet = !areaDailyParas.length && genDailyParas.length > 0;
+  const dailyLead = dailyEd?.lead ?? null;
+  const dailyAll = [...areaDailyParas, ...genDailyParas];
+  const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || !!dailyLead;
+  const dailyPara = (p: { head?: string | null; text: string }, i: number | string) => (
+    <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
+      {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
+      {emph(p.text)}
+    </p>
+  );
+  const dailySection = dailyAll.length > 0 && (
     <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <span style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
         <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
       </div>
-      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — elsewhere in oncology:</div>}
+      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — from the frontier:</div>}
       {dailyOpen || !dailyLong ? (
-        dailyParas.map((p, i) => (
-          <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
-            {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
-            {emph(p.text)}
-          </p>
-        ))
+        <>
+          {dailyLead && <p style={{ margin: "10px 0 0", font: "500 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}
+          {areaDailyParas.map((p, i) => dailyPara(p, i))}
+          {genDailyParas.length > 0 && (
+            <>
+              {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT }}>The Frontier</div>}
+              {genDailyParas.map((p, i) => dailyPara(p, "g" + i))}
+            </>
+          )}
+        </>
       ) : (
         <p style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {stripEmph(dailyParas.map((p) => (p.head ? `${p.head}. ` : "") + p.text).join(" "))}
+          {stripEmph(dailyLead ?? dailyAll.map((p) => (p.head ? `${p.head}. ` : "") + p.text).join(" "))}
         </p>
       )}
       {dailyLong && (
