@@ -962,7 +962,7 @@ export type DailyItem = { title: string; line?: string | null; sub?: string | nu
 export type DailyReadout = {
   date: string;
   lead: string | null; // the ONLY model prose — digit-banned, validated server-side
-  payload: { sections: { key: string; title: string; items: DailyItem[] }[]; narrative?: { head?: string | null; text: string; areas: string[] }[] | null;
-    editions?: Record<string, { lead: string | null; paragraphs: { head?: string | null; text: string }[] }> | null };
+  payload: { sections: { key: string; title: string; items: DailyItem[] }[]; narrative?: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null; areas: string[] }[] | null;
+    editions?: Record<string, { lead: string | null; paragraphs: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null }[] }> | null };
   generated_at?: string;
 };

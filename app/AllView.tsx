@@ -780,6 +780,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                     ))}
                     {p.head && <strong style={{ fontWeight: 700, color: INK }}>{stripEmph(p.head)}. </strong>}
                     {emph(p.text)}
+                    {(p.refs ?? []).length > 0 && (
+                      <span style={{ font: "500 11.5px system-ui", color: MUT }}>
+                        {" "}{(p.refs ?? []).map((r, ri) => (
+                          <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: ALL_ACCENT, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
+                        ))}
+                      </span>
+                    )}
                   </p>
                 ))}
               </div>

@@ -1066,10 +1066,17 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const dailyLead = dailyEd?.lead ?? null;
   const dailyAll = [...areaDailyParas, ...genDailyParas];
   const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || !!dailyLead;
-  const dailyPara = (p: { head?: string | null; text: string }, i: number | string) => (
+  const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null }, i: number | string) => (
     <p key={i} style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
       {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
       {emph(p.text)}
+      {(p.refs ?? []).length > 0 && (
+        <span style={{ font: "500 11.5px system-ui", color: MUT }}>
+          {" "}{(p.refs ?? []).map((r, ri) => (
+            <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: pal.accent, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
+          ))}
+        </span>
+      )}
     </p>
   );
   const dailySection = dailyAll.length > 0 && (
