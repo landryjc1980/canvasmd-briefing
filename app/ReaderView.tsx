@@ -1085,6 +1085,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <span style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
         <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
+        {/* The promise, stated once: this is a 24-hour brief (John 2026-08-19). */}
+        <span style={{ font: "500 11px system-ui", color: MUT2 }}>· the past 24 hours</span>
       </div>
       {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — from the frontier:</div>}
       {dailyOpen || !dailyLong ? (

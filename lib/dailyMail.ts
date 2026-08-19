@@ -165,7 +165,7 @@ export function renderDailyEmail(opts: {
 <tr><td style="padding:0 24px">
 <a href="${esc(opts.siteLink)}" style="text-decoration:none"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${accent}">CanvasMD</div>
 <div style="font-family:Georgia,serif;font-weight:400;font-size:30px;color:${INK};letter-spacing:-.01em;margin-top:2px">The Readout</div></a>
-<div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)}</span></div>
+<div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)} · the past 24 hours</span></div>
 <div style="height:1px;background:${LINE};margin:18px 0 20px"></div>
 ${parasHtml}
 <a href="${esc(opts.siteLink)}" style="display:inline-block;background:${INK};color:#ffffff;font-weight:700;font-size:13.5px;text-decoration:none;padding:11px 22px;border-radius:8px;margin-top:2px">Open the ${isAll ? "full" : esc(area!)} Readout →</a>
