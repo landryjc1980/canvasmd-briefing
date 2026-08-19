@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     await setContactStatus(id, "active");
     // Optional edition assignment at approval — the admin can set/correct the requester's
     // specialty here (their default_area may only reflect which link they hit the wall on).
-    const area = typeof body?.area === "string" && ["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(body.area) ? body.area : null;
+    const area = typeof body?.area === "string" && ["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(body.area) ? body.area : null;
     if (area) await setDefaultArea(id, area).catch(() => {});
     const c = await getContact(id).catch(() => null);
     if (c) {

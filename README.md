@@ -1,7 +1,7 @@
 # CanvasMD — Weekly Briefing (public web)
 
 A public, **ungated** web rendering of the CanvasMD Weekly Briefing — "what moved
-this week in {tumor area}" across all six areas (GU, Breast, Lung, GI, Heme, Gyn).
+this week in {tumor area}" across all seven areas (GU, Breast, Lung, GI, Heme, Gyn, Skin).
 
 ## Why this exists / architecture
 

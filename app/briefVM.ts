@@ -13,6 +13,7 @@ export const PALETTE: Record<string, Pal> = {
   GI: { bg: "#463107", accent: "#F3CD8A", soft: "#B08B45" },
   Heme: { bg: "#4A1414", accent: "#FF9F95", soft: "#B05A52" },
   Gyn: { bg: "#0F3F39", accent: "#8FE8D8", soft: "#4F9A8F" },
+  Skin: { bg: "#2E1065", accent: "#C4B5FD", soft: "#8B7BC4" },
 };
 export const palOf = (area: string): Pal => PALETTE[area] ?? PALETTE.GU;
 
@@ -36,6 +37,7 @@ export const AREA_FULL: Record<string, string> = {
   GI: "Gastrointestinal",
   Heme: "Hematologic",
   Gyn: "Gynecologic",
+  Skin: "Skin cancer",
 };
 
 // Momentum pill colors (constant across areas).

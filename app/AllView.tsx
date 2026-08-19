@@ -20,7 +20,7 @@ import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 // The one section that DOES merge is "what the field is reading": papers ranked by the plain,
 // comparable count of verified clinicians who shared them.
 
-const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"];
+const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"];
 const INK = "#17181a";
 const INK_2 = "#4f5257";
 const MUT = "#696c71";
@@ -36,6 +36,7 @@ const AREA_ACCENTS: Record<string, string> = {
   GI: "#a45c0a",
   Heme: "#9b0f18",
   Gyn: "#0d6b5f",
+  Skin: "#6d28d9",
 };
 const accentOf = (area: string) => AREA_ACCENTS[area] ?? ALL_ACCENT;
 const ago = (iso: string) => {

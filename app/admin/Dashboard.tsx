@@ -133,10 +133,10 @@ function CompositionStrip({ s, p }: { s: Stats; p: Stats | null }) {
 }
 
 const AREA_LABEL: Record<string, string> = {
-  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Heme", Gyn: "Gynecologic",
+  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Heme", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
 const AREA_COLOR: Record<string, string> = {
-  GU: "#7aa2ff", Breast: "#e88fc0", Lung: "#5ac8c8", GI: "#e8c268", Heme: "#c08fe8", Gyn: "#5ac88c",
+  GU: "#7aa2ff", Breast: "#e88fc0", Lung: "#5ac8c8", GI: "#e8c268", Heme: "#c08fe8", Gyn: "#5ac88c", Skin: "#a78bfa",
 };
 
 // Per-Readout-area coverage. Bars share ONE scale (max episodes across areas) so

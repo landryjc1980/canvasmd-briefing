@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   // Focus + Daily from the redemption form (the specialty question asked at this door too).
   const rawArea = typeof body?.area === "string" ? body.area : null;
-  const chosen = body?.chosen === true && (rawArea === null || ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(rawArea));
+  const chosen = body?.chosen === true && (rawArea === null || ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(rawArea));
   const daily = body?.daily === true;
 
   // Existing contact keeps their identity/source; a brand-new one is attributed to the sharer.

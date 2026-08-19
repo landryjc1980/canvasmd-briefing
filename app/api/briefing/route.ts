@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // and publishable key stay server-side and the page keeps its existing
 // fetch("/api/briefing?area=…") contract unchanged.
 
-const AREAS = new Set(["GU", "Breast", "Lung", "GI", "Heme", "Gyn"]);
+const AREAS = new Set(["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"]);
 
 // Every page load warms all six areas, for every reader, on every visit. Uncached that is six
 // edge invocations each (eighteen with retries) — and because the edge fn rebuilds on demand

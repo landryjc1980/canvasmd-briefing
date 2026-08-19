@@ -10,7 +10,7 @@ import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
 import "./design-lab.css";
 
-const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"] as const;
+const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"] as const;
 const CONCEPTS = ["essential", "air", "studio", "editorial", "signal"] as const;
 type Concept = typeof CONCEPTS[number];
 type Frame = "full" | "phone";

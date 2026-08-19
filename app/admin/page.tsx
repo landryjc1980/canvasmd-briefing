@@ -318,7 +318,7 @@ export default function Admin() {
                   <select defaultValue={q.default_area || ""} id={`req-area-${q.id}`}
                     style={{ background: "rgba(255,255,255,.06)", color: "#c3cadb", border: "0.5px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "7px 8px", fontSize: 12.5 }}>
                     <option value="">edition…</option>
-                    {["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn"].map((a) => <option key={a} value={a}>{a}</option>)}
+                    {["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].map((a) => <option key={a} value={a}>{a}</option>)}
                   </select>
                   <button style={btn} onClick={() => decide(q.id, "approve", (document.getElementById(`req-area-${q.id}`) as HTMLSelectElement | null)?.value || undefined)}>Approve</button>
                   <button style={{ ...btn, background: "transparent", color: "#8b93a4", border: "0.5px solid rgba(255,255,255,.2)" }} onClick={() => decide(q.id, "decline")}>Decline</button>
@@ -329,7 +329,7 @@ export default function Admin() {
 
       <div style={box}>
         <div style={{ fontWeight: 600, marginBottom: 10 }}>1 · Add people (CSV)</div>
-        <div style={{ fontSize: 12.5, color: "#8b93a4", marginBottom: 10 }}>Header row required: <code>email,name,org,role,area</code> — area optional (GU, Breast, Lung, GI, Heme, Gyn). <span style={{ color: "#a9b6d6" }}>Each newly-added person is emailed a sign-in link automatically;</span> re-uploading won&rsquo;t re-email existing people.</div>
+        <div style={{ fontSize: 12.5, color: "#8b93a4", marginBottom: 10 }}>Header row required: <code>email,name,org,role,area</code> — area optional (GU, Breast, Lung, GI, Heme, Gyn, Skin). <span style={{ color: "#a9b6d6" }}>Each newly-added person is emailed a sign-in link automatically;</span> re-uploading won&rsquo;t re-email existing people.</div>
         <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={6} style={{ ...input, width: "100%", boxSizing: "border-box", fontFamily: "ui-monospace,Menlo,monospace", fontSize: 12.5, resize: "vertical" }} />
         <div style={{ marginTop: 10 }}><button style={btn} onClick={upload}>Upload</button></div>
       </div>

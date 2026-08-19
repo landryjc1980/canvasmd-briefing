@@ -282,7 +282,7 @@ export async function readoutEngagement(): Promise<ReadoutEngagement> {
   }
   for (const kind of READOUT_EVENT_KINDS) totals[kind].readers30 = readersByKind[kind].size;
 
-  const areaOrder = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "All"];
+  const areaOrder = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin", "All"];
   return {
     capturedAt: new Date(now).toISOString(),
     firstEventAt: rows.at(-1)?.ts ?? null,

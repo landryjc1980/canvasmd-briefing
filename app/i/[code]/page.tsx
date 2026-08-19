@@ -12,7 +12,7 @@ import { useParams, useRouter } from "next/navigation";
 const INK = "#17181a", INK2 = "#4f5257", MUT2 = "#85878c";
 const LINE = "#cfd0cb", PAPER = "#f4f4f1", ACCENT = "#475569";
 const AREA_ACCENTS: Record<string, string> = {
-  GU: "#0369a1", Breast: "#be185d", Lung: "#334155", GI: "#a45c0a", Heme: "#9b0f18", Gyn: "#0d6b5f", All: "#475569",
+  GU: "#0369a1", Breast: "#be185d", Lung: "#334155", GI: "#a45c0a", Heme: "#9b0f18", Gyn: "#0d6b5f", Skin: "#6d28d9", All: "#475569",
 };
 
 export default function InviteLanding() {
@@ -30,7 +30,7 @@ export default function InviteLanding() {
   const [daily, setDaily] = useState(true); // default ON (John): opt-out, not opt-in
   useEffect(() => {
     const a = new URLSearchParams(window.location.search).get("area");
-    if (a && ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(a)) setFocus(a);
+    if (a && ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(a)) setFocus(a);
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -71,7 +71,7 @@ export default function InviteLanding() {
           <div>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, margin: "2px 0 8px" }}>Your focus</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-              {[["GU", "GU"], ["Breast", "Breast"], ["Lung", "Lung"], ["GI", "GI"], ["Heme", "Heme"], ["Gyn", "Gyn"], ["All", "All of oncology"]].map(([v, label]) => {
+              {[["GU", "GU"], ["Breast", "Breast"], ["Lung", "Lung"], ["GI", "GI"], ["Heme", "Heme"], ["Gyn", "Gyn"], ["Skin", "Skin"], ["All", "All of oncology"]].map(([v, label]) => {
                 const on = focus === v || (v === "All" && focus === null && touched);
                 const c = AREA_ACCENTS[v] ?? ACCENT;
                 return (

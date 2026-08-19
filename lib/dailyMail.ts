@@ -21,10 +21,10 @@ const PHYSICAL = process.env.MAIL_PHYSICAL_ADDRESS ?? "CanvasMD";
 const INK = "#17181a", INK2 = "#4f5257", MUT = "#696c71", MUT2 = "#85878c";
 const LINE = "#cfd0cb", PAPER = "#f4f4f1", ACCENT = "#475569";
 const AREA_ACCENTS: Record<string, string> = {
-  GU: "#0369a1", Breast: "#be185d", Lung: "#334155", GI: "#a45c0a", Heme: "#9b0f18", Gyn: "#0d6b5f",
+  GU: "#0369a1", Breast: "#be185d", Lung: "#334155", GI: "#a45c0a", Heme: "#9b0f18", Gyn: "#0d6b5f", Skin: "#6d28d9",
 };
 const AREA_LABELS: Record<string, string> = {
-  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic",
+  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
 const SANS = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
 const KICKERS: Record<string, string> = { readout: "TRIAL READOUT", paper: "PAPER", event: "FDA", episode: "ON THE MICS", thread: "CONVERSATION" };
@@ -124,7 +124,7 @@ export function renderDailyEmail(opts: {
     + areaParas.map((p, i) => paraHtml(p, isAll, i + 1)).join("")
     + frontierHtml;
 
-  const ORDER = ["GU", "Lung", "GI", "Breast", "Heme", "Gyn"];
+  const ORDER = ["GU", "Lung", "GI", "Breast", "Heme", "Gyn", "Skin"];
   const topList: TopStory[] = isAll
     ? ORDER.flatMap((a) => (tops[a] ?? []).slice(0, 1))
     : (tops[area!] ?? []).slice(0, 3);

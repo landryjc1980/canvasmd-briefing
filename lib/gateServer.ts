@@ -15,7 +15,7 @@ const ADMIN_EMAILS = new Set(
 );
 
 export const AREA_LABEL: Record<string, string> = {
-  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Heme", Gyn: "Gynecologic",
+  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Heme", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
 export const areaLabel = (a: string | null | undefined) => (a && AREA_LABEL[a]) || "oncology";
 

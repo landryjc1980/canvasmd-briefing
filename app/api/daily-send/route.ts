@@ -17,7 +17,7 @@ import type { DailyReadout } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const VALID_AREAS = new Set(["GU", "Lung", "GI", "Breast", "Heme", "Gyn"]);
+const VALID_AREAS = new Set(["GU", "Lung", "GI", "Breast", "Heme", "Gyn", "Skin"]);
 
 async function latestDaily(maxAgeDays: number): Promise<DailyReadout | null> {
   const URL_ = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;

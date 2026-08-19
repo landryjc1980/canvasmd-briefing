@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const area = typeof body?.area === "string" ? body.area : null;
   // `chosen` = they tapped a focus chip (a deliberate answer); area may also arrive URL-derived
   // (which link they hit the wall on) — that still seeds a NEW contact but never overwrites.
-  const chosen = body?.chosen === true && (area === null || ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"].includes(area));
+  const chosen = body?.chosen === true && (area === null || ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(area));
   const daily = body?.daily === true; // "email me The Daily" checkbox — explicit opt-in only
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ ok: false, error: "Enter a valid work email." }, { status: 400 });

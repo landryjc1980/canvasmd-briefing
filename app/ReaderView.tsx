@@ -125,6 +125,7 @@ const READER_ACCENTS: Record<string, string> = {
   GI: "#a45c0a",
   Heme: "#9b0f18",
   Gyn: "#0d6b5f",
+  Skin: "#6d28d9",
 };
 // Congress "marquee event" gold — the ONE accent that isn't a tumor-area jewel tone, so a congress
 // reads as a distinct dimension (event, not disease). Used only by the Congress bar + badge.

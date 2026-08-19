@@ -31,6 +31,7 @@
 .brief.area-GI     { --a1: #ea8016; --a2: #d9660b; --wash: #fde6cc; --ink-a: #b5620e; }
 .brief.area-Heme   { --a1: #e11d2e; --a2: #c1121f; --wash: #fbd5d8; --ink-a: #9b0f18; }
 .brief.area-Gyn    { --a1: #0d9488; --a2: #0f766e; --wash: #ccebe6; --ink-a: #0d6b5f; }
+.brief.area-Skin   { --a1: #8b5cf6; --a2: #7c3aed; --wash: #e7ddfb; --ink-a: #6d28d9; }
 
 .brief .briefwrap { max-width: 880px; margin: 0 auto; padding: 18px 22px 110px; }
 .brief a { color: var(--ink-a); text-decoration: none; }

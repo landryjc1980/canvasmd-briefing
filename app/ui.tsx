@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 
-export const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn"];
+export const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"];
 
 export const AREA_META: Record<string, { title: string; short: string; strap: string }> = {
   GU: { title: "GU Oncology", short: "GU", strap: "What the field is talking about this week — prostate, bladder, kidney." },
@@ -14,6 +14,7 @@ export const AREA_META: Record<string, { title: string; short: string; strap: st
   GI: { title: "GI Oncology", short: "GI", strap: "What's moving across colorectal, gastric, pancreatic and hepatobiliary." },
   Heme: { title: "Hematologic Malignancies", short: "Heme", strap: "The myeloma, lymphoma and leukemia drugs of the week." },
   Gyn: { title: "Gynecologic Oncology", short: "Gyn", strap: "What's moving across ovarian, endometrial and cervical." },
+  Skin: { title: "Skin Cancer", short: "Skin", strap: "Melanoma, cutaneous SCC, basal cell and Merkel cell — what the field carried this week." },
 };
 
 export const SHAPE: Record<string, { label: string; brief: string; cls: string }> = {
