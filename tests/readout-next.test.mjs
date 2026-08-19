@@ -4,6 +4,8 @@ import fs from "node:fs";
 
 const page = fs.readFileSync(new URL("../app/design-lab/page.tsx", import.meta.url), "utf8");
 const css = fs.readFileSync(new URL("../app/design-lab/design-lab.css", import.meta.url), "utf8");
+const hero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
+const liveCss = fs.readFileSync(new URL("../app/brief.css", import.meta.url), "utf8");
 
 test("Readout Next makes source and physician conversation visible before expansion", () => {
   assert.match(page, /function ReadoutNext/);
@@ -21,4 +23,10 @@ test("Readout Next keeps one story-title size and a bounded editorial measure", 
 test("the weekly story view does not lead with the generated recap", () => {
   const nextBlock = page.slice(page.indexOf("function ReadoutNext"), page.indexOf("function Essential"));
   assert.doesNotMatch(nextBlock, /data\.recap/);
+});
+
+test("live story cards show paper context and use one title size", () => {
+  assert.match(hero, /\{c\.excerpt && \(/);
+  assert.doesNotMatch(hero, /c\.excerpt && c\.kind !== ["']paper["']/);
+  assert.match(liveCss, /\.readout-hero-card\.is-lead \.readout-hero-title \{[^}]*font-size: 23px/);
 });

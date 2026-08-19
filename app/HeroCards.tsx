@@ -49,7 +49,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
                 {c.url && c.kind !== "episode" ? <a href={c.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
               </h3>
-              {c.excerpt && c.kind !== "paper" && (
+              {c.excerpt && (
                 <p className="hero-excerpt" style={{ font: compact ? "400 13.5px/1.5 system-ui" : undefined, color: ink.soft, margin: compact ? "8px 0 0" : undefined, ...(compact && openId !== c.id ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
