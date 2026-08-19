@@ -71,6 +71,7 @@ export function renderDailyEmail(opts: {
   tops: Record<string, TopStory[]>;
   area: string | null;          // null = all-oncology edition
   siteLink: string;             // magic link into the site (already area-scoped by caller)
+  allLink?: string;             // magic link to the ALL-oncology edition (cross-link target)
   linkForArea: (area: string) => string; // magic link scoped to a specific area edition
   unsubUrl: string;
 }): { html: string; subject: string } | null {
@@ -93,6 +94,8 @@ export function renderDailyEmail(opts: {
     ? [] // the composed All narrative already ends with the Frontier paragraphs
     : (gen ? gen.paragraphs.filter((p) => !((p as { dupFor?: string[] }).dupFor ?? []).includes(area!)).map((p) => ({ ...p, areas: [] as string[] })) : legacy.filter((p) => (p.areas ?? []).length === 0));
   const quiet = !isAll && areaParas.length === 0;
+  // A specialty edition with nothing of its own is SKIPPED (Codex review 2026-08-19).
+  if (quiet) return null;
   if (areaParas.length === 0 && generalParas.length === 0) return null;
   const editionLead = isAll ? daily.lead : (ed?.lead ?? null);
 
@@ -147,7 +150,7 @@ export function renderDailyEmail(opts: {
     }).join("");
 
   const crossLink = isAll ? "" :
-    `<p style="font-size:12px;color:${MUT};margin:16px 0 0;font-family:${SANS}">Also today across oncology: <a href="${esc(opts.siteLink)}" style="color:${accent};font-weight:600">read the full edition →</a></p>`;
+    `<p style="font-size:12px;color:${MUT};margin:16px 0 0;font-family:${SANS}">Also today across oncology: <a href="${esc(opts.allLink ?? opts.siteLink)}" style="color:${accent};font-weight:600">read the full edition →</a></p>`;
 
   const topsBlock = topList.length
     ? `<div style="margin:20px 0 0;padding-top:14px;border-top:1px solid ${LINE}">${secHdr("Top Stories" + (isAll ? "" : " · " + esc(editionLabel)))}${topsHtml}</div>`
