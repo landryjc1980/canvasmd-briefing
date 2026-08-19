@@ -372,3 +372,7 @@
   .readout-hero-card:not(.is-compact) .hero-excerpt { display: -webkit-box; overflow: hidden; font-size: 14.5px; line-height: 1.52; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
   .readout-hero-card.is-lead .hero-excerpt { display: block; overflow: visible; font-size: 15.5px; line-height: 1.56; }
 }
+@media (max-width: 360px) {
+  .daily-meta { flex-wrap: wrap; gap: 3px 8px !important; }
+  .daily-meta-primary { flex-basis: 100%; }
+}

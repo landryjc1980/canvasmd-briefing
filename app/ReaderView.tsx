@@ -1091,8 +1091,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   );
   const dailySection = dailyAll.length > 0 && (
     <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
+      <div className="daily-meta" style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span className="daily-meta-primary" style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
         <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
         {/* The promise, stated once: this is a 24-hour brief (John 2026-08-19). */}
         <span style={{ font: "500 11px system-ui", color: MUT2 }}>· the past 24 hours</span>
