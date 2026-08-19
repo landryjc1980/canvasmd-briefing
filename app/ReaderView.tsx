@@ -971,8 +971,16 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         )}
       </>
     ) };
-    if (r.kind === "event") return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" /> };
-    return { faces: r.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" /> };
+    if (r.kind === "event") return {
+      faces: r.faces,
+      preview: r.posts[0] ? <TweetCard t={r.posts[0]} compact /> : null,
+      drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" />,
+    };
+    return {
+      faces: r.faces,
+      preview: <TweetCard t={r.post} compact />,
+      drawer: <StoryEvidence story={{ podcast: [], posts: [r.post], papers: [], kind: "thread" }} accent={pal.accent} paperLabel="Papers" />,
+    };
   };
   const part = partitionStories(heroMode ? [] : visibleStories, seen);
   const stories = part.ordered;

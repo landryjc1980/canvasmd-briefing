@@ -11,12 +11,13 @@ import "../brief.css";
 import "./design-lab.css";
 
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"] as const;
-const CONCEPTS = ["essential", "air", "studio", "editorial", "signal"] as const;
+const CONCEPTS = ["next", "essential", "air", "studio", "editorial", "signal"] as const;
 type Concept = typeof CONCEPTS[number];
 type Frame = "full" | "phone";
 type ArticleMedia = { url: string; imageUrl: string | null; publisher: string | null; journal: string | null; domain: string | null };
 
 const CONCEPT_LABEL: Record<Concept, string> = {
+  next: "Readout Next",
   essential: "Essential",
   air: "Air",
   studio: "Studio",
@@ -33,7 +34,7 @@ const KICKER: Record<HeroCard["kind"], string> = {
   trial_milestone: "Trial milestone",
 };
 
-const safeConcept = (value: string | null): Concept => CONCEPTS.includes(value as Concept) ? value as Concept : "essential";
+const safeConcept = (value: string | null): Concept => CONCEPTS.includes(value as Concept) ? value as Concept : "next";
 const safeArea = (value: string | null): typeof AREAS[number] => AREAS.includes(value as typeof AREAS[number]) ? value as typeof AREAS[number] : "GU";
 
 function legacyCards(data: BriefingData): HeroCard[] {
@@ -153,6 +154,7 @@ function StoryAction({ card }: { card: HeroCard }) {
 
 function StorySources({ card, data, accent, collapsedLabel = "Sources", editorial = false }: { card: HeroCard; data: BriefingData; accent: string; collapsedLabel?: string; editorial?: boolean }) {
   const [open, setOpen] = useState(false);
+  const expandedLabel = collapsedLabel.toLowerCase().includes("conversation") ? "Hide conversation ↑" : "Hide sources ↑";
   useEffect(() => setOpen(false), [card.id]);
   const resolved = resolveHeroEvidence(card, data);
   if (!resolved) return null;
@@ -188,7 +190,7 @@ function StorySources({ card, data, accent, collapsedLabel = "Sources", editoria
     <div className="dl-sources">
       <button type="button" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen((value) => !value)} style={{ color: accent }}>
         <Faces urls={faces} />
-        <span>{open ? "Hide sources ↑" : `${collapsedLabel} ↓`}</span>
+        <span>{open ? expandedLabel : `${collapsedLabel} ↓`}</span>
       </button>
       {open && <div className="dl-evidence" id={regionId}>{drawer}</div>}
     </div>
@@ -897,6 +899,74 @@ function Signal({ data, cards, media }: { data: BriefingData; cards: HeroCard[];
   );
 }
 
+function sourceHonestCard(card: HeroCard): HeroCard {
+  if (card.kind !== "readout" && card.kind !== "trial_milestone") return card;
+  const clinicianCount = card.support?.clinicianPosts.length ?? 0;
+  return {
+    ...card,
+    id: `source:${card.id}`,
+    kind: "paper",
+    why: clinicianCount
+      ? `discussed by ${clinicianCount} clinician${clinicianCount === 1 ? "" : "s"}`
+      : "original publication",
+    nct: null,
+  };
+}
+
+function ReadoutNext({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
+  const honestCards = cards.map(sourceHonestCard);
+  return (
+    <div className="dl-concept dl-next">
+      <header className="dl-next-header">
+        <div>
+          <span>CanvasMD</span>
+          <strong>The Readout</strong>
+        </div>
+        <div className="dl-next-edition"><b>{AREA_FULL[data.area] ?? data.area}</b><small>Updated {fmtDate(data.generatedAt)}</small></div>
+      </header>
+      <EditorialSectionNav />
+      <main>
+        <section className="dl-next-intro" id="editorial-stories">
+          <div><span>Top stories</span><i /></div>
+        </section>
+        <section className="dl-next-stories" aria-label="Top stories">
+          {honestCards.map((card, index) => {
+            const resolved = resolveHeroEvidence(card, data);
+            const tweet = firstSourceTweet(card, data);
+            const faces = resolved?.faces ?? [];
+            const abstract = paperAbstract(card, data);
+            return (
+              <article className={`dl-next-story${index === 0 ? " is-lead" : ""}`} key={card.id}>
+                <div className="dl-next-story-source">
+                  <SourceMark name={card.sourceLabel} />
+                  <div><span>{KICKER[card.kind]}</span><strong>{card.sourceLabel}</strong></div>
+                </div>
+                <h2>{card.headline}</h2>
+                {card.excerpt && <p className="dl-next-summary">{card.excerpt}</p>}
+                {abstract && <AbstractDisclosure text={abstract} compact />}
+                {tweet && <div className="dl-next-conversation-preview">
+                  <div className="dl-next-conversation-label"><Faces urls={faces} /><span>Physician conversation</span></div>
+                  <blockquote>{cleanTweetText(tweet.text)}</blockquote>
+                  <cite>{tweet.name}{tweet.handle ? ` @${tweet.handle.replace(/^@/, "")}` : ""}</cite>
+                </div>}
+                <div className="dl-next-story-actions">
+                  <StoryAction card={card} />
+                  <StorySources card={card} data={data} accent="#0876a8" collapsedLabel={tweet ? "View full conversation" : "See evidence"} editorial />
+                </div>
+              </article>
+            );
+          })}
+          {!honestCards.length && <div className="dl-next-quiet">No material top stories cleared this edition. The supporting sections remain available below.</div>}
+        </section>
+        <section className="dl-next-bands" id="editorial-listen"><EpisodeRail data={data} limit={4} /></section>
+        <section className="dl-next-bands" id="editorial-papers"><PaperRail data={data} media={media} limit={6} /></section>
+        <section className="dl-next-bands" id="editorial-people"><PeopleRail data={data} /></section>
+        <section className="dl-next-bands" id="editorial-trials"><TrialRail data={data} /></section>
+      </main>
+    </div>
+  );
+}
+
 function Essential({ data, cards, media }: { data: BriefingData; cards: HeroCard[]; media: Map<string, ArticleMedia> }) {
   const [active, setActive] = useState(0);
   const card = cards[Math.min(active, Math.max(0, cards.length - 1))];
@@ -1036,6 +1106,7 @@ export default function DesignLabPage() {
       <div className={`dl-preview ${frame === "phone" ? "is-phone" : ""}`}>
         {!data && !error && <div className="dl-loading">Loading {area}…</div>}
         {error && <div className="dl-loading">Couldn’t load {area}: {error}</div>}
+        {data && concept === "next" && <ReadoutNext data={data} cards={cards} media={articleMedia} />}
         {data && concept === "essential" && <Essential data={data} cards={cards} media={articleMedia} />}
         {data && concept === "air" && <Air data={data} cards={cards} media={articleMedia} />}
         {data && concept === "studio" && <Studio data={data} cards={cards} media={articleMedia} onAreaChange={(nextArea) => setLabState({ area: nextArea })} lightMode={studioLight} onLightModeChange={setStudioTheme} />}

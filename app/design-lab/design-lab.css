@@ -497,6 +497,68 @@
   .dl-essential-stream .dl-section + .dl-section { margin-top: 82px; }
 }
 
+/* Readout Next: one source-anchored story with physician conversation as evidence. */
+.dl-next { background: #f5f5f2; color: #181a1d; }
+.dl-next-header { width: min(1180px, calc(100% - 48px)); min-height: 112px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid #cfd1cc; }
+.dl-next-header > div:first-child { display: flex; flex-direction: column; }
+.dl-next-header > div:first-child span { color: #0876a8; font: 760 12px/1 system-ui; text-transform: uppercase; }
+.dl-next-header > div:first-child strong { margin-top: 7px; font: 700 38px/1 Georgia, serif; }
+.dl-next-edition { display: flex; flex-direction: column; align-items: flex-end; }
+.dl-next-edition b { color: #0876a8; font: 700 16px/1.2 system-ui; }
+.dl-next-edition small { margin-top: 7px; color: #70747a; font: 550 12px/1.2 system-ui; }
+.dl-next > nav { min-height: 58px; padding: 0 max(24px, calc((100% - 1180px) / 2)); display: flex; align-items: stretch; gap: 36px; border-bottom: 1px solid #d8d9d5; }
+.dl-next > nav a { display: inline-flex; align-items: center; color: #686c72; font: 650 13px/1 system-ui; text-decoration: none; }
+.dl-next > nav a:first-child { color: #17191c; box-shadow: inset 0 -3px #0876a8; }
+.dl-next main { width: min(980px, calc(100% - 48px)); margin: 0 auto; padding: 66px 0 110px; }
+.dl-next-intro > div { display: flex; align-items: center; gap: 22px; }
+.dl-next-intro span { font: 760 12px/1 system-ui; text-transform: uppercase; }
+.dl-next-intro i { height: 1px; flex: 1; background: #cfd1cc; }
+.dl-next-stories { margin-top: 36px; display: grid; gap: 20px; }
+.dl-next-story { padding: 28px 30px 24px; background: #fff; border: 1px solid #d7d8d3; border-radius: 6px; box-shadow: 0 8px 24px rgba(30, 36, 42, .045); }
+.dl-next-story.is-lead { border-top: 3px solid #0876a8; }
+.dl-next-story-source { display: flex; align-items: center; gap: 11px; }
+.dl-next-story-source > div { min-width: 0; display: flex; flex-direction: column; }
+.dl-next-story-source span { color: #0876a8; font: 760 10px/1.2 system-ui; text-transform: uppercase; }
+.dl-next-story-source strong { margin-top: 3px; color: #5f646b; font: 650 13px/1.25 system-ui; overflow-wrap: anywhere; }
+.dl-next-story h2 { max-width: 850px; margin: 22px 0 0; font: 700 27px/1.16 Georgia, serif; }
+.dl-next-summary { max-width: 830px; margin: 18px 0 0; color: #50555c; font: 400 17px/1.55 Georgia, serif; }
+.dl-next-story .dl-abstract { margin-top: 18px; }
+.dl-next-conversation-preview { margin-top: 24px; padding: 18px 0 0 18px; border-top: 1px solid #e0e1dd; border-left: 3px solid #2d9a83; }
+.dl-next-conversation-label { display: flex; align-items: center; gap: 10px; color: #287765; font: 760 10px/1 system-ui; text-transform: uppercase; }
+.dl-next-conversation-preview blockquote { max-width: 790px; margin: 14px 0 0; color: #373c42; font: 400 16px/1.5 Georgia, serif; }
+.dl-next-conversation-preview cite { display: block; margin-top: 9px; color: #73777d; font: normal 600 11px/1.3 system-ui; }
+.dl-next-story-actions { margin-top: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
+.dl-next-story-actions .dl-arrow-link, .dl-next-story-actions .dl-sources > button { color: #0876a8; }
+.dl-next-story-actions .dl-evidence { width: 100%; }
+.dl-next-quiet { padding: 26px 0; border-top: 1px solid #d7d8d3; color: #666a70; font: 500 14px/1.5 system-ui; }
+.dl-next-bands { margin-top: 72px; }
+.dl-next-bands + .dl-next-bands { padding-top: 10px; }
+.dl-next .dl-rail-head, .dl-next .dl-section-head { color: #17191c; }
+
+.dl-preview.is-phone .dl-next-header,
+.dl-preview.is-phone .dl-next main { width: calc(100% - 32px); }
+.dl-preview.is-phone .dl-next-header { min-height: 96px; }
+.dl-preview.is-phone .dl-next-header > div:first-child strong { font-size: 30px; }
+.dl-preview.is-phone .dl-next-edition b { max-width: 150px; text-align: right; }
+.dl-preview.is-phone .dl-next > nav { padding: 0 16px; gap: 28px; overflow-x: auto; }
+.dl-preview.is-phone .dl-next main { padding-top: 44px; }
+.dl-preview.is-phone .dl-next-stories { margin: 30px -8px 0; gap: 14px; }
+.dl-preview.is-phone .dl-next-story { padding: 22px 20px 20px; }
+.dl-preview.is-phone .dl-next-story h2 { font-size: 23px; }
+.dl-preview.is-phone .dl-next-summary { font-size: 16px; }
+.dl-preview.is-phone .dl-next-conversation-preview { margin-top: 20px; padding-left: 14px; }
+.dl-preview.is-phone .dl-next-conversation-preview blockquote { font-size: 15px; }
+
+@media (max-width: 700px) {
+  .dl-next-header, .dl-next main { width: calc(100% - 32px); }
+  .dl-next-header > div:first-child strong { font-size: 30px; }
+  .dl-next > nav { padding: 0 16px; gap: 28px; overflow-x: auto; scrollbar-width: none; }
+  .dl-next main { padding-top: 44px; }
+  .dl-next-stories { margin-left: -8px; margin-right: -8px; }
+  .dl-next-story { padding: 22px 20px 20px; }
+  .dl-next-story h2 { font-size: 23px; }
+}
+
 /* EDITORIAL — hierarchy and human receipts do the visual work. The canvas is warm and quiet;
    images appear only when the existing quality gate accepts them. */
 .dl-editorial { overflow: clip; background: #f4f4f1; color: #17181a; }

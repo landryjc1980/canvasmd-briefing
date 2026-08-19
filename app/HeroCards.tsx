@@ -60,9 +60,9 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   <p>{ev.abstract}</p>
                 </details>
               )}
-              {c.kind === "paper" && ev?.preview && !compact && (
+              {ev?.preview && !compact && (
                 <div className="readout-hero-preview">
-                  <div>From X</div>
+                  <div>Physician conversation</div>
                   {ev.preview}
                 </div>
               )}
@@ -85,7 +85,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                     aria-expanded={openId === c.id} aria-controls={drawerId}
                     data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`} data-brief-label={c.headline}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
-                    {openId === c.id ? "Hide sources ↑" : compact ? "Sources ↓" : "See all sources ↓"}
+                    {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}
                   </button>
                 )}
               </div>
@@ -102,7 +102,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   aria-expanded={openId === c.id} aria-controls={drawerId}
                   data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode" data-brief-label={c.headline}
                   style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
-                  {openId === c.id ? "Hide sources ↑" : compact ? "Sources ↓" : "See all sources ↓"}
+                  {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}
                 </button>
               )}
               {ev && openId === c.id && <div id={drawerId} style={{ marginTop: 12 }}>{ev.drawer}</div>}

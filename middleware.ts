@@ -14,6 +14,9 @@ const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favico
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (process.env.NODE_ENV !== "production" && pathname.startsWith("/design-lab")) {
+    return NextResponse.next();
+  }
   if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return NextResponse.next();
 
   const sess = req.cookies.get(SESSION_COOKIE)?.value;

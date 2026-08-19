@@ -1,0 +1,24 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const page = fs.readFileSync(new URL("../app/design-lab/page.tsx", import.meta.url), "utf8");
+const css = fs.readFileSync(new URL("../app/design-lab/design-lab.css", import.meta.url), "utf8");
+
+test("Readout Next makes source and physician conversation visible before expansion", () => {
+  assert.match(page, /function ReadoutNext/);
+  assert.match(page, /Physician conversation/);
+  assert.match(page, /firstSourceTweet\(card, data\)/);
+  assert.match(page, /View full conversation/);
+});
+
+test("Readout Next keeps one story-title size and a bounded editorial measure", () => {
+  assert.match(css, /\.dl-next-story h2\s*\{[^}]*font:\s*700 27px/);
+  assert.doesNotMatch(css, /\.dl-next-story\.is-lead[^}]*font-size/);
+  assert.match(css, /\.dl-next main\s*\{[^}]*width:\s*min\(980px/);
+});
+
+test("the weekly story view does not lead with the generated recap", () => {
+  const nextBlock = page.slice(page.indexOf("function ReadoutNext"), page.indexOf("function Essential"));
+  assert.doesNotMatch(nextBlock, /data\.recap/);
+});
