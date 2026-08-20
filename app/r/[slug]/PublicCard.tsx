@@ -11,6 +11,8 @@
 // headlines). No clinician names, no post text, and no avatars ever reach it — the redacted block
 // is drawn from counts alone, never from hidden real text.
 
+import Masthead from "./Masthead";
+
 const INK = "#17181a", INK_2 = "#4f5257", MUT = "#696c71", MUT2 = "#85878c";
 const LINE = "#cfd0cb", SURFACE = "#ebeae5", PAPER = "#f4f4f1";
 
@@ -49,20 +51,7 @@ export default function PublicCard({ v, signInHref }: { v: PublicViewData; signI
         .rpub-bar{height:9px;border-radius:3px;background:${SURFACE}}
       ` }} />
       <div className="rpub-frame">
-        {/* MASTHEAD — the reader's exact masthead (wordmark, serif logotype, edition chip, rule) */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18, paddingTop: 22 }}>
-          <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-            <a href="/" style={{ textDecoration: "none", display: "block" }}>
-              <span style={{ display: "block", color: accent, font: "750 9px/1 system-ui", letterSpacing: ".04em", textTransform: "uppercase" }}>CanvasMD</span>
-              <div style={{ minHeight: 40, display: "flex", alignItems: "center", gap: 14, marginTop: 1 }}>
-                <span style={{ font: "500 26px/1 Georgia,'Newsreader',serif", color: INK }}>The Readout</span>
-                <span style={{ font: "700 13px system-ui", color: accent, whiteSpace: "nowrap" }}>{v.areaFull}</span>
-              </div>
-            </a>
-            <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>What oncology is reading, discussing, and citing this week</div>
-          </div>
-        </div>
-        <div aria-hidden style={{ height: 1, margin: "14px 0 12px", background: LINE }} />
+        <Masthead accent={accent} areaFull={v.areaFull} href="/" note="What oncology is reading, discussing, and citing this week" />
 
         {/* THE STORY — the site's own hero-card language (classes from brief.css) */}
         <article className="readout-hero-card is-lead">

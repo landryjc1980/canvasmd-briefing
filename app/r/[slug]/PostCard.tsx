@@ -18,6 +18,7 @@ import HeroCards, { type HeroEvidence } from "@/app/HeroCards";
 import { resolveHeroEvidence, type CardBrief } from "@/app/heroEvidence";
 import { TweetCard, StoryEvidence, EpisodeXReceipts } from "@/app/ReaderView";
 import { AREA_FULL } from "@/app/briefVM";
+import Masthead from "./Masthead";
 import type { HeroCard, BriefingStory, BriefingPaper } from "@/lib/types";
 import "@/app/briefing.css";
 import "@/app/brief.css";
@@ -110,15 +111,8 @@ export default function PostCard({ card, brief, area, memberHome }: { card: Hero
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
       ` }} />
       <div style={{ maxWidth: 690, margin: "0 auto", padding: "26px 22px 90px" }}>
-        {/* masthead — wordmark + this card's edition */}
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <a href={memberHome} style={{ textDecoration: "none", display: "inline-flex", alignItems: "baseline", gap: 9 }}>
-            <span style={{ color: accent, font: "750 10px/1 system-ui", letterSpacing: ".04em", textTransform: "uppercase" }}>CanvasMD</span>
-            <span style={{ font: "400 22px/1 'Newsreader',Georgia,serif", color: INK, letterSpacing: "-.01em" }}>The Readout</span>
-          </a>
-          <a href={memberHome} style={{ marginLeft: "auto", font: "700 11px system-ui", letterSpacing: ".04em", textTransform: "uppercase", color: accent, textDecoration: "none" }}>{areaFull} edition</a>
-        </div>
-        <div aria-hidden style={{ height: 2, background: accent, opacity: .9, margin: "14px 0 4px", maxWidth: 44 }} />
+        {/* The reader's own masthead (shared component) — same logo as the main page. */}
+        <Masthead accent={accent} areaFull={areaFull} href={memberHome} />
 
         {/* the card — rendered as the lead (i===0), expanded via defaultOpenId. Client-only (see
             the mounted note above); a min-height placeholder holds the space to limit layout shift. */}
