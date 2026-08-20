@@ -11,7 +11,7 @@ import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf } from "./briefVM";
 import HeroCards, { HeroEvidence } from "./HeroCards";
-import { resolveHeroEvidence } from "./heroEvidence";
+import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 import DailyConversationEvidence from "./DailyConversationEvidence";
 
@@ -514,7 +514,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     if (resolved.kind === "paper") {
       const story = resolved.story as BriefingStory;
       const paper = story.papers?.[0];
-      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0];
+      const firstPost = pickConversationPreview(story.posts, paper?.posts, paper?.sharers);
       return {
         faces: resolved.faces,
         abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null,
@@ -524,7 +524,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     }
     if (resolved.kind === "article") {
       const paper = resolved.paper as unknown as BriefingPaper;
-      const firstPost = resolved.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0];
+      const firstPost = pickConversationPreview(resolved.posts, paper.posts, paper.sharers);
       return {
         faces: resolved.faces,
         abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null,
@@ -799,17 +799,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               </div>
             ) : null}
             {(daily.payload.narrative ?? []).length ? (
-              <button onClick={() => setDailyOpen((o) => !o)} style={{ margin: "10px 0 2px", padding: 0, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: ALL_ACCENT }}>
+              <button onClick={() => setDailyOpen((o) => !o)} aria-expanded={dailyOpen} style={{ margin: "4px 0 2px", padding: "0 2px", minHeight: 44, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: ALL_ACCENT }}>
                 {dailyOpen ? "Show less ↑" : "Read the daily ↓"}
               </button>
             ) : null}
             {dailyOpen && <details style={{ margin: "14px 0 4px" }}>
-              <summary style={{ cursor: "pointer", font: "600 11.5px system-ui", color: MUT, listStyle: "none" }}>Sources & items ↓</summary>
+              <summary style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center", font: "600 11.5px system-ui", color: MUT, listStyle: "none" }}>Sources & items ↓</summary>
               <div style={{ display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: wide ? "0 34px" : 0, marginTop: 8 }}>
                 {daily.payload.sections.map((s) => (
                   <div key={s.key} style={{ padding: "10px 0 12px", borderTop: `1px solid ${LINE}` }}>
                     <div style={{ font: "700 10px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: MUT2 }}>{s.title}</div>
-                    {(s.key === "conversation" ? s.items : s.items.slice(0, s.key === "mics" ? 5 : 4)).map((it, i) => (
+                    {s.items.map((it, i) => (
                       <div key={i} style={{ marginTop: 9 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
                           {it.url ? (

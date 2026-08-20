@@ -75,6 +75,8 @@ export default function BriefingPage() {
   // visit's views only affect the NEXT visit).
   const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string> }>>({});
   const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
+  const dailyLoadedAt = useRef(0);
+  const dailyRequest = useRef(0);
   const load = useCallback((a: string): Promise<void> => {
     if (a === "All") return Promise.resolve(); // no brief of its own — assembled from the six
     if (cacheRef.current[a]) return Promise.resolve();
@@ -156,11 +158,31 @@ export default function BriefingPage() {
 
   // Retry a single failed area (or every failed area). `load` short-circuits on anything already
   // cached, so this only re-fetches what actually needs it.
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/daily").then((r) => r.json()).then((j) => { if (alive) setDaily(j.daily ?? null); }).catch(() => {});
-    return () => { alive = false; };
+  const loadDaily = useCallback(async () => {
+    const request = ++dailyRequest.current;
+    try {
+      const response = await fetch("/api/daily", { cache: "no-store" });
+      const json = await response.json();
+      if (request === dailyRequest.current) {
+        setDaily(json.daily ?? null);
+        dailyLoadedAt.current = Date.now();
+      }
+    } catch { /* the weekly brief remains usable when Daily refresh fails */ }
   }, []);
+
+  useEffect(() => {
+    void loadDaily();
+    const refreshIfStale = () => {
+      if (document.visibilityState === "visible" && Date.now() - dailyLoadedAt.current > 5 * 60_000) void loadDaily();
+    };
+    document.addEventListener("visibilitychange", refreshIfStale);
+    window.addEventListener("focus", refreshIfStale);
+    return () => {
+      dailyRequest.current++;
+      document.removeEventListener("visibilitychange", refreshIfStale);
+      window.removeEventListener("focus", refreshIfStale);
+    };
+  }, [loadDaily]);
 
   const retryArea = useCallback((a?: string) => {
     const targets = a ? [a] : Object.keys(areaErr);

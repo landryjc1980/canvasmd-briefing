@@ -964,7 +964,7 @@ export type SeenMap = Record<string, string>;
 export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null; id?: string | null; slug?: string | null; teaser?: string | null };
 export type DailyConversationReaction = {
   postId: string; sourceId: string; name: string; handle: string; text: string; url: string;
-  likes: number; areas: string[]; sourceAreas?: string[]; translatedFrom?: string | null;
+  likes: number; areas: string[]; sourceAreas?: string[]; referenceAreas?: string[]; translatedFrom?: string | null;
   fullText?: string | null; // additive: complete retained post text when the producer can hydrate it
   textTruncated?: boolean; // additive: true when `text` remains only an archived excerpt
 };

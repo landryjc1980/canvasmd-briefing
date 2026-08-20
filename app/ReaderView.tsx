@@ -1124,7 +1124,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         </>
       )}
       {dailyLong && (
-        <button onClick={() => setDailyOpen((o) => !o)} style={{ margin: "9px 0 0", padding: 0, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: pal.accent }}>
+        <button onClick={() => setDailyOpen((o) => !o)} aria-expanded={dailyOpen} style={{ margin: "3px 0 0", padding: "0 2px", minHeight: 44, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: pal.accent }}>
           {dailyOpen ? "Show less ↑" : "Read more ↓"}
         </button>
       )}

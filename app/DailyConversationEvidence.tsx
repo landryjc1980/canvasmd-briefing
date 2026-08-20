@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DailyConversationStory } from "@/lib/types";
+import { partitionDailyReactions } from "./dailyEvidence";
 
 function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
   reaction: DailyConversationStory["reactions"][number];
@@ -30,11 +31,11 @@ function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
       <div style={{ color: muted, font: "400 12.5px/1.55 'Newsreader',Georgia,serif", marginTop: 4 }}>{preview}</div>
       {canExpand && (
         <button type="button" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}
-          style={{ cursor: "pointer", minHeight: 36, marginTop: 3, padding: "0 2px", border: 0, background: "transparent", color: accent, font: "600 11.5px system-ui" }}>
+          style={{ cursor: "pointer", minHeight: 44, marginTop: 3, padding: "0 2px", border: 0, background: "transparent", color: accent, font: "600 11.5px system-ui" }}>
           {expanded ? "Collapse ↑" : `${action} ↓`}
         </button>
       )}
-      {knownTruncated && (!canExpand || expanded) && <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", minHeight: 36, alignItems: "center", marginLeft: canExpand ? 12 : 0, color: accent, textDecoration: "none", font: "600 11.5px system-ui" }}>Read complete post on X ↗</a>}
+      {knownTruncated && (!canExpand || expanded) && <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", minHeight: 44, alignItems: "center", marginLeft: canExpand ? 12 : 0, color: accent, textDecoration: "none", font: "600 11.5px system-ui" }}>Read complete post on X ↗</a>}
     </blockquote>
   );
 }
@@ -58,15 +59,9 @@ export default function DailyConversationEvidence({
 }) {
   const wanted = new Set(storyIds ?? []);
   const matched = (stories ?? []).filter((story) => wanted.has(story.id)).map((story) => {
-    const relevant = area ? story.reactions.filter((reaction) => reaction.areas.includes(area)) : story.reactions;
-    const reactions = area
-      ? relevant.filter((reaction) => !reaction.sourceAreas?.length || reaction.sourceAreas.includes(area))
-      : relevant;
-    const across = area
-      ? relevant.filter((reaction) => reaction.sourceAreas?.length && !reaction.sourceAreas.includes(area))
-      : [];
+    const { local: reactions, across } = partitionDailyReactions(story.reactions, story.areas ?? [], area);
     return { story, reactions, across };
-  }).filter(({ reactions }) => reactions.length);
+  }).filter(({ reactions, across }) => reactions.length || across.length);
   if (!matched.length) return null;
 
   const reactionCard = (reaction: DailyConversationStory["reactions"][number], lead = false) => (
@@ -85,24 +80,31 @@ export default function DailyConversationEvidence({
     <div style={{ borderTop: `1px solid ${line}`, padding: "8px 0 2px", color: accent, font: "700 10.5px system-ui", letterSpacing: ".1em", textTransform: "uppercase" }}>Physician conversation</div>
     {matched.map(({ story, reactions, across }) => (
       <div key={story.id}>
-        {reactionCard(reactions[0], true)}
+        {(() => {
+          const shownAcross = reactions.length ? 0 : 1;
+          const hiddenCount = Math.max(reactions.length - 1, 0) + Math.max(across.length - shownAcross, 0);
+          return <>
+        {reactions[0] ? reactionCard(reactions[0], true) : <div style={{ color: muted, font: "700 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", marginTop: 10 }}>Across oncology</div>}
+        {!reactions.length && across[0] ? reactionCard(across[0], true) : null}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", padding: "2px 0 5px 10px" }}>
           {sourceLinks(story).map((source) => (
-            <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" style={{ color: muted, textDecoration: "none", font: "500 10.5px/1.4 system-ui" }}>
+            <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", minHeight: 44, alignItems: "center", color: muted, textDecoration: "none", font: "500 10.5px/1.4 system-ui" }}>
               {source.label} ↗
             </a>
           ))}
         </div>
-        {(reactions.length > 1 || across.length > 0) && <details style={{ padding: "2px 0" }}>
-          <summary style={{ cursor: "pointer", listStyle: "none", color: accent, font: "600 11.5px system-ui" }}>
-            See {Math.max(reactions.length - 1, 0) + across.length} more physician post{Math.max(reactions.length - 1, 0) + across.length === 1 ? "" : "s"} ↓
+        {hiddenCount > 0 && <details style={{ padding: "2px 0" }}>
+          <summary style={{ cursor: "pointer", listStyle: "none", minHeight: 44, display: "flex", alignItems: "center", color: accent, font: "600 11.5px system-ui" }}>
+            See {hiddenCount} more physician post{hiddenCount === 1 ? "" : "s"} ↓
           </summary>
           <div style={{ paddingTop: 5 }}>
             {reactions.slice(1).map((reaction) => reactionCard(reaction))}
             {across.length > 0 && <div style={{ color: muted, font: "700 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", marginTop: 10 }}>Across oncology</div>}
-            {across.map((reaction) => reactionCard(reaction))}
+            {across.slice(reactions.length ? 0 : 1).map((reaction) => reactionCard(reaction))}
           </div>
         </details>}
+          </>;
+        })()}
       </div>
     ))}
   </div>;

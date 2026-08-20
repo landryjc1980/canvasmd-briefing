@@ -8,11 +8,23 @@ const all = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf
 
 test("web Daily renders exact, specialty-scoped physician evidence", () => {
   assert.match(evidence, /Physician conversation/);
-  assert.match(evidence, /reaction\.sourceAreas\?\.length[\s\S]+reaction\.sourceAreas\.includes\(area\)/);
+  assert.match(evidence, /partitionDailyReactions/);
+  assert.match(evidence, /Across oncology/);
   assert.match(evidence, /<blockquote/);
   assert.match(evidence, /reaction\.text/);
   assert.match(reader, /<DailyConversationEvidence[^>]+area=\{area\}/);
   assert.match(all, /<DailyConversationEvidence/);
+});
+
+test("Daily refreshes stale payloads and All renders complete source drawers", () => {
+  const page = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /visibilitychange/);
+  assert.match(page, /window\.addEventListener\("focus"/);
+  assert.doesNotMatch(all, /s\.items\.slice\(/);
+  assert.match(all, /pickConversationPreview\(story\.posts/);
+  assert.doesNotMatch(all, /resolved\.publisherPosts\[0\]/);
+  assert.match(evidence, /minHeight: 44/);
+  assert.match(all, /Sources & items ↓/);
 });
 
 test("collapsed specialty Daily keeps its story headlines visible", () => {
