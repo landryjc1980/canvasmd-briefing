@@ -20,6 +20,8 @@ test("Daily refreshes stale payloads and All renders complete source drawers", (
   const page = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.match(page, /visibilitychange/);
   assert.match(page, /window\.addEventListener\("focus"/);
+  assert.match(page, /fetchedAt/);
+  assert.match(page, /load\(target, true\)/);
   assert.doesNotMatch(all, /s\.items\.slice\(/);
   assert.match(all, /pickConversationPreview\(story\.posts/);
   assert.doesNotMatch(all, /resolved\.publisherPosts\[0\]/);

@@ -73,13 +73,13 @@ export default function BriefingPage() {
   // Alongside the payload we fetch the reader's per-area SEEN map once per session —
   // captured at load and held stable, so the deck never re-shuffles mid-visit (this
   // visit's views only affect the NEXT visit).
-  const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string> }>>({});
+  const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string>; fetchedAt: number }>>({});
   const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
   const dailyLoadedAt = useRef(0);
   const dailyRequest = useRef(0);
-  const load = useCallback((a: string): Promise<void> => {
+  const load = useCallback((a: string, force = false): Promise<void> => {
     if (a === "All") return Promise.resolve(); // no brief of its own — assembled from the six
-    if (cacheRef.current[a]) return Promise.resolve();
+    if (cacheRef.current[a] && !force) return Promise.resolve();
     const pending = inflightRef.current[a];
     if (pending) return pending;
     // Congress rehearsal: a `?congressPreview=<series_key>` on the page URL is forwarded so the
@@ -90,7 +90,7 @@ export default function BriefingPage() {
       fetchBriefingWithRetry(`/api/briefing?area=${a}${preview ? `&congressPreview=${encodeURIComponent(preview)}` : ""}`),
       fetch(`/api/brief-seen?area=${a}`).then((r) => r.json()).catch(() => ({ seen: {} })),
     ])
-      .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {} }; bump((t) => t + 1); })
+      .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {}, fetchedAt: Date.now() }; bump((t) => t + 1); })
       .finally(() => { delete inflightRef.current[a]; });
     inflightRef.current[a] = p;
     return p;
@@ -183,6 +183,32 @@ export default function BriefingPage() {
       window.removeEventListener("focus", refreshIfStale);
     };
   }, [loadDaily]);
+
+  // A browser tab can stay open across a weekly promotion. Keep instant tab
+  // switching, but refresh the active edition after fifteen minutes on focus.
+  useEffect(() => {
+    const refreshWeeklyIfStale = () => {
+      if (document.visibilityState !== "visible" || !area) return;
+      const targets = area === "All" ? AREAS : [area];
+      for (const target of targets) {
+        const cached = cacheRef.current[target];
+        if (cached && Date.now() - cached.fetchedAt <= 15 * 60_000) continue;
+        void load(target, true).then(() => {
+          if (target === area) {
+            const fresh = cacheRef.current[target];
+            if (fresh) { setData(fresh.briefing); setSeen(fresh.seen); }
+          }
+        }).catch(() => { /* retain the last good weekly edition */ });
+      }
+    };
+    refreshWeeklyIfStale();
+    document.addEventListener("visibilitychange", refreshWeeklyIfStale);
+    window.addEventListener("focus", refreshWeeklyIfStale);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWeeklyIfStale);
+      window.removeEventListener("focus", refreshWeeklyIfStale);
+    };
+  }, [area, load]);
 
   const retryArea = useCallback((a?: string) => {
     const targets = a ? [a] : Object.keys(areaErr);

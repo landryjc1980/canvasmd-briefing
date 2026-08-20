@@ -103,7 +103,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, 
       </div>
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
-        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>On X · verified clinicians</div>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>On X · physician posts</div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
@@ -517,7 +517,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                   <div style={{ marginTop: expanded ? 18 : "auto", paddingTop: 16 }}>
                     <div style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden" }}>
                       {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
-                      {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                      {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · physician posts</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                       {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
                       {!expanded && <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 58, background: `linear-gradient(to bottom, ${pal.bg}00, ${pal.bg})`, pointerEvents: "none" }} />}
                     </div>
@@ -702,7 +702,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             {/* stance at the TOP of the drug evidence — the field's read before the raw evidence */}
             <StanceBlock stance={sheet.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
             {!!sheet.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcasts.map((p, j) => podCard(p, j))}</div>}
-            {!!sheet.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {!!sheet.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · physician posts</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
             <div onClick={(e) => { stop(e); setSheet(null); }} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent, cursor: "pointer" }}>Close</div>
           </div>

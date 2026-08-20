@@ -35,5 +35,6 @@ test("the weekly story view does not lead with the generated recap", () => {
 test("live story cards show paper context and use one title size", () => {
   assert.match(hero, /\{c\.excerpt && \(/);
   assert.doesNotMatch(hero, /c\.excerpt && c\.kind !== ["']paper["']/);
-  assert.match(liveCss, /\.readout-hero-card\.is-lead \.readout-hero-title \{[^}]*font-size: 23px/);
+  assert.match(liveCss, /\.readout-hero-card\.is-lead \.readout-hero-title \{[^}]*font-size: 20\.5px/);
+  assert.match(liveCss, /@media \(max-width: 640px\)[\s\S]*\.readout-hero-card\.is-lead \.readout-hero-title \{[^}]*font-size: 16px/);
 });

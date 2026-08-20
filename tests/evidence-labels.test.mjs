@@ -29,7 +29,7 @@ test("web evidence disclosures do not present unrendered activity as receipt cou
   assert.doesNotMatch(reader, /reposts\/quotes ↓/);
   assert.doesNotMatch(reader, /What clinicians said/);
   assert.doesNotMatch(reader, /Shared on X ·/);
-  assert.match(reader, /On X · verified clinicians/);
+  assert.match(reader, /On X · physician posts/);
   assert.match(reader, /shared by \$\{n\} clinician/);
   assert.doesNotMatch(reader.slice(reader.indexOf("export const paperMeta"), reader.indexOf("export function PodCard")), /♥/);
   assert.doesNotMatch(reader, /publisherPosts!\.slice/);

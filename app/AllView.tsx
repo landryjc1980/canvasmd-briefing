@@ -505,7 +505,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   );
 
   const evidenceChip = (acc: string) => (
-    <span data-disclosure style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: acc, padding: "0 2px", whiteSpace: "nowrap" }}>Sources ↓</span>
+    <span data-disclosure style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: acc, padding: "0 2px", whiteSpace: "nowrap" }}>See all sources ↓</span>
   );
 
   const heroEvidenceFor = (card: HeroCard, brief: BriefingData, accent: string): HeroEvidence => {
@@ -936,7 +936,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                               {amplifiers.slice(0, 4).map((a, j) => <Coin key={j} src={a.avatar} label={a.name} size={18} ring={PAPER} style={{ marginLeft: j ? -7 : 0 }} />)}
                             </span>
                             <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: MUT }}>{amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : amplifiers.length > 1 ? `Amplified by ${amplifiers.length} clinicians` : `From ${announcements[0]?.name ?? "the show"} on X`}</span>
-                            <span data-disclosure style={{ color: acc, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
+                            <span data-disclosure style={{ color: acc, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "See all sources ↓"}</span>
                           </button>
                           {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: `1px solid ${LINE}`, minWidth: 0, overflow: "hidden" }}><EpisodeXReceipts announcements={announcements} amplifiers={amplifiers} accent={acc} /></div>}
                         </div>

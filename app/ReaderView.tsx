@@ -399,13 +399,13 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
       {abstractOpen && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{abstract}</p>}
       {sourcesOpen && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "var(--rv-muted, #9aa0ac)", marginBottom: 9 }}>
-          On X · verified clinicians
+          On X · physician posts
         </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 5, alignItems: "center" }}>
         {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
-        {hasPosts && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
+        {hasPosts && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "See all sources ↓"}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "var(--rv-muted, rgba(255,255,255,.55))", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
@@ -606,7 +606,7 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
-      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · verified clinicians</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · physician posts</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
       {publisherPosts.length > 0 && (
         <div style={(otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
       )}
@@ -685,7 +685,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
       {open && (
         <div id={sourceId} className="rv-drawer">
           <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>
-            {paper.posts.length > 0 && <div><div style={evLabel(accent)}>On X · verified clinicians</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {paper.posts.length > 0 && <div><div style={evLabel(accent)}>On X · physician posts</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={paper.publisherPosts!} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
             {hasOtherPosts && <div><div style={evLabel(accent)}>Additional posts on X</div><Capped items={paper.otherPosts!} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
             {hasPublisherNames && !hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))" }}>Shared by: {paper.publishers.join(" · ")}</div></div>}
@@ -1018,7 +1018,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // surrounding row supplies the 44px+ target. No nested pill inside an already-clickable row.
   const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
     <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: pal.accent, padding: "0 2px", whiteSpace: "nowrap", ...style }}>
-      {openId === id ? "Hide sources ↑" : "Sources ↓"}
+      {openId === id ? "Hide sources ↑" : "See all sources ↓"}
     </span>
   );
 
@@ -1376,7 +1376,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "var(--rv-muted, rgba(233,237,246,.7))" }}>
                     {amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : amplifiers.length > 1 ? `Amplified by ${amplifiers.length} clinicians` : `From ${announcements[0]?.name ?? "the show"} on X`}
                   </span>
-                  <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
+                  <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "See all sources ↓"}</span>
                 </button>
                 {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--rv-line, rgba(255,255,255,.08))" }}><EpisodeXReceipts announcements={announcements} amplifiers={amplifiers} accent={pal.accent} /></div>}
               </div>
@@ -1432,7 +1432,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </div>
             }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-            {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
+            {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}

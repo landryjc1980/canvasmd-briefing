@@ -130,7 +130,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent,
       </div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
-        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>On X · verified clinicians</div>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>On X · physician posts</div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
@@ -402,7 +402,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
               }>
               <div style={{ marginLeft: compact ? 0 : 50 }}>
                 {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-                {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                 {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.sharers.length || p.posts?.length ? `shared by ${p.sharers.length || p.posts!.length}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
               </div>
             </Row>
@@ -508,7 +508,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   </div>
                 }>
                 {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{a.abstract}</p>}
-                {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                 {(a.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{a.publisherPosts!.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                 {(a.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{a.otherPosts!.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                 {/* link to the source — also guarantees the expand is never empty (news items carry
@@ -549,7 +549,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   </div>
                 )}>
                 {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-                {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
+                {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{t.publisherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{t.otherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={`shared by ${p.sharerCount ?? p.sharers.length} clinician${(p.sharerCount ?? p.sharers.length) === 1 ? "" : "s"}`} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
@@ -592,7 +592,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   {/* the field's read at the TOP of the drug's evidence drawer (self-suppresses if thin) */}
                   <StanceBlock stance={m.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
                   {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-                  {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                  {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                   {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={`shared by ${p.sharers.length} · ♥ ${p.topLikes}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
                 </div>
               </Row>
