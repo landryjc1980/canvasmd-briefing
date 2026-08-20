@@ -34,7 +34,7 @@ function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
           {expanded ? "Collapse ↑" : `${action} ↓`}
         </button>
       )}
-      {knownTruncated && expanded && <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", minHeight: 36, alignItems: "center", marginLeft: 12, color: accent, textDecoration: "none", font: "600 11.5px system-ui" }}>Read complete post on X ↗</a>}
+      {knownTruncated && (!canExpand || expanded) && <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", minHeight: 36, alignItems: "center", marginLeft: canExpand ? 12 : 0, color: accent, textDecoration: "none", font: "600 11.5px system-ui" }}>Read complete post on X ↗</a>}
     </blockquote>
   );
 }
@@ -95,7 +95,7 @@ export default function DailyConversationEvidence({
         </div>
         {(reactions.length > 1 || across.length > 0) && <details style={{ padding: "2px 0" }}>
           <summary style={{ cursor: "pointer", listStyle: "none", color: accent, font: "600 11.5px system-ui" }}>
-            See all {reactions.length} {area ? `${area} ` : ""}physician post{reactions.length === 1 ? "" : "s"} ↓
+            See {Math.max(reactions.length - 1, 0) + across.length} more physician post{Math.max(reactions.length - 1, 0) + across.length === 1 ? "" : "s"} ↓
           </summary>
           <div style={{ paddingTop: 5 }}>
             {reactions.slice(1).map((reaction) => reactionCard(reaction))}
