@@ -6,9 +6,11 @@ const evidence = fs.readFileSync(new URL("../app/DailyConversationEvidence.tsx",
 const reader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const all = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
 
-test("web Daily renders all story-linked physician evidence in specialty and All views", () => {
+test("web Daily renders exact, specialty-scoped physician evidence", () => {
   assert.match(evidence, /Physician conversation/);
-  assert.match(evidence, /story\.reactions\.map/);
-  assert.match(reader, /<DailyConversationEvidence/);
+  assert.match(evidence, /reaction\.sourceAreas\?\.length[\s\S]+reaction\.sourceAreas\.includes\(area\)/);
+  assert.match(evidence, /<blockquote/);
+  assert.match(evidence, /reaction\.text/);
+  assert.match(reader, /<DailyConversationEvidence[^>]+area=\{area\}/);
   assert.match(all, /<DailyConversationEvidence/);
 });

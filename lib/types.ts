@@ -964,7 +964,7 @@ export type SeenMap = Record<string, string>;
 export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null; id?: string | null; slug?: string | null; teaser?: string | null };
 export type DailyConversationReaction = {
   postId: string; sourceId: string; name: string; handle: string; text: string; url: string;
-  likes: number; areas: string[]; translatedFrom?: string | null;
+  likes: number; areas: string[]; sourceAreas?: string[]; translatedFrom?: string | null;
 };
 export type DailyConversationStory = {
   id: string;

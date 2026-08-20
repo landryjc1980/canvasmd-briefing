@@ -1088,7 +1088,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           </span>
         )}
       </p>
-      <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} accent={pal.accent} ink="var(--rv-ink, #eef1f8)" muted={MUT} line={LINE} />
+      <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} area={area} accent={pal.accent} ink="var(--rv-ink, #eef1f8)" muted={MUT} line={LINE} />
     </div>
   );
   const dailySection = dailyAll.length > 0 && (
