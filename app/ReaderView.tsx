@@ -1047,9 +1047,6 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [area, subArea]);
 
-  // Rail modules (guests / most-active / trials / drugs) render narrow on the wide layout, so they
-  // use the stacked/compact arrangements and no drawer indent there.
-  const narrow = compact || wide;
   // Whether the desktop rail has ANY content — drives collapsing the two-column grid to one when a
   // Focus pick empties guests + KOLs + trials + drugs (else the fixed 320px track leaves a blank gap).
   const railHasContent = !!(data.guests?.length || carriedKols.length || data.trials.length || data.movers.length);
@@ -1309,7 +1306,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 </div>
               </div>
             }>
-            <div style={{ marginLeft: narrow ? 0 : 55 }}>
+            <div>
               {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Top posts on X · {k.posts.length}{nPost > k.posts.length ? ` of ${nPost}` : ""}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
               {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Top papers shared · {k.articles.length}{nArt > k.articles.length ? ` of ${nArt}` : ""}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} url={a.url} accent={pal.accent} />)}</div>}
             </div>
@@ -1469,7 +1466,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 </div>
               </div>
             }>
-            <div style={{ marginLeft: compact ? 0 : 54, display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* Evidence cards are ONE width everywhere (John 2026-08-17: the drug drawer's
+                cards read "skinnier" than the trials/papers rails, which never indent). The
+                old 54px gutter aligned the drawer under the head's text column at the cost of
+                making identical card components render narrower in this one rail. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {/* the field's read at the TOP of the drug's evidence drawer (self-suppresses if thin) */}
               <StanceBlock stance={m.stance} accent={pal.accent} />
               <StoryEvidence story={m} accent={pal.accent} paperLabel="Papers shared" />
