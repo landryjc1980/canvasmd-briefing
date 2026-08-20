@@ -33,7 +33,7 @@ const AREA_LABELS: Record<string, string> = {
   GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
 const KICKERS: Record<string, string> = {
-  paper: "Paper", episode: "On the mics", event: "Regulatory", thread: "Clinician post", readout: "Trial readout", trial_milestone: "Trial milestone",
+  paper: "Paper", episode: "On the mics", event: "Regulatory", thread: "Clinician post", readout: "Trial readout", development: "Breaking development", trial_milestone: "Trial milestone",
 };
 
 function siteBase(): string {

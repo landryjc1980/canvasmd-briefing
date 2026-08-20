@@ -18,7 +18,7 @@ const AREA_LABELS: Record<string, string> = {
   GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
 const KICKERS: Record<string, string> = {
-  paper: "PAPER", episode: "ON THE MICS", event: "REGULATORY", thread: "CLINICIAN POST", readout: "TRIAL READOUT", trial_milestone: "TRIAL MILESTONE",
+  paper: "PAPER", episode: "ON THE MICS", event: "REGULATORY", thread: "CLINICIAN POST", readout: "TRIAL READOUT", development: "BREAKING DEVELOPMENT", trial_milestone: "TRIAL MILESTONE",
 };
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 

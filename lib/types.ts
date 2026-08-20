@@ -905,7 +905,7 @@ export type HeroSupportBundle = {
 };
 export type HeroCard = {
   id: string; // anchor-derived, stable across builds
-  kind: "paper" | "episode" | "event" | "thread" | "readout" | "trial_milestone";
+  kind: "paper" | "episode" | "event" | "thread" | "readout" | "development" | "trial_milestone";
   anchorId: string;
   headline: string;
   why: string; // server-authored source activity line

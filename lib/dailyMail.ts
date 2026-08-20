@@ -27,7 +27,7 @@ const AREA_LABELS: Record<string, string> = {
   GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
 const SANS = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
-const KICKERS: Record<string, string> = { readout: "TRIAL READOUT", paper: "PAPER", event: "FDA", episode: "ON THE MICS", thread: "CONVERSATION" };
+const KICKERS: Record<string, string> = { readout: "TRIAL READOUT", development: "BREAKING DEVELOPMENT", paper: "PAPER", event: "FDA", episode: "ON THE MICS", thread: "CONVERSATION" };
 
 export type TopStory = { area: string; kind: string; title: string; why: string | null; url: string | null };
 

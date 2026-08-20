@@ -41,7 +41,7 @@ export type CardBrief = Pick<BriefingData, "topStories" | "topArticles" | "mover
 // resolveHeroEvidence(card, fullBrief) for every live card.
 export function sliceBriefForCard(c: HeroCard, data: CardBrief): CardBrief {
   const empty: CardBrief = { topStories: [], topArticles: [], movers: [], heroCandidates: { cards: [c], tieCount: 0 } };
-  if (c.kind === "readout" && c.support) return empty;
+  if (c.kind === "development" && c.support) return empty;
   if (c.kind === "paper" || c.kind === "readout") {
     const reading = (data.topArticles ?? []).find((x) => x.url === c.url);
     const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
@@ -68,7 +68,7 @@ export function resolveHeroEvidence(
   c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers" | "support">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
-  if (c.kind === "readout" && c.support) {
+  if (c.kind === "development" && c.support) {
     const posts = c.support.clinicianPosts;
     const publisherPosts = c.support.publisherPosts;
     const otherPosts = c.support.otherPosts ?? [];
