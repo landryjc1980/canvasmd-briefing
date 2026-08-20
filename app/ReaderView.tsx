@@ -259,8 +259,14 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
       })}
       {canExpand && <button type="button" className="rv-text-action" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}
         style={{ cursor: "pointer", minHeight: 44, marginTop: 5, padding: "0 2px", border: 0, background: "transparent", color: "var(--rv-accent)", font: "600 12px system-ui" }}>
-        {expanded ? "Show less ↑" : thread.length ? `Show full thread · ${thread.length + 1} posts ↓` : "Show full post ↓"}
+        {expanded ? "Show less ↑" : thread.length ? `Show full thread · ${thread.length + 1} posts ↓` : "Show longer excerpt ↓"}
       </button>}
+      {expanded && !thread.length && postUrl && (
+        <a href={postUrl} target="_blank" rel="noopener noreferrer" className="rv-text-action"
+          style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--rv-accent)", font: "600 12px system-ui", textDecoration: "none" }}>
+          Read complete post on X ↗
+        </a>
+      )}
       {reposters.length > 0 && (
         <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "flex-start", gap: 8 }}>
           <div aria-hidden style={{ display: "flex", alignItems: "center", flex: "none", paddingTop: 1 }}>
@@ -662,13 +668,13 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
           <span style={{ display: "inline-flex", alignItems: "center", gap: 14, minHeight: 44, marginLeft: "auto" }}>
             {abstract && (
               <button type="button" aria-expanded={abstractOpen} aria-controls={abstractId} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action"
-                style={{ background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
+                style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
                 {abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}
               </button>
             )}
             {hasSources && (
               <button type="button" aria-expanded={open} aria-controls={sourceId} onClick={onToggle} data-brief-event="source_open" data-brief-open={open} data-brief-target="list" className="rv-text-action"
-                style={{ background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
+                style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
                 {open ? "Hide sources ↑" : "See all sources ↓"}
               </button>
             )}
@@ -850,7 +856,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const carriedKols = [...data.topKols]
     .filter((k) => (k.amp ?? 0) > 0)
-    .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes);
+    .sort((a, b) => Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false) || (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes);
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
@@ -1168,7 +1174,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         const chip = part.mode === "split" ? part.status.get(s.id) : undefined;
         // Denser, scannable scale (2026-07-22 redesign): the lead is a step up, not a poster —
         // the old 34px front-page headline ate most of a phone screen before story #2.
-        const headlineFont = lead ? (compact ? "500 23px/1.2" : "500 25px/1.16") : (compact ? "500 19px/1.25" : "500 20.5px/1.2");
+        const headlineFont = compact ? "500 19px/1.25" : "500 20.5px/1.2";
         const open = openId === id;
         return (
           <Fragment key={id}>
@@ -1309,6 +1315,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   {/* institution + drugs each clamped to ONE line — the ballooning multi-line
                       affiliation was the source of the ragged look */}
                   {k.institution && <div style={{ font: "400 12px system-ui", color: MUT, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.institution}</div>}
+                  {k.specialtyLocal === false && <div style={{ font: "600 10.5px system-ui", color: pal.accent, marginTop: 3 }}>Across oncology</div>}
                   {drugLine && <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drugLine}</div>}
                 </div>
               </div>

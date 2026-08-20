@@ -602,6 +602,7 @@ export type BriefingKol = {
   paperShares?: number; // distinct papers they shared this window
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
   articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[]; // articles they shared
+  specialtyLocal?: boolean; // false = relevant content from a physician outside this specialty
   subAreas?: string[];
   congress?: boolean;
 };
