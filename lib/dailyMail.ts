@@ -73,6 +73,7 @@ export function renderDailyEmail(opts: {
   siteLink: string;             // magic link into the site (already area-scoped by caller)
   allLink?: string;             // magic link to the ALL-oncology edition (cross-link target)
   linkForArea: (area: string) => string; // magic link scoped to a specific area edition
+  postLink: (slug: string) => string;    // magic link that lands on a /r/<slug> post page
   unsubUrl: string;
 }): { html: string; subject: string } | null {
   const { daily, tops, area } = opts;
@@ -141,8 +142,11 @@ export function renderDailyEmail(opts: {
       if (!items.length) return "";
       const rows = items.map((it) => {
         const chips = isAll ? (it.areas ?? []).slice(0, 2).map(chip).join("") : "";
-        const title = it.url
-          ? `<a href="${esc(it.url)}" style="font-size:13px;font-weight:600;line-height:1.45;color:${INK};text-decoration:none;font-family:${SANS}">${esc(it.title)}</a>`
+        // Land on the CanvasMD post page (which carries the "Read source ↗" CTA); fall back to
+        // the external source only for un-stamped/legacy items with no slug.
+        const href = it.slug ? opts.postLink(it.slug) : it.url;
+        const title = href
+          ? `<a href="${esc(href)}" style="font-size:13px;font-weight:600;line-height:1.45;color:${INK};text-decoration:none;font-family:${SANS}">${esc(it.title)}</a>`
           : `<span style="font-size:13px;font-weight:600;line-height:1.45;color:${INK};font-family:${SANS}">${esc(it.title)}</span>`;
         return `<div style="margin:10px 0 0">${chips}${title}${it.sub ? `<div style="font-size:11px;color:${MUT2};margin-top:1px;font-family:${SANS}">${esc(it.sub)}</div>` : ""}</div>`;
       }).join("");
