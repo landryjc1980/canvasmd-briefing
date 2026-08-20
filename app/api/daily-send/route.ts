@@ -58,13 +58,10 @@ async function run(req: NextRequest, testEmail: string | null): Promise<NextResp
     const area = c.default_area && VALID_AREAS.has(c.default_area) ? c.default_area : null;
     const token = await mintMagicToken(c.id);
     const linkForArea = (a: string) => `${base}/api/brief-auth?t=${token}&area=${encodeURIComponent(a)}`;
-    // One-click sign-in that then lands on a /r/<slug> post page. Token = auth; next = destination.
-    // The token never becomes the post's canonical/share URL (that's the bare /r/<slug>).
-    const postLink = (slug: string) => `${base}/api/brief-auth?t=${token}&next=${encodeURIComponent(`/r/${slug}`)}`;
     const siteLink = area ? linkForArea(area) : `${base}/api/brief-auth?t=${token}`;
     const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(c.id)}`;
     const allLink = `${base}/api/brief-auth?t=${token}`; // the cross-link must open All oncology
-    const rendered = renderDailyEmail({ daily, tops, area, siteLink, allLink, linkForArea, postLink, unsubUrl });
+    const rendered = renderDailyEmail({ daily, tops, area, siteLink, allLink, linkForArea, unsubUrl });
     if (!rendered) { skippedEmpty++; continue; } // area earned nothing today — no filler
     const r = await sendDailyEmail({ email: c.email, subject: rendered.subject, html: rendered.html, unsubUrl }).catch((e) => ({ ok: false, error: String(e) }));
     if (r.ok) {

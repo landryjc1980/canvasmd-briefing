@@ -49,3 +49,13 @@ export function idFromSlug(slug: string | string[]): string {
   const i = s.lastIndexOf("-");
   return i >= 0 ? s.slice(i + 1) : s;
 }
+
+// ---- WEEKLY hero-card post identity (the /r/<slug> pages resolve to a hero card) -------------
+// A hero card (app/HeroCards.tsx) already carries a stable, anchor-derived `id` — e.g.
+// "paper:<url>", "episode:<uuid>", "event:fda:<slug>", "thread:<tweetid>" — stable across the
+// 12h snapshot rebuilds. We hash THAT to a compact, URL-safe token so the reader's share button
+// and the page's resolver agree with no shared state (both derive it purely from card.id). This
+// is deliberately DISTINCT from postId() above (which keys daily-edition items); the shareable
+// unit is the weekly card, where the social evidence lives.
+export const heroTok = (cardId: string) => fnv1a(cardId).toString(36).padStart(6, "0");
+export const heroSlug = (headline: string, cardId: string) => postSlug(headline, heroTok(cardId));

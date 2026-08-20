@@ -1,9 +1,9 @@
-// Per-post OG/social card. Next 14 wires this to og:image + twitter:image automatically for
-// the sibling page. Reads the SAME public post (whitelisted fields only) and renders it in the
+// Per-post OG/social card. Next 14 wires this to og:image + twitter:image automatically for the
+// sibling page. Resolves the SAME weekly hero card and renders its headline (public-safe) in the
 // ink house style, so a shared /r/ link unfurls a branded card on X / LinkedIn / Slack / iMessage.
 
 import { ImageResponse } from "next/og";
-import { getPublicPost } from "@/lib/post";
+import { resolveHeroPost } from "@/app/heroPost";
 import { idFromSlug } from "@/lib/postId";
 
 export const runtime = "edge";
@@ -17,15 +17,17 @@ const AREA_ACCENTS: Record<string, string> = {
 const AREA_LABELS: Record<string, string> = {
   GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic", Skin: "Skin cancer",
 };
-const KICKERS: Record<string, string> = { readout: "TRIAL READOUT", paper: "PAPER", event: "FDA", episode: "ON THE MICS", frontier: "FRONTIER" };
+const KICKERS: Record<string, string> = {
+  paper: "PAPER", episode: "ON THE MICS", event: "REGULATORY", thread: "CLINICIAN POST", readout: "TRIAL READOUT", trial_milestone: "TRIAL MILESTONE",
+};
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 
 export default async function Image({ params }: { params: { slug: string } }) {
-  const post = await getPublicPost(idFromSlug(params.slug));
-  const area = post?.areas?.[0] ?? "";
+  const post = await resolveHeroPost(idFromSlug(params.slug));
+  const area = post?.area ?? "";
   const accent = AREA_ACCENTS[area] ?? "#94a3b8";
-  const kicker = post ? (KICKERS[post.kind] ?? post.kind.toUpperCase()) : "THE READOUT";
-  const title = post?.title ?? "The Readout — daily oncology intelligence";
+  const kicker = post ? (KICKERS[post.card.kind] ?? post.card.kind.toUpperCase()) : "THE READOUT";
+  const title = post?.card.headline ?? "The Readout — daily oncology intelligence";
 
   return new ImageResponse(
     (

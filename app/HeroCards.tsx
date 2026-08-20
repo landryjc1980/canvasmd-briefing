@@ -28,8 +28,21 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
 export type HeroEvidence = { faces: string[]; drawer: ReactNode; abstract?: string | null; preview?: ReactNode } | null;
 
-export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "" }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string }) {
+  // defaultOpenId opens one card's evidence drawer on mount — the standalone /r/<slug> post page
+  // passes the card's own id so a shared link lands on the FULL expanded card, evidence and all.
+  const [openId, setOpenId] = useState<string | null>(defaultOpenId ?? null);
+  // shareUrlOf (opt-in) turns each card into a shareable unit: the quiet share control copies /
+  // native-shares its /r/<slug> post page (where a colleague gets the branded unfurl + the card).
+  const [shared, setShared] = useState<string | null>(null);
+  const shareCard = async (c: HeroCard) => {
+    const path = shareUrlOf?.(c);
+    if (!path) return;
+    const url = path.startsWith("http") ? path : `${location.origin}${path}`;
+    const nav = navigator as unknown as { share?: (d: { url: string }) => Promise<void> };
+    if (nav.share) { try { await nav.share({ url }); return; } catch (e) { if ((e as { name?: string })?.name === "AbortError") return; } }
+    try { await navigator.clipboard.writeText(url); setShared(c.id); setTimeout(() => setShared((s) => (s === c.id ? null : s)), 2000); } catch { /* clipboard blocked (lost user activation) */ }
+  };
   const compact = variant === "compact";
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -86,6 +99,15 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                     data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`} data-brief-label={c.headline}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                     {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}
+                  </button>
+                )}
+                {shareUrlOf && (
+                  <button onClick={() => shareCard(c)} aria-label="Share this story" title="Share"
+                    data-brief-event="story_share" data-brief-story={c.id} data-brief-label={c.headline}
+                    style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: 0, padding: "10px 2px", cursor: "pointer", font: "600 11.5px system-ui", color: shared === c.id ? accent : ink.softer, minHeight: 44 }}>
+                    {shared === c.id ? "Copied" : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+                    )}
                   </button>
                 )}
               </div>

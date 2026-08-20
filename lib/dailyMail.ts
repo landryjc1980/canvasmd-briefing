@@ -73,7 +73,6 @@ export function renderDailyEmail(opts: {
   siteLink: string;             // magic link into the site (already area-scoped by caller)
   allLink?: string;             // magic link to the ALL-oncology edition (cross-link target)
   linkForArea: (area: string) => string; // magic link scoped to a specific area edition
-  postLink: (slug: string) => string;    // magic link that lands on a /r/<slug> post page
   unsubUrl: string;
 }): { html: string; subject: string } | null {
   const { daily, tops, area } = opts;
@@ -142,9 +141,12 @@ export function renderDailyEmail(opts: {
       if (!items.length) return "";
       const rows = items.map((it) => {
         const chips = isAll ? (it.areas ?? []).slice(0, 2).map(chip).join("") : "";
-        // Land on the CanvasMD post page (which carries the "Read source ↗" CTA); fall back to
-        // the external source only for un-stamped/legacy items with no slug.
-        const href = it.slug ? opts.postLink(it.slug) : it.url;
+        // A daily item's home is its SOURCE (the paper / news / FDA notice / podcast) — link
+        // straight there. The CanvasMD /r/<slug> post pages are for the WEEKLY hero cards (where
+        // the social evidence lives); daily items almost never coincide with one, so we don't
+        // round-trip them through a page that wouldn't exist. Url-less items fall back to the
+        // area edition (magic-link) so the row still opens the Readout.
+        const href = it.url ?? opts.linkForArea(isAll ? ((it.areas ?? [])[0] ?? "GU") : area!);
         const title = href
           ? `<a href="${esc(href)}" style="font-size:13px;font-weight:600;line-height:1.45;color:${INK};text-decoration:none;font-family:${SANS}">${esc(it.title)}</a>`
           : `<span style="font-size:13px;font-weight:600;line-height:1.45;color:${INK};font-family:${SANS}">${esc(it.title)}</span>`;
