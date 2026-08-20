@@ -14,6 +14,7 @@
 
 import type { BriefingData, HeroCard } from "@/lib/types";
 import { heroTok } from "@/lib/postId";
+import { sliceBriefForCard, type CardBrief } from "@/app/heroEvidence";
 
 const URL_ = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -73,15 +74,91 @@ async function latestSnapshots(): Promise<SnapRow[]> {
   return inflight;
 }
 
-// Resolve a URL token → its hero card + that area's brief. null when the card has rotated out of
-// the current snapshots (link older than the window) or the token is unknown.
+// ---- durable archive (readout_posts) --------------------------------------------------------
+// briefing_snapshots keeps ONE row per area, so a card — and any link shared to it — dies when the
+// 12h rebuild rotates it out. The archive keeps each card plus the slice of the brief its evidence
+// resolves against, so a shared link keeps working for RETENTION_DAYS after it was last seen live.
+export const RETENTION_DAYS = 30;
+
+async function rest(path: string, init?: RequestInit): Promise<Response | null> {
+  if (!URL_ || !SERVICE_KEY) return null;
+  try {
+    return await fetch(`${URL_}/rest/v1/${path}`, {
+      ...init,
+      headers: { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+      cache: "no-store",
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Persist one card (idempotent). `first_seen` is preserved by the merge-duplicates upsert only for
+// new rows; existing rows just get a fresh last_seen, which is what the retention sweep reads.
+export async function archiveCard(area: string, card: HeroCard, brief: CardBrief): Promise<void> {
+  const row = {
+    tok: heroTok(card.id), area, kind: card.kind, headline: card.headline,
+    card, evidence: sliceBriefForCard(card, brief), last_seen: new Date().toISOString(),
+  };
+  await rest("readout_posts?on_conflict=tok", {
+    method: "POST",
+    headers: { prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify([row]),
+  });
+}
+
+async function fromArchive(tok: string): Promise<HeroPost | null> {
+  const res = await rest(`readout_posts?select=area,card,evidence&tok=eq.${encodeURIComponent(tok)}&limit=1`);
+  if (!res?.ok) return null;
+  const rows = (await res.json()) as { area: string; card: HeroCard; evidence: CardBrief }[];
+  const r = rows?.[0];
+  if (!r) return null;
+  // The archived slice IS a BriefingData for every read path that matters here (the four arrays
+  // resolveHeroEvidence touches); nothing downstream reads the rest.
+  return { area: r.area, card: r.card, brief: r.evidence as BriefingData };
+}
+
+// Archive every card that is live right now (the cron's breadth pass).
+export async function archiveAllLive(): Promise<number> {
+  const rows = await latestSnapshots();
+  let n = 0;
+  for (const r of rows) {
+    for (const card of r.data?.heroCandidates?.cards ?? []) {
+      await archiveCard(r.area, card, r.data).catch(() => {});
+      n++;
+    }
+  }
+  return n;
+}
+
+// Drop anything not seen live for RETENTION_DAYS — that is the link lifetime we promise.
+export async function pruneArchive(): Promise<number> {
+  const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400_000).toISOString();
+  const res = await rest(`readout_posts?last_seen=lt.${encodeURIComponent(cutoff)}`, {
+    method: "DELETE",
+    headers: { prefer: "return=representation" },
+  });
+  if (!res?.ok) return 0;
+  const gone = (await res.json()) as unknown[];
+  return Array.isArray(gone) ? gone.length : 0;
+}
+
+// Resolve a URL token → its hero card + the brief its evidence resolves against.
+// LIVE snapshot first (freshest evidence, and it re-arms the archive), then the durable archive.
+// null only when the token is unknown or the archived copy has aged past retention.
 export async function resolveHeroPost(tok: string): Promise<HeroPost | null> {
   if (!tok) return null;
   const rows = await latestSnapshots();
   for (const r of rows) {
     for (const card of r.data?.heroCandidates?.cards ?? []) {
-      if (heroTok(card.id) === tok) return { area: r.area, card, brief: r.data };
+      if (heroTok(card.id) === tok) {
+        // Someone is actually visiting this card — make sure it outlives the next rebuild. Awaited
+        // (one small write, and /r traffic is rare) because a detached promise can be killed when
+        // the serverless invocation ends. Never let archiving break the page.
+        await archiveCard(r.area, card, r.data).catch(() => {});
+        return { area: r.area, card, brief: r.data };
+      }
     }
   }
-  return null;
+  return fromArchive(tok);
 }

@@ -15,17 +15,13 @@
 
 import { useEffect, useState } from "react";
 import HeroCards, { type HeroEvidence } from "@/app/HeroCards";
-import { resolveHeroEvidence } from "@/app/heroEvidence";
+import { resolveHeroEvidence, type CardBrief } from "@/app/heroEvidence";
 import { TweetCard, StoryEvidence, EpisodeXReceipts } from "@/app/ReaderView";
 import { AREA_FULL } from "@/app/briefVM";
-import type { BriefingData, HeroCard, BriefingStory, BriefingPaper } from "@/lib/types";
+import type { HeroCard, BriefingStory, BriefingPaper } from "@/lib/types";
 import "@/app/briefing.css";
 import "@/app/brief.css";
 
-// Only the four arrays resolveHeroEvidence reads — the page passes this trimmed slice (not the
-// whole ~0.5MB brief) so a shared-link cold open stays lean. Matches resolveHeroEvidence's own
-// param type exactly, so there is no risk of starving the evidence.
-type CardBrief = Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">;
 
 // House palette (paper/ink), matching the reader (app/ReaderView.tsx constants).
 const INK = "#17181a", INK_2 = "#4f5257", LIGHT_MUT = "#696c71", LIGHT_MUT2 = "#85878c";

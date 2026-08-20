@@ -27,6 +27,42 @@ export type ResolvedEvidence =
   | { kind: "event"; posts: BriefingSharer[]; publisherPosts: BriefingSharer[]; otherPosts: BriefingSharer[]; supportLinks: HeroSupportLink[]; faces: string[] }
   | null;
 
+// The four arrays resolveHeroEvidence reads. Views pass this; the /r archive stores it.
+export type CardBrief = Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">;
+
+// The SMALLEST brief slice that still resolves this card's evidence identically.
+//
+// Lives here, immediately above resolveHeroEvidence, because it mirrors that function's lookups
+// one-for-one — change a lookup key there and you must change it here. The /r/<slug> post-page
+// archive (readout_posts) stores this slice per card so a shared link survives the card rotating
+// out of the live snapshot: a few KB instead of the ~330KB full brief.
+//
+// Guarded by a test that asserts resolveHeroEvidence(card, slice) matches
+// resolveHeroEvidence(card, fullBrief) for every live card.
+export function sliceBriefForCard(c: HeroCard, data: CardBrief): CardBrief {
+  const empty: CardBrief = { topStories: [], topArticles: [], movers: [], heroCandidates: { cards: [c], tieCount: 0 } };
+  if (c.kind === "paper" || c.kind === "readout") {
+    const reading = (data.topArticles ?? []).find((x) => x.url === c.url);
+    const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
+    return { ...empty, topStories: st ? [st] : [], topArticles: reading ? [reading] : [] };
+  }
+  if (c.kind === "episode") {
+    // resolveHeroEvidence concatenates heroCandidates.receipts THEN movers' pods and matches by
+    // startMs, so collapsing both into receipts (deduped, episode-scoped) resolves identically.
+    const all = [...(data.heroCandidates?.receipts ?? []), ...(data.movers ?? []).flatMap((m) => m.podcast ?? [])]
+      .filter((p) => p.episodeId === c.anchorId);
+    const seen = new Set<number>();
+    const receipts = all.filter((p) => (p.startMs == null || seen.has(p.startMs) ? false : (seen.add(p.startMs), true)));
+    return { ...empty, heroCandidates: { cards: [c], tieCount: 0, receipts } };
+  }
+  if (c.kind === "thread") {
+    const post = (data.movers ?? []).flatMap((m) => m.posts ?? []).find((p) => p.tweetUrl === c.url);
+    return { ...empty, movers: post ? [{ posts: [post] } as BriefingData["movers"][number]] : [] };
+  }
+  // `event` resolves purely from c.support, which travels on the card itself.
+  return empty;
+}
+
 export function resolveHeroEvidence(
   c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers" | "support">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
