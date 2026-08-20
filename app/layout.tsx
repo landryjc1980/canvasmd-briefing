@@ -9,7 +9,16 @@ import "./globals.css";
 // The @font-face rules are Google's own, rewritten to /fonts/*.woff2 and inlined here so the
 // page costs zero third-party requests and zero blocking stylesheets. Read once at module load.
 // The family is still literally "Newsreader", so every existing inline `font:` string keeps working.
-const FONT_CSS = readFileSync(join(process.cwd(), "public/fonts/newsreader.css"), "utf8");
+// On a force-dynamic route (e.g. /r/[slug]) this module can evaluate INSIDE a serverless
+// function, where `public/` may not be traced onto disk — so never let a missing file crash
+// the render. next.config traces the font for /r/[slug]; if it's ever still absent, fall back
+// to no inlined @font-face (every `font:` stack already names Georgia next). Never a 500.
+let FONT_CSS = "";
+try {
+  FONT_CSS = readFileSync(join(process.cwd(), "public/fonts/newsreader.css"), "utf8");
+} catch {
+  /* Georgia fallback */
+}
 
 export const metadata: Metadata = {
   title: "The Readout · CanvasMD",
