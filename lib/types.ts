@@ -958,7 +958,10 @@ export type SeenMap = Record<string, string>;
 
 
 // ---- The Daily Readout (one global edition/day; All-oncology tab) ----------
-export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null };
+// `id`/`slug`/`teaser` are ADDITIVE and optional — stamped by the daily-readout generator so
+// each item gets its own `/r/<slug>` post page. `teaser` is a public-safe one-liner (no names,
+// no verbatim source); `line`/`sub` stay signed-in-only. Old payloads without them degrade.
+export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null; id?: string | null; slug?: string | null; teaser?: string | null };
 export type DailyReadout = {
   date: string;
   lead: string | null; // the ONLY model prose — digit-banned, validated server-side

@@ -10,7 +10,10 @@ import {
   SESSION_RENEW_AFTER_SECS, readSessionExpiry, mintSession,
 } from "./lib/gate";
 
-const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favicon"];
+// "/r/" = the public per-post "article" pages (+ their opengraph-image). Trailing slash so it
+// only ever matches /r/<slug>, never some future /readout-style path. These pages render a
+// public teaser + email capture themselves and gate their own full content — see app/r/.
+const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favicon", "/r/"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

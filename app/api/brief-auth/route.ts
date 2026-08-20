@@ -24,7 +24,13 @@ export async function GET(req: NextRequest) {
   }
 
   const area = req.nextUrl.searchParams.get("area") || contact.default_area || "";
-  const dest = area ? `${base}/?area=${encodeURIComponent(area)}` : `${base}/`;
+  // Optional deep-link target (e.g. a /r/<slug> post). Open-redirect guard: same-origin
+  // internal path only — a single leading slash, never protocol-relative or absolute. Absent
+  // or unsafe → fall back to the exact prior behavior (area home), so old email links are
+  // byte-identical.
+  const rawNext = req.nextUrl.searchParams.get("next");
+  const safeNext = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.includes("://") ? rawNext : null;
+  const dest = safeNext ? `${base}${safeNext}` : area ? `${base}/?area=${encodeURIComponent(area)}` : `${base}/`;
   const res = NextResponse.redirect(dest);
   await attachSession(res, contact.id);
   // fire-and-forget signal; never block the redirect on logging
