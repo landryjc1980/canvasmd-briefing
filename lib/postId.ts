@@ -59,3 +59,10 @@ export function idFromSlug(slug: string | string[]): string {
 // unit is the weekly card, where the social evidence lives.
 export const heroTok = (cardId: string) => fnv1a(cardId).toString(36).padStart(6, "0");
 export const heroSlug = (headline: string, cardId: string) => postSlug(headline, heroTok(cardId));
+
+// ⚠️ The slug for a `thread` card must NOT be built from its headline: a thread card's headline is
+// a clinician's VERBATIM post, so kebab-ing it would publish their words in the URL itself (and in
+// every share sheet, referrer, and access log). Threads get a neutral base; resolution only ever
+// uses the trailing token, so the base is free to change. Use this everywhere a /r/ link is built.
+export const heroSlugFor = (kind: string, headline: string, cardId: string) =>
+  kind === "thread" ? `clinician-post-${heroTok(cardId)}` : heroSlug(headline, cardId);

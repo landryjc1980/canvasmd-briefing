@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { emph, stripEmph } from "@/app/emphasis";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard, DailyReadout } from "@/lib/types";
-import { heroSlug } from "@/lib/postId";
+import { heroSlugFor } from "@/lib/postId";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
 import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
@@ -873,7 +873,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           ink={{ soft: INK_2, softer: MUT, line: LINE, ring: PAPER, surface: SURFACE }}
                           idPrefix={`all-${a}`}
                           evidenceOf={(card) => heroEvidenceFor(card, brief, acc)}
-                          shareUrlOf={(card) => `/r/${heroSlug(card.headline, card.id)}`}
+                          shareUrlOf={(card) => `/r/${heroSlugFor(card.kind, card.headline, card.id)}`}
                         />}
                         {heroDeck !== null && heroDeck.length > (compact ? 2 : 3) && (
                           <button type="button" onClick={() => setExpandedAreas((current) => ({ ...current, [a]: !current[a] }))}

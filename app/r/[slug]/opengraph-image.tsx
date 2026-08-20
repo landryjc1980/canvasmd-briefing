@@ -3,7 +3,7 @@
 // ink house style, so a shared /r/ link unfurls a branded card on X / LinkedIn / Slack / iMessage.
 
 import { ImageResponse } from "next/og";
-import { resolveHeroPost } from "@/app/heroPost";
+import { resolveHeroPost, publicTitleOf } from "@/app/heroPost";
 import { idFromSlug } from "@/lib/postId";
 
 export const runtime = "edge";
@@ -27,7 +27,11 @@ export default async function Image({ params }: { params: { slug: string } }) {
   const area = post?.area ?? "";
   const accent = AREA_ACCENTS[area] ?? "#94a3b8";
   const kicker = post ? (KICKERS[post.card.kind] ?? post.card.kind.toUpperCase()) : "THE READOUT";
-  const title = post?.card.headline ?? "The Readout — daily oncology intelligence";
+  // ⚠️ A thread card's headline is a clinician's VERBATIM post — never unfurl it (publicTitleOf
+  // swaps in a neutral edition line; same policy as the page + metadata).
+  const title = post
+    ? publicTitleOf(post.card.kind, post.card.headline, area)
+    : "The Readout — daily oncology intelligence";
 
   return new ImageResponse(
     (

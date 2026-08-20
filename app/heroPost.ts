@@ -21,6 +21,19 @@ const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"] as const;
 
 export type HeroPost = { area: string; card: HeroCard; brief: BriefingData };
 
+export const AREA_LABELS: Record<string, string> = {
+  GU: "Genitourinary", Breast: "Breast", Lung: "Lung", GI: "Gastrointestinal", Heme: "Hematology", Gyn: "Gynecologic", Skin: "Skin cancer",
+};
+
+// ⚠️ PUBLIC-SAFETY POLICY for /r pages. A `thread` card IS a clinician's post: its headline is
+// their VERBATIM words, its sourceLabel is their NAME, and its url carries their handle. None of
+// that may appear on a public page, in metadata, in an OG card, or in a slug — the same doctrine
+// that already denies the daily `conversation` section a public page. Members see it in full;
+// everyone else gets a neutral edition line. Anything that publishes a card must ask this first.
+export const isPublicSafeCard = (kind: string) => kind !== "thread";
+export const publicTitleOf = (kind: string, headline: string, area: string) =>
+  isPublicSafeCard(kind) ? headline : `A clinician post in this week's ${AREA_LABELS[area] ?? area} edition`;
+
 type SnapRow = { area: string; data: BriefingData; generated_at: string };
 
 // Per-lambda memo (5 min), same posture as app/api/briefing/route.ts: deliberately NOT a
