@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingEvent, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, SHAPE, Avatar, Chevron, kfmt, ago, clip, weekOf } from "./ui";
-import { podEpisodeCount } from "./briefVM";
+import { podEpisodeCount, trialEvidenceLine } from "./briefVM";
 
 const prettyPhase = (p: string | null): string => {
   if (!p) return "";
@@ -135,7 +135,7 @@ function Mover({ m, rank }: { m: BriefingMover; rank: number }) {
             </div>
             <span className="m-metrics">
               {podEpisodeCount(m) > 0 && <><b>{podEpisodeCount(m)}</b> conversation{podEpisodeCount(m) === 1 ? "" : "s"}</>}
-              {m.xSharers > 0 && <>{podEpisodeCount(m) > 0 ? " · " : ""}<b>{m.xSharers}</b> on X</>}
+              {m.xSharers > 0 && <>{podEpisodeCount(m) > 0 ? " · " : ""}<b>{m.xSharers}</b> clinician{m.xSharers === 1 ? "" : "s"} on X</>}
               {m.articleCount > 0 && <>{podEpisodeCount(m) > 0 || m.xSharers > 0 ? " · " : ""}<b>{m.articleCount}</b> paper{m.articleCount === 1 ? "" : "s"}</>}
               {m.topLikes > 0 && <> · ♥ {kfmt(m.topLikes)}</>}
               {m.eventChip && <span className="m-eventchip">{m.eventChip}</span>}
@@ -257,10 +257,7 @@ function TrialRow({ t }: { t: BriefingTrial }) {
   const drugs = t.interventions
     .filter((d) => !/placebo|surgery|observation|best supportive|dissection|cystectomy|nephrectomy|radiation|radiotherapy|resection/i.test(d))
     .slice(0, 4);
-  const parts: string[] = [];
-  if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
-  if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
-  if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
+  const evidenceLine = trialEvidenceLine(t);
   return (
     <details className="btrial">
       <summary>
@@ -268,7 +265,7 @@ function TrialRow({ t }: { t: BriefingTrial }) {
         <div className="btrial-body">
           <div className="btrial-title">{t.acronym && <span className="btrial-acr">{t.acronym}</span>}{clip(t.title, 84)}</div>
           {drugs.length > 0 && <div className="btrial-drugs">{drugs.map((d, i) => <span className="btrial-drug" key={i}>{d}</span>)}</div>}
-          <div className="btrial-meta">discussed in {parts.join(" · ")}{t.resultsFresh && <span className="btrial-fresh"> · ✦ results out</span>}</div>
+          <div className="btrial-meta">{evidenceLine}{t.resultsFresh && <span className="btrial-fresh"> · ✦ results out</span>}</div>
         </div>
         <span className="m-open"><Chevron /></span>
       </summary>
@@ -285,10 +282,14 @@ function TrialRow({ t }: { t: BriefingTrial }) {
             ))}
           </div>
         )}
-        {(t.posts.length > 0 || t.articles.length > 0) && (
+        {(t.posts.length > 0 || (t.publisherPosts?.length ?? 0) > 0 || (t.otherPosts?.length ?? 0) > 0 || t.articles.length > 0) && (
           <div className="dcol">
             {t.posts.length > 0 && <div className="dcol-head">On X</div>}
             {t.posts.map((s, i) => <XTake key={i} s={s} />)}
+            {(t.publisherPosts?.length ?? 0) > 0 && <div className="dcol-head">From publishers &amp; journals</div>}
+            {t.publisherPosts?.map((s, i) => <XTake key={`publisher-${i}`} s={s} />)}
+            {(t.otherPosts?.length ?? 0) > 0 && <div className="dcol-head">Additional posts on X</div>}
+            {t.otherPosts?.map((s, i) => <XTake key={`other-${i}`} s={s} />)}
             {t.articles.length > 0 && (
               <div className="dpapers">
                 <div className="dpapers-head">In the papers</div>

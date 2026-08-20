@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial, BriefingPod } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, Avatar, kfmt, ago, clip, weekOf } from "./ui";
-import { podConvLabel, podEpisodeCount } from "./briefVM";
+import { podConvLabel, podEpisodeCount, trialEvidenceLine } from "./briefVM";
 
 const prettyPhase = (p: string | null): string => {
   if (!p) return "";
@@ -137,7 +137,7 @@ function BriefCard({ m, rank }: { m: BriefingMover; rank: number }) {
   const metrics: string[] = [];
   const conv = podConvLabel(podEpisodeCount(m), m.podcast?.length ?? m.podConvs);
   if (conv) metrics.push(conv);
-  if (m.xSharers > 0) metrics.push(`${m.xSharers} on X`);
+  if (m.xSharers > 0) metrics.push(`${m.xSharers} clinician${m.xSharers === 1 ? "" : "s"} on X`);
   if (m.articleCount > 0) metrics.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
   const quiet = metrics.length === 0; // regulatory-only mover, no chatter yet
   return (
@@ -304,10 +304,7 @@ function TrialRow({ t }: { t: BriefingTrial }) {
   const drugs = t.interventions
     .filter((d) => !/placebo|surgery|observation|best supportive|dissection|cystectomy|nephrectomy|radiation|radiotherapy|resection/i.test(d))
     .slice(0, 4);
-  const parts: string[] = [];
-  if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
-  if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
-  if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
+  const evidenceLine = trialEvidenceLine(t);
   return (
     <details className="trial">
       <summary>
@@ -316,7 +313,7 @@ function TrialRow({ t }: { t: BriefingTrial }) {
           <div className="trial-title">{t.acronym && <span className="trial-acr">{t.acronym}</span>}{clip(t.title, 84)}</div>
           {drugs.length > 0 && <div className="trial-drugs">{drugs.map((d, i) => <span className="trial-drug" key={i}>{d}</span>)}</div>}
           <div className="trial-meta">
-            <span className="trial-mentions">discussed in {parts.join(" · ")}</span>
+            <span className="trial-mentions">{evidenceLine}</span>
             {t.resultsFresh && <span className="trial-fresh"> · ✦ results out</span>}
           </div>
         </div>
@@ -334,6 +331,12 @@ function TrialRow({ t }: { t: BriefingTrial }) {
             <span className="bk-eyebrow">𝕏 On X</span>
             {t.posts.map((s, i) => <Take key={i} s={s} />)}
           </div>
+        )}
+        {(t.publisherPosts?.length ?? 0) > 0 && (
+          <div className="bk-heard"><span className="bk-eyebrow">From publishers &amp; journals</span>{t.publisherPosts!.map((s, i) => <Take key={i} s={s} />)}</div>
+        )}
+        {(t.otherPosts?.length ?? 0) > 0 && (
+          <div className="bk-heard"><span className="bk-eyebrow">Additional posts on X</span>{t.otherPosts!.map((s, i) => <Take key={i} s={s} />)}</div>
         )}
         {t.articles.length > 0 && (
           <div className="bk-papers">

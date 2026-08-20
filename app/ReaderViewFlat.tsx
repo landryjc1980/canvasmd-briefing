@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BriefingData, BriefingMover, BriefingSharer, BriefingPod, BriefingPaper } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, stanceParts, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, stanceParts, trialEvidenceLine, AREA_FULL, UP, DOWN } from "./briefVM";
 import { BriefingStance } from "@/lib/types";
 import { logStorySeen } from "./gateClient";
 
@@ -130,7 +130,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent,
       </div>}
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
-        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>On X · verified clinicians</div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
@@ -508,7 +508,9 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   </div>
                 }>
                 {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{a.abstract}</p>}
-                {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>What clinicians said · {a.posts.length}</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {(a.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{a.publisherPosts!.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                {(a.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{a.otherPosts!.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                 {/* link to the source — also guarantees the expand is never empty (news items carry
                     no abstract/posts, which previously made the last row look like it didn't open). */}
                 {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: pal.accent, textDecoration: "none" }}>Open article ↗</a>}
@@ -522,11 +524,8 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <SectionHead id="sec-trials">Trials being discussed</SectionHead>
           <Capped items={data.trials} cap={6} accent={pal.accent} render={(t, i) => {
             const id = "t:" + i;
-            const parts: string[] = [];
-            if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
-            if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
-            if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
-            const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
+            const evidenceLine = trialEvidenceLine(t);
+            const tFaces = pileFaces({ posts: [...t.posts, ...(t.publisherPosts ?? []), ...(t.otherPosts ?? []), ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
                 head={compact ? (
@@ -537,7 +536,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                     <div style={{ font: "400 12.5px/1.4 system-ui", color: "#7c7f88", marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11 }}>
                       {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
-                      <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{parts.join(" · ")}</span>
+                      <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{evidenceLine}</span>
                       <span style={{ marginLeft: "auto", font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
                     </div>
                   </div>
@@ -545,13 +544,15 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "16px 2px" }}>
                     <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || prettyPhase(t.phase)}</div><div style={{ font: "400 12.5px system-ui", color: "#7c7f88", marginTop: 3 }}>{t.title}</div></div>
                     {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
-                    <span style={{ font: "400 12px system-ui", color: "#7c7f88", whiteSpace: "nowrap" }}>{parts.join(" · ")}</span>
+                    <span style={{ font: "400 12px system-ui", color: "#7c7f88", whiteSpace: "nowrap" }}>{evidenceLine}</span>
                     <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap", flex: "none" }}>{tog(id)}</span>
                   </div>
                 )}>
                 {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                 {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={`shared by ${p.sharers.length}`} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} />)}</div>}
+                {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{t.publisherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
+                {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{t.otherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
+                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={`shared by ${p.sharerCount ?? p.sharers.length} clinician${(p.sharerCount ?? p.sharers.length) === 1 ? "" : "s"}`} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
                 <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
               </Row>
             );

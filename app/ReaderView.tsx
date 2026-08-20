@@ -5,7 +5,7 @@ import { emph, stripEmph } from "@/app/emphasis";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
 import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
@@ -167,15 +167,11 @@ const storyCard: React.CSSProperties = { background: "transparent", border: 0, b
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 const EDITORIAL_MEASURE = 760;
 
-// "shared by N · ♥ M" with zero parts dropped — never renders "shared by 0 · ♥ 0".
-// `shown` is the length of the serialized sharer list — a display cap, not a census. When the
-// real total is known it wins, so the card never passes a truncation off as a count.
-export const paperMeta = (shown: number, likes: number, total?: number | null): string | undefined => {
-  const parts: string[] = [];
+// The clinician census is the useful paper signal. Peak likes belong to one
+// post and are not evidence depth, so they never appear in paper metadata.
+export const paperMeta = (shown: number, _likes: number, total?: number | null): string | undefined => {
   const n = Math.max(total ?? 0, shown);
-  if (n) parts.push(`shared by ${n}`);
-  if (likes) parts.push(`♥ ${likes}`);
-  return parts.length ? parts.join(" · ") : undefined;
+  return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}` : undefined;
 };
 
 export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
@@ -376,7 +372,7 @@ export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announ
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, sharedTotal, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean }) {
   const [open, setOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
@@ -396,7 +392,7 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "var(--rv-muted, #9aa0ac)", marginBottom: 9 }}>
-          What clinicians said · {sharedTotal && sharedTotal > posts!.length ? `${posts!.length} of ${sharedTotal}` : posts!.length}
+          On X · verified clinicians
         </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
@@ -681,9 +677,9 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
       {open && (
         <div id={sourceId} className="rv-drawer">
           <div style={{ margin: "6px 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>
-            {paper.posts.length > 0 && <div><div style={evLabel(accent)}>What clinicians said · {paper.posts.length}</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div>{paper.publisherPosts!.slice(0, 2).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {hasOtherPosts && <div><div style={evLabel(accent)}>Additional posts on X</div>{paper.otherPosts!.slice(0, 2).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {paper.posts.length > 0 && <div><div style={evLabel(accent)}>On X · verified clinicians</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+            {hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={paper.publisherPosts!} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+            {hasOtherPosts && <div><div style={evLabel(accent)}>Additional posts on X</div><Capped items={paper.otherPosts!} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
             {hasPublisherNames && !hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))" }}>Shared by: {paper.publishers.join(" · ")}</div></div>}
             {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: accent, textDecoration: "none" }}>Open article ↗</a>}
             <button type="button" onClick={onToggle} className="rv-text-action" style={{ alignSelf: "flex-start", background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "10px 2px", minHeight: 44, cursor: "pointer", marginTop: 2 }}>Hide sources ↑</button>
@@ -1285,12 +1281,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         // KOL expander is NOT "the signal" — expanding shows their raw posts/papers, not
         // synthesized evidence. Label it with the honest COUNT, and keep it small: this is
         // the rail, secondary to stories/drugs. Lighter tint than SignalTag on purpose.
-        const nPost = k.tweets ?? k.posts.length, nArt = k.paperShares ?? k.articles.length, nAmp = k.amp ?? 0;
+        const nPost = k.tweets ?? k.posts.length, nArt = k.paperShares ?? k.articles.length;
         const countLabel = open
           ? "Hide ↑"
-          : nAmp > 0
-            ? `${nAmp.toLocaleString()} reposts/quotes ↓`
-            : ([nPost ? `${nPost} post${nPost === 1 ? "" : "s"}` : "", nArt ? `${nArt} paper${nArt === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View") + " ↓";
+          : ([k.posts.length ? `${k.posts.length} post${k.posts.length === 1 ? "" : "s"}` : "", k.articles.length ? `${k.articles.length} paper${k.articles.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "View activity") + " ↓";
         const drugLine = k.drugs.slice(0, 4).join(" · ") || (k.handle ? "@" + k.handle : "");
         return (
           <Row key={id} open={open} onToggle={() => toggle(id)} accent={pal.accent} variant="list"
@@ -1395,11 +1389,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <Capped items={data.trials} cap={6} accent={pal.accent} render={(t, i) => {
         const id = "t:" + i;
         const open = openId === id;
-        const parts: string[] = [];
-        if (t.podMentions) parts.push(`${t.podMentions} episode${t.podMentions === 1 ? "" : "s"}`);
-        if (t.xMentions) parts.push(`${t.xMentions} X post${t.xMentions === 1 ? "" : "s"}`);
-        if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
-        const tFaces = pileFacesL({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
+        const evidenceLine = trialEvidenceLine(t);
+        const tFaces = pileFacesL({ posts: [...t.posts, ...(t.publisherPosts ?? []), ...(t.otherPosts ?? []), ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
         return (
           /* One flat row owns the trial header and its expanded evidence. Title clamps to two
              lines when closed and shows in full when open. */
@@ -1414,7 +1405,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {t.title && <div style={{ font: "400 12.5px/1.5 system-ui", color: MUT, marginTop: 6, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{t.title}</div>}
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 10 }}>
                   {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
-                  <span style={{ font: "400 11.5px system-ui", color: MUT }}>{parts.join(" · ")}</span>
+                  <span style={{ font: "400 11.5px system-ui", color: MUT }}>{evidenceLine}</span>
                 </div>
                 {/* Registry context ANNOTATES the conversation-driven row (never a separate list —
                     2026-08-18: the standalone watch rail was retracted as clutter). Server strings
@@ -1425,8 +1416,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </div>
             }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-            {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
+            {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · verified clinicians</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
+            {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
+            {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
         );

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper, BriefingStance } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, trialEvidenceLine, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
@@ -103,7 +103,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, 
       </div>
       {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
       {open && hasPosts && <div style={{ marginTop: 12 }}>
-        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>What clinicians said · {posts!.length}</div>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>On X · verified clinicians</div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
@@ -640,19 +640,17 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             {sectionHead("Trials being discussed")}
             <div style={{ display: "flex", flexDirection: "column" }}>
               {data.trials.slice(0, 10).map((t, i) => {
-                const hasEv = t.pods.length + t.posts.length + t.articles.length > 0;
-                const parts: string[] = [];
-                if (t.podMentions) parts.push(`${t.podMentions} podcast${t.podMentions === 1 ? "" : "s"}`);
-                if (t.xMentions) parts.push(`${t.xMentions} tweet${t.xMentions === 1 ? "" : "s"}`);
-                if (t.articleMentions) parts.push(`${t.articleMentions} paper${t.articleMentions === 1 ? "" : "s"}`);
-                const tFaces = pileFaces({ posts: [...t.posts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
+                const allPosts = [...t.posts, ...(t.publisherPosts ?? []), ...(t.otherPosts ?? [])];
+                const hasEv = t.pods.length + allPosts.length + t.articles.length > 0;
+                const evidenceLine = trialEvidenceLine(t);
+                const tFaces = pileFaces({ posts: [...allPosts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
                 return (
-                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: t.acronym || t.nctId, sub: t.title, podcasts: t.pods, posts: t.posts, papers: t.articles.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length}`, posts: p.sharers })) }); } }}
+                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: t.acronym || t.nctId, sub: t.title, podcasts: t.pods, posts: allPosts, papers: t.articles.map((p) => { const n = p.sharerCount ?? p.sharers.length; return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${n} clinician${n === 1 ? "" : "s"}`, posts: p.posts?.length ? p.posts : p.sharers }; }) }); } }}
                     style={{ borderTop: "1px solid rgba(255,255,255,.1)", padding: "13px 0", display: "flex", alignItems: "flex-start", gap: 10, cursor: hasEv ? "pointer" : "default" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || t.nctId}</div>
                       <div style={{ font: "400 12.5px system-ui", color: "rgba(255,255,255,.5)", marginTop: 3 }}>{t.title}</div>
-                      {parts.length > 0 && <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 6 }}>{tFaces.length > 0 && <FacePile faces={tFaces} ring={pal.bg} size={20} />}<span style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)" }}>discussed in {parts.join(" · ")}</span></div>}
+                      {evidenceLine && <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 6 }}>{tFaces.length > 0 && <FacePile faces={tFaces} ring={pal.bg} size={20} />}<span style={{ font: "400 11.5px system-ui", color: "rgba(255,255,255,.4)" }}>{evidenceLine}</span></div>}
                     </div>
                     {hasEv && <span style={{ font: "700 13px system-ui", color: pal.accent, lineHeight: 1, marginTop: 4, flex: "none" }}>›</span>}
                   </div>

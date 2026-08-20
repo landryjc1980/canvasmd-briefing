@@ -2,7 +2,7 @@
 // (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
-import { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance } from "@/lib/types";
+import type { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance, BriefingTrial } from "@/lib/types";
 
 // Dark jewel-tone palette, one color per tumor area (from the design handoff).
 export type Pal = { bg: string; accent: string; soft: string };
@@ -67,6 +67,28 @@ export function podConvLabel(episodes: number, segments: number): string | null 
   return `${episodes} conversations`;
 }
 
+type XEvidenceLanes = { posts?: unknown[]; publisherPosts?: unknown[]; otherPosts?: unknown[] };
+
+// One source card may carry several classic reposts beneath it. Count the cards
+// readers can inspect instead of presenting raw activity as a card count.
+export const xEvidenceSourceCount = (value: XEvidenceLanes): number =>
+  (value.posts?.length ?? 0) + (value.publisherPosts?.length ?? 0) + (value.otherPosts?.length ?? 0);
+
+export function trialEvidenceCounts(trial: Pick<BriefingTrial, "pods" | "posts" | "publisherPosts" | "otherPosts" | "articles">) {
+  const episodeKeys = new Set(trial.pods.map((pod, index) =>
+    pod.episodeId || pod.audioUrl || pod.episodeTitle || `__episode${index}`));
+  return { episodes: episodeKeys.size, xSources: xEvidenceSourceCount(trial), papers: trial.articles.length };
+}
+
+export function trialEvidenceLine(trial: Pick<BriefingTrial, "pods" | "posts" | "publisherPosts" | "otherPosts" | "articles">): string {
+  const counts = trialEvidenceCounts(trial);
+  return [
+    counts.episodes ? `${counts.episodes} episode${counts.episodes === 1 ? "" : "s"}` : "",
+    counts.xSources ? `${counts.xSources} X source${counts.xSources === 1 ? "" : "s"}` : "",
+    counts.papers ? `${counts.papers} paper${counts.papers === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
 // The "who's discussing this" face-pile for a story/drug card: X-sharer avatars first (human
 // faces), then podcast show art (fills in when X is sparse). Movers carry precomputed `avatars`/
 // `showArt`; stories derive them from their podcast/posts evidence. Deduped, capped at 4.
@@ -112,7 +134,7 @@ export function metricsLine(m: BriefingMover): string {
   const parts: string[] = [];
   const conv = podConvLabel(podEpisodeCount(m), m.podcast?.length ?? m.podConvs);
   if (conv) parts.push(conv);
-  if (m.xSharers) parts.push(`${m.xSharers} on X`);
+  if (m.xSharers) parts.push(`${m.xSharers} clinician${m.xSharers === 1 ? "" : "s"} on X`);
   if (m.articleCount) parts.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
   if (m.topLikes) parts.push(`♥ ${m.topLikes}`);
   return parts.join(" · ");
@@ -181,7 +203,7 @@ export function storyMetricLine(s: BriefingStory): string {
     const parts: string[] = [];
     const conv = podConvLabel(podEpisodeCount(s), s.podcast?.length ?? s.podConvs);
     if (conv) parts.push(conv);
-    if (s.xSharers) parts.push(`${s.xSharers} on X`);
+    if (s.xSharers) parts.push(`${s.xSharers} clinician${s.xSharers === 1 ? "" : "s"} on X`);
     if (s.articleCount) parts.push(`${s.articleCount} paper${s.articleCount === 1 ? "" : "s"}`);
     if (s.topLikes) parts.push(`♥ ${s.topLikes}`);
     return parts.join(" · ");
@@ -190,13 +212,10 @@ export function storyMetricLine(s: BriefingStory): string {
     return `shared by ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"}`;
   }
   if (s.kind === "trial") {
-    // The corroboration behind the trial event: podcasts that discussed it + X + papers.
-    const parts: string[] = [];
-    const conv = podConvLabel(podEpisodeCount(s), s.podcast?.length ?? s.podConvs);
-    if (conv) parts.push(conv);
-    if (s.xSharers) parts.push(`${s.xSharers} on X`);
-    if (s.articleCount) parts.push(`${s.articleCount} paper${s.articleCount === 1 ? "" : "s"}`);
-    return parts.join(" · ") || "discussed this week";
+    return trialEvidenceLine({
+      pods: s.podcast ?? [], posts: s.posts ?? [], publisherPosts: s.publisherPosts,
+      otherPosts: s.otherPosts, articles: s.papers ?? [],
+    }) || "discussed this week";
   }
   // topic (legacy snapshots only) — "clinicians" (engaged = sharers ∪ commenters)
   return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} engaged`;

@@ -472,11 +472,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {xShown.map((v) => {
         const acc = accentOf(v.areas[0] ?? "GU");
         const onMics = micKeys.has(norm(v.name));
-        // displayed counts must never be smaller than the union the drawer renders beneath
-        // them (MAX-across-areas undercounts when a cross-area voice's posts are disjoint)
-        const nPosts = Math.max(v.tweets, v.posts.length);
-        const nPapers = Math.max(v.paperShares, v.articles.length);
-        const facts = [`${nPosts} post${nPosts === 1 ? "" : "s"}`, nPapers ? `${nPapers} paper${nPapers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
+        const visibleActivity = [
+          v.posts.length ? `${v.posts.length} post${v.posts.length === 1 ? "" : "s"}` : null,
+          v.articles.length ? `${v.articles.length} paper${v.articles.length === 1 ? "" : "s"}` : null,
+        ].filter(Boolean).join(" · ");
+        const facts = v.amp ? `${v.amp.toLocaleString()} repost${v.amp === 1 ? "" : "s"}/quote${v.amp === 1 ? "" : "s"} earned` : "Activity this week";
         return voiceRow({
           id: "vx:" + v.key,
           name: v.name,
@@ -485,11 +485,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           roleChip: onMics ? "🎙 on mics" : null,
           sub: shortInst(v.institution),
           facts,
-          count: `${v.amp.toLocaleString()} amplified ↓`,
+          count: `${visibleActivity || "View activity"} ↓`,
           children: (v.posts.length || v.articles.length) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their posts · this week</div>{v.posts.slice(0, 4).map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.slice(0, 3).map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} peerReviewed={a2.peerReviewed} url={a2.url} accent={acc} />)}</div>}
+              {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their posts · this week</div>{v.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} peerReviewed={a2.peerReviewed} url={a2.url} accent={acc} />)}</div>}
             </div>
           ) : null,
         });
