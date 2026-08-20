@@ -1,5 +1,21 @@
 import type { BriefingData, BriefingPod, BriefingSharer, HeroCard, HeroSupportLink } from "@/lib/types";
 
+const hasReaderText = (value: string | null | undefined): boolean => (value ?? "")
+  .replace(/^\s*RT @[A-Za-z0-9_]+:\s*/, "")
+  .replace(/https?:\/\/t\.co\/\S+/g, "")
+  .replace(/^[ \t]*(?:Article|Paper|Link):[ \t]*$/gim, "")
+  .trim().length > 0;
+
+export function pickConversationPreview(...groups: (BriefingSharer[] | null | undefined)[]): BriefingSharer | null {
+  for (const post of groups.flatMap((group) => group ?? [])) {
+    const isClassicRepost = /^\s*RT @[A-Za-z0-9_]+:\s*/.test(post.text ?? "");
+    const main = !isClassicRepost && hasReaderText(post.textEn?.trim() ? post.textEn : post.text);
+    const threadHasWords = (post.thread ?? []).some((part) => hasReaderText(part.text));
+    if (main || threadHasWords) return post;
+  }
+  return null;
+}
+
 // Pure hero-card → receipts resolution (Codex: extracted and tested — exact paper, episode,
 // thread, missing-evidence, and publisher cases). Type-only imports keep this loadable under
 // node:test. Views map the resolved DATA to JSX; nothing here re-ranks or re-selects.

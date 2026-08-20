@@ -3,9 +3,17 @@
 // and missing-evidence cases. The resolver never re-selects.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveHeroEvidence } from "../app/heroEvidence.ts";
+import { pickConversationPreview, resolveHeroEvidence } from "../app/heroEvidence.ts";
 
 const pod = (episodeId, startMs, showArt = null) => ({ episodeId, startMs, showArt, gloss: "g", mentionCount: 2, episodeTitle: "t", show: "s", audioUrl: "a", publishedAt: "" });
+
+test("conversation preview skips link-only shares for authored physician words", () => {
+  const linkOnly = { text: "https://t.co/BOcBF0bXjB", likes: 3 };
+  const repost = { text: "RT @JAMAOnc: New survival data in triple negative breast cancer.", likes: 8 };
+  const authored = { text: "Very interesting survival data in patients with triple negative breast cancer.", likes: 0 };
+  assert.equal(pickConversationPreview([linkOnly, repost, authored]), authored);
+  assert.equal(pickConversationPreview([linkOnly, repost]), null);
+});
 
 test("paper resolves via topStories first", () => {
   const st = { kind: "paper", headline: "H", papers: [{ url: "u1" }], posts: [{ avatar: "av1" }] };

@@ -8,7 +8,7 @@ import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
-import { resolveHeroEvidence } from "./heroEvidence";
+import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 
@@ -230,6 +230,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
+      {!text && thread.length === 0 && <div style={{ marginTop: 6, font: "500 11.5px system-ui", color: MUT }}>Shared this source</div>}
       {hasTranslation && (
         <button type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowOriginal((v) => !v); }}
@@ -955,12 +956,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     if (r.kind === "paper") {
       const story = r.story as EvSource;
       const paper = story.papers?.[0];
-      const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? r.publisherPosts[0] ?? r.otherPosts[0];
+      const firstPost = pickConversationPreview(story.posts, paper?.posts, paper?.sharers);
       return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "article") {
       const paper = r.paper as unknown as BriefingPaper;
-      const firstPost = r.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? r.publisherPosts[0] ?? r.otherPosts[0];
+      const firstPost = pickConversationPreview(r.posts, paper.posts, paper.sharers);
       return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "episode") return { faces: r.faces, drawer: (
@@ -971,11 +972,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         )}
       </>
     ) };
-    if (r.kind === "event") return {
-      faces: r.faces,
-      preview: r.posts[0] ? <TweetCard t={r.posts[0]} compact /> : null,
-      drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" />,
-    };
+    if (r.kind === "event") {
+      const firstPost = pickConversationPreview(r.posts);
+      return {
+        faces: r.faces,
+        preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
+        drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [], kind: "event", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="Papers" />,
+      };
+    }
     return {
       faces: r.faces,
       preview: <TweetCard t={r.post} compact />,
