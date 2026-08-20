@@ -167,7 +167,7 @@ export const cardBox: React.CSSProperties = { background: "var(--rv-card, rgba(2
 // the page; the evidence cards inside step up again.
 const storyCard: React.CSSProperties = { background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, borderRadius: 0, padding: "0 2px", marginBottom: 0 };
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
-const EDITORIAL_MEASURE = 760;
+const EDITORIAL_MEASURE = 850;
 
 // The clinician census is the useful paper signal. Peak likes belong to one
 // post and are not evidence depth, so they never appear in paper metadata.
