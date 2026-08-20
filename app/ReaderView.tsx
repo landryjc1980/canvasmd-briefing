@@ -11,6 +11,7 @@ import HeroCards, { type HeroEvidence } from "./HeroCards";
 import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
+import DailyConversationEvidence from "./DailyConversationEvidence";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
 // preserved at ?design=flat / git tag design-2026-07-21-flat-reader):
@@ -1075,19 +1076,22 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const dailyLead = dailyEd?.lead ?? null;
   const dailyAll = [...areaDailyParas, ...genDailyParas];
   const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || !!dailyLead;
-  const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null }, i: number | string, n?: number) => (
-    <p key={i} style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
-      {n !== undefined && <strong style={{ fontWeight: 700, color: pal.accent }}>{n}. </strong>}
-      {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
-      {emph(p.text)}
-      {(p.refs ?? []).length > 0 && (
-        <span style={{ font: "500 11.5px system-ui", color: MUT }}>
-          {" "}{(p.refs ?? []).map((r, ri) => (
-            <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: pal.accent, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
-          ))}
-        </span>
-      )}
-    </p>
+  const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null; storyIds?: string[] }, i: number | string, n?: number) => (
+    <div key={i}>
+      <p style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
+        {n !== undefined && <strong style={{ fontWeight: 700, color: pal.accent }}>{n}. </strong>}
+        {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
+        {emph(p.text)}
+        {(p.refs ?? []).length > 0 && (
+          <span style={{ font: "500 11.5px system-ui", color: MUT }}>
+            {" "}{(p.refs ?? []).map((r, ri) => (
+              <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: pal.accent, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
+            ))}
+          </span>
+        )}
+      </p>
+      <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} accent={pal.accent} ink="var(--rv-ink, #eef1f8)" muted={MUT} line={LINE} />
+    </div>
   );
   const dailySection = dailyAll.length > 0 && (
     <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>

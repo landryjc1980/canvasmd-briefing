@@ -12,6 +12,7 @@ import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pi
 import HeroCards, { HeroEvidence } from "./HeroCards";
 import { resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
+import DailyConversationEvidence from "./DailyConversationEvidence";
 
 // "All oncology" — a front page that reads as ONE continuous scan: each area's authoritative
 // hero order, grouped by area and shown in its own color, never re-ranked across areas (their
@@ -775,21 +776,24 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             {dailyOpen && (daily.payload.narrative ?? []).length ? (
               <div style={{ marginTop: 6 }}>
                 {(daily.payload.narrative ?? []).map((p, i) => (
-                  <p key={i} style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: INK_2 }}>
-                    <strong style={{ fontWeight: 700, color: ALL_ACCENT }}>{i + 1}. </strong>
-                    {(p.areas ?? []).slice(0, 2).map((ar) => (
-                      <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", marginRight: 7, cursor: "pointer", verticalAlign: "2px" }}>{ar}</button>
-                    ))}
-                    {p.head && <strong style={{ fontWeight: 700, color: INK }}>{stripEmph(p.head)}. </strong>}
-                    {emph(p.text)}
-                    {(p.refs ?? []).length > 0 && (
-                      <span style={{ font: "500 11.5px system-ui", color: MUT }}>
-                        {" "}{(p.refs ?? []).map((r, ri) => (
-                          <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: ALL_ACCENT, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
-                        ))}
-                      </span>
-                    )}
-                  </p>
+                  <div key={i}>
+                    <p style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: INK_2 }}>
+                      <strong style={{ fontWeight: 700, color: ALL_ACCENT }}>{i + 1}. </strong>
+                      {(p.areas ?? []).slice(0, 2).map((ar) => (
+                        <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", marginRight: 7, cursor: "pointer", verticalAlign: "2px" }}>{ar}</button>
+                      ))}
+                      {p.head && <strong style={{ fontWeight: 700, color: INK }}>{stripEmph(p.head)}. </strong>}
+                      {emph(p.text)}
+                      {(p.refs ?? []).length > 0 && (
+                        <span style={{ font: "500 11.5px system-ui", color: MUT }}>
+                          {" "}{(p.refs ?? []).map((r, ri) => (
+                            <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: ALL_ACCENT, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
+                          ))}
+                        </span>
+                      )}
+                    </p>
+                    <DailyConversationEvidence stories={daily.payload.conversationStories} storyIds={p.storyIds} accent={ALL_ACCENT} ink={INK} muted={MUT} line={LINE} />
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -804,7 +808,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 {daily.payload.sections.map((s) => (
                   <div key={s.key} style={{ padding: "10px 0 12px", borderTop: `1px solid ${LINE}` }}>
                     <div style={{ font: "700 10px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: MUT2 }}>{s.title}</div>
-                    {s.items.slice(0, s.key === "mics" ? 5 : 4).map((it, i) => (
+                    {(s.key === "conversation" ? s.items : s.items.slice(0, s.key === "mics" ? 5 : 4)).map((it, i) => (
                       <div key={i} style={{ marginTop: 9 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
                           {it.url ? (

@@ -962,10 +962,28 @@ export type SeenMap = Record<string, string>;
 // each item gets its own `/r/<slug>` post page. `teaser` is a public-safe one-liner (no names,
 // no verbatim source); `line`/`sub` stay signed-in-only. Old payloads without them degrade.
 export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null; id?: string | null; slug?: string | null; teaser?: string | null };
+export type DailyConversationReaction = {
+  postId: string; sourceId: string; name: string; handle: string; text: string; url: string;
+  likes: number; areas: string[]; translatedFrom?: string | null;
+};
+export type DailyConversationStory = {
+  id: string;
+  anchor: { id: string; kind: string; title: string; label: string; url: string };
+  sources: { label: string; url: string }[];
+  areas: string[];
+  reactions: DailyConversationReaction[];
+};
+export type DailyParagraph = {
+  head?: string | null;
+  text: string;
+  refs?: { label: string; url: string }[] | null;
+  storyIds?: string[];
+};
 export type DailyReadout = {
   date: string;
   lead: string | null; // the ONLY model prose — digit-banned, validated server-side
-  payload: { sections: { key: string; title: string; items: DailyItem[] }[]; narrative?: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null; areas: string[] }[] | null;
-    editions?: Record<string, { lead: string | null; paragraphs: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null }[] }> | null };
+  payload: { sections: { key: string; title: string; items: DailyItem[] }[]; narrative?: (DailyParagraph & { areas: string[] })[] | null;
+    editions?: Record<string, { lead: string | null; paragraphs: DailyParagraph[] }> | null;
+    conversationStories?: DailyConversationStory[] };
   generated_at?: string;
 };
