@@ -1112,9 +1112,16 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           )}
         </>
       ) : (
-        <p style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {stripEmph(dailyLead ?? dailyAll.map((p) => (p.head ? `${p.head}. ` : "") + p.text).join(" "))}
-        </p>
+        <>
+          {dailyLead && <p style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{stripEmph(dailyLead)}</p>}
+          <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
+            {areaDailyParas.slice(0, 3).map((p, i) => (
+              <div key={i} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", font: "600 12.5px/1.45 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>
+                <span style={{ color: pal.accent }}>{i + 1}. </span>{stripEmph(p.head ?? p.text)}
+              </div>
+            ))}
+          </div>
+        </>
       )}
       {dailyLong && (
         <button onClick={() => setDailyOpen((o) => !o)} style={{ margin: "9px 0 0", padding: 0, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: pal.accent }}>

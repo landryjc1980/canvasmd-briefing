@@ -14,3 +14,8 @@ test("web Daily renders exact, specialty-scoped physician evidence", () => {
   assert.match(reader, /<DailyConversationEvidence[^>]+area=\{area\}/);
   assert.match(all, /<DailyConversationEvidence/);
 });
+
+test("collapsed specialty Daily keeps its story headlines visible", () => {
+  assert.match(reader, /areaDailyParas\.slice\(0, 3\)/);
+  assert.match(reader, /stripEmph\(p\.head \?\? p\.text\)/);
+});
