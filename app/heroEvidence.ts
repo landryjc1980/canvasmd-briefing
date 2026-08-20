@@ -41,6 +41,7 @@ export type CardBrief = Pick<BriefingData, "topStories" | "topArticles" | "mover
 // resolveHeroEvidence(card, fullBrief) for every live card.
 export function sliceBriefForCard(c: HeroCard, data: CardBrief): CardBrief {
   const empty: CardBrief = { topStories: [], topArticles: [], movers: [], heroCandidates: { cards: [c], tieCount: 0 } };
+  if (c.kind === "readout" && c.support) return empty;
   if (c.kind === "paper" || c.kind === "readout") {
     const reading = (data.topArticles ?? []).find((x) => x.url === c.url);
     const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
@@ -67,6 +68,16 @@ export function resolveHeroEvidence(
   c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers" | "support">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
+  if (c.kind === "readout" && c.support) {
+    const posts = c.support.clinicianPosts;
+    const publisherPosts = c.support.publisherPosts;
+    const otherPosts = c.support.otherPosts ?? [];
+    const supportLinks = c.support.links;
+    if (!posts.length && !publisherPosts.length && !otherPosts.length && !supportLinks.length) return null;
+    const faces = [...posts, ...publisherPosts, ...otherPosts].map((post) => post.avatar)
+      .filter((avatar): avatar is string => !!avatar).filter((avatar, i, all) => all.indexOf(avatar) === i).slice(0, 4);
+    return { kind: "event", posts, publisherPosts, otherPosts, supportLinks, faces };
+  }
   if (c.kind === "paper" || c.kind === "readout") {
     // Publisher POSTS are receipts too (John: the drawer named publishers but never showed
     // their tweet) — they live on the reading-list row, so look them up for BOTH join paths.

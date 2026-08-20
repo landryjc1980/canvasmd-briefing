@@ -93,3 +93,14 @@ test("event without support has no drawer", () => {
   const card = { kind: "event", anchorId: "event:fda-2", url: "https://fda.gov/approval", headline: "Approval" };
   assert.equal(resolveHeroEvidence(card, { topStories: [], topArticles: [], movers: [] }), null);
 });
+
+test("anchored readout resolves its bundled physician words and primary source", () => {
+  const clinician = { name: "Toni Choueiri", handle: "DrChoueiri", avatar: "toni.jpg", tweetUrl: "https://x.com/DrChoueiri/status/1", text: "Landmark moment for cancer immunotherapy.", likes: 61, retweets: 0, quotes: 0, views: 0 };
+  const link = { kind: "article", id: "merck", title: "INTerpath-001 results", url: "https://merck.com/news/interpath", sourceLabel: "Merck press release", relationshipType: "primary_source", occurredAt: null };
+  const card = { kind: "readout", anchorId: "development:interpath", url: link.url, headline: "INTerpath-001 meets RFS and DMFS endpoints in melanoma", support: { clinicianPosts: [clinician], publisherPosts: [], otherPosts: [], links: [link] } };
+  const r = resolveHeroEvidence(card, { topStories: [], topArticles: [], movers: [] });
+  assert.equal(r?.kind, "event");
+  assert.deepEqual(r.posts, [clinician]);
+  assert.deepEqual(r.supportLinks, [link]);
+  assert.deepEqual(r.faces, ["toni.jpg"]);
+});
