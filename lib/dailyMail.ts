@@ -11,7 +11,7 @@
 //   each area, unfiltered coverage items with chips.
 // - Buttons/masthead/chips go through the recipient's magic link so one click signs them in.
 
-import type { DailyReadout } from "@/lib/types";
+import type { DailyParagraph, DailyReadout } from "@/lib/types";
 
 const RESEND_KEY = process.env.RESEND_API_KEY ?? "";
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "";
@@ -86,7 +86,7 @@ export function renderDailyEmail(opts: {
   const legacy = daily.payload?.narrative ?? [];
   const ed = !isAll && editions ? (editions[area!] ?? null) : null;
   const gen = editions?.general ?? null;
-  type Para = { head?: string | null; text: string; areas?: string[] };
+  type Para = DailyParagraph & { areas?: string[] };
   const areaParas: Para[] = isAll
     ? legacy
     : (ed ? ed.paragraphs.map((p) => ({ ...p, areas: [area!] })) : legacy.filter((p) => (p.areas ?? []).includes(area!)));
@@ -114,8 +114,42 @@ export function renderDailyEmail(opts: {
     if (!refs.length) return "";
     return ` <span style="font-size:11.5px;font-family:${SANS}">` + refs.map((r, i) => `${i > 0 ? " · " : ""}<a href="${esc(r.url)}" style="color:${ACCENT};text-decoration:none">${esc(r.label)} ↗</a>`).join("") + `</span>`;
   };
+  const conversationHtml = (p: Para) => {
+    const wanted = new Set(p.storyIds ?? []);
+    if (!wanted.size) return "";
+    const stories = (daily.payload.conversationStories ?? []).filter((story) => wanted.has(story.id));
+    const reactions = stories.flatMap((story) => story.reactions).filter((reaction) => {
+      if (isAll) return true;
+      if (!reaction.areas.includes(area!)) return false;
+      return !reaction.sourceAreas?.length || reaction.sourceAreas.includes(area!);
+    }).sort((a, b) => b.likes - a.likes);
+    const seenPosts = new Set<string>();
+    const receipts = reactions.filter((reaction) => {
+      if (seenPosts.has(reaction.postId)) return false;
+      seenPosts.add(reaction.postId);
+      return true;
+    }).slice(0, 2);
+    const seenUrls = new Set<string>();
+    const sources = stories.flatMap((story) => [story.anchor, ...(story.sources ?? [])]).filter((source) => {
+      if (!source.url || seenUrls.has(source.url)) return false;
+      seenUrls.add(source.url);
+      return true;
+    });
+    if (!receipts.length && !sources.length) return "";
+    const receiptHtml = receipts.map((reaction) => {
+      const text = reaction.fullText?.trim() || reaction.text;
+      return `<div style="margin:8px 0 0;padding:8px 0 0 10px;border-left:2px solid ${accent};font-family:${SANS}">
+        <a href="${esc(reaction.url)}" style="font-size:11.5px;font-weight:700;color:${INK};text-decoration:none">${esc(reaction.name)} <span style="font-weight:500;color:${MUT}">@${esc(reaction.handle)}</span></a>
+        <div style="font-family:Georgia,serif;font-size:13px;line-height:1.55;color:${INK2};margin-top:3px">${esc(text)}</div>
+      </div>`;
+    }).join("");
+    const sourceHtml = sources.length
+      ? `<div style="font-size:10.5px;line-height:1.6;color:${MUT};margin-top:7px;font-family:${SANS}">Sources: ${sources.map((source) => `<a href="${esc(source.url)}" style="color:${accent};text-decoration:none">${esc(source.label)} ↗</a>`).join(" · ")}</div>`
+      : "";
+    return `<div style="margin:-7px 0 16px">${receipts.length ? `<div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${accent};font-family:${SANS}">Physician conversation</div>${receiptHtml}` : ""}${sourceHtml}</div>`;
+  };
   const paraHtml = (p: Para, chips: boolean, n?: number) =>
-    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${chips ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${n !== undefined ? `<strong style="color:${accent}">${n}.</strong> ` : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}${refsHtml(p)}</p>`;
+    `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${chips ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${n !== undefined ? `<strong style="color:${accent}">${n}.</strong> ` : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}${refsHtml(p)}</p>${conversationHtml(p)}`;
   const frontierHtml = generalParas.length
     ? `${quiet ? "" : `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};margin:4px 0 10px;font-family:${SANS}">Frontiers</div>`}${generalParas.map((p, i) => paraHtml(p, false, areaParas.length + i + 1)).join("")}`
     : "";
@@ -171,7 +205,7 @@ export function renderDailyEmail(opts: {
 <tr><td style="padding:0 24px">
 <a href="${esc(opts.siteLink)}" style="text-decoration:none"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${accent}">CanvasMD</div>
 <div style="font-family:Georgia,serif;font-weight:400;font-size:30px;color:${INK};letter-spacing:-.01em;margin-top:2px">The Readout</div></a>
-<div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)} · the past 24 hours</span></div>
+<div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)} · updated today</span></div>
 <div style="height:1px;background:${LINE};margin:18px 0 20px"></div>
 ${parasHtml}
 <a href="${esc(opts.siteLink)}" style="display:inline-block;background:${INK};color:#ffffff;font-weight:700;font-size:13.5px;text-decoration:none;padding:11px 22px;border-radius:8px;margin-top:2px">Open the ${isAll ? "full" : esc(area!)} Readout →</a>

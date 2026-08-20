@@ -296,13 +296,13 @@ export function AmplifierReceipts({ amplifiers, accent, label = true }: { amplif
     <div>
       {label && <div style={evLabel(accent)}>Amplified on X</div>}
       {quotes.map((a, j) => (
-        <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
+        <TweetCard key={`q${j}`} t={{ name: a.name, handle: a.handle, avatar: a.avatar, tweetUrl: a.tweetUrl ?? null, text: a.text, likes: a.likes, retweets: 0, quotes: 0, views: 0 }} />
       ))}
       {reposts.map((a, j) => (
         <div key={`r${j}`} style={{ ...cardBox, boxSizing: "border-box", width: "100%", minWidth: 0, display: "flex", alignItems: "center", gap: 10, font: "400 13px system-ui", color: "var(--rv-copy, #cfd4e0)" }}>
           <Coin src={a.avatar} label={a.name} size={26} />
           <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-            <b style={{ color: "var(--rv-ink, #eef1f8)", fontWeight: 600 }}>{a.name}</b>
+            {a.tweetUrl ? <a href={a.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--rv-ink, #eef1f8)", fontWeight: 600, textDecoration: "none" }}>{a.name}</a> : <b style={{ color: "var(--rv-ink, #eef1f8)", fontWeight: 600 }}>{a.name}</b>}
             {a.handle ? <> <a href={`https://x.com/${a.handle.replace(/^@/, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: "none" }}>@{a.handle.replace(/^@/, "")}</a></> : null}
             {" reposted the episode"}
           </span>
@@ -333,13 +333,13 @@ function AmplifiedAnnouncementReceipt({ amplifier, announcement, accent }: { amp
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <Coin src={amplifier.avatar} label={amplifier.name} size={30} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{amplifier.name}</span>
+          {amplifier.tweetUrl ? <a href={amplifier.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)", textDecoration: "none" }}>{amplifier.name}</a> : <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{amplifier.name}</span>}
           {amplifierHandle ? <span style={{ font: "400 11.5px system-ui", color: MUT }}> @{amplifierHandle}</span> : null}
           <div style={{ marginTop: 1, font: "400 11.5px system-ui", color: MUT }}>{amplifier.isQuote ? "quoted this post" : "reposted this post"}</div>
         </div>
         {amplifier.isQuote && amplifier.likes > 0 ? <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {amplifier.likes}</span> : null}
       </div>
-      {amplifierText && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere" }}>{amplifierText}</p>}
+      {amplifierText && (amplifier.tweetUrl ? <a href={amplifier.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", textDecoration: "none" }}>{amplifierText}</a> : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere" }}>{amplifierText}</p>)}
       {announcement.tweetUrl ? <a href={announcement.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{original}</a> : original}
     </div>
   );
@@ -372,14 +372,13 @@ export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announ
     </div>
   );
 }
-// Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
-// the mobile story), so readers stay on the page. The ↗ still opens the source.
+// Abstract and source receipts disclose independently, matching the main paper rail
+// and native. The source link remains a separate direct action.
 export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [abstractOpen, setAbstractOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
-  const canExpand = hasAbs || hasPosts;
-  const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
@@ -391,15 +390,16 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
         <span style={{ font: "400 12px system-ui", color: MUT }}>{[src, meta].filter(Boolean).join(" · ")}</span>
         {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
       </div>}
-      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{abstract}</p>}
-      {open && hasPosts && <div style={{ marginTop: 12 }}>
+      {abstractOpen && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{abstract}</p>}
+      {sourcesOpen && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "var(--rv-muted, #9aa0ac)", marginBottom: 9 }}>
           On X · verified clinicians
         </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 5, alignItems: "center" }}>
-        {canExpand && <button onClick={() => setOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{toggleLabel}</button>}
+        {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
+        {hasPosts && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "var(--rv-muted, rgba(255,255,255,.55))", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
@@ -652,7 +652,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
             {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
           </div>
         )}
-        <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{cleanArticleTitle(paper.title)}</div>
+        <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none" }}>{cleanArticleTitle(paper.title)}</a>
         <div className="rv-paper-meta" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
           {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
           {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</span>}
@@ -1097,7 +1097,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         <span className="daily-meta-primary" style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
         <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
         {/* The promise, stated once: this is a 24-hour brief (John 2026-08-19). */}
-        <span style={{ font: "500 11px system-ui", color: MUT2 }}>· the past 24 hours</span>
+        <span style={{ font: "500 11px system-ui", color: MUT2 }}>· updated today</span>
       </div>
       {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — from the frontier:</div>}
       {dailyOpen || !dailyLong ? (

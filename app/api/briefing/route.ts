@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { currentContactId } from "@/lib/gateServer";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +20,16 @@ const AREAS = new Set(["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"]);
 // full rebuilds, which is precisely the WORKER_RESOURCE_LIMIT condition. So: memoize per
 // instance, and single-flight so N readers asking for the same area at once cost ONE call.
 //
-// Deliberately in-process, not a Cache-Control header: this route sits outside the gate, and a
-// shared/CDN cache would make the brief durably fetchable by anyone with the URL. Best-effort
-// per-lambda memory keeps the exposure exactly where it is today.
+// Deliberately in-process, not a Cache-Control header: the route verifies the reader session,
+// and a shared/CDN cache could otherwise serve one reader's response outside that boundary.
 const TTL_MS = 5 * 60_000;
 const memo = new Map<string, { at: number; briefing: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === "production" && !(await currentContactId(req))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
   if (!url || !key) {

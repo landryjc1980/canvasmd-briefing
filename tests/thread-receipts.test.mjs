@@ -1,18 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { canvasmdFile } from "./paired-repo.mjs";
 
 const webCard = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
-const nativeCard = fs.readFileSync(new URL("../../canvasmd/components/readout/cards.tsx", import.meta.url), "utf8");
-const nativeVm = fs.readFileSync(new URL("../../canvasmd/components/readout/vm.ts", import.meta.url), "utf8");
+const nativeCard = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
+const nativeVm = fs.readFileSync(canvasmdFile("components/readout/vm.ts"), "utf8");
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
-const nativeHero = fs.readFileSync(new URL("../../canvasmd/components/readout/HeroCards.tsx", import.meta.url), "utf8");
-const ingest = fs.readFileSync(new URL("../../canvasmd/supabase/functions/x-official-ingest/index.ts", import.meta.url), "utf8");
-const briefing = fs.readFileSync(new URL("../../canvasmd/supabase/functions/briefing/index.ts", import.meta.url), "utf8");
-const heroCards = fs.readFileSync(new URL("../../canvasmd/supabase/functions/_shared/heroCards.ts", import.meta.url), "utf8");
-const xEvidence = fs.readFileSync(new URL("../../canvasmd/supabase/functions/_shared/xEvidence.ts", import.meta.url), "utf8");
+const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
+const ingest = fs.readFileSync(canvasmdFile("supabase/functions/x-official-ingest/index.ts"), "utf8");
+const briefing = fs.readFileSync(canvasmdFile("supabase/functions/briefing/index.ts"), "utf8");
+const heroCards = fs.readFileSync(canvasmdFile("supabase/functions/_shared/heroCards.ts"), "utf8");
+const xEvidence = fs.readFileSync(canvasmdFile("supabase/functions/_shared/xEvidence.ts"), "utf8");
 
 test("X ingestion preserves long posts and bounded same-author threads", () => {
   assert.match(ingest, /note_tweet/);

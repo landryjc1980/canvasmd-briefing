@@ -965,6 +965,8 @@ export type DailyItem = { title: string; line?: string | null; sub?: string | nu
 export type DailyConversationReaction = {
   postId: string; sourceId: string; name: string; handle: string; text: string; url: string;
   likes: number; areas: string[]; sourceAreas?: string[]; translatedFrom?: string | null;
+  fullText?: string | null; // additive: complete retained post text when the producer can hydrate it
+  textTruncated?: boolean; // additive: true when `text` remains only an archived excerpt
 };
 export type DailyConversationStory = {
   id: string;

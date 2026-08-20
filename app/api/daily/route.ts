@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { currentContactId } from "@/lib/gateServer";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,10 @@ export const dynamic = "force-dynamic";
 const URL_ = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === "production" && !(await currentContactId(req))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!URL_ || !SERVICE_KEY) return NextResponse.json({ daily: null });
   try {
     const since = new Date(Date.now() - 2 * 86400_000).toISOString().slice(0, 10);
