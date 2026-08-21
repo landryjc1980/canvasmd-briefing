@@ -6,7 +6,7 @@ import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, authoredClinicianCount, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
 import { pickConversationPreview, representedClinicianCount, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
@@ -682,7 +682,8 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const hasPublisherNames = paper.publishers.length > 0;
   const unrepresentedPublisherNames = unrepresentedPublishers(paper.publishers, paper.publisherPosts);
   const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
-  const revealableClinicians = representedClinicianCount(paper.posts);
+  const revealableClinicians = paper.revealableClinicianCount ?? representedClinicianCount(paper.posts);
+  const authoredClinicians = Math.min(paper.kolSharers, paper.authoredClinicianCount ?? authoredClinicianCount(paper.posts));
   const sourcesTruncated = revealableClinicians > 0 && paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
 
@@ -699,7 +700,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
         <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none" }}>{cleanArticleTitle(paper.title)}</a>
         <div className="rv-paper-meta" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
           {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
-          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}{revealableClinicians === 0 ? " · posts unavailable" : sourcesTruncated ? ` · ${revealableClinicians} shown in sources` : ""}</span>}
+          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}{authoredClinicians > 0 ? ` · ${authoredClinicians} commented` : revealableClinicians > 0 ? " · reposts only" : ""}{revealableClinicians === 0 ? " · posts unavailable" : sourcesTruncated ? ` · ${revealableClinicians} shown in sources` : ""}</span>}
         </div>
         <div className="rv-paper-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0 14px", marginTop: 5 }}>
           {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}

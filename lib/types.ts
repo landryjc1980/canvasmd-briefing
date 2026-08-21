@@ -623,6 +623,7 @@ export type BriefingArticle = {
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
   revealableClinicianCount?: number; // identities represented by serialized clinician receipts
+  authoredClinicianCount?: number; // uncapped distinct clinicians who added their own words
   peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
   subAreas?: string[];
   congress?: boolean;
@@ -907,6 +908,12 @@ export type HeroSupportLink = {
 export type HeroSupportBundle = {
   clinicianPosts: HeroSupportPost[]; publisherPosts: HeroSupportPost[]; otherPosts?: HeroSupportPost[]; links: HeroSupportLink[];
 };
+export type HeroConversationSpan = {
+  authoredClinicians: number;
+  spanDays: number;
+  firstTouchAt: string | null;
+  lastTouchAt: string | null;
+};
 export type HeroCard = {
   id: string; // anchor-derived, stable across builds
   kind: "paper" | "episode" | "event" | "thread" | "readout" | "development" | "trial_milestone";
@@ -928,6 +935,7 @@ export type HeroCard = {
   nct?: string | null;
   siblings?: { kind: string; label: string; url?: string | null }[];
   support?: HeroSupportBundle; // exact receipts only; never a ranking input
+  conversation?: HeroConversationSpan;
 };
 
 export type BriefingData = {
@@ -968,7 +976,7 @@ export type SeenMap = Record<string, string>;
 export type DailyItem = { title: string; line?: string | null; sub?: string | null; url?: string | null; areas?: string[]; meta?: string | null; id?: string | null; slug?: string | null; teaser?: string | null };
 export type DailyConversationReaction = {
   postId: string; sourceId: string; name: string; handle: string; text: string; url: string;
-  likes: number; areas: string[]; sourceAreas?: string[]; referenceAreas?: string[]; translatedFrom?: string | null;
+  likes: number; postedAt?: string | null; areas: string[]; sourceAreas?: string[]; referenceAreas?: string[]; translatedFrom?: string | null;
   fullText?: string | null; // additive: complete retained post text when the producer can hydrate it
   textTruncated?: boolean; // additive: true when `text` remains only an archived excerpt
 };

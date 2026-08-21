@@ -6,6 +6,7 @@ import { canvasmdFile } from "./paired-repo.mjs";
 import { representedClinicianCount } from "../app/heroEvidence.ts";
 
 const webReader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
+const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
 const webFlat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta.url), "utf8");
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
@@ -56,9 +57,28 @@ test("rendered paper evidence counts distinct clinicians including grouped repos
   const nativeRepresentedClinicianCount = loadExportedFunction(nativeCards, "representedClinicianCount");
   assert.equal(nativeRepresentedClinicianCount(representedReceipts), 3);
   assert.equal(nativeRepresentedClinicianCount(undefined), 0);
-  assert.match(webReader, /const revealableClinicians = representedClinicianCount\(paper\.posts\)/);
-  assert.match(webFlat, /const revealableClinicians = representedClinicianCount\(a\.posts\)/);
-  assert.match(nativeSections, /const revealableClinicians = representedClinicianCount\(a\.posts\)/);
+  assert.match(webReader, /paper\.revealableClinicianCount \?\? representedClinicianCount\(paper\.posts\)/);
+  assert.match(webFlat, /a\.revealableClinicianCount \?\? representedClinicianCount\(a\.posts\)/);
+  assert.match(nativeSections, /a\.revealableClinicianCount \?\? representedClinicianCount\(a\.posts\)/);
+});
+
+test("authored commentary excludes classic reposts, link-only shares, and nested reposters", () => {
+  const authoredClinicianCount = loadExportedFunction(webVm, "authoredClinicianCount");
+  assert.equal(authoredClinicianCount([
+    { name: "A", handle: "a", text: "RT @journal: Paper https://t.co/a" },
+    { name: "B", handle: "b", text: "https://t.co/b", repostedBy: [{ name: "C", handle: "c" }] },
+    { name: "D", handle: "d", text: "These results may change how we sequence therapy." },
+    { name: "E", handle: "e", text: "Paper: https://t.co/e", thread: [{ id: "e2", text: "This continuation contains a substantive clinical interpretation.", tweetUrl: null }] },
+    { name: "F", handle: "f", text: "この結果は今後の治療選択を大きく変える可能性があります。" },
+  ]), 3);
+  const nativeVm = fs.readFileSync(canvasmdFile("components/readout/vm.ts"), "utf8");
+  const nativeAuthoredClinicianCount = loadExportedFunction(nativeVm, "authoredClinicianCount");
+  assert.equal(nativeAuthoredClinicianCount([
+    { name: "A", handle: "a", text: "RT @journal: Paper" },
+    { name: "D", handle: "d", text: "These results may change practice." },
+    { name: "E", handle: "e", text: "https://t.co/e", thread: [{ id: "e2", text: "A substantive continuation from the same physician.", tweetUrl: null }] },
+    { name: "F", handle: "f", text: "هذه النتائج قد تغير اختيار العلاج في المستقبل." },
+  ]), 3);
 });
 
 test("public archives inventory grouped reposters as clinician receipts", () => {

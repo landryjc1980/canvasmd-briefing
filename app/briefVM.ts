@@ -2,7 +2,7 @@
 // (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
-import type { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance, BriefingTrial } from "@/lib/types";
+import type { BriefingMover, BriefingData, BriefingSharer, BriefingStory, BriefingPod, BriefingStance, BriefingTrial } from "@/lib/types";
 import { clipSecond } from "./clientEvidence";
 export { clipSecond, dailyAccentOf, DAILY_MUTED } from "./clientEvidence";
 
@@ -69,24 +69,53 @@ export function podConvLabel(episodes: number, segments: number): string | null 
   return `${episodes} conversations`;
 }
 
-type XEvidenceLanes = { posts?: unknown[]; publisherPosts?: unknown[]; otherPosts?: unknown[] };
+type XEvidenceLanes = { posts?: BriefingSharer[]; publisherPosts?: unknown[]; otherPosts?: unknown[] };
 
 // One source card may carry several classic reposts beneath it. Count the cards
 // readers can inspect instead of presenting raw activity as a card count.
 export const xEvidenceSourceCount = (value: XEvidenceLanes): number =>
   (value.posts?.length ?? 0) + (value.publisherPosts?.length ?? 0) + (value.otherPosts?.length ?? 0);
 
+export function authoredClinicianCount(posts: BriefingSharer[] | null | undefined): number {
+  const hasAuthoredText = (post: BriefingSharer): boolean => {
+    const text = post.textEn?.trim() || post.text || "";
+    if (/^\s*RT\s+@/i.test(text)) return false;
+    const hasWords = (value: string) => value
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/@[A-Za-z0-9_]+/g, " ")
+      .replace(/#[A-Za-z0-9_]+/g, " ")
+      .replace(/^[ \t]*(?:Article|Paper|Link):[ \t]*$/gim, " ")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim().length > 0;
+    return hasWords(text) || (post.thread ?? []).some((part) => hasWords(part.text));
+  };
+  const identities = new Set<string>();
+  for (const post of posts ?? []) {
+    if (!hasAuthoredText(post)) continue;
+    identities.add(post.handle?.replace(/^@/, "").trim().toLowerCase() ||
+      post.name?.replace(/\s+/g, " ").trim().toLowerCase() || post.tweetUrl || "");
+  }
+  identities.delete("");
+  return identities.size;
+}
+
 export function trialEvidenceCounts(trial: Pick<BriefingTrial, "pods" | "posts" | "publisherPosts" | "otherPosts" | "articles">) {
   const episodeKeys = new Set(trial.pods.map((pod, index) =>
     pod.episodeId || pod.audioUrl || pod.episodeTitle || `__episode${index}`));
-  return { episodes: episodeKeys.size, xSources: xEvidenceSourceCount(trial), papers: trial.articles.length };
+  return {
+    episodes: episodeKeys.size,
+    clinicianComments: authoredClinicianCount(trial.posts),
+    hasXSharing: xEvidenceSourceCount(trial) > 0,
+    papers: trial.articles.length,
+  };
 }
 
 export function trialEvidenceLine(trial: Pick<BriefingTrial, "pods" | "posts" | "publisherPosts" | "otherPosts" | "articles">): string {
   const counts = trialEvidenceCounts(trial);
   return [
     counts.episodes ? `${counts.episodes} episode${counts.episodes === 1 ? "" : "s"}` : "",
-    counts.xSources ? `${counts.xSources} X source${counts.xSources === 1 ? "" : "s"}` : "",
+    counts.clinicianComments ? `${counts.clinicianComments} clinician${counts.clinicianComments === 1 ? "" : "s"} commented` : "",
+    !counts.clinicianComments && counts.hasXSharing ? "X sharing evidence" : "",
     counts.papers ? `${counts.papers} paper${counts.papers === 1 ? "" : "s"}` : "",
   ].filter(Boolean).join(" · ");
 }

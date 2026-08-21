@@ -7,15 +7,21 @@ const vm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8"
 const allView = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
 
 test("web trial summaries describe serialized evidence instead of raw mention totals", () => {
-  assert.match(vm, /xEvidenceSourceCount/);
-  assert.match(vm, /value\.posts\?\.length/);
-  assert.match(vm, /value\.publisherPosts\?\.length/);
-  assert.match(vm, /value\.otherPosts\?\.length/);
+  assert.match(vm, /authoredClinicianCount\(trial\.posts\)/);
+  assert.match(vm, /clinicianComments/);
+  assert.match(vm, /commented/);
   assert.match(vm, /episodeKeys\.size/);
   assert.match(vm, /trial\.articles\.length/);
   assert.match(reader, /trialEvidenceLine\(t\)/);
   assert.doesNotMatch(reader, /t\.xMentions/);
   assert.doesNotMatch(reader, /t\.articleMentions/);
+});
+
+test("paper rows distinguish total reach from authored commentary", () => {
+  assert.match(reader, /authoredClinicians/);
+  assert.match(reader, /paper\.authoredClinicianCount \?\? authoredClinicianCount\(paper\.posts\)/);
+  assert.match(reader, /commented/);
+  assert.match(reader, /reposts only/);
 });
 
 test("web drawers expose every promised X lane", () => {

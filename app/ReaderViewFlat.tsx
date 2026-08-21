@@ -544,7 +544,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <SectionHead id="sec-papers">Papers being shared</SectionHead>
           <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
             const id = "p:" + i;
-            const revealableClinicians = representedClinicianCount(a.posts);
+            const revealableClinicians = a.revealableClinicianCount ?? representedClinicianCount(a.posts);
             return (
               <PaperCard title={a.title} journal={a.journal} domain={a.domain}
                 peerReviewed={a.peerReviewed}
