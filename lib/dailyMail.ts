@@ -128,11 +128,12 @@ export function renderDailyEmail(opts: {
     const reactions = [...local, ...across];
     const acrossPostIds = new Set(across.map((reaction) => reaction.postId));
     const seenPosts = new Set<string>();
-    const receipts = reactions.filter((reaction) => {
+    const allReceipts = reactions.filter((reaction) => {
       if (seenPosts.has(reaction.postId)) return false;
       seenPosts.add(reaction.postId);
       return true;
     });
+    const receipts = allReceipts.slice(0, 3);
     const seenUrls = new Set<string>();
     const sources = stories.flatMap((story) => [story.anchor, ...(story.sources ?? [])]).filter((source) => {
       if (!source.url || seenUrls.has(source.url)) return false;
@@ -150,7 +151,8 @@ export function renderDailyEmail(opts: {
     const sourceHtml = sources.length
       ? `<div style="font-size:10.5px;line-height:1.6;color:${MUT};margin-top:7px;font-family:${SANS}">Sources: ${sources.map((source) => `<a href="${esc(source.url)}" style="color:${accent};text-decoration:none">${esc(source.label)} ↗</a>`).join(" · ")}</div>`
       : "";
-    return `<div style="margin:-7px 0 16px">${receipts.length ? `<div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${accent};font-family:${SANS}">Physician conversation</div>${receiptHtml}` : ""}${sourceHtml}</div>`;
+    const moreReceipts = allReceipts.length - receipts.length;
+    return `<div style="margin:-7px 0 16px">${receipts.length ? `<div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${accent};font-family:${SANS}">Physician conversation</div>${receiptHtml}${moreReceipts > 0 ? `<div style="font-size:10.5px;color:${MUT};margin-top:6px;font-family:${SANS}">+${moreReceipts} more physician post${moreReceipts === 1 ? "" : "s"} in the Readout</div>` : ""}` : ""}${sourceHtml}</div>`;
   };
   const paraHtml = (p: Para, chips: boolean, n?: number) =>
     `<p style="font-size:15.5px;line-height:1.68;color:${INK2};margin:0 0 15px;font-family:Georgia,serif">${chips ? (p.areas ?? []).slice(0, 2).map(chip).join("") : ""}${n !== undefined ? `<strong style="color:${accent}">${n}.</strong> ` : ""}${p.head ? `<strong style="color:${INK}">${esc(stripEmph(p.head))}.</strong> ` : ""}${emphHtml(p.text)}${refsHtml(p)}</p>${conversationHtml(p)}`;

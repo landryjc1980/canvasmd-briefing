@@ -174,7 +174,7 @@ const EDITORIAL_MEASURE = 850;
 export const paperMeta = (shown: number, _likes: number, total?: number | null): string | undefined => {
   if (total != null) {
     const n = Math.max(total, shown);
-    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}` : undefined;
+    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}` : undefined;
   }
   return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
@@ -651,8 +651,8 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const hasOtherPosts = !!paper.otherPosts?.length;
   const hasPublisherNames = paper.publishers.length > 0;
   const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
-  const revealableClinicians = paper.revealableClinicianCount ?? null;
-  const sourcesTruncated = revealableClinicians != null && paper.kolSharers > revealableClinicians;
+  const revealableClinicians = paper.revealableClinicianCount ?? paper.posts.length;
+  const sourcesTruncated = paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
 
   return (

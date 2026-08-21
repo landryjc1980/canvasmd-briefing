@@ -164,7 +164,8 @@ export default function AudioQuote({
         />
         <div className="aq-times">
           <span className="aq-cur">{fmt(cur)}</span>
-          {(label || hasSeek) && <span className={label ? "aq-label" : "aq-moment"}>{label ?? `clip @ ${fmt(atSec)}`}</span>}
+          {label && <span className="aq-label">{label}</span>}
+          {hasSeek && <span className="aq-moment">clip @ {fmt(atSec)}</span>}
           <span className="aq-dur">{dur > 0 ? fmt(dur) : "–:––"}</span>
         </div>
       </div>

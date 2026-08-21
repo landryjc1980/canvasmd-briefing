@@ -41,7 +41,7 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(nativeSections, /Open article ↗/);
   assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);
   assert.doesNotMatch(nativeSections, /hasSources = [^\n]+\|\| !!a\.url/);
-  assert.doesNotMatch(nativeStoryEvidence, /publishers=\{p\.publishers\}/);
+  assert.match(nativeStoryEvidence, /publishers=\{p\.publishers\}/);
   assert.match(webReader, /shown in sources/);
   assert.match(nativeSections, /shown in sources/);
   assert.doesNotMatch(nativeSections, /\{i \+ 1\}/);

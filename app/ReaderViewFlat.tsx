@@ -79,7 +79,7 @@ const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px syst
 const paperMeta = (shown: number, total?: number | null): string | undefined => {
   if (total != null) {
     const n = Math.max(total, shown);
-    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}` : undefined;
+    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}` : undefined;
   }
   return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
@@ -108,7 +108,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
           {t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: "#7c7f88" }}>@{t.handle}</span>}</div>
-        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#a93658" }}>♥ {t.likes}</span>}
+        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
       </div>
       {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
       {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: "#9da0aa" }}>{t.receiptNote}</div>}
@@ -520,7 +520,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
             return (
               <PaperCard title={a.title} journal={a.journal} domain={a.domain}
                 peerReviewed={a.peerReviewed}
-                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}${a.revealableClinicianCount != null && a.kolSharers > a.revealableClinicianCount ? ` · ${a.revealableClinicianCount} shown in sources` : ""}` : undefined}
+                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}${a.kolSharers > (a.revealableClinicianCount ?? a.posts.length) ? ` · ${a.revealableClinicianCount ?? a.posts.length} shown in sources` : ""}` : undefined}
                 url={a.url} abstract={a.abstract} posts={a.posts} publisherPosts={a.publisherPosts}
                 otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} totalClinicians={a.kolSharers} revealableClinicians={a.revealableClinicianCount} />
             );

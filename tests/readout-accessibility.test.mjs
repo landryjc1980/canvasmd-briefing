@@ -29,10 +29,10 @@ test("web X receipts keep controls outside the outbound X link", () => {
 });
 
 test("web like counts meet normal-text contrast", () => {
-  for (const source of [reader, flat]) {
-    assert.doesNotMatch(source, /#e08aa0/);
-    assert.match(source, /#a93658/);
-  }
+  assert.doesNotMatch(reader, /#e08aa0/);
+  assert.match(reader, /#a93658/);
+  assert.doesNotMatch(flat, /#e08aa0/);
+  assert.match(flat, /#ff8fa8/);
 });
 
 test("web specialty menus expose keyboard popup semantics", () => {

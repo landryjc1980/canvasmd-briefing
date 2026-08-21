@@ -477,7 +477,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           count: `${n} episode${n === 1 ? "" : "s"} ↓`,
           children: eps.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {eps.slice(0, 3).map((e, j) => (
+              {eps.map((e, j) => (
                 <div key={j} style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "11px 13px" }}>
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: e.audioUrl ? 9 : 0 }}>
                     <Coin src={e.showArt} label={e.show ?? "P"} size={30} radius={8} />
