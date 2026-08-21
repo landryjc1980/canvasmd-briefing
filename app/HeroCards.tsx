@@ -2,7 +2,6 @@
 
 import { ReactNode, useState } from "react";
 import { HeroCard } from "@/lib/types";
-import { clipTs } from "./briefVM";
 import AudioQuote from "@/components/AudioQuote";
 
 // The source-anchored hero (spec §10): one card = one proposition anchored to one source
@@ -118,7 +117,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   moment" (Codex acceptance item). */}
               {c.kind === "episode" && c.startMs != null && c.url && (
                 <div style={{ marginTop: 10, width: "100%" }}>
-                  <AudioQuote audioUrl={c.url} startMs={c.startMs} durationSeconds={c.durationSeconds} label={`Listen @ ${clipTs(c.startMs)}`} eventId={c.id} eventLabel={c.headline} accent={accent} tone="dark" />
+                  <AudioQuote audioUrl={c.url} startMs={c.startMs} durationSeconds={c.durationSeconds} label="Listen to the clip" eventId={c.id} eventLabel={c.headline} accent={accent} tone="dark" />
                 </div>
               )}
               {ev && c.kind === "episode" && (

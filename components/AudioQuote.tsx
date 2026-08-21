@@ -109,6 +109,8 @@ export default function AudioQuote({
   const val = Math.min(cur, max);
   const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
   const controlLabel = eventLabel ?? label ?? (hasSeek ? `clip at ${fmt(atSec)}` : "audio");
+  const moment = hasSeek ? fmt(atSec) : null;
+  const labelAlreadyIncludesMoment = !!(moment && label?.includes(moment));
 
   return (
     <div className={`aq${tone === "dark" ? " aq-dark" : ""}`} style={accent ? ({ ["--aq-accent" as string]: accent }) : undefined}>
@@ -165,7 +167,7 @@ export default function AudioQuote({
         <div className="aq-times">
           <span className="aq-cur">{fmt(cur)}</span>
           {label && <span className="aq-label">{label}</span>}
-          {hasSeek && <span className="aq-moment">clip @ {fmt(atSec)}</span>}
+          {moment && !labelAlreadyIncludesMoment && <span className="aq-moment">clip @ {moment}</span>}
           <span className="aq-dur">{dur > 0 ? fmt(dur) : "–:––"}</span>
         </div>
       </div>

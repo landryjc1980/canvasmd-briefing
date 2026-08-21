@@ -143,9 +143,11 @@ export function renderDailyEmail(opts: {
     if (!receipts.length && !sources.length) return "";
     const receiptHtml = receipts.map((reaction) => {
       const text = reaction.fullText?.trim() || reaction.text;
+      const isExcerpt = !reaction.fullText?.trim() && (reaction.textTruncated === true || /…\s*$/.test(reaction.text));
       return `<div style="margin:8px 0 0;padding:8px 0 0 10px;border-left:2px solid ${accent};font-family:${SANS}">
         <a href="${esc(reaction.url)}" style="font-size:11.5px;font-weight:700;color:${INK};text-decoration:none">${esc(reaction.name)} <span style="font-weight:500;color:${MUT}">@${esc(reaction.handle)}</span></a>${acrossPostIds.has(reaction.postId) ? ` <span style="font-size:9px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:.06em">Across oncology</span>` : ""}
-        <div style="font-family:Georgia,serif;font-size:13px;line-height:1.55;color:${INK2};margin-top:3px">${esc(text)}</div>
+        <div style="font-family:Georgia,serif;font-size:13px;line-height:1.55;color:${INK2};margin-top:3px">${isExcerpt ? `<strong style="font-family:${SANS};font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:${MUT}">Excerpt</strong><br>` : ""}${esc(text)}</div>
+        ${isExcerpt ? `<a href="${esc(reaction.url)}" style="display:inline-block;font-size:10.5px;font-weight:700;color:${accent};text-decoration:none;margin-top:4px">Read complete post on X ↗</a>` : ""}
       </div>`;
     }).join("");
     const sourceHtml = sources.length

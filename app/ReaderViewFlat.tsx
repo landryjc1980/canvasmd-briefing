@@ -84,6 +84,25 @@ const paperMeta = (shown: number, total?: number | null): string | undefined => 
   return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
 
+export function representedClinicianCount(posts: BriefingSharer[] | null | undefined): number {
+  const identities = new Set<string>();
+  let count = 0;
+  const add = (person: { name?: string | null; handle?: string | null; tweetUrl?: string | null }) => {
+    const handle = person.handle?.replace(/^@/, "").trim().toLowerCase();
+    const name = person.name?.replace(/\s+/g, " ").trim().toLowerCase();
+    const url = person.tweetUrl?.trim().toLowerCase();
+    const aliases = [handle && `handle:${handle}`, name && `name:${name}`, url && `url:${url}`].filter((x): x is string => !!x);
+    if (!aliases.length) return;
+    if (!aliases.some((alias) => identities.has(alias))) count += 1;
+    aliases.forEach((alias) => identities.add(alias));
+  };
+  for (const post of posts ?? []) {
+    add(post);
+    for (const reposter of post.repostedBy ?? []) add(reposter);
+  }
+  return count;
+}
+
 function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
@@ -96,7 +115,7 @@ function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       </div>
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
       {p.audioUrl
-        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label={`clip ${clipTs(p.startMs)}`} eventId={p.episodeId} eventLabel={p.episodeTitle} accent={accent} tone="dark" />
+        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label="Listen to the clip" eventId={p.episodeId} eventLabel={p.episodeTitle} accent={accent} tone="dark" />
         : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
     </div>
   );
@@ -153,7 +172,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, publish
       <div style={{ display: "flex", gap: 16, marginTop: 11, flexWrap: "wrap" }}>
         {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
         {hasSources && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{sourcesOpen ? "Hide sources ↑" : sourcesTruncated ? `Sources · ${revealableClinicians} of ${totalClinicians} ↓` : "Sources ↓"}</button>}
-        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
+        {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
   );
@@ -430,7 +449,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
               <div style={{ marginLeft: compact ? 0 : 50 }}>
                 {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                 {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
+                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
               </div>
             </Row>
             </div>
@@ -517,12 +536,13 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <SectionHead id="sec-papers">Papers being shared</SectionHead>
           <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
             const id = "p:" + i;
+            const revealableClinicians = representedClinicianCount(a.posts);
             return (
               <PaperCard title={a.title} journal={a.journal} domain={a.domain}
                 peerReviewed={a.peerReviewed}
-                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}${a.kolSharers > (a.revealableClinicianCount ?? a.posts.length) ? ` · ${a.revealableClinicianCount ?? a.posts.length} shown in sources` : ""}` : undefined}
+                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}${a.kolSharers > revealableClinicians ? ` · ${revealableClinicians} shown in sources` : ""}` : undefined}
                 url={a.url} abstract={a.abstract} posts={a.posts} publisherPosts={a.publisherPosts}
-                otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} totalClinicians={a.kolSharers} revealableClinicians={a.revealableClinicianCount} />
+                otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} totalClinicians={a.kolSharers} revealableClinicians={revealableClinicians} />
             );
           }} />
         </>}
@@ -560,7 +580,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                 {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{t.publisherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{t.otherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
+                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
                 <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
               </Row>
             );
@@ -601,7 +621,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   <StanceBlock stance={m.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
                   {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                   {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                  {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} />)}</div>}
+                  {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
                 </div>
               </Row>
             );

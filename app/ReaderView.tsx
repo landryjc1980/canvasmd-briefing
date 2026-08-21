@@ -179,6 +179,28 @@ export const paperMeta = (shown: number, _likes: number, total?: number | null):
   return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
 
+// Count the distinct clinicians a reader can actually identify in the rendered
+// receipts. A grouped repost is still a visible clinician receipt even though it
+// deliberately shares one card with the authored post.
+export function representedClinicianCount(posts: BriefingSharer[] | null | undefined): number {
+  const identities = new Set<string>();
+  let count = 0;
+  const add = (person: { name?: string | null; handle?: string | null; tweetUrl?: string | null }) => {
+    const handle = person.handle?.replace(/^@/, "").trim().toLowerCase();
+    const name = person.name?.replace(/\s+/g, " ").trim().toLowerCase();
+    const url = person.tweetUrl?.trim().toLowerCase();
+    const aliases = [handle && `handle:${handle}`, name && `name:${name}`, url && `url:${url}`].filter((x): x is string => !!x);
+    if (!aliases.length) return;
+    if (!aliases.some((alias) => identities.has(alias))) count += 1;
+    aliases.forEach((alias) => identities.add(alias));
+  };
+  for (const post of posts ?? []) {
+    add(post);
+    for (const reposter of post.repostedBy ?? []) add(reposter);
+  }
+  return count;
+}
+
 export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
   return (
     <div style={cardBox}>
@@ -619,7 +641,8 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
       {supportLinks.length > 0 && <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Related coverage</div><Capped items={supportLinks} cap={4} accent={accent} render={(link, j) => <SupportLinkRow key={`${link.kind}:${link.id}:${j}`} link={link} accent={accent} />} /></div>}
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = publisherPosts.length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
-        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length || p.posts?.length || 0, p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={accent} sharedTotal={total} />;
+        const posts = p.posts?.length ? p.posts : p.sharers;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={posts} accent={accent} sharedTotal={total} />;
       }} /></div>}
     </>
   );
@@ -651,7 +674,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const hasOtherPosts = !!paper.otherPosts?.length;
   const hasPublisherNames = paper.publishers.length > 0;
   const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
-  const revealableClinicians = paper.revealableClinicianCount ?? paper.posts.length;
+  const revealableClinicians = representedClinicianCount(paper.posts);
   const sourcesTruncated = paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
 
@@ -1474,7 +1497,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(p.sharers.length, 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={p.posts?.length ? p.posts : p.sharers} accent={pal.accent} sharedTotal={p.sharerCount} />)}</div>}
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
         );

@@ -38,7 +38,7 @@ test("web and native remove labels orphaned by t.co cleanup", () => {
 });
 
 test("podcast stories expose a play icon before their listen action", () => {
-  assert.match(webHero, /label={`Listen @/);
+  assert.match(webHero, /label="Listen to the clip"/);
   assert.match(webAudio, /controlLabel/);
   assert.match(webAudio, /aria-label={`\$\{playing \? "Pause" : "Play"\}/);
   assert.match(nativeHero, /name="play\.circle\.fill"/);
