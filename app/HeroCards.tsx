@@ -70,7 +70,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               )}
               {c.kind === "paper" && ev?.abstract && (
                 <details className="readout-hero-abstract" style={{ color: accent }}>
-                  <summary>Read abstract <span aria-hidden>↓</span></summary>
+                  <summary aria-label={`Read abstract for ${c.headline}`}>Read abstract <span aria-hidden>↓</span></summary>
                   <p>{ev.abstract}</p>
                 </details>
               )}
@@ -97,13 +97,14 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                 {ev && c.kind !== "episode" && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={drawerId}
+                    aria-label={`${openId === c.id ? "Hide" : "Show"} conversation and evidence for ${c.headline}`}
                     data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`} data-brief-label={c.headline}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                     {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}
                   </button>
                 )}
                 {shareUrlOf && (
-                  <button onClick={() => shareCard(c)} aria-label="Share this story" title="Share"
+                  <button onClick={() => shareCard(c)} aria-label={`Share ${c.headline}`} title="Share"
                     data-brief-event="story_share" data-brief-story={c.id} data-brief-label={c.headline}
                     style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 11.5px system-ui", color: shared === c.id ? accent : ink.softer, width: 44, height: 44 }}>
                     {shared === c.id ? "Copied" : (
@@ -123,6 +124,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               {ev && c.kind === "episode" && (
                 <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                   aria-expanded={openId === c.id} aria-controls={drawerId}
+                  aria-label={`${openId === c.id ? "Hide" : "Show"} conversation and evidence for ${c.headline}`}
                   data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode" data-brief-label={c.headline}
                   style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
                   {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}

@@ -225,7 +225,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
           <span style={{ font: "600 13px system-ui", color: "var(--rv-ink, #eef1f8)" }}>{authorName}</span> {authorHandle && <span style={{ font: "400 11.5px system-ui", color: MUT }}>@{authorHandle.replace(/^@/, "")}</span>}
           {rtOf && <div style={{ font: "400 11.5px system-ui", color: MUT, marginTop: 1 }}>Reposted by <span style={{ color: "var(--rv-muted, rgba(255,255,255,.62))" }}>{t.name}{t.handle ? ` @${t.handle.replace(/^@/, "")}` : ""}</span></div>}
         </div>
-        {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
+        {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#a93658" }}>♥ {t.likes}</span>}
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
       {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: MUT }}>{t.receiptNote}</div>}
@@ -344,7 +344,7 @@ function AmplifiedAnnouncementReceipt({ amplifier, announcement, accent }: { amp
           {amplifierHandle ? <span style={{ font: "400 11.5px system-ui", color: MUT }}> @{amplifierHandle}</span> : null}
           <div style={{ marginTop: 1, font: "400 11.5px system-ui", color: MUT }}>{amplifier.isQuote ? "quoted this post" : "reposted this post"}</div>
         </div>
-        {amplifier.isQuote && amplifier.likes > 0 ? <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {amplifier.likes}</span> : null}
+        {amplifier.isQuote && amplifier.likes > 0 ? <span style={{ font: "600 11px system-ui", color: "#a93658" }}>♥ {amplifier.likes}</span> : null}
       </div>
       {amplifierText && (amplifier.tweetUrl ? <a href={amplifier.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", textDecoration: "none" }}>{amplifierText}</a> : <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere" }}>{amplifierText}</p>)}
       {announcement.tweetUrl ? <a href={announcement.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{original}</a> : original}
@@ -406,7 +406,7 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 5, alignItems: "center" }}>
         {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
-        {hasPosts && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "See all sources ↓"}</button>}
+        {hasPosts && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "var(--rv-muted, rgba(255,255,255,.55))", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
@@ -647,7 +647,9 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const hasPublisherPosts = !!paper.publisherPosts?.length;
   const hasOtherPosts = !!paper.otherPosts?.length;
   const hasPublisherNames = paper.publishers.length > 0;
-  const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames || !!paper.url;
+  const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
+  const revealableClinicians = paper.revealableClinicianCount ?? null;
+  const sourcesTruncated = revealableClinicians != null && paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
 
   return (
@@ -663,7 +665,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
         <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none" }}>{cleanArticleTitle(paper.title)}</a>
         <div className="rv-paper-meta" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
           {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
-          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</span>}
+          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}{sourcesTruncated ? ` · ${revealableClinicians} shown in sources` : ""}</span>}
         </div>
         <div className="rv-paper-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0 14px", marginTop: 5 }}>
           {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
@@ -677,7 +679,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
             {hasSources && (
               <button type="button" aria-expanded={open} aria-controls={sourceId} onClick={onToggle} data-brief-event="source_open" data-brief-open={open} data-brief-target="list" className="rv-text-action"
                 style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
-                {open ? "Hide sources ↑" : "See all sources ↓"}
+                {open ? "Hide sources ↑" : sourcesTruncated ? `View sources · ${revealableClinicians} of ${paper.kolSharers} ↓` : "Sources ↓"}
               </button>
             )}
           </span>
@@ -749,6 +751,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   };
   const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") { event.preventDefault(); closeMenu(); return; }
+    if (event.key === "Tab") { requestAnimationFrame(() => closeMenu(false)); return; }
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
     if (!items.length) return;
@@ -830,6 +833,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <>
             <div onClick={() => closeMenu()} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
             <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={handleMenuKeyDown}
+              onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeMenu(false); }}
               style={{ position: "absolute", top: "calc(100% + 7px)", ...(menuSide === "right" ? { right: 0 } : { left: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
               <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--rv-muted-2, rgba(255,255,255,.4))", padding: "6px 11px 8px" }}>Tumor area</div>
               {areas.map((a) => {
@@ -883,8 +887,12 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // sticky section nav — jump-links + scroll-spy. On the wide layout the rail sections
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const carriedKols = [...data.topKols]
-    .filter((k) => (k.amp ?? 0) > 0)
-    .sort((a, b) => Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false) || (b.amp ?? 0) - (a.amp ?? 0) || b.tweets - a.tweets || b.peakLikes - a.peakLikes);
+    .filter((k) => k.referenceKol === true || (k.amp ?? 0) > 0)
+    .sort((a, b) => Number(b.referenceKol === true) - Number(a.referenceKol === true)
+      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
+      || (b.amp ?? 0) - (a.amp ?? 0)
+      || b.tweets - a.tweets
+      || b.peakLikes - a.peakLikes);
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
@@ -1046,7 +1054,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // surrounding row supplies the 44px+ target. No nested pill inside an already-clickable row.
   const SignalTag = ({ id, style }: { id: string; style?: React.CSSProperties }) => (
     <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 12.5px system-ui", color: pal.accent, padding: "0 2px", whiteSpace: "nowrap", ...style }}>
-      {openId === id ? "Hide sources ↑" : "See all sources ↓"}
+      {openId === id ? "Hide sources ↑" : "Sources ↓"}
     </span>
   );
 
@@ -1404,7 +1412,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   <span style={{ flex: 1, minWidth: 0, font: "500 12.5px system-ui", color: "var(--rv-muted, rgba(233,237,246,.7))" }}>
                     {amplifiers.length === 1 ? `Amplified by ${amplifiers[0].name}` : amplifiers.length > 1 ? `Amplified by ${amplifiers.length} clinicians` : `From ${announcements[0]?.name ?? "the show"} on X`}
                   </span>
-                  <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "See all sources ↓"}</span>
+                  <span data-disclosure style={{ color: pal.accent, font: "600 12.5px system-ui", whiteSpace: "nowrap" }}>{ampOpen ? "Hide sources ↑" : "Sources ↓"}</span>
                 </button>
                 {ampOpen && <div id={drawerId} className="rv-drawer" style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--rv-line, rgba(255,255,255,.08))" }}><EpisodeXReceipts announcements={announcements} amplifiers={amplifiers} accent={pal.accent} /></div>}
               </div>

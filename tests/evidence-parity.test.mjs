@@ -10,6 +10,7 @@ const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx")
 const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections.tsx"), "utf8");
 const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
 const nativeDaily = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
+const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/StoryEvidence.tsx"), "utf8");
 
 test("Daily evidence expands honestly and renders every factual source", () => {
   for (const source of [webDaily, nativeDaily]) {
@@ -37,13 +38,27 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(nativeCards, /isNewsItem\(\{ peerReviewed, journal, domain \}\)/);
   assert.match(nativeSections, /hasPublisherNames/);
   assert.match(nativeSections, /Open article ↗/);
+  assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);
+  assert.doesNotMatch(nativeSections, /hasSources = [^\n]+\|\| !!a\.url/);
+  assert.doesNotMatch(nativeStoryEvidence, /publishers=\{p\.publishers\}/);
+  assert.match(webReader, /shown in sources/);
+  assert.match(nativeSections, /shown in sources/);
   assert.doesNotMatch(nativeSections, /\{i \+ 1\}/);
 });
 
 test("Daily email includes exact retained physician receipts and factual links", () => {
   assert.match(dailyMail, /Physician conversation/);
   assert.match(dailyMail, /reaction\.fullText\?\.trim\(\) \|\| reaction\.text/);
-  assert.match(dailyMail, /\.slice\(0, 2\)/);
+  assert.match(dailyMail, /partitionDailyReactions/);
+  assert.match(dailyMail, /Across oncology/);
+  assert.doesNotMatch(dailyMail, /\}\)\.slice\(0, 2\)/);
   assert.match(dailyMail, /story\.sources/);
   assert.match(dailyMail, /reaction\.url/);
+});
+
+test("reference experts survive client filtering and retain priority", () => {
+  for (const source of [webReader, nativeDaily]) {
+    assert.match(source, /referenceKol === true \|\| \(k\.amp \?\? 0\) > 0/);
+    assert.match(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
+  }
 });

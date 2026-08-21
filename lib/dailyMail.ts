@@ -12,6 +12,7 @@
 // - Buttons/masthead/chips go through the recipient's magic link so one click signs them in.
 
 import type { DailyParagraph, DailyReadout } from "@/lib/types";
+import { partitionDailyReactions } from "@/app/dailyEvidence";
 
 const RESEND_KEY = process.env.RESEND_API_KEY ?? "";
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "";
@@ -118,17 +119,20 @@ export function renderDailyEmail(opts: {
     const wanted = new Set(p.storyIds ?? []);
     if (!wanted.size) return "";
     const stories = (daily.payload.conversationStories ?? []).filter((story) => wanted.has(story.id));
-    const reactions = stories.flatMap((story) => story.reactions).filter((reaction) => {
-      if (isAll) return true;
-      if (!reaction.areas.includes(area!)) return false;
-      return !reaction.sourceAreas?.length || reaction.sourceAreas.includes(area!);
-    }).sort((a, b) => b.likes - a.likes);
+    const allReactions = stories.flatMap((story) => story.reactions);
+    const partitioned = isAll
+      ? { local: allReactions, across: [] as typeof allReactions }
+      : partitionDailyReactions(allReactions, stories.flatMap((story) => story.areas), area!);
+    const local = [...partitioned.local].sort((a, b) => b.likes - a.likes);
+    const across = [...partitioned.across].sort((a, b) => b.likes - a.likes);
+    const reactions = [...local, ...across];
+    const acrossPostIds = new Set(across.map((reaction) => reaction.postId));
     const seenPosts = new Set<string>();
     const receipts = reactions.filter((reaction) => {
       if (seenPosts.has(reaction.postId)) return false;
       seenPosts.add(reaction.postId);
       return true;
-    }).slice(0, 2);
+    });
     const seenUrls = new Set<string>();
     const sources = stories.flatMap((story) => [story.anchor, ...(story.sources ?? [])]).filter((source) => {
       if (!source.url || seenUrls.has(source.url)) return false;
@@ -139,7 +143,7 @@ export function renderDailyEmail(opts: {
     const receiptHtml = receipts.map((reaction) => {
       const text = reaction.fullText?.trim() || reaction.text;
       return `<div style="margin:8px 0 0;padding:8px 0 0 10px;border-left:2px solid ${accent};font-family:${SANS}">
-        <a href="${esc(reaction.url)}" style="font-size:11.5px;font-weight:700;color:${INK};text-decoration:none">${esc(reaction.name)} <span style="font-weight:500;color:${MUT}">@${esc(reaction.handle)}</span></a>
+        <a href="${esc(reaction.url)}" style="font-size:11.5px;font-weight:700;color:${INK};text-decoration:none">${esc(reaction.name)} <span style="font-weight:500;color:${MUT}">@${esc(reaction.handle)}</span></a>${acrossPostIds.has(reaction.postId) ? ` <span style="font-size:9px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:.06em">Across oncology</span>` : ""}
         <div style="font-family:Georgia,serif;font-size:13px;line-height:1.55;color:${INK2};margin-top:3px">${esc(text)}</div>
       </div>`;
     }).join("");

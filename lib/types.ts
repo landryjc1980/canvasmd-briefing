@@ -601,6 +601,7 @@ export type BriefingKol = {
   peakLikes: number;
   amp?: number; // reposts + quote-posts earned across ALL their window posts (Voices ranking); absent on pre-2026-07-24 snapshots
   paperShares?: number; // distinct papers they shared this window
+  referenceKol?: boolean; // curated specialty reference expert; preserves server ordering
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
   articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[]; // articles they shared
   specialtyLocal?: boolean; // false = relevant content from a physician outside this specialty
@@ -621,6 +622,7 @@ export type BriefingArticle = {
   faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
+  revealableClinicianCount?: number; // identities represented by serialized clinician receipts
   peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
   subAreas?: string[];
   congress?: boolean;

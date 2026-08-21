@@ -101,7 +101,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
           {t.avatar ? <img src={t.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(t.name)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: "600 13px system-ui", color: "#eef1f8" }}>{t.name}</span> {t.handle && <span style={{ font: "400 11.5px system-ui", color: "#7c7f88" }}>@{t.handle}</span>}</div>
-        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
+        {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#a93658" }}>♥ {t.likes}</span>}
       </div>
       {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
       {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: "#9da0aa" }}>{t.receiptNote}</div>}
@@ -112,12 +112,15 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; peerReviewed?: boolean }) {
-  const [open, setOpen] = useState(false);
+function PaperCard({ title, journal, domain, meta, url, abstract, posts, publisherPosts, otherPosts, publishers, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; publishers?: string[]; accent?: string; peerReviewed?: boolean }) {
+  const [abstractOpen, setAbstractOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
   const hasPosts = !!(posts && posts.length);
-  const canExpand = hasAbs || hasPosts;
-  const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
+  const hasPublisherPosts = !!publisherPosts?.length;
+  const hasOtherPosts = !!otherPosts?.length;
+  const hasPublisherNames = !!publishers?.length;
+  const hasSources = hasPosts || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
@@ -129,13 +132,19 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent,
         <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[src, meta].filter(Boolean).join(" · ")}</span>
         {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
       </div>}
-      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
-      {open && hasPosts && <div style={{ marginTop: 12 }}>
+      {abstractOpen && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
+      {sourcesOpen && hasSources && <div style={{ marginTop: 12 }}>
+        {hasPosts && <>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "#9aa0ac", marginBottom: 9 }}>On X · physician posts</div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
+        </>}
+        {hasPublisherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts ? 12 : 0 }}>From publishers &amp; journals</div>{publisherPosts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}</>}
+        {hasOtherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasPublisherPosts ? 12 : 0 }}>Additional posts on X</div>{otherPosts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}</>}
+        {hasPublisherNames && !hasPublisherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasOtherPosts ? 12 : 0 }}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "#9da0aa" }}>Shared by: {publishers!.join(" · ")}</div></>}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
-        {canExpand && <button onClick={() => setOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{toggleLabel}</button>}
+        {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
+        {hasSources && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
@@ -145,7 +154,9 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent,
 function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <div onClick={onToggle} style={{ cursor: "pointer" }}>{head}</div>
+      <div role="button" tabIndex={0} aria-expanded={open} onClick={onToggle}
+        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onToggle(); } }}
+        style={{ cursor: "pointer" }}>{head}</div>
       {open && <div style={{ margin: "0 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>}
     </div>
   );
@@ -210,11 +221,18 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
     } catch { setShareMsg("Couldn't create a link"); setTimeout(() => setShareMsg(""), 3000); }
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
+  const carriedKols = [...data.topKols]
+    .filter((k) => k.referenceKol === true || (k.amp ?? 0) > 0)
+    .sort((a, b) => Number(b.referenceKol === true) - Number(a.referenceKol === true)
+      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
+      || (b.amp ?? 0) - (a.amp ?? 0)
+      || b.tweets - a.tweets
+      || b.peakLikes - a.peakLikes);
   // sticky section nav — jump-links + scroll-spy (desktop scroll is one long column; mobile
   // has the pill deck, so this brings parity). Sections match the mobile chapters.
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
-    { id: "sec-kols", label: "KOLs", on: !!(data.guests?.length || data.topKols.length) },
+    { id: "sec-kols", label: "KOLs", on: !!(data.guests?.length || carriedKols.length) },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.length },
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
@@ -446,9 +464,9 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
         </>}
 
         {/* KOLs */}
-        {data.topKols.length > 0 && <>
+        {carriedKols.length > 0 && <>
           <SectionHead id={data.guests?.length ? undefined : "sec-kols"}>Most active on X</SectionHead>
-          <Capped items={data.topKols} cap={6} accent={pal.accent} render={(k, i) => {
+          <Capped items={carriedKols} cap={6} accent={pal.accent} render={(k, i) => {
             const id = "k:" + i;
             return (
               <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
@@ -492,30 +510,11 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
             const id = "p:" + i;
             return (
-              <Row key={id} open={openId === id} onToggle={() => toggle(id)} accent={pal.accent}
-                head={
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 15, padding: "16px 2px" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{cleanArticleTitle(a.title)}</div>
-                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 5 }}>
-                        <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[articleSource(a.journal, a.domain), a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}</span>
-                        {isNewsItem(a) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
-                      </div>
-                    </div>
-                    <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 9 }}>
-                      {a.faces.length > 0 && <FacePile faces={a.faces} extra={a.kolSharers - a.faces.length} ring={pal.bg} />}
-                      <span style={{ font: "600 11.5px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{tog(id)}</span>
-                    </div>
-                  </div>
-                }>
-                {a.abstract && <p style={{ margin: 0, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "#b7bac3" }}>{a.abstract}</p>}
-                {a.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{a.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {(a.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{a.publisherPosts!.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {(a.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{a.otherPosts!.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {/* link to the source — also guarantees the expand is never empty (news items carry
-                    no abstract/posts, which previously made the last row look like it didn't open). */}
-                {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: pal.accent, textDecoration: "none" }}>Open article ↗</a>}
-              </Row>
+              <PaperCard title={a.title} journal={a.journal} domain={a.domain}
+                peerReviewed={a.peerReviewed}
+                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined}
+                url={a.url} abstract={a.abstract} posts={a.posts} publisherPosts={a.publisherPosts}
+                otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} />
             );
           }} />
         </>}

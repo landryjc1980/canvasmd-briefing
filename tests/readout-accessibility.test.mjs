@@ -4,6 +4,8 @@ import fs from "node:fs";
 
 const reader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const all = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+const hero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
+const flat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta.url), "utf8");
 const standaloneFiles = ["Masthead.tsx", "PostCard.tsx", "PublicCard.tsx"];
 const standalone = standaloneFiles.map((file) =>
   fs.readFileSync(new URL(`../app/r/[slug]/${file}`, import.meta.url), "utf8"),
@@ -23,14 +25,37 @@ test("web X receipts keep controls outside the outbound X link", () => {
   assert.match(reader, /<button type="button" onClick=\{\(\) => setShowOriginal/);
 });
 
+test("web like counts meet normal-text contrast", () => {
+  for (const source of [reader, flat]) {
+    assert.doesNotMatch(source, /#e08aa0/);
+    assert.match(source, /#a93658/);
+  }
+});
+
 test("web specialty menus expose keyboard popup semantics", () => {
   for (const source of [reader, all]) {
     assert.match(source, /<button ref=\{menuTriggerRef\} type="button" aria-haspopup="menu"/);
     assert.match(source, /ref=\{menuRef\} role="menu" aria-label="Tumor area"/);
     assert.match(source, /event\.key === "Escape"/);
     assert.match(source, /\["ArrowDown", "ArrowUp", "Home", "End"\]/);
+    assert.match(source, /event\.key === "Tab"/);
+    assert.match(source, /onBlur=\{\(event\) => \{ if \(!event\.currentTarget\.contains/);
     assert.match(source, /role="menuitem" tabIndex=\{on \? 0 : -1\}/);
     assert.match(source, /menuTriggerRef\.current\?\.focus\(\)/);
     assert.match(source, /querySelector<HTMLElement>\('\[aria-current="true"\]'\)/);
   }
+});
+
+test("hero controls include the story headline in accessible names", () => {
+  assert.match(hero, /aria-label=\{`Read abstract for \$\{c\.headline\}`\}/);
+  assert.match(hero, /conversation and evidence for \$\{c\.headline\}/);
+  assert.match(hero, /aria-label=\{`Share \$\{c\.headline\}`\}/);
+});
+
+test("flat fallback accordions are keyboard operable and separate paper disclosures", () => {
+  assert.match(flat, /role="button" tabIndex=\{0\} aria-expanded=\{open\}/);
+  assert.match(flat, /event\.key === "Enter" \|\| event\.key === " "/);
+  assert.match(flat, /const \[abstractOpen, setAbstractOpen\]/);
+  assert.match(flat, /const \[sourcesOpen, setSourcesOpen\]/);
+  assert.match(flat, /\{sourcesOpen \? "Hide sources ↑" : "Sources ↓"\}/);
 });
