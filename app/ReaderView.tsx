@@ -191,7 +191,7 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       </div>
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)" }}>{cleanSnippet(p.gloss)}</p>
       {p.audioUrl
-        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} durationSeconds={p.durationSeconds} label="Listen to the clip" accent={accent} tone="dark" />
+        ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} durationSeconds={p.durationSeconds} label="Listen to the clip" eventId={p.episodeId} eventLabel={p.episodeTitle} accent={accent} tone="dark" />
         : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
     </div>
   );

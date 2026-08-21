@@ -198,7 +198,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
   // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
   // MAX across areas (each area scopes to its own posts — summing would double-count).
-  type EpRec = { title: string; audioUrl: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null };
+  type EpRec = { title: string; audioUrl: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; episodeId?: string | null };
   type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number };
   // mirror the server's guestKey: strip numbered-episode prefixes so the same syndicated talk
   // ("Ep. 12: X" on one feed, "X" on another) can't double-count across areas
@@ -218,7 +218,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     m.career = Math.max(m.career, g.career);
     if (role === "host") m.hostShow = m.hostShow ?? g.shows[0] ?? null;
     const eps = role === "host" ? m.hostEps : m.guestEps;
-    for (const e of g.episodes) eps.set(epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt });
+    for (const e of g.episodes) eps.set(epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt, episodeId: e.episodeId });
   };
   for (const a of AREAS) {
     for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");
@@ -486,7 +486,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                       {e.show && <div style={{ font: "400 11px system-ui", color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{e.show}</div>}
                     </div>
                   </div>
-                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} durationSeconds={e.durationSeconds} label="Listen to the episode" accent={accentOf(m.areas[0] ?? "GU")} />}
+                  {e.audioUrl && <AudioQuote audioUrl={e.audioUrl} startMs={0} durationSeconds={e.durationSeconds} label="Listen to the episode" eventId={e.episodeId ?? null} eventLabel={e.title} accent={accentOf(m.areas[0] ?? "GU")} />}
                 </div>
               ))}
             </div>
