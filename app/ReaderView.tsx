@@ -1179,7 +1179,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: DAILY_MUTED }}>Quiet in {area} for this edition — from the frontier:</div>}
       {dailyOpen || !dailyLong ? (
         <>
-          {dailyLead && <p style={{ margin: "10px 0 0", font: "500 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}
+          {dailyLead && <p style={{ margin: "10px 0 0", font: "700 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}
           {areaDailyParas.map((p, i) => dailyPara(p, i, i + 1))}
           {genDailyParas.length > 0 && (
             <>
@@ -1190,7 +1190,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         </>
       ) : (
         <>
-          {dailyLead && <p style={{ margin: "10px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{stripEmph(dailyLead)}</p>}
+          {dailyLead && <p style={{ margin: "10px 0 0", font: "700 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{stripEmph(dailyLead)}</p>}
           <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
             {areaDailyParas.slice(0, 3).map((p, i) => (
               <div key={i} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", font: "600 12.5px/1.45 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>

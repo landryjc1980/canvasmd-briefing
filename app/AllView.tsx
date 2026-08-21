@@ -785,7 +785,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               // narrative paragraph (the lead is optional prose and drops on any violation).
               const teaser = daily.lead ?? (stripEmph((daily.payload.narrative ?? [])[0]?.text ?? "") || null);
               if (!teaser || (dailyOpen && !daily.lead)) return null; // expanded w/o lead: paragraphs alone, no duplicate
-              return <p style={{ margin: "12px 0 4px", font: "500 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{dailyOpen ? daily.lead : teaser}</p>;
+              return <p style={{ margin: "12px 0 4px", font: "700 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{dailyOpen ? daily.lead : teaser}</p>;
             })()}
             {dailyOpen && (daily.payload.narrative ?? []).length ? (
               <div style={{ marginTop: 6 }}>

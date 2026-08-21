@@ -34,3 +34,8 @@ test("collapsed specialty Daily keeps its story headlines visible", () => {
   assert.match(reader, /areaDailyParas\.slice\(0, 3\)/);
   assert.match(reader, /stripEmph\(p\.head \?\? p\.text\)/);
 });
+
+test("Daily leads stay bold before and after expansion", () => {
+  assert.equal((reader.match(/font: "700 (?:14\.5|15\.5)px\/1\.(?:65|55) 'Newsreader'/g) ?? []).length, 2);
+  assert.match(all, /font: "700 17px\/1\.5 'Newsreader'/);
+});
