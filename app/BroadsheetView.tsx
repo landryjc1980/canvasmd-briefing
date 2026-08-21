@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BriefingData, BriefingMover, BriefingEvent, BriefingSharer, BriefingKol, BriefingArticle, BriefingTrial } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_META, SHAPE, Avatar, Chevron, kfmt, ago, clip, weekOf } from "./ui";
-import { podEpisodeCount, trialEvidenceLine } from "./briefVM";
+import { cleanTweetText, podEpisodeCount, trialEvidenceLine } from "./briefVM";
 
 const prettyPhase = (p: string | null): string => {
   if (!p) return "";
@@ -46,8 +46,9 @@ function EventRail({ events, area }: { events: BriefingEvent[]; area: string }) 
 // One KOL tweet — the actual take, with expandable full text (no truncation loss).
 function XTake({ s }: { s: BriefingSharer }) {
   const [open, setOpen] = useState(false);
-  const long = (s.text?.length ?? 0) > 240;
-  const body = s.text ? (open || !long ? s.text : s.text.slice(0, 240).trimEnd() + "…") : null;
+  const cleaned = cleanTweetText(s.text);
+  const long = cleaned.length > 240;
+  const body = cleaned ? (open || !long ? cleaned : cleaned.slice(0, 240).trimEnd() + "…") : null;
   return (
     <div className="dtweet">
       <div className="dtweet-top">

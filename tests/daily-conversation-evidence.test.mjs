@@ -12,6 +12,7 @@ test("web Daily renders exact, specialty-scoped physician evidence", () => {
   assert.match(evidence, /Across oncology/);
   assert.match(evidence, /<blockquote/);
   assert.match(evidence, /reaction\.text/);
+  assert.match(evidence, /cleanTweetText\(reaction\.fullText\?\.trim\(\) \|\| reaction\.text\)/);
   assert.match(reader, /<DailyConversationEvidence[^>]+area=\{area\}/);
   assert.match(all, /<DailyConversationEvidence/);
 });

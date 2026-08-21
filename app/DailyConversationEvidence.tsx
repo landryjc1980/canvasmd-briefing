@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DailyConversationStory } from "@/lib/types";
 import { partitionDailyReactions } from "./dailyEvidence";
+import { cleanTweetText } from "./briefVM";
 
 function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
   reaction: DailyConversationStory["reactions"][number];
@@ -13,7 +14,7 @@ function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
   line: string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const completeText = reaction.fullText?.trim() || reaction.text;
+  const completeText = cleanTweetText(reaction.fullText?.trim() || reaction.text);
   const knownTruncated = !reaction.fullText?.trim() && (reaction.textTruncated === true || /…\s*$/.test(reaction.text));
   const previewLimit = 360;
   const canExpand = completeText.length > previewLimit;
