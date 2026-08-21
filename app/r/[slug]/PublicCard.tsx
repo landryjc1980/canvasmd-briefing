@@ -4,7 +4,7 @@
 // classes from brief.css, so the masthead, type scale, and card language are byte-identical to
 // briefing.canvasmd.io. Below the story it shows a GLIMPSE of what the gate holds: the sourced
 // count line, an anonymous facepile, a redacted conversation block, and an inventory of what's
-// inside — then what else is in this week's edition.
+// inside — then what else is in the current 14-day edition.
 //
 // SAFETY BOUNDARY: this component receives ONLY the whitelisted primitives assembled in page.tsx
 // (headline, source label, templated teaser, non-verbatim excerpt, count strings, other
@@ -51,7 +51,7 @@ export default function PublicCard({ v, signInHref }: { v: PublicViewData; signI
         .rpub-bar{height:9px;border-radius:3px;background:${SURFACE}}
       ` }} />
       <div className="rpub-frame">
-        <Masthead accent={accent} areaFull={v.areaFull} href="/" note="What oncology is reading, discussing, and citing this week" />
+        <Masthead accent={accent} areaFull={v.areaFull} href="/" note="What oncology is reading, discussing, and citing recently" />
 
         {/* THE STORY — the site's own hero-card language (classes from brief.css) */}
         <article className="readout-hero-card is-lead">
@@ -112,7 +112,7 @@ export default function PublicCard({ v, signInHref }: { v: PublicViewData; signI
         {v.also.length > 0 && (
           <div className="rpub-also" style={{ marginTop: 34 }}>
             <div style={{ font: "700 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, marginBottom: 4 }}>
-              Also in this week&rsquo;s {v.areaFull} edition
+              Also in this {v.areaFull} 14-day edition
             </div>
             {v.also.map((a, i) => (
               <a key={i} href={a.href}>

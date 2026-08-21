@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logSignal } from "@/app/gateClient";
+import { clipSecond } from "@/app/briefVM";
 
 function fmt(sec: number): string {
   if (!isFinite(sec) || sec < 0) sec = 0;
@@ -40,7 +41,7 @@ export default function AudioQuote({
   tone?: "light" | "dark"; // "dark" = translucent chrome for use on a dark card
 }) {
   const ref = useRef<HTMLAudioElement>(null);
-  const atSec = startMs != null ? Math.max(0, Math.floor(startMs / 1000)) : 0;
+  const atSec = clipSecond(startMs);
   const hasSeek = startMs != null && atSec > 0;
   const src = hasSeek ? `${audioUrl}#t=${atSec}` : audioUrl;
 

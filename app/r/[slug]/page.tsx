@@ -13,10 +13,13 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cookies } from "next/headers";
+import type { BriefingSharer } from "@/lib/types";
 import { idFromSlug, heroSlugFor } from "@/lib/postId";
 import { resolveHeroPost, isPublicSafeCard, publicTitleOf, type HeroPost } from "@/app/heroPost";
-import { resolveHeroEvidence } from "@/app/heroEvidence";
+import { representedClinicianCount, resolveHeroEvidence } from "@/app/heroEvidence";
+import { evidenceBackedHeroWhy } from "@/app/clientEvidence";
 import { readSession, SESSION_COOKIE } from "@/lib/gate";
+import { activeContactId } from "@/lib/gateServer";
 import PostCard from "./PostCard";
 import PublicCard, { type PublicViewData } from "./PublicCard";
 import "@/app/briefing.css";
@@ -70,8 +73,10 @@ export default async function PostPage({ params }: { params: { slug: string } })
   const canonical = heroSlugFor(post.card.kind, post.card.headline, post.card.id);
   if (params.slug !== canonical) permanentRedirect(`/r/${canonical}`);
 
-  // Session decides depth. This page is NOT gated by middleware, so it reads the cookie itself.
-  const contactId = await readSession(cookies().get(SESSION_COOKIE)?.value);
+  // Session decides depth. Share pages stay public, so independently re-check current contact
+  // status before exposing member evidence even when the signed cookie has not expired.
+  const signedContactId = await readSession(cookies().get(SESSION_COOKIE)?.value);
+  const contactId = await activeContactId(signedContactId);
   const { card, brief, area } = post;
   const accent = accentOf(area);
   const memberHome = `/?area=${area}`;
@@ -96,8 +101,9 @@ export default async function PostPage({ params }: { params: { slug: string } })
   if (ev) {
     faceCount = Math.min(4, ev.faces.length);
     if (ev.kind === "paper" || ev.kind === "article" || ev.kind === "event") {
-      const clinicians = ev.kind === "paper" ? ((ev.story as { posts?: unknown[] }).posts ?? []).length : ev.posts.length;
-      if (clinicians) inside.push(plural(clinicians, "clinician post", "clinician posts"));
+      const clinicianPosts = ev.kind === "paper" ? ((ev.story as { posts?: BriefingSharer[] }).posts ?? []) : ev.posts;
+      const clinicians = representedClinicianCount(clinicianPosts);
+      if (clinicians) inside.push(plural(clinicians, "clinician receipt", "clinician receipts"));
       if (ev.publisherPosts.length) inside.push(plural(ev.publisherPosts.length, "publisher post", "publisher posts"));
       if (ev.otherPosts.length) inside.push(plural(ev.otherPosts.length, "further post", "further posts"));
     } else if (ev.kind === "episode") {
@@ -127,7 +133,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
     sourceUrl: card.kind === "episode" || !safe ? null : card.url,
     teaser: publicTeaser(post),
     excerpt: safeExcerpt,
-    why: card.why ?? null, // counts only ("shared by 16 clinicians · 2 publishers") — audited, no names
+    why: evidenceBackedHeroWhy(card.why, !!ev),
     area,
     areaFull: AREA_LABELS[area] ?? area,
     accent,

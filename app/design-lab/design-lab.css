@@ -56,7 +56,8 @@
 .dl-live-link { color: #aebfe8; font: 600 12px system-ui; text-decoration: none; white-space: nowrap; padding: 8px 2px; }
 
 .dl-preview { min-height: calc(100vh - 58px); }
-.dl-preview.is-phone { width: min(430px, 100%); margin: 24px auto; min-height: 844px; box-shadow: 0 20px 70px rgba(0, 0, 0, .35); overflow: hidden; }
+.dl-preview.is-phone { width: min(390px, 100%); margin: 24px auto; min-height: 844px; box-shadow: 0 20px 70px rgba(0, 0, 0, .35); overflow: hidden; }
+.dl-preview.is-phone-320 { width: min(320px, 100%); }
 .dl-loading { min-height: 70vh; display: grid; place-items: center; color: #a8abb2; font-size: 14px; padding: 24px; text-align: center; }
 
 .dl-concept { min-height: 100vh; overflow: hidden; }
@@ -513,8 +514,8 @@
 .dl-next-intro > div { display: flex; align-items: center; gap: 22px; }
 .dl-next-intro span { font: 760 12px/1 system-ui; text-transform: uppercase; }
 .dl-next-intro i { height: 1px; flex: 1; background: #cfd1cc; }
-.dl-next-stories { margin-top: 36px; display: grid; gap: 20px; }
-.dl-next-story { padding: 28px 30px 24px; background: #fff; border: 1px solid #d7d8d3; border-radius: 6px; box-shadow: 0 8px 24px rgba(30, 36, 42, .045); }
+.dl-next-stories { min-width: 0; margin-top: 36px; display: grid; gap: 20px; }
+.dl-next-story { min-width: 0; max-width: 100%; box-sizing: border-box; padding: 28px 30px 24px; background: #fff; border: 1px solid #d7d8d3; border-radius: 6px; box-shadow: 0 8px 24px rgba(30, 36, 42, .045); }
 .dl-next-story.is-lead { border-top: 3px solid #0876a8; }
 .dl-next-story-source { display: flex; align-items: center; gap: 11px; }
 .dl-next-story-source > div { min-width: 0; display: flex; flex-direction: column; }
@@ -523,6 +524,7 @@
 .dl-next-story h2 { max-width: 850px; margin: 22px 0 0; font: 700 27px/1.16 Georgia, serif; }
 .dl-next-summary { max-width: 830px; margin: 18px 0 0; color: #50555c; font: 400 17px/1.55 Georgia, serif; }
 .dl-next-story .dl-abstract { margin-top: 18px; }
+.dl-next .dl-abstract > p { color: #55585d; }
 .dl-next-conversation-preview { margin-top: 24px; padding: 18px 0 0 18px; border-top: 1px solid #e0e1dd; border-left: 3px solid #2d9a83; }
 .dl-next-conversation-label { display: flex; align-items: center; gap: 10px; color: #287765; font: 760 10px/1 system-ui; text-transform: uppercase; }
 .dl-next-conversation-preview blockquote { max-width: 790px; margin: 14px 0 0; color: #373c42; font: 400 16px/1.5 Georgia, serif; }

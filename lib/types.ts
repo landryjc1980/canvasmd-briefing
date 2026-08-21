@@ -989,6 +989,7 @@ export type DailyReadout = {
   date: string;
   lead: string | null; // the ONLY model prose — digit-banned, validated server-side
   payload: { sections: { key: string; title: string; items: DailyItem[] }[]; narrative?: (DailyParagraph & { areas: string[] })[] | null;
+    coverage?: { label: string; scope: string; since: string; rollingReadoutDays: number };
     editions?: Record<string, { lead: string | null; paragraphs: DailyParagraph[] }> | null;
     conversationStories?: DailyConversationStory[] };
   generated_at?: string;

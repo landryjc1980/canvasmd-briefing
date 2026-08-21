@@ -3,7 +3,7 @@
 // and missing-evidence cases. The resolver never re-selects.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pickConversationPreview, resolveHeroEvidence } from "../app/heroEvidence.ts";
+import { pickConversationPreview, resolveHeroEvidence, supportLinkGroups } from "../app/heroEvidence.ts";
 
 const pod = (episodeId, startMs, showArt = null) => ({ episodeId, startMs, showArt, gloss: "g", mentionCount: 2, episodeTitle: "t", show: "s", audioUrl: "a", publishedAt: "" });
 
@@ -73,6 +73,29 @@ test("paper receipts preserve exact supporting coverage without using it to reso
   const r = resolveHeroEvidence({ kind: "paper", anchorId: "u4", url: "u4", headline: "H", support: { clinicianPosts: [], publisherPosts: [], links: [link] } }, { topStories: [st], topArticles: [], movers: [] });
   assert.equal(r?.kind, "paper");
   assert.deepEqual(r.supportLinks, [link]);
+});
+
+test("paper receipts merge and deduplicate legacy rows with card support", () => {
+  const clinician = { name: "Dr C", handle: "doctor", avatar: "c.jpg", tweetUrl: "https://x.com/doctor/status/1", text: "Authored take", likes: 4 };
+  const supportClinician = { name: "Dr D", handle: "doctor_d", avatar: "d.jpg", tweetUrl: "https://x.com/doctor_d/status/2", text: "Supporting take", likes: 2 };
+  const publisher = { name: "Journal", handle: "journal", avatar: "p.jpg", tweetUrl: "https://x.com/journal/status/3", text: "Paper", likes: 3 };
+  const supportPublisher = { name: "Society", handle: "society", avatar: "s.jpg", tweetUrl: "https://x.com/society/status/4", text: "Context", likes: 1 };
+  const st = { kind: "paper", headline: "Merged", papers: [{ url: "u5" }], posts: [clinician], publisherPosts: [publisher] };
+  const card = { kind: "paper", anchorId: "u5", url: "u5", headline: "Merged", support: { clinicianPosts: [clinician, supportClinician], publisherPosts: [publisher, supportPublisher], otherPosts: [], links: [] } };
+  const r = resolveHeroEvidence(card, { topStories: [st], topArticles: [], movers: [] });
+  assert.equal(r?.kind, "paper");
+  assert.deepEqual(r.story.posts, [clinician, supportClinician]);
+  assert.deepEqual(r.publisherPosts, [publisher, supportPublisher]);
+  assert.deepEqual(r.faces, ["c.jpg", "d.jpg", "p.jpg", "s.jpg"]);
+});
+
+test("primary sources are deduplicated and partitioned from related coverage", () => {
+  const primary = { kind: "article", id: "p1", title: "Primary", url: "https://example.com/primary", sourceLabel: "Sponsor", relationshipType: "primary_source", occurredAt: null };
+  const related = { kind: "article", id: "r1", title: "Coverage", url: "https://example.com/coverage", sourceLabel: "Journal", relationshipType: "reports_results", occurredAt: null };
+  assert.deepEqual(supportLinkGroups([primary, { ...primary, id: "duplicate" }, related]), {
+    primarySources: [primary],
+    relatedCoverage: [related],
+  });
 });
 
 test("event receipts resolve exact clinician, publisher, and coverage support", () => {

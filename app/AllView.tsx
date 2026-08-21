@@ -14,6 +14,7 @@ import HeroCards, { HeroEvidence } from "./HeroCards";
 import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 import DailyConversationEvidence from "./DailyConversationEvidence";
+import { distinctSourceAnchorCount } from "./clientEvidence";
 
 // "All oncology" — a front page that reads as ONE continuous scan: each area's authoritative
 // hero order, grouped by area and shown in its own color, never re-ranked across areas (their
@@ -122,25 +123,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const evidenceCount = (brief: BriefingData | undefined): number => {
     if (!brief) return 0;
     const hero = heroDeckOf(brief);
-    if (hero !== null) {
-      const receipts = new Set<string>();
-      for (const card of hero) {
-        receipts.add(`${card.kind}:${card.anchorId}`);
-        const resolved = resolveHeroEvidence(card, brief);
-        if (resolved?.kind === "paper") for (const post of [...((resolved.story as BriefingStory).posts ?? []), ...resolved.publisherPosts, ...resolved.otherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
-        if (resolved?.kind === "article") for (const post of [...resolved.posts, ...resolved.publisherPosts, ...resolved.otherPosts]) receipts.add(`x:${post.tweetUrl ?? `${post.handle}:${post.text}`}`);
-        if (resolved?.kind === "episode") for (const pod of resolved.pods) receipts.add(`clip:${pod.episodeId}:${pod.startMs ?? ""}`);
-        for (const amplifier of card.amplifiers ?? []) receipts.add(`amp:${card.anchorId}:${amplifier.handle ?? amplifier.name}:${amplifier.text ?? "repost"}`);
-      }
-      return receipts.size;
-    }
-    const pods = new Set<string>(), tweets = new Set<string>(), papers = new Set<string>();
-    for (const s of storiesOf(brief)) {
-      for (const p of s.podcast) pods.add(p.episodeId + ":" + (p.startMs ?? ""));
-      for (const t of s.posts) tweets.add(t.tweetUrl ?? (t.handle ?? t.name) + ":" + (t.text ?? "").slice(0, 40));
-      for (const p of s.papers) papers.add(norm(p.title));
-    }
-    return pods.size + tweets.size + papers.size;
+    return hero !== null ? distinctSourceAnchorCount(hero) : distinctSourceAnchorCount(storiesOf(brief));
   };
   const activity = Object.fromEntries(AREAS.map((a) => [a, evidenceCount(briefsByArea[a])]));
   const orderedAreas = [...AREAS].sort((x, y) => activity[y] - activity[x] || AREAS.indexOf(x) - AREAS.indexOf(y));
@@ -240,7 +223,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     // host credit — and the visible numbers read as mis-sorted even though the rule is stated.
     .sort((x, y) => micValue(y) - micValue(x) || epCount(y) - epCount(x) || y.career - x.career || x.name.localeCompare(y.name));
 
-  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; referenceKol: boolean; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[] };
+  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[] };
   const xVoices = new Map<string, XEntry>();
   for (const a of AREAS) {
     for (const k of briefsByArea[a]?.topKols ?? []) {
@@ -251,12 +234,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       const amp = k.amp ?? k.posts.reduce((s, p) => s + (/^\s*RT @/.test(p.text ?? "") ? 0 : p.retweets + (p.quotes ?? 0)), 0);
       const key = k.handle ? k.handle.toLowerCase() : norm(k.name); if (!key) continue;
       let v = xVoices.get(key);
-      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [] as string[], amp: 0, tweets: 0, paperShares: 0, referenceKol: false, posts: [] as BriefingSharer[], articles: [] as XEntry["articles"] }; xVoices.set(key, v); }
+      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [] as string[], amp: 0, tweets: 0, paperShares: 0, posts: [] as BriefingSharer[], articles: [] as XEntry["articles"] }; xVoices.set(key, v); }
       if (!v.areas.includes(a)) v.areas.push(a);
       v.amp = Math.max(v.amp, amp);
       v.tweets = Math.max(v.tweets, k.tweets);
       v.paperShares = Math.max(v.paperShares, k.paperShares ?? k.articles.length);
-      v.referenceKol ||= k.referenceKol === true;
       const seen = new Set(v.posts.map((p) => p.tweetUrl ?? p.text ?? ""));
       for (const p of k.posts) { const pk = p.tweetUrl ?? p.text ?? ""; if (!seen.has(pk)) { v.posts.push(p); seen.add(pk); } }
       const seenA = new Set(v.articles.map((ar) => ar.url));
@@ -264,7 +246,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     }
   }
   const xRanked = [...xVoices.values()].filter((v) => v.amp > 0)
-    .sort((x, y) => y.amp - x.amp || y.tweets - x.tweets || Number(y.referenceKol) - Number(x.referenceKol));
+    .sort((x, y) => y.amp - x.amp || y.tweets - x.tweets);
   const micKeys = new Set(micsRanked.map((m) => m.key)); // for the "🎙 on mics" cross-reference
 
   // Two tracks on desktop ≥1180 — the SAME layout rule as the tumor pages (editorial column +
@@ -507,7 +489,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           v.posts.length ? `${v.posts.length} post${v.posts.length === 1 ? "" : "s"}` : null,
           v.articles.length ? `${v.articles.length} paper${v.articles.length === 1 ? "" : "s"}` : null,
         ].filter(Boolean).join(" · ");
-        const facts = v.amp ? `${v.amp.toLocaleString()} repost${v.amp === 1 ? "" : "s"}/quote${v.amp === 1 ? "" : "s"} earned` : "Activity this week";
+        const facts = v.amp ? `${v.amp.toLocaleString()} repost${v.amp === 1 ? "" : "s"}/quote${v.amp === 1 ? "" : "s"} earned` : "Recent activity";
         return voiceRow({
           id: "vx:" + v.key,
           name: v.name,
@@ -519,7 +501,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           count: `${visibleActivity || "View activity"} ↓`,
           children: (v.posts.length || v.articles.length) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their posts · this week</div>{v.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+              {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their recent posts</div>{v.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
               {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} peerReviewed={a2.peerReviewed} url={a2.url} accent={acc} />)}</div>}
             </div>
           ) : null,
@@ -528,7 +510,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {moreBtn(xRanked.length, X_CAP, xMore, () => setXMore((v) => !v))}
 
       <div style={{ font: "400 10.5px/1.6 system-ui", color: MUT2, marginTop: 16, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
-        Episode counts = this week&rsquo;s briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Ranked by guest appearances — hosting credits one per week; ties by lifetime appearances. Amplified = reposts + quote-posts earned on their own posts this week; cross-area voices show their busiest area&rsquo;s count. Every number shown is a plain count.
+        Episode counts = the current 14-day briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Ranked by guest appearances — hosting credits one per 14-day view; ties by lifetime appearances. Amplified = reposts + quote-posts earned on their own posts in the past 14 days; cross-area voices show their busiest area&rsquo;s count. Every number shown is a plain count.
       </div>
     </div>
   );
@@ -749,7 +731,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0 }}>The Readout</h1>
               {!compact && editionMenu}
             </div>
-            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}Busiest first</div>}
+            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}14-day view · Busiest first</div>}
             {/* On medium-width single-column desktop the Areas row still needs its own line; the
                 wide two-column layout moves it into the shared navigation band above. */}
             {!compact && <div style={{ marginTop: 13 }}>{areasRow(false)}</div>}
@@ -773,7 +755,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         </div>
         {!compact && <div aria-hidden style={{ height: 1, margin: "14px 0 12px", background: LINE }} />}
         {compact && <>
-          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}Busiest first</div>
+          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}14-day view · Busiest first</div>
           <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
         </>}
         {/* Section jumps stay sticky on compact and medium-width layouts. */}
@@ -794,7 +776,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           <section style={{ margin: "26px 0 6px", padding: "20px 22px 12px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
               <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
-              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}</span>
+              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}{daily.payload.coverage?.scope ? ` · ${daily.payload.coverage.scope.toLowerCase()}${daily.payload.coverage.rollingReadoutDays ? ` · source window ${daily.payload.coverage.rollingReadoutDays} days` : ""}` : ""}</span>
             </div>
             {/* Collapsed by default: the lead is the 3-line teaser (it IS the summary); expanding
                 reveals the narrative paragraphs. Sources stay behind their own <details>. */}
@@ -913,12 +895,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           </button>
                         )}
                         {heroDeck !== null && heroDeck.length === 0 && (
-                          <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>A quiet week — no source-anchored stories qualified.</div>
+                          <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>A quiet 14-day view — no source-anchored stories qualified.</div>
                         )}
                         {heroDeck === null && stories.map((s, i) => renderStory(s, i, a, acc))}
                       </>
                     ) : (
-                      <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet week in {full}. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
+                      <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet in this 14-day {full} view. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
                     )}
                   </div>
                 );
@@ -931,7 +913,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           const podcastsJsx = allEpisodes.length > 0 && (
             <section id="all-listen" style={{ marginTop: compact ? 46 : 54, scrollMarginTop: 100 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
-                <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>This week on the podcasts</h2>
+                <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Podcasts from the past 14 days</h2>
                 <span aria-hidden style={{ height: 1, flex: 1, background: LINE }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>

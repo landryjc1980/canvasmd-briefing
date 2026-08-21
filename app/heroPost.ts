@@ -33,7 +33,7 @@ export const AREA_LABELS: Record<string, string> = {
 // everyone else gets a neutral edition line. Anything that publishes a card must ask this first.
 export const isPublicSafeCard = (kind: string) => kind !== "thread";
 export const publicTitleOf = (kind: string, headline: string, area: string) =>
-  isPublicSafeCard(kind) ? headline : `A clinician post in this week's ${AREA_LABELS[area] ?? area} edition`;
+  isPublicSafeCard(kind) ? headline : `A clinician post in the current 14-day ${AREA_LABELS[area] ?? area} edition`;
 
 type SnapRow = { area: string; data: BriefingData; generated_at: string };
 

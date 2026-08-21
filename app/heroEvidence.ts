@@ -16,6 +16,66 @@ export function pickConversationPreview(...groups: (BriefingSharer[] | null | un
   return null;
 }
 
+const receiptKey = (post: BriefingSharer): string => {
+  const url = post.tweetUrl?.trim().toLowerCase();
+  if (url) return `url:${url}`;
+  const handle = post.handle?.replace(/^@/, "").trim().toLowerCase() ?? "";
+  const text = (post.textEn?.trim() || post.text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  return `post:${handle}:${text}`;
+};
+
+export function mergeReceiptPosts(...groups: (BriefingSharer[] | null | undefined)[]): BriefingSharer[] {
+  const seen = new Set<string>();
+  return groups.flatMap((group) => group ?? []).filter((post) => {
+    const key = receiptKey(post);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function representedClinicianCount(posts: BriefingSharer[] | null | undefined): number {
+  const identities = new Set<string>();
+  let count = 0;
+  const add = (person: { name?: string | null; handle?: string | null; tweetUrl?: string | null }) => {
+    const handle = person.handle?.replace(/^@/, "").trim().toLowerCase();
+    const name = person.name?.replace(/\s+/g, " ").trim().toLowerCase();
+    const url = person.tweetUrl?.trim().toLowerCase();
+    const aliases = [handle && `handle:${handle}`, name && `name:${name}`, url && `url:${url}`].filter((x): x is string => !!x);
+    if (!aliases.length) return;
+    if (!aliases.some((alias) => identities.has(alias))) count += 1;
+    aliases.forEach((alias) => identities.add(alias));
+  };
+  for (const post of posts ?? []) {
+    add(post);
+    for (const reposter of post.repostedBy ?? []) add(reposter);
+  }
+  return count;
+}
+
+export function supportLinkGroups(links: HeroSupportLink[] | null | undefined): {
+  primarySources: HeroSupportLink[];
+  relatedCoverage: HeroSupportLink[];
+} {
+  const seen = new Set<string>();
+  const unique = (links ?? []).filter((link) => {
+    const key = link.url?.trim().toLowerCase() || `${link.kind}:${link.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return {
+    primarySources: unique.filter((link) => link.relationshipType === "primary_source"),
+    relatedCoverage: unique.filter((link) => link.relationshipType !== "primary_source"),
+  };
+}
+
+const evidenceFaces = (...groups: (BriefingSharer[] | null | undefined)[]): string[] =>
+  mergeReceiptPosts(...groups).map((post) => post.avatar)
+    .filter((avatar): avatar is string => !!avatar)
+    .filter((avatar, index, all) => all.indexOf(avatar) === index)
+    .slice(0, 4);
+
 // Pure hero-card → receipts resolution (Codex: extracted and tested — exact paper, episode,
 // thread, missing-evidence, and publisher cases). Type-only imports keep this loadable under
 // node:test. Views map the resolved DATA to JSX; nothing here re-ranks or re-selects.
@@ -69,25 +129,27 @@ export function resolveHeroEvidence(
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
   if (c.kind === "development" && c.support) {
-    const posts = c.support.clinicianPosts;
-    const publisherPosts = c.support.publisherPosts;
-    const otherPosts = c.support.otherPosts ?? [];
-    const supportLinks = c.support.links;
+    const posts = mergeReceiptPosts(c.support.clinicianPosts);
+    const publisherPosts = mergeReceiptPosts(c.support.publisherPosts);
+    const otherPosts = mergeReceiptPosts(c.support.otherPosts);
+    const { primarySources, relatedCoverage } = supportLinkGroups(c.support.links);
+    const supportLinks = [...primarySources, ...relatedCoverage];
     if (!posts.length && !publisherPosts.length && !otherPosts.length && !supportLinks.length) return null;
-    const faces = [...posts, ...publisherPosts, ...otherPosts].map((post) => post.avatar)
-      .filter((avatar): avatar is string => !!avatar).filter((avatar, i, all) => all.indexOf(avatar) === i).slice(0, 4);
+    const faces = evidenceFaces(posts, publisherPosts, otherPosts);
     return { kind: "event", posts, publisherPosts, otherPosts, supportLinks, faces };
   }
   if (c.kind === "paper" || c.kind === "readout") {
-    // Publisher POSTS are receipts too (John: the drawer named publishers but never showed
-    // their tweet) — they live on the reading-list row, so look them up for BOTH join paths.
     const reading = (data.topArticles ?? []).find((x) => x.url === c.url);
-    const publisherPosts = reading?.publisherPosts ?? [];
-    const otherPosts = reading?.otherPosts ?? [];
     const st = (data.topStories ?? []).find((t) => t.kind === "paper" && (t.papers?.[0]?.url === c.url || t.headline === c.headline));
-    if (st) return { kind: "paper", story: st, faces: (st.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a).slice(0, 4), publisherPosts: st.publisherPosts ?? st.papers?.[0]?.publisherPosts ?? publisherPosts, otherPosts: st.otherPosts ?? st.papers?.[0]?.otherPosts ?? otherPosts, supportLinks: c.support?.links ?? [] };
+    const posts = mergeReceiptPosts(st?.posts, reading?.posts, c.support?.clinicianPosts);
+    const publisherPosts = mergeReceiptPosts(st?.publisherPosts, st?.papers?.[0]?.publisherPosts, reading?.publisherPosts, c.support?.publisherPosts);
+    const otherPosts = mergeReceiptPosts(st?.otherPosts, st?.papers?.[0]?.otherPosts, reading?.otherPosts, c.support?.otherPosts);
+    const { primarySources, relatedCoverage } = supportLinkGroups(c.support?.links);
+    const supportLinks = [...primarySources, ...relatedCoverage];
+    const faces = evidenceFaces(posts, publisherPosts, otherPosts);
+    if (st) return { kind: "paper", story: { ...st, posts }, faces, publisherPosts, otherPosts, supportLinks };
     const a = reading;
-    if (a) return { kind: "article", posts: a.posts ?? [], faces: a.faces ?? [], publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks: c.support?.links ?? [] };
+    if (a) return { kind: "article", posts, faces, publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks };
     return null;
   }
   if (c.kind === "episode") {
@@ -112,13 +174,13 @@ export function resolveHeroEvidence(
     return { kind: "thread", post, faces: post.avatar ? [post.avatar] : [] };
   }
   if (c.kind === "event" && c.support) {
-    const posts = c.support.clinicianPosts;
-    const publisherPosts = c.support.publisherPosts;
-    const otherPosts = c.support.otherPosts ?? [];
-    const supportLinks = c.support.links;
+    const posts = mergeReceiptPosts(c.support.clinicianPosts);
+    const publisherPosts = mergeReceiptPosts(c.support.publisherPosts);
+    const otherPosts = mergeReceiptPosts(c.support.otherPosts);
+    const { primarySources, relatedCoverage } = supportLinkGroups(c.support.links);
+    const supportLinks = [...primarySources, ...relatedCoverage];
     if (!posts.length && !publisherPosts.length && !otherPosts.length && !supportLinks.length) return null;
-    const faces = [...posts, ...publisherPosts, ...otherPosts].map((post) => post.avatar)
-      .filter((avatar): avatar is string => !!avatar).filter((avatar, i, all) => all.indexOf(avatar) === i).slice(0, 4);
+    const faces = evidenceFaces(posts, publisherPosts, otherPosts);
     return { kind: "event", posts, publisherPosts, otherPosts, supportLinks, faces };
   }
   return null;

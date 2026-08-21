@@ -3,6 +3,7 @@
 import { ReactNode, useState } from "react";
 import { HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
+import { evidenceBackedHeroWhy } from "@/app/clientEvidence";
 
 // The source-anchored hero (spec §10): one card = one proposition anchored to one source
 // object, answering the four reader questions — (1) why it surfaced, (2) what it is,
@@ -49,6 +50,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
       {cards.map((c, i) => {
         const lead = !compact && i === 0;
         const ev = evidenceOf?.(c) ?? null;
+        const why = evidenceBackedHeroWhy(c.why, !!ev);
         const drawerId = `${idPrefix ? `${idPrefix}-` : ""}hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
         return (
           <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : undefined}>
@@ -60,7 +62,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               </div>
               <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{c.sourceLabel}</div>
               <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
-                {c.url && c.kind !== "episode" ? <a href={c.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
+                {c.url && c.kind !== "episode" ? <a href={c.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
               </h3>
               {c.excerpt && (
                 <p className="hero-excerpt" style={{ font: compact ? "400 13.5px/1.5 system-ui" : undefined, color: ink.soft, margin: compact ? "8px 0 0" : undefined, ...(compact && openId !== c.id ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>
@@ -92,7 +94,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                     ))}
                   </div>
                 )}
-                <span style={{ font: "500 12.5px system-ui", color: ink.softer }}>{c.why}</span>
+                {why && <span style={{ font: "500 12.5px system-ui", color: ink.softer }}>{why}</span>}
                 {ev && c.kind !== "episode" && (
                   <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
                     aria-expanded={openId === c.id} aria-controls={drawerId}
@@ -133,7 +135,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               {!!c.siblings?.length && (
                 <div style={{ font: "400 12px system-ui", color: ink.softer, marginTop: 6 }}>
                   Related: {c.siblings.map((sb, j) => sb.url
-                    ? <a key={j} href={sb.url} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{sb.label}{j < c.siblings!.length - 1 ? " · " : ""}</a>
+                    ? <a key={j} href={sb.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "inherit" }}>{sb.label}{j < c.siblings!.length - 1 ? " · " : ""}</a>
                     : <span key={j}>{sb.label}{j < c.siblings!.length - 1 ? " · " : ""}</span>)}
                 </div>
               )}

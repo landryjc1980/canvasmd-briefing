@@ -3,6 +3,8 @@
 // design mocks expect, and holds the dark jewel-tone per-area palette.
 
 import type { BriefingMover, BriefingData, BriefingStory, BriefingPod, BriefingStance, BriefingTrial } from "@/lib/types";
+import { clipSecond } from "./clientEvidence";
+export { clipSecond, dailyAccentOf, DAILY_MUTED } from "./clientEvidence";
 
 // Dark jewel-tone palette, one color per tumor area (from the design handoff).
 export type Pal = { bg: string; accent: string; soft: string };
@@ -168,10 +170,10 @@ export function cleanTweetText(s: string | null | undefined): string {
 
 // "5:30" clip timestamp from a start offset in ms.
 export function clipTs(ms: number | null): string {
-  if (ms == null) return "0:00";
-  const s = Math.max(0, Math.round(ms / 1000));
+  const s = clipSecond(ms);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
+
 
 // Split the recap into a serif "lead" line + the remainder paragraph for the hero.
 export function heroSplit(recap: string | null): { lead: string; rest: string } {
@@ -215,7 +217,7 @@ export function storyMetricLine(s: BriefingStory): string {
     return trialEvidenceLine({
       pods: s.podcast ?? [], posts: s.posts ?? [], publisherPosts: s.publisherPosts,
       otherPosts: s.otherPosts, articles: s.papers ?? [],
-    }) || "discussed this week";
+    }) || "discussed recently";
   }
   // topic (legacy snapshots only) — "clinicians" (engaged = sharers ∪ commenters)
   return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} engaged`;

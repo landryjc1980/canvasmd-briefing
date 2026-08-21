@@ -26,7 +26,7 @@ import { stanceParts } from "./briefVM";
 // "mixed" count literally white-on-white). Colors mirror the NATIVE twin's correct port:
 // ink text, #087443 favorable, #b42318 skeptical. briefVM's UP/DOWN stay dark-theme tokens
 // for the surfaces that actually are dark.
-const S_INK = "#17181a", S_INK2 = "#4f5257", S_MUT = "#85878c", S_LINE = "#e2e2de";
+const S_INK = "#17181a", S_INK2 = "#4f5257", S_MUT = "#696c71", S_LINE = "#e2e2de";
 const S_UP = "#087443", S_DOWN = "#b42318";
 import { BriefingStance, BriefingStanceTake } from "@/lib/types";
 
@@ -61,7 +61,7 @@ function TakeRow({ t, accent }: { t: BriefingStanceTake; accent: string }) {
           <span style={{ color: vcol, fontWeight: 600 }}>{valenceLabel[t.valence] ?? t.valence}</span>
           <span aria-hidden>·</span>
           {t.url
-            ? <a href={t.url} target="_blank" rel="noopener noreferrer" onClick={stop} onKeyDown={stopKey} style={{ color: accent, textDecoration: "none" }}>{t.sourceLabel} ↗</a>
+            ? <a href={t.url} target="_blank" rel="noopener noreferrer" onClick={stop} onKeyDown={stopKey} style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: accent, textDecoration: "none" }}>{t.sourceLabel} ↗</a>
             : <span>{t.sourceLabel}</span>}
           {t.occurredAt && <><span aria-hidden>·</span><span>{shortDate(t.occurredAt)}</span></>}
           {t.practiceChanging && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: accent, border: `1px solid ${accent}55`, borderRadius: 4, padding: "1.5px 5px" }}>Practice-changing</span>}
@@ -132,7 +132,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
             <div style={{ font: "500 11px system-ui", color: S_MUT, marginTop: 6, marginLeft: leadVerbatim ? 18 : 0 }}>
               {leadVerbatim ? "" : "Paraphrased — "}
               {lead.url
-                ? <a href={lead.url} target="_blank" rel="noopener noreferrer" onClick={stop} onKeyDown={stopKey} style={{ color: accent, textDecoration: "none" }}>{lead.sourceLabel} ↗</a>
+                ? <a href={lead.url} target="_blank" rel="noopener noreferrer" onClick={stop} onKeyDown={stopKey} style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: accent, textDecoration: "none" }}>{lead.sourceLabel} ↗</a>
                 : <span>{lead.sourceLabel}</span>}
             </div>
           )}
@@ -143,7 +143,7 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
         <>
           <button type="button" onClick={(e) => { stop(e); setOpen((o) => !o); }} onKeyDown={stopKey}
             aria-expanded={open} aria-controls={receiptsId}
-            style={{ marginTop: 12, background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent }}>
+            style={{ display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: 12, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent }}>
             {open ? "Hide the receipts ↑" : takes.length < st.total ? `See ${takes.length} of ${st.total} takes ↓` : `See all ${st.total} takes ↓`}
           </button>
           {open && (

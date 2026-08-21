@@ -1,5 +1,5 @@
-// Brief Gate — Node-runtime server helpers (cookies, admin auth, URL, area labels).
-// Kept separate from gate.ts (which must stay edge-safe for middleware).
+// Brief Gate — server helpers for cookies, current-contact access, admin auth, URLs, and labels.
+// The active-contact lookup is fetch-only and is also used by edge middleware before renewal.
 
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, SESSION_MAX_AGE, RETURNING_COOKIE, returningCookieOpts, mintSession, readSession } from "./gate";
@@ -28,9 +28,18 @@ export function siteUrl(req: NextRequest): string {
   return `${proto}://${host}`;
 }
 
-/** The signed-in contactId for this request, or null. */
-export function currentContactId(req: NextRequest): Promise<string | null> {
-  return readSession(req.cookies.get(SESSION_COOKIE)?.value);
+/** Revalidate a signed identity against the current contact row. Missing, pending, blocked, and
+ * unsubscribed contacts all fail closed; a 90-day signature is never sufficient by itself. */
+export async function activeContactId(contactId: string | null): Promise<string | null> {
+  if (!contactId) return null;
+  const contact = await getContact(contactId).catch(() => null);
+  return contact?.status === "active" ? contact.id : null;
+}
+
+/** The currently active signed-in contactId for this request, or null. */
+export async function currentContactId(req: NextRequest): Promise<string | null> {
+  const contactId = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
+  return activeContactId(contactId);
 }
 
 /** Set the signed session cookie on a response (called after a magic-link / invite redemption). */
@@ -56,7 +65,7 @@ export async function isAdmin(req: NextRequest): Promise<boolean> {
   const contactId = await readSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (contactId) {
     const c = await getContact(contactId).catch(() => null);
-    if (c && ADMIN_EMAILS.has((c.email || "").toLowerCase())) return true;
+    if (c?.status === "active" && ADMIN_EMAILS.has((c.email || "").toLowerCase())) return true;
   }
   const want = process.env.BRIEF_ADMIN_TOKEN;
   const given = req.headers.get("x-admin-token") || req.cookies.get(ADMIN_COOKIE)?.value || req.nextUrl.searchParams.get("key");

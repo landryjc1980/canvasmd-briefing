@@ -6,6 +6,8 @@ import AudioQuote from "@/components/AudioQuote";
 import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, stanceParts, trialEvidenceLine, AREA_FULL, UP, DOWN } from "./briefVM";
 import { BriefingStance } from "@/lib/types";
 import { logStorySeen } from "./gateClient";
+import { representedClinicianCount } from "./heroEvidence";
+import { unrepresentedPublishers } from "./clientEvidence";
 
 // FROZEN SNAPSHOT (2026-07-21) of the pre-depth-redesign ReaderView, reachable at
 // ?design=flat as a rollback/A-B fallback — same pattern as ?design=classic. Do not
@@ -79,28 +81,25 @@ const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px syst
 const paperMeta = (shown: number, total?: number | null): string | undefined => {
   if (total != null) {
     const n = Math.max(total, shown);
-    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}` : undefined;
+    if (!n) return undefined;
+    if (!shown) return `shared by ${n} clinician${n === 1 ? "" : "s"} · posts unavailable`;
+    return `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}`;
   }
   return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
 
-export function representedClinicianCount(posts: BriefingSharer[] | null | undefined): number {
-  const identities = new Set<string>();
-  let count = 0;
-  const add = (person: { name?: string | null; handle?: string | null; tweetUrl?: string | null }) => {
-    const handle = person.handle?.replace(/^@/, "").trim().toLowerCase();
-    const name = person.name?.replace(/\s+/g, " ").trim().toLowerCase();
-    const url = person.tweetUrl?.trim().toLowerCase();
-    const aliases = [handle && `handle:${handle}`, name && `name:${name}`, url && `url:${url}`].filter((x): x is string => !!x);
-    if (!aliases.length) return;
-    if (!aliases.some((alias) => identities.has(alias))) count += 1;
-    aliases.forEach((alias) => identities.add(alias));
-  };
-  for (const post of posts ?? []) {
-    add(post);
-    for (const reposter of post.repostedBy ?? []) add(reposter);
-  }
-  return count;
+function mergeReceiptPosts(...groups: (BriefingSharer[] | null | undefined)[]): BriefingSharer[] {
+  const seen = new Set<string>();
+  return groups.flatMap((group) => group ?? []).filter((post) => {
+    const url = post.tweetUrl?.trim().toLowerCase();
+    const handle = post.handle?.replace(/^@/, "").trim().toLowerCase();
+    const name = post.name?.replace(/\s+/g, " ").trim().toLowerCase();
+    const text = post.text?.replace(/\s+/g, " ").trim().toLowerCase();
+    const key = url ? `url:${url}` : `receipt:${handle || name || "unknown"}:${text || ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
@@ -116,7 +115,7 @@ function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>
       {p.audioUrl
         ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} label="Listen to the clip" eventId={p.episodeId} eventLabel={p.episodeTitle} accent={accent} tone="dark" />
-        : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
+        : <div style={{ font: "500 11px system-ui", color: "#9da0aa" }}>Audio unavailable</div>}
     </div>
   );
 }
@@ -138,7 +137,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, publisherPosts, otherPosts, publishers, accent, peerReviewed, totalClinicians, revealableClinicians }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; publishers?: string[]; accent?: string; peerReviewed?: boolean; totalClinicians?: number; revealableClinicians?: number }) {
+function PaperCard({ title, journal, domain, meta, url, abstract, posts, publisherPosts, otherPosts, publishers, accent, peerReviewed, totalClinicians, revealableClinicians, showSources = true }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; publishers?: string[]; accent?: string; peerReviewed?: boolean; totalClinicians?: number; revealableClinicians?: number; showSources?: boolean }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
@@ -146,8 +145,9 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, publish
   const hasPublisherPosts = !!publisherPosts?.length;
   const hasOtherPosts = !!otherPosts?.length;
   const hasPublisherNames = !!publishers?.length;
-  const hasSources = hasPosts || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
-  const sourcesTruncated = totalClinicians != null && revealableClinicians != null && totalClinicians > revealableClinicians;
+  const unrepresentedPublisherNames = unrepresentedPublishers(publishers, publisherPosts);
+  const hasSources = showSources && (hasPosts || hasPublisherPosts || hasOtherPosts || hasPublisherNames);
+  const sourcesTruncated = totalClinicians != null && revealableClinicians != null && revealableClinicians > 0 && totalClinicians > revealableClinicians;
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
@@ -167,7 +167,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, publish
         </>}
         {hasPublisherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts ? 12 : 0 }}>From publishers &amp; journals</div>{publisherPosts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}</>}
         {hasOtherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasPublisherPosts ? 12 : 0 }}>Additional posts on X</div>{otherPosts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}</>}
-        {hasPublisherNames && !hasPublisherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasOtherPosts ? 12 : 0 }}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "#9da0aa" }}>Shared by: {publishers!.join(" · ")}</div></>}
+        {unrepresentedPublisherNames.length > 0 && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasOtherPosts ? 12 : 0 }}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "#9da0aa" }}>Shared by: {unrepresentedPublisherNames.join(" · ")}</div></>}
       </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11, flexWrap: "wrap" }}>
         {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
@@ -253,8 +253,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
     .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0)
       || b.tweets - a.tweets
       || b.peakLikes - a.peakLikes
-      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
-      || Number(b.referenceKol === true) - Number(a.referenceKol === true));
+      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false));
   // sticky section nav — jump-links + scroll-spy (desktop scroll is one long column; mobile
   // has the pill deck, so this brings parity). Sections match the mobile chapters.
   const sections = [
@@ -333,7 +332,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 11, rowGap: 3, minWidth: 0 }}>
             <span style={{ font: "500 21px/1 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.01em" }}>The Readout</span>
             {!compact && <span style={{ font: "600 9px system-ui", letterSpacing: ".22em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>by CanvasMD</span>}
-            {!compact && <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.28)" }}>· Updated {ago(data.generatedAt)}</span>}
+            {!compact && <span style={{ font: "500 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: "rgba(255,255,255,.56)" }}>· Updated {ago(data.generatedAt)} · 14-day view</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
           {/* mobile share — a bare muted icon (no box) so the header stays quiet */}
@@ -370,7 +369,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
         </div>
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
-        {compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.32)", margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)}</div>}
+        {compact && <div style={{ font: "600 9px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.56)", margin: "5px 0 13px" }}>By CanvasMD · Updated {ago(data.generatedAt)} · 14-day view</div>}
         {/* sticky section nav — jump-links with scroll-spy; sticks to the top on scroll so the
             reader can skip ahead/back without a long scroll (desktop parity with the mobile deck) */}
         <div className="rv-pills" style={{ position: "sticky", top: 0, zIndex: 15, margin: compact ? "0 -20px" : "0 -30px", padding: compact ? "10px 20px" : "11px 30px", background: pal.bg, borderBottom: "1px solid rgba(255,255,255,.1)", display: "flex", justifyContent: compact ? "flex-start" : "center", flexWrap: compact ? "nowrap" : "wrap", gap: 8, overflowX: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
@@ -448,17 +447,26 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
               }>
               <div style={{ marginLeft: compact ? 0 : 50 }}>
                 {s.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{s.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-                {s.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{s.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
+                {(() => {
+                  const clinicianPosts = mergeReceiptPosts(s.posts, ...s.papers.map((p) => p.posts?.length ? p.posts : p.sharers));
+                  const publisherPosts = mergeReceiptPosts(s.publisherPosts, ...s.papers.map((p) => p.publisherPosts));
+                  const otherPosts = mergeReceiptPosts(s.otherPosts, ...s.papers.map((p) => p.otherPosts));
+                  return <>
+                    {clinicianPosts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{clinicianPosts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                    {publisherPosts.length > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{publisherPosts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                    {otherPosts.length > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{otherPosts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
+                  </>;
+                })()}
+                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} showSources={false} />; })}</div>}
               </div>
             </Row>
             </div>
           );
         })}
 
-        {/* This week's guests — box score (recent form + lifetime career) */}
+        {/* Recent guests — box score (recent form + lifetime career) */}
         {!!data.guests?.length && <>
-          <SectionHead id="sec-kols">This week&rsquo;s guests</SectionHead>
+          <SectionHead id="sec-kols">Recent guests</SectionHead>
           <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
             const eps = g.episodes.filter((e) => e.audioUrl);
             return (
@@ -471,7 +479,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                     {eps.length > 0 && <div style={{ font: "600 11.5px system-ui", color: pal.accent, marginTop: 7 }}>{openId === "g:" + i ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
                   </div>
                   <div style={{ flex: "none", display: "flex", gap: 8, textAlign: "center" }}>
-                    <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 11, padding: "8px 11px", minWidth: 56 }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#5e6d90", marginTop: 5 }}>This wk</div></div>
+                    <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 11, padding: "8px 11px", minWidth: 56 }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#5e6d90", marginTop: 5 }}>14-day</div></div>
                     <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 11, padding: "8px 11px", minWidth: 56 }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: "#5e6d90", marginTop: 5 }}>Career</div></div>
                   </div>
                 </div>
@@ -513,10 +521,10 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           }} />
         </>}
 
-        {/* This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
+        {/* Podcasts from the past 14 days — area episodes the drug movers don't cover (untracked-topic blind
             spot). Flat list of episode cards, same shape as a guest's episode. */}
         {!!data.episodes?.length && <>
-          <SectionHead id="sec-episodes">This week on the podcasts</SectionHead>
+          <SectionHead id="sec-episodes">Podcasts from the past 14 days</SectionHead>
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
             <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={6} accent={pal.accent} render={(ep, i) => (
               <div key={i} style={cardBox}>
@@ -540,7 +548,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
             return (
               <PaperCard title={a.title} journal={a.journal} domain={a.domain}
                 peerReviewed={a.peerReviewed}
-                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}${a.kolSharers > revealableClinicians ? ` · ${revealableClinicians} shown in sources` : ""}` : undefined}
+                meta={paperMeta(revealableClinicians, a.kolSharers)}
                 url={a.url} abstract={a.abstract} posts={a.posts} publisherPosts={a.publisherPosts}
                 otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} totalClinicians={a.kolSharers} revealableClinicians={revealableClinicians} />
             );

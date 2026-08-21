@@ -26,7 +26,7 @@ function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
   return (
     <blockquote style={{ margin: lead ? "7px 0 0" : 0, padding: lead ? "7px 0 7px 10px" : "9px 0", border: 0, borderLeft: lead ? `2px solid ${accent}` : 0, borderTop: lead ? 0 : `1px solid ${line}` }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ color: ink, textDecoration: "none", font: "650 12px system-ui" }}>{reaction.name}</a>
+        <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 24, margin: "-5px 0", color: ink, textDecoration: "none", font: "650 12px system-ui" }}>{reaction.name}</a>
         <span style={{ color: muted, font: "500 10.5px system-ui" }}>@{reaction.handle} · ♥ {reaction.likes}</span>
       </div>
       <div style={{ color: muted, font: "400 12.5px/1.55 'Newsreader',Georgia,serif", marginTop: 4 }}>{preview}</div>

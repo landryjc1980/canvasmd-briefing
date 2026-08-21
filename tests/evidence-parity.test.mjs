@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import { canvasmdFile } from "./paired-repo.mjs";
+import { representedClinicianCount } from "../app/heroEvidence.ts";
 
 const webReader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const webFlat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta.url), "utf8");
@@ -16,6 +17,7 @@ const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections
 const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
 const nativeDaily = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
 const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/StoryEvidence.tsx"), "utf8");
+const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
 
 function loadExportedFunction(source, name) {
   const start = source.indexOf(`export function ${name}`);
@@ -49,14 +51,29 @@ const representedReceipts = [
 ];
 
 test("rendered paper evidence counts distinct clinicians including grouped reposters", () => {
-  for (const source of [webReader, webFlat, nativeCards]) {
-    const representedClinicianCount = loadExportedFunction(source, "representedClinicianCount");
-    assert.equal(representedClinicianCount(representedReceipts), 3);
-    assert.equal(representedClinicianCount(undefined), 0);
-  }
+  assert.equal(representedClinicianCount(representedReceipts), 3);
+  assert.equal(representedClinicianCount(undefined), 0);
+  const nativeRepresentedClinicianCount = loadExportedFunction(nativeCards, "representedClinicianCount");
+  assert.equal(nativeRepresentedClinicianCount(representedReceipts), 3);
+  assert.equal(nativeRepresentedClinicianCount(undefined), 0);
   assert.match(webReader, /const revealableClinicians = representedClinicianCount\(paper\.posts\)/);
   assert.match(webFlat, /const revealableClinicians = representedClinicianCount\(a\.posts\)/);
   assert.match(nativeSections, /const revealableClinicians = representedClinicianCount\(a\.posts\)/);
+});
+
+test("public archives inventory grouped reposters as clinician receipts", () => {
+  assert.match(archivePage, /representedClinicianCount\(clinicianPosts\)/);
+  assert.match(archivePage, /"clinician receipt", "clinician receipts"/);
+  assert.doesNotMatch(archivePage, /const clinicians = [^\n]+\.length/);
+});
+
+test("primary sources render in a distinct provenance group on web and native", () => {
+  for (const source of [webReader, nativeStoryEvidence]) {
+    assert.match(source, /primary_source: "Primary source"/);
+    assert.match(source, />Primary sources</);
+    assert.match(source, />Related coverage</);
+    assert.match(source, /supportLinkGroups\(story\.supportLinks\)/);
+  }
 });
 
 test("Daily evidence expands honestly and renders every factual source", () => {
@@ -75,6 +92,13 @@ test("podcast, continuation, and grouped-repost actions retain exact X URLs", ()
     assert.match(source, /part\.tweetUrl/);
     assert.match(source, /reposter\.tweetUrl/);
   }
+});
+
+test("exact receipt links meet the web and native target-size contracts", () => {
+  assert.match(webReader, /reposter\.tweetUrl[\s\S]{0,260}minHeight: 24/);
+  assert.match(webDaily, /reaction\.url[\s\S]{0,260}minHeight: 24/);
+  assert.match(nativeCards, /reposter\.tweetUrl[\s\S]{0,500}minHeight: 44/);
+  assert.match(nativeDaily, /Open \$\{reaction\.name\}'s post on X[\s\S]{0,220}minHeight: 44/);
 });
 
 test("paper renderers keep source and classification parity", () => {
@@ -114,13 +138,11 @@ test("podcast moments render one timestamp and legacy Open links meet the 44px t
   assert.match(webFlat, /display: "inline-flex", alignItems: "center", minHeight: 44[^\n]+>Open ↗<\/a>/);
 });
 
-test("active reference experts remain eligible without overriding amplification order", () => {
+test("reference status does not affect visible People ranking", () => {
   for (const source of [webReader, nativeDaily]) {
     assert.match(source, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
-    assert.ok(source.indexOf("(b.amp ?? 0) - (a.amp ?? 0)") <
-      source.indexOf("Number(b.referenceKol === true) - Number(a.referenceKol === true)"));
+    assert.doesNotMatch(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
   }
-  assert.match(webAll, /referenceKol:\s*boolean/);
-  assert.ok(webAll.indexOf("y.amp - x.amp") <
-    webAll.indexOf("Number(y.referenceKol) - Number(x.referenceKol)"));
+  assert.doesNotMatch(webAll, /referenceKol/);
+  assert.doesNotMatch(webAll, /Number\(y\.referenceKol\) - Number\(x\.referenceKol\)/);
 });

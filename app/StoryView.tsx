@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BriefingData, BriefingMover, BriefingStory, BriefingSharer, BriefingPod, BriefingPaper, BriefingStance } from "@/lib/types";
-import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, trialEvidenceLine, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipSecond, clipTs, pileFaces, trialEvidenceLine, AREA_FULL, UP, DOWN } from "./briefVM";
 import RecapBlock from "./RecapBlock";
 import StanceBlock from "./StanceBlock";
 import { logStorySeen } from "./gateClient";
@@ -209,7 +209,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   const playClip = (url: string, startMs: number | null, id: string, label: string) => {
     const el = audioRef.current;
     if (!el) return;
-    const at = startMs != null ? Math.max(0, Math.floor(startMs / 1000)) : 0;
+    const at = clipSecond(startMs);
     if (clipId === id) { el.paused ? el.play().catch(() => {}) : el.pause(); return; } // same clip → toggle
     setClipId(id); setClipLabel(label); setClipCur(0); setClipDur(0);
     el.src = at > 0 ? `${url}#t=${at}` : url;
@@ -294,7 +294,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
   // ---- card renderers (closures: use the shared player + stop) ----
   const clipBtn = (url: string, startMs: number | null, id: string, label: string) => {
     const active = clipId === id;
-    const at = startMs != null ? Math.floor(startMs / 1000) : 0;
+    const at = clipSecond(startMs);
     const pct = active && clipDur > 0 ? Math.min(100, (clipCur / clipDur) * 100) : 0;
     return (
       <div onClick={(e) => { stop(e); playClip(url, startMs, id, label); }} style={{ display: "flex", alignItems: "center", gap: 11, background: "rgba(255,255,255,.06)", borderRadius: 11, padding: "8px 12px", cursor: "pointer" }}>
@@ -319,7 +319,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
       {/* on the mover screen we skip the gloss (the "why" above already sums it up); full gloss lives in the evidence sheet */}
       {!compact && <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#c8cad2" }}>{p.gloss}</p>}
       <div style={{ marginTop: compact ? 11 : 0 }}>
-        {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`, p.show) : <div style={{ font: "600 11px system-ui", color: pal.accent }}>clip {clipTs(p.startMs)}</div>}
+        {p.audioUrl ? clipBtn(p.audioUrl, p.startMs, `${p.audioUrl}:${p.startMs}`, p.show) : <div style={{ font: "500 11px system-ui", color: "#9da0aa" }}>Audio unavailable</div>}
       </div>
     </div>
   );
@@ -412,7 +412,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             {/* COVER — area-led. The tumor area is the display title (was a whispered 11px kicker);
                 the story-player chrome is gone; credibility drops to a quiet footer. */}
-            <div style={{ font: "700 11.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>This week in</div>
+            <div style={{ font: "700 11.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>Past 14 days in</div>
             <div style={{ font: "400 46px/1.02 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.02em", marginTop: 7 }}>{AREA_FULL[area] ?? area}</div>
             <div style={{ height: 1, background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}00)`, opacity: .5, margin: "20px 0 0" }} />
             {part.mode === "split" && (
@@ -552,7 +552,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
         {cur.kind === "kols" && (
           <>
             {!!data.guests?.length && <div style={{ marginBottom: 24 }}>
-              {sectionHead("This week's guests")}
+              {sectionHead("Guests from the past 14 days")}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {data.guests.slice(0, 10).map((g, i) => {
                   const eps = g.episodes.filter((e) => e.audioUrl);
@@ -566,7 +566,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                         {eps.length > 0 && <div style={{ font: "600 11px system-ui", color: pal.accent, marginTop: 4 }}>{gopen ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
                       </div>
                       <div style={{ display: "flex", gap: 6, flex: "none", textAlign: "center" }}>
-                        <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Wk</div></div>
+                        <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>14-day</div></div>
                         <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Career</div></div>
                       </div>
                     </div>
@@ -611,7 +611,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
         {cur.kind === "episodes" && (
           <>
-            {sectionHead("This week on the podcasts")}
+            {sectionHead("Podcasts from the past 14 days")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {(data.episodes ?? []).filter((e) => e.audioUrl).map((ep, i) => (
                 <div key={i} onClick={stop} style={cardBox}>

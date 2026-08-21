@@ -13,7 +13,7 @@ import "./design-lab.css";
 const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"] as const;
 const CONCEPTS = ["next", "essential", "air", "studio", "editorial", "signal"] as const;
 type Concept = typeof CONCEPTS[number];
-type Frame = "full" | "phone";
+type Frame = "full" | "390" | "320";
 type ArticleMedia = { url: string; imageUrl: string | null; publisher: string | null; journal: string | null; domain: string | null };
 
 const CONCEPT_LABEL: Record<Concept, string> = {
@@ -70,7 +70,7 @@ function filterBriefBySubArea(data: BriefingData, subArea: string | null): Brief
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "This week" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return Number.isNaN(d.getTime()) ? "Recent" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function minutes(seconds?: number | null): string | null {
@@ -601,7 +601,7 @@ function PeopleRail({ data, accent }: { data: BriefingData; accent?: string }) {
   if (!guests.length && !voices.length) return null;
   return (
     <section className="dl-section dl-people">
-      <div className="dl-section-head"><h2>People</h2><span>This week</span></div>
+      <div className="dl-section-head"><h2>People</h2><span>14-day view</span></div>
       <div className="dl-people-groups">
         {allGuests.length > 0 && <div className="dl-people-group">
           <div className="dl-people-group-head"><h3>Podcast guests</h3><span>On the mics</span></div>
@@ -834,7 +834,7 @@ function Editorial({ data, cards, media, onAreaChange }: { data: BriefingData; c
         </section>}
 
         {rest.length > 0 && <section className="dl-editorial-more" aria-label="More stories">
-          <div className="dl-editorial-section-head"><h2>More stories</h2><span>This week</span></div>
+          <div className="dl-editorial-section-head"><h2>More stories</h2><span>14-day view</span></div>
           <div className="dl-editorial-story-grid">
             {rest.map((card) => {
               const visual = studioVisual(card, focusedData, media);
@@ -1100,11 +1100,12 @@ export default function DesignLabPage() {
         </div>
         <div className="dl-toolbar-group" aria-label="Preview size">
           <button aria-label="Full width preview" title="Full width" className={frame === "full" ? "active" : ""} onClick={() => setFrame("full")}>Full</button>
-          <button aria-label="Phone preview" title="Phone preview" className={frame === "phone" ? "active" : ""} onClick={() => setFrame("phone")}>Phone</button>
+          <button aria-label="390 pixel preview" title="390 pixel preview" className={frame === "390" ? "active" : ""} onClick={() => setFrame("390")}>390</button>
+          <button aria-label="320 pixel preview" title="320 pixel preview" className={frame === "320" ? "active" : ""} onClick={() => setFrame("320")}>320</button>
         </div>
         <a className="dl-live-link" href={`/?area=${area}`}>Live Readout <span aria-hidden>↗</span></a>
       </header>
-      <div className={`dl-preview ${frame === "phone" ? "is-phone" : ""}`}>
+      <div className={`dl-preview ${frame === "full" ? "" : `is-phone is-phone-${frame}`}`}>
         {!data && !error && <div className="dl-loading">Loading {area}…</div>}
         {error && <div className="dl-loading">Couldn’t load {area}: {error}</div>}
         {data && concept === "next" && <ReadoutNext data={data} cards={cards} media={articleMedia} />}

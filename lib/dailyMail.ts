@@ -30,6 +30,14 @@ const AREA_LABELS: Record<string, string> = {
 const SANS = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
 const KICKERS: Record<string, string> = { readout: "TRIAL READOUT", development: "BREAKING DEVELOPMENT", paper: "PAPER", event: "FDA", episode: "ON THE MICS", thread: "CONVERSATION" };
 
+const easternDate = (date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+};
+
 export type TopStory = { area: string; kind: string; title: string; why: string | null; url: string | null };
 
 function esc(s: string): string {
@@ -108,7 +116,7 @@ export function renderDailyEmail(opts: {
     `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUT2};font-family:${SANS}">${label}</div>`;
 
   const quietNote = quiet
-    ? `<p style="font-style:italic;font-size:13px;line-height:1.5;color:${MUT};margin:0 0 12px;font-family:Georgia,serif">Quiet in ${esc(editionLabel)} today — from the frontier:</p>`
+    ? `<p style="font-style:italic;font-size:13px;line-height:1.5;color:${MUT};margin:0 0 12px;font-family:Georgia,serif">Quiet in ${esc(editionLabel)} for this edition — from the frontier:</p>`
     : "";
   const refsHtml = (p: Para) => {
     const refs = (p as { refs?: { label: string; url: string }[] | null }).refs ?? [];
@@ -198,7 +206,7 @@ export function renderDailyEmail(opts: {
     }).join("");
 
   const crossLink = isAll ? "" :
-    `<p style="font-size:12px;color:${MUT};margin:16px 0 0;font-family:${SANS}">Also today across oncology: <a href="${esc(opts.allLink ?? opts.siteLink)}" style="color:${accent};font-weight:600">read the full edition →</a></p>`;
+    `<p style="font-size:12px;color:${MUT};margin:16px 0 0;font-family:${SANS}">Also in this edition across oncology: <a href="${esc(opts.allLink ?? opts.siteLink)}" style="color:${accent};font-weight:600">read the full edition →</a></p>`;
 
   const topsBlock = topList.length
     ? `<div style="margin:20px 0 0;padding-top:14px;border-top:1px solid ${LINE}">${secHdr("Top Stories" + (isAll ? "" : " · " + esc(editionLabel)))}${topsHtml}</div>`
@@ -213,7 +221,7 @@ export function renderDailyEmail(opts: {
 <tr><td style="padding:0 24px">
 <a href="${esc(opts.siteLink)}" style="text-decoration:none"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${accent}">CanvasMD</div>
 <div style="font-family:Georgia,serif;font-weight:400;font-size:30px;color:${INK};letter-spacing:-.01em;margin-top:2px">The Readout</div></a>
-<div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)} · updated today</span></div>
+<div style="font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${ACCENT};margin-top:8px">The Daily · ${esc(editionLabel)} <span style="color:${MUT2};font-weight:500;letter-spacing:0;text-transform:none">· ${esc(daily.date)}${daily.date === easternDate() ? " · updated today" : ""}${daily.payload.coverage?.scope ? ` · ${esc(daily.payload.coverage.scope.toLowerCase())}` : ""}</span></div>
 <div style="height:1px;background:${LINE};margin:18px 0 20px"></div>
 ${parasHtml}
 <a href="${esc(opts.siteLink)}" style="display:inline-block;background:${INK};color:#ffffff;font-weight:700;font-size:13.5px;text-decoration:none;padding:11px 22px;border-radius:8px;margin-top:2px">Open the ${isAll ? "full" : esc(area!)} Readout →</a>

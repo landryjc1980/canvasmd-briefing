@@ -27,8 +27,11 @@ const memo = new Map<string, { at: number; briefing: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === "production" && !(await currentContactId(req))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (process.env.NODE_ENV === "production") {
+    // currentContactId verifies both the signature and the contact's current active status.
+    if (!(await currentContactId(req))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;

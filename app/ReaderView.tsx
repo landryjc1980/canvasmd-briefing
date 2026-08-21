@@ -6,13 +6,14 @@ import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
-import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
+import { pickConversationPreview, representedClinicianCount, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 import DailyConversationEvidence from "./DailyConversationEvidence";
+import { unrepresentedPublishers } from "./clientEvidence";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
 // preserved at ?design=flat / git tag design-2026-07-21-flat-reader):
@@ -174,31 +175,30 @@ const EDITORIAL_MEASURE = 850;
 export const paperMeta = (shown: number, _likes: number, total?: number | null): string | undefined => {
   if (total != null) {
     const n = Math.max(total, shown);
-    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}` : undefined;
+    if (!n) return undefined;
+    if (!shown) return `shared by ${n} clinician${n === 1 ? "" : "s"} · posts unavailable`;
+    return `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}`;
   }
   return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
 
-// Count the distinct clinicians a reader can actually identify in the rendered
-// receipts. A grouped repost is still a visible clinician receipt even though it
-// deliberately shares one card with the authored post.
-export function representedClinicianCount(posts: BriefingSharer[] | null | undefined): number {
-  const identities = new Set<string>();
-  let count = 0;
-  const add = (person: { name?: string | null; handle?: string | null; tweetUrl?: string | null }) => {
-    const handle = person.handle?.replace(/^@/, "").trim().toLowerCase();
-    const name = person.name?.replace(/\s+/g, " ").trim().toLowerCase();
-    const url = person.tweetUrl?.trim().toLowerCase();
-    const aliases = [handle && `handle:${handle}`, name && `name:${name}`, url && `url:${url}`].filter((x): x is string => !!x);
-    if (!aliases.length) return;
-    if (!aliases.some((alias) => identities.has(alias))) count += 1;
-    aliases.forEach((alias) => identities.add(alias));
-  };
-  for (const post of posts ?? []) {
-    add(post);
-    for (const reposter of post.repostedBy ?? []) add(reposter);
+// Embedded papers suppress their own source drawer to avoid a drawer inside a drawer. Hoist every
+// paper-specific clinician receipt into the containing evidence lane instead, deduped by the exact
+// source URL when available and by author+text for legacy receipts without one.
+export function mergeReceiptPosts(...groups: (BriefingSharer[] | null | undefined)[]): BriefingSharer[] {
+  const seen = new Set<string>();
+  const merged: BriefingSharer[] = [];
+  for (const post of groups.flatMap((group) => group ?? [])) {
+    const url = post.tweetUrl?.trim().toLowerCase();
+    const handle = post.handle?.replace(/^@/, "").trim().toLowerCase();
+    const name = post.name?.replace(/\s+/g, " ").trim().toLowerCase();
+    const text = post.text?.replace(/\s+/g, " ").trim().toLowerCase();
+    const key = url ? `url:${url}` : `receipt:${handle || name || "unknown"}:${text || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(post);
   }
-  return count;
+  return merged;
 }
 
 export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
@@ -214,7 +214,7 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       <p style={{ margin: "11px 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)" }}>{cleanSnippet(p.gloss)}</p>
       {p.audioUrl
         ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} durationSeconds={p.durationSeconds} label="Listen to the clip" eventId={p.episodeId} eventLabel={p.episodeTitle} accent={accent} tone="dark" />
-        : <div style={{ font: "600 11px system-ui", color: accent }}>clip {clipTs(p.startMs)}</div>}
+        : <div style={{ font: "500 11px system-ui", color: MUT }}>Audio unavailable</div>}
     </div>
   );
 }
@@ -305,7 +305,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
             {visibleReposters.map((reposter, i) => (
               <Fragment key={`${reposter.handle ?? reposter.name}:label:${i}`}>
                 {i > 0 ? " · " : ""}
-                {reposter.tweetUrl ? <a href={reposter.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{reposter.name}</a> : reposter.name}
+                {reposter.tweetUrl ? <a href={reposter.tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 24, margin: "-3px 0", color: "inherit", textDecoration: "none" }}>{reposter.name}</a> : reposter.name}
               </Fragment>
             ))}
             {compact && reposters.length > visibleReposters.length ? ` · +${reposters.length - visibleReposters.length}` : ""}
@@ -406,17 +406,17 @@ export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announ
 }
 // Abstract and source receipts disclose independently, matching the main paper rail
 // and native. The source link remains a separate direct action.
-export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, peerReviewed, showSources = true }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean; showSources?: boolean }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
-  const hasPosts = !!(posts && posts.length);
+  const hasPosts = showSources && !!(posts && posts.length);
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
     <div style={cardBox}>
       {url
-        ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", textDecoration: "none" }}>{cleanArticleTitle(title)}</a>
+        ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", textDecoration: "none" }}>{cleanArticleTitle(title)}</a>
         : <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{cleanArticleTitle(title)}</div>}
       {(src || meta) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
         <span style={{ font: "400 12px system-ui", color: MUT }}>{[src, meta].filter(Boolean).join(" · ")}</span>
@@ -607,6 +607,7 @@ type EvSource = EvidenceSource;
 type EvidenceSource = { podcast: BriefingPod[]; posts: BriefingSharer[]; papers: BriefingPaper[]; kind?: string; clinicianCount?: number | null; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; supportLinks?: HeroSupportLink[] };
 
 const supportRelationship = (relationship: string) => ({
+  primary_source: "Primary source",
   interviews_author: "Author interview",
   interviews_investigator: "Investigator interview",
   covers_approval: "Approval coverage",
@@ -626,23 +627,29 @@ function SupportLinkRow({ link, accent }: { link: HeroSupportLink; accent: strin
 }
 
 export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
-  const publisherPosts = story.publisherPosts ?? story.papers.flatMap((x) => x.publisherPosts ?? []);
-  const otherPosts = story.otherPosts ?? story.papers.flatMap((x) => x.otherPosts ?? []);
-  const supportLinks = story.supportLinks ?? [];
+  const clinicianPosts = mergeReceiptPosts(
+    story.posts,
+    ...story.papers.map((paper) => paper.posts?.length ? paper.posts : paper.sharers),
+  );
+  const publisherPosts = mergeReceiptPosts(story.publisherPosts, ...story.papers.map((paper) => paper.publisherPosts));
+  const otherPosts = mergeReceiptPosts(story.otherPosts, ...story.papers.map((paper) => paper.otherPosts));
+  const { primarySources, relatedCoverage } = supportLinkGroups(story.supportLinks);
+  const hasSupportLinks = primarySources.length > 0 || relatedCoverage.length > 0;
   const sourceGroupEnd: React.CSSProperties = { borderBottom: `1px solid ${LINE}`, paddingBottom: 16, marginBottom: 16 };
   return (
     <>
       {story.podcast.length > 0 && <div><div style={evLabel(accent)}>On the podcasts</div><PodcastEvidence pods={story.podcast} accent={accent} /></div>}
-      {story.posts.length > 0 && <div style={(publisherPosts.length === 0 && otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · physician posts</div><Capped items={story.posts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {clinicianPosts.length > 0 && <div style={(publisherPosts.length === 0 && otherPosts.length === 0 && (hasSupportLinks || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>On X · physician posts</div><Capped items={clinicianPosts} cap={3} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
       {publisherPosts.length > 0 && (
-        <div style={(otherPosts.length === 0 && (supportLinks.length > 0 || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
+        <div style={(otherPosts.length === 0 && (hasSupportLinks || story.papers.length > 0)) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={publisherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>
       )}
-      {otherPosts.length > 0 && <div style={(supportLinks.length > 0 || story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Additional posts on X</div><Capped items={otherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
-      {supportLinks.length > 0 && <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Related coverage</div><Capped items={supportLinks} cap={4} accent={accent} render={(link, j) => <SupportLinkRow key={`${link.kind}:${link.id}:${j}`} link={link} accent={accent} />} /></div>}
-      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = [...new Set(story.papers.flatMap((pp) => pp.publishers ?? []))]; const havePosts = publisherPosts.length > 0; return pubs.length && !havePosts ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
+      {otherPosts.length > 0 && <div style={(hasSupportLinks || story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Additional posts on X</div><Capped items={otherPosts} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
+      {primarySources.length > 0 && <div style={(relatedCoverage.length > 0 || story.papers.length > 0) ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Primary sources</div><Capped items={primarySources} cap={4} accent={accent} render={(link, j) => <SupportLinkRow key={`${link.kind}:${link.id}:${j}`} link={link} accent={accent} />} /></div>}
+      {relatedCoverage.length > 0 && <div style={story.papers.length > 0 ? sourceGroupEnd : undefined}><div style={evLabel(accent)}>Related coverage</div><Capped items={relatedCoverage} cap={4} accent={accent} render={(link, j) => <SupportLinkRow key={`${link.kind}:${link.id}:${j}`} link={link} accent={accent} />} /></div>}
+      {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = unrepresentedPublishers(story.papers.flatMap((pp) => pp.publishers ?? []), publisherPosts); return pubs.length ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         const posts = p.posts?.length ? p.posts : p.sharers;
-        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={posts} accent={accent} sharedTotal={total} />;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
       }} /></div>}
     </>
   );
@@ -673,9 +680,10 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const hasPublisherPosts = !!paper.publisherPosts?.length;
   const hasOtherPosts = !!paper.otherPosts?.length;
   const hasPublisherNames = paper.publishers.length > 0;
+  const unrepresentedPublisherNames = unrepresentedPublishers(paper.publishers, paper.publisherPosts);
   const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
   const revealableClinicians = representedClinicianCount(paper.posts);
-  const sourcesTruncated = paper.kolSharers > revealableClinicians;
+  const sourcesTruncated = revealableClinicians > 0 && paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
 
   return (
@@ -688,10 +696,10 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
             {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
           </div>
         )}
-        <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none" }}>{cleanArticleTitle(paper.title)}</a>
+        <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none" }}>{cleanArticleTitle(paper.title)}</a>
         <div className="rv-paper-meta" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 10px", marginTop: 9 }}>
           {paper.faces.length > 0 && <FacePile faces={paper.faces} extra={paper.kolSharers - paper.faces.length} ring={ring} />}
-          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}{sourcesTruncated ? ` · ${revealableClinicians} shown in sources` : ""}</span>}
+          {paper.kolSharers > 0 && <span style={{ font: "400 12px system-ui", color: MUT }}>shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}{revealableClinicians === 0 ? " · posts unavailable" : sourcesTruncated ? ` · ${revealableClinicians} shown in sources` : ""}</span>}
         </div>
         <div className="rv-paper-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0 14px", marginTop: 5 }}>
           {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
@@ -718,8 +726,8 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
             {paper.posts.length > 0 && <div><div style={evLabel(accent)}>On X · physician posts</div>{paper.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
             {hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><Capped items={paper.publisherPosts!} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
             {hasOtherPosts && <div><div style={evLabel(accent)}>Additional posts on X</div><Capped items={paper.otherPosts!} cap={2} accent={accent} render={(t, j) => <TweetCard key={j} t={t} />} /></div>}
-            {hasPublisherNames && !hasPublisherPosts && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))" }}>Shared by: {paper.publishers.join(" · ")}</div></div>}
-            {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", font: "600 13px system-ui", color: accent, textDecoration: "none" }}>Open article ↗</a>}
+            {unrepresentedPublisherNames.length > 0 && <div><div style={evLabel(accent)}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))" }}>Shared by: {unrepresentedPublisherNames.join(" · ")}</div></div>}
+            {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", minHeight: 44, font: "600 13px system-ui", color: accent, textDecoration: "none" }}>Open article ↗</a>}
             <button type="button" onClick={onToggle} className="rv-text-action" style={{ alignSelf: "flex-start", background: "none", border: 0, color: accent, font: "600 12.5px system-ui", padding: "10px 2px", minHeight: 44, cursor: "pointer", marginTop: 2 }}>Hide sources ↑</button>
           </div>
         </div>
@@ -789,7 +797,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       : (current - 1 + items.length) % items.length;
     items[next].focus();
   };
-  // On a phone, seven full Top Stories put "This week on the podcasts" ~3,000px down — the podcast
+  // On a phone, seven full Top Stories put the recent podcast section ~3,000px down — the podcast
   // archive is the most differentiated asset and nobody scrolled to it. Show the first few and tuck
   // the rest (which, in split mode, are the already-read ones) behind an explicit control.
   const [showAllStories, setShowAllStories] = useState(false);
@@ -917,8 +925,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0)
       || b.tweets - a.tweets
       || b.peakLikes - a.peakLikes
-      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
-      || Number(b.referenceKol === true) - Number(a.referenceKol === true));
+      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false));
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
@@ -1142,39 +1149,40 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const dailyLead = dailyEd?.lead ?? null;
   const dailyAll = [...areaDailyParas, ...genDailyParas];
   const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || !!dailyLead;
+  const dailyAccent = dailyAccentOf(area, pal.accent);
   const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null; storyIds?: string[] }, i: number | string, n?: number) => (
     <div key={i}>
       <p style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
-        {n !== undefined && <strong style={{ fontWeight: 700, color: pal.accent }}>{n}. </strong>}
+        {n !== undefined && <strong style={{ fontWeight: 700, color: dailyAccent }}>{n}. </strong>}
         {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
         {emph(p.text)}
         {(p.refs ?? []).length > 0 && (
           <span style={{ font: "500 11.5px system-ui", color: MUT }}>
             {" "}{(p.refs ?? []).map((r, ri) => (
-              <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: pal.accent, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
+              <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: dailyAccent, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
             ))}
           </span>
         )}
       </p>
-      <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} area={area} accent={pal.accent} ink="var(--rv-ink, #eef1f8)" muted={MUT} line={LINE} />
+      <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} area={area} accent={dailyAccent} ink="var(--rv-ink, #eef1f8)" muted={DAILY_MUTED} line={LINE} />
     </div>
   );
   const dailySection = dailyAll.length > 0 && (
     <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <div className="daily-meta" style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span className="daily-meta-primary" style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: pal.accent }}>The Daily · {area}</span>
-        <span style={{ font: "500 11px system-ui", color: MUT }}>{daily?.date}</span>
-        {/* The promise, stated once: this is a 24-hour brief (John 2026-08-19). */}
-        <span style={{ font: "500 11px system-ui", color: MUT2 }}>· {daily?.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}</span>
+        <span className="daily-meta-primary" style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: dailyAccent }}>The Daily · {area}</span>
+        <span style={{ font: "500 11px system-ui", color: DAILY_MUTED }}>{daily?.date}</span>
+        <span style={{ font: "500 11px system-ui", color: DAILY_MUTED }}>· {daily?.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}</span>
+        {daily?.payload?.coverage?.scope && <span style={{ font: "500 11px system-ui", color: DAILY_MUTED }}>· {daily.payload.coverage.scope.toLowerCase()}{daily.payload.coverage.rollingReadoutDays ? ` · source window ${daily.payload.coverage.rollingReadoutDays} days` : ""}</span>}
       </div>
-      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} for this edition — from the frontier:</div>}
+      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: DAILY_MUTED }}>Quiet in {area} for this edition — from the frontier:</div>}
       {dailyOpen || !dailyLong ? (
         <>
           {dailyLead && <p style={{ margin: "10px 0 0", font: "500 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}
           {areaDailyParas.map((p, i) => dailyPara(p, i, i + 1))}
           {genDailyParas.length > 0 && (
             <>
-              {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT }}>Frontiers</div>}
+              {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: DAILY_MUTED }}>Frontiers</div>}
               {genDailyParas.map((p, i) => dailyPara(p, "g" + i, areaDailyParas.length + i + 1))}
             </>
           )}
@@ -1185,14 +1193,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
             {areaDailyParas.slice(0, 3).map((p, i) => (
               <div key={i} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", font: "600 12.5px/1.45 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>
-                <span style={{ color: pal.accent }}>{i + 1}. </span>{stripEmph(p.head ?? p.text)}
+                <span style={{ color: dailyAccent }}>{i + 1}. </span>{stripEmph(p.head ?? p.text)}
               </div>
             ))}
           </div>
         </>
       )}
       {dailyLong && (
-        <button onClick={() => setDailyOpen((o) => !o)} aria-expanded={dailyOpen} style={{ margin: "3px 0 0", padding: "0 2px", minHeight: 44, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: pal.accent }}>
+        <button onClick={() => setDailyOpen((o) => !o)} aria-expanded={dailyOpen} style={{ margin: "3px 0 0", padding: "0 2px", minHeight: 44, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: dailyAccent }}>
           {dailyOpen ? "Show less ↑" : "Read more ↓"}
         </button>
       )}
@@ -1205,21 +1213,21 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} ink={{ soft: INK_2, softer: LIGHT_MUT, line: LINE, ring: PAPER, surface: SURFACE }} evidenceOf={heroEvidenceOf} shareUrlOf={(c) => `/r/${heroSlugFor(c.kind, c.headline, c.id)}`} />}
       {heroMode && heroCards && heroCards.length === 0 && !activeSub && !congressScope && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
-          A quiet week — no source-anchored stories qualified. The sections below still carry the corpus.
+          A quiet 14-day view — no source-anchored stories qualified. The sections below still carry the corpus.
         </div>
       )}
       {heroMode && heroCards && heroCards.length === 0 && (activeSub || congressScope) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
             ? <>No source-anchored top stories match this live-coverage view. The sections below may still have signal.</>
-            : <>No {subLabel} top stories this week. The sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
+            : <>No {subLabel} top stories in this 14-day view. The sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {!heroMode && stories.length === 0 && (congressScope || subArea) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
-            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>Weekly brief</b> for the full read.</>
-            : <>No {subLabel} top stories this week. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
+            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>14-day brief</b> for the full read.</>
+            : <>No {subLabel} top stories in this 14-day view. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {part.mode === "caughtup" && (
@@ -1303,10 +1311,10 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     </>
   );
 
-  // This week's guests — box score (recent form + lifetime career)
+  // Recent guests — box score (recent form + lifetime career)
   const guestsSection = !!data.guests?.length && (
     <>
-      <SectionHead accent={pal.accent} rail={wide} left>This week&rsquo;s guests</SectionHead>
+      <SectionHead accent={pal.accent} rail={wide} left>Recent guests</SectionHead>
       <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
         const eps = g.episodes.filter((e) => e.audioUrl);
         return (
@@ -1324,7 +1332,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 {eps.length > 0 && <div style={{ font: "600 11.5px system-ui", color: pal.accent, marginTop: 7 }}>{openId === "g:" + i ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
               </div>
               <div style={{ flex: "none", display: "flex", gap: 8, textAlign: "center" }}>
-                <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={statTileLabel}>This wk</div></div>
+                <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={statTileLabel}>14-day</div></div>
                 <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{g.career}</div><div style={statTileLabel}>Career</div></div>
               </div>
             </div>
@@ -1401,11 +1409,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     </div>
   ) : null;
 
-  // This week on the podcasts — area episodes the drug movers don't cover (untracked-topic blind
+  // Podcasts from the past 14 days — area episodes the drug movers don't cover (untracked-topic blind
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
     <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? EDITORIAL_MEASURE : undefined }}>
-      <SectionHead id="sec-episodes" accent={pal.accent} left>This week on the podcasts</SectionHead>
+      <SectionHead id="sec-episodes" accent={pal.accent} left>Podcasts from the past 14 days</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
         {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => {
@@ -1620,9 +1628,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <span style={{ color: "#70530a", whiteSpace: "nowrap" }}>· {cState.label}</span>
             </span>
             <div role="group" aria-label="Congress coverage" style={{ marginLeft: "auto", display: "inline-flex", background: "rgba(255,255,255,.62)", border: `1px solid ${CG}66`, borderRadius: 20, padding: 3, flex: "none" }}>
-              {([["Weekly brief", false], ["Live coverage", true]] as [string, boolean][]).map(([lbl, on]) => (
+              {([["14-day brief", false], ["Live coverage", true]] as [string, boolean][]).map(([lbl, on]) => (
                 <button key={lbl} type="button" aria-pressed={congressScope === on} onClick={() => { setCongressOn(on); setOpenId(null); }}
-                  style={{ cursor: "pointer", font: "700 11px system-ui", padding: "6px 12px", borderRadius: 16, border: 0, whiteSpace: "nowrap", background: congressScope === on ? CG : "transparent", color: congressScope === on ? "#12130f" : "var(--rv-muted, rgba(255,255,255,.62))" }}>{lbl}</button>
+                  style={{ minHeight: 44, cursor: "pointer", font: "700 11px system-ui", padding: "6px 12px", borderRadius: 16, border: 0, whiteSpace: "nowrap", background: congressScope === on ? CG : "transparent", color: congressScope === on ? "#12130f" : "var(--rv-muted, rgba(255,255,255,.62))" }}>{lbl}</button>
               ))}
             </div>
           </div>
@@ -1665,7 +1673,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0, display: "inline" }}>The Readout</h1>
               {!compact && areaSwitcher("chip")}
             </div>
-            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)}</div>}
+            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)} · 14-day view</div>}
             {/* On medium-width single-column desktop, Focus still needs its own row. The wide
                 two-column layout moves it into the shared navigation band below. */}
             {!compact && !wide && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
@@ -1694,7 +1702,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
         {compact && <>
-          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>Updated {ago(data.generatedAt)}</div>
+          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>Updated {ago(data.generatedAt)} · 14-day view</div>
           <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
         </>}
         {/* Section jumps stay sticky on compact and medium-width layouts. */}
@@ -1719,7 +1727,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
              Focus pick empties the whole rail, collapse to a single column so the fixed 320px
              track doesn't leave a blank gap. */
           <div style={{ display: "grid", gridTemplateColumns: railHasContent ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
-            <div style={{ minWidth: 0 }}>
+            <div className="rv-editorial-column" style={{ minWidth: 0, width: "100%", maxWidth: EDITORIAL_MEASURE, margin: railHasContent ? 0 : "0 auto" }}>
               {dailySection}
               {storiesSection}
               {episodesSection}

@@ -9,6 +9,7 @@ import {
   SESSION_COOKIE, SESSION_MAX_AGE, RETURNING_COOKIE, returningCookieOpts,
   SESSION_RENEW_AFTER_SECS, readSessionExpiry, mintSession,
 } from "./lib/gate";
+import { activeContactId } from "./lib/gateServer";
 
 // "/r/" = the public per-post "article" pages (+ their opengraph-image). Trailing slash so it
 // only ever matches /r/<slug>, never some future /readout-style path. These pages render a
@@ -17,21 +18,32 @@ const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favico
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isSharePage = pathname === "/r" || pathname.startsWith("/r/");
   if (process.env.NODE_ENV !== "production" && pathname.startsWith("/design-lab")) {
     return NextResponse.next();
   }
-  if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return NextResponse.next();
+  if (!isSharePage && PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return NextResponse.next();
 
   const sess = req.cookies.get(SESSION_COOKIE)?.value;
   const session = await readSessionExpiry(sess);
-  if (session) {
+  const contactId = session ? await activeContactId(session.contactId) : null;
+  // Share pages stay public, but a signed cookie only unlocks member evidence while its contact
+  // is still active. Clear a revoked token here; the page repeats the status check before render.
+  if (isSharePage && !(session && contactId)) {
+    const res = NextResponse.next();
+    if (session && !contactId) {
+      res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+    }
+    return res;
+  }
+  if (session && contactId) {
     const res = NextResponse.next();
     // SLIDING WINDOW: a session was minted once and never renewed, so a reader who opened the
     // brief every week was still hard-logged-out on day 90. Past the halfway mark, re-issue on
     // the way through — reading keeps you signed in; 90 days away still lapses you.
     const remaining = session.exp - Math.floor(Date.now() / 1000);
     if (remaining < SESSION_RENEW_AFTER_SECS) {
-      res.cookies.set(SESSION_COOKIE, await mintSession(session.contactId), {
+      res.cookies.set(SESSION_COOKIE, await mintSession(contactId), {
         httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: SESSION_MAX_AGE,
       });
     }
@@ -55,7 +67,13 @@ export async function middleware(req: NextRequest) {
   if (area) params.set("area", area);
   if (sess || req.cookies.get(RETURNING_COOKIE)) params.set("expired", "1");
   url.search = params.toString() ? `?${params.toString()}` : "";
-  return NextResponse.rewrite(url);
+  const res = NextResponse.rewrite(url);
+  // A valid signature belonging to a now-inactive contact is revoked immediately. Clearing the
+  // cookie avoids repeating the status lookup and prevents an old token from being renewed later.
+  if (session && !contactId) {
+    res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  }
+  return res;
 }
 
 export const config = {
