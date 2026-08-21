@@ -108,6 +108,7 @@ export default function AudioQuote({
   const max = dur > 0 ? dur : 1;
   const val = Math.min(cur, max);
   const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
+  const controlLabel = eventLabel ?? label ?? (hasSeek ? `clip at ${fmt(atSec)}` : "audio");
 
   return (
     <div className={`aq${tone === "dark" ? " aq-dark" : ""}`} style={accent ? ({ ["--aq-accent" as string]: accent }) : undefined}>
@@ -134,7 +135,7 @@ export default function AudioQuote({
         type="button"
         className={`aq-btn${loading ? " is-loading" : ""}`}
         onClick={toggle}
-        aria-label={playing ? "Pause" : "Play"}
+        aria-label={`${playing ? "Pause" : "Play"} ${controlLabel}`}
       >
         {loading ? (
           <span className="aq-spin" aria-hidden />
@@ -159,12 +160,11 @@ export default function AudioQuote({
           value={val}
           onChange={scrub}
           style={{ ["--pct" as string]: `${pct}%` }}
-          aria-label="Seek"
+          aria-label={`Seek ${controlLabel}`}
         />
         <div className="aq-times">
           <span className="aq-cur">{fmt(cur)}</span>
-          {label && <span className="aq-label">{label}</span>}
-          {hasSeek && <span className="aq-moment">clip @ {fmt(atSec)}</span>}
+          {(label || hasSeek) && <span className={label ? "aq-label" : "aq-moment"}>{label ?? `clip @ ${fmt(atSec)}`}</span>}
           <span className="aq-dur">{dur > 0 ? fmt(dur) : "–:––"}</span>
         </div>
       </div>

@@ -172,8 +172,11 @@ const EDITORIAL_MEASURE = 850;
 // The clinician census is the useful paper signal. Peak likes belong to one
 // post and are not evidence depth, so they never appear in paper metadata.
 export const paperMeta = (shown: number, _likes: number, total?: number | null): string | undefined => {
-  const n = Math.max(total ?? 0, shown);
-  return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}` : undefined;
+  if (total != null) {
+    const n = Math.max(total, shown);
+    return n ? `shared by ${n} clinician${n === 1 ? "" : "s"}` : undefined;
+  }
+  return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
 };
 
 export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
@@ -888,11 +891,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // (guests/KOLs, trials) live beside the column, so their pills drop out of the nav.
   const carriedKols = [...data.topKols]
     .filter((k) => (k.amp ?? 0) > 0)
-    .sort((a, b) => Number(b.referenceKol === true) - Number(a.referenceKol === true)
-      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
-      || (b.amp ?? 0) - (a.amp ?? 0)
+    .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0)
       || b.tweets - a.tweets
-      || b.peakLikes - a.peakLikes);
+      || b.peakLikes - a.peakLikes
+      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
+      || Number(b.referenceKol === true) - Number(a.referenceKol === true));
   const sections = [
     { id: "sec-top", label: "Top Stories", on: true },
     { id: "sec-episodes", label: "Episodes", on: !!data.episodes?.some((e) => e.audioUrl) },
@@ -1141,7 +1144,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* The promise, stated once: this is a 24-hour brief (John 2026-08-19). */}
         <span style={{ font: "500 11px system-ui", color: MUT2 }}>· {daily?.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}</span>
       </div>
-      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} today — from the frontier:</div>}
+      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: MUT }}>Quiet in {area} for this edition — from the frontier:</div>}
       {dailyOpen || !dailyLong ? (
         <>
           {dailyLead && <p style={{ margin: "10px 0 0", font: "500 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}

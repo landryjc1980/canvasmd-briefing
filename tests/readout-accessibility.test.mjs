@@ -7,6 +7,8 @@ const all = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf
 const hero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const flat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta.url), "utf8");
 const stance = fs.readFileSync(new URL("../app/StanceBlock.tsx", import.meta.url), "utf8");
+const audio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
+const dailyConversation = fs.readFileSync(new URL("../app/DailyConversationEvidence.tsx", import.meta.url), "utf8");
 const standaloneFiles = ["Masthead.tsx", "PostCard.tsx", "PublicCard.tsx"];
 const standalone = standaloneFiles.map((file) =>
   fs.readFileSync(new URL(`../app/r/[slug]/${file}`, import.meta.url), "utf8"),
@@ -67,4 +69,12 @@ test("stance receipt disclosure announces its expansion state and target", () =>
   assert.match(stance, /aria-expanded=\{open\}/);
   assert.match(stance, /aria-controls=\{receiptsId\}/);
   assert.match(stance, /id=\{receiptsId\}/);
+});
+
+test("audio and Daily conversation controls expose their exact state and target", () => {
+  assert.match(audio, /Play" : "Pause|Pause" : "Play/);
+  assert.match(audio, /controlLabel/);
+  assert.match(audio, /Seek \$\{controlLabel\}/);
+  assert.match(dailyConversation, /daily-conversation-more/);
+  assert.match(dailyConversation, /daily-conversation-less/);
 });

@@ -223,12 +223,12 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
   };
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
   const carriedKols = [...data.topKols]
-    .filter((k) => k.referenceKol === true || (k.amp ?? 0) > 0)
-    .sort((a, b) => Number(b.referenceKol === true) - Number(a.referenceKol === true)
-      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
-      || (b.amp ?? 0) - (a.amp ?? 0)
+    .filter((k) => (k.amp ?? 0) > 0)
+    .sort((a, b) => (b.amp ?? 0) - (a.amp ?? 0)
       || b.tweets - a.tweets
-      || b.peakLikes - a.peakLikes);
+      || b.peakLikes - a.peakLikes
+      || Number(b.specialtyLocal !== false) - Number(a.specialtyLocal !== false)
+      || Number(b.referenceKol === true) - Number(a.referenceKol === true));
   // sticky section nav — jump-links + scroll-spy (desktop scroll is one long column; mobile
   // has the pill deck, so this brings parity). Sections match the mobile chapters.
   const sections = [

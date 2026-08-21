@@ -94,9 +94,10 @@ export default function DailyConversationEvidence({
             </a>
           ))}
         </div>
-        {hiddenCount > 0 && <details style={{ padding: "2px 0" }}>
+        {hiddenCount > 0 && <details className="daily-conversation-details" style={{ padding: "2px 0" }}>
           <summary style={{ cursor: "pointer", listStyle: "none", minHeight: 44, display: "flex", alignItems: "center", color: accent, font: "600 11.5px system-ui" }}>
-            See {hiddenCount} more physician post{hiddenCount === 1 ? "" : "s"} ↓
+            <span className="daily-conversation-more">See {hiddenCount} more physician post{hiddenCount === 1 ? "" : "s"} ↓</span>
+            <span className="daily-conversation-less">Hide conversation ↑</span>
           </summary>
           <div style={{ paddingTop: 5 }}>
             {reactions.slice(1).map((reaction) => reactionCard(reaction))}

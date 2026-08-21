@@ -57,11 +57,13 @@ test("Daily email includes exact retained physician receipts and factual links",
   assert.match(dailyMail, /reaction\.url/);
 });
 
-test("active reference experts retain priority without inventing X activity", () => {
+test("active reference experts remain eligible without overriding amplification order", () => {
   for (const source of [webReader, nativeDaily]) {
     assert.match(source, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
-    assert.match(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
+    assert.ok(source.indexOf("(b.amp ?? 0) - (a.amp ?? 0)") <
+      source.indexOf("Number(b.referenceKol === true) - Number(a.referenceKol === true)"));
   }
   assert.match(webAll, /referenceKol:\s*boolean/);
-  assert.match(webAll, /Number\(y\.referenceKol\) - Number\(x\.referenceKol\)/);
+  assert.ok(webAll.indexOf("y.amp - x.amp") <
+    webAll.indexOf("Number(y.referenceKol) - Number(x.referenceKol)"));
 });

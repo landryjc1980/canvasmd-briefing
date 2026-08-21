@@ -37,3 +37,7 @@ test("web evidence disclosures do not present unrendered activity as receipt cou
   assert.doesNotMatch(allView, /v\.posts\.slice/);
   assert.doesNotMatch(allView, /v\.articles\.slice/);
 });
+
+test("paper metadata is explicit when only a capped lower bound is known", () => {
+  assert.match(reader, /shared by at least \$\{shown\} clinician/);
+});

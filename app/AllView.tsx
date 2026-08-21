@@ -264,7 +264,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     }
   }
   const xRanked = [...xVoices.values()].filter((v) => v.amp > 0)
-    .sort((x, y) => Number(y.referenceKol) - Number(x.referenceKol) || y.amp - x.amp || y.tweets - x.tweets);
+    .sort((x, y) => y.amp - x.amp || y.tweets - x.tweets || Number(y.referenceKol) - Number(x.referenceKol));
   const micKeys = new Set(micsRanked.map((m) => m.key)); // for the "🎙 on mics" cross-reference
 
   // Two tracks on desktop ≥1180 — the SAME layout rule as the tumor pages (editorial column +

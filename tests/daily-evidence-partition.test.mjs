@@ -19,3 +19,10 @@ test("a specialty-relevant story retains only evidence assigned to that edition"
   assert.deepEqual(result.local, []);
   assert.deepEqual(result.across, [across]);
 });
+
+test("a specialty reference expert selected for a matching story remains visible", () => {
+  const reference = reaction("reference", ["Skin"], ["Skin"], ["GU"]);
+  const result = partitionDailyReactions([reference], ["GU", "Skin"], "GU");
+  assert.deepEqual(result.local, [reference]);
+  assert.deepEqual(result.across, []);
+});

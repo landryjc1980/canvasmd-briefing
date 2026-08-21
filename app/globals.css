@@ -702,7 +702,13 @@ a {
   color: var(--ink-3, #767b86);
   font-variant-numeric: tabular-nums;
 }
-.aq-label { color: var(--ink-3, #767b86); }
+.aq-label {
+  color: var(--ink-3, #767b86);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .aq-moment {
   color: var(--aq-accent);
   font-weight: 600;
@@ -710,6 +716,14 @@ a {
 }
 .aq-dur { margin-left: auto; }
 .aq-moment ~ .aq-dur { margin-left: 8px; } /* when the moment chip is present it takes the auto-margin */
+.daily-conversation-less { display: none; }
+.daily-conversation-details[open] .daily-conversation-more { display: none; }
+.daily-conversation-details[open] .daily-conversation-less { display: inline; }
+
+@media (max-width: 390px) {
+  .aq-times { gap: 6px; }
+  .aq-cur, .aq-dur { flex: none; }
+}
 
 /* Dark-card variant (the story/reader Weekly Brief): translucent chrome instead of
    the white pill, so the tumor accent reads correctly on the dark background. The
