@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { emph, stripEmph } from "@/app/emphasis";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard, DailyReadout } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
@@ -26,7 +26,7 @@ const AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"];
 const INK = "#17181a";
 const INK_2 = "#4f5257";
 const MUT = "#696c71";
-const MUT2 = "#85878c";
+const MUT2 = "#6d7074";
 const LINE = "#cfd0cb";
 const SURFACE = "#ebeae5";
 const PAPER = "#f4f4f1";
@@ -66,6 +66,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [micsMore, setMicsMore] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
   const [xMore, setXMore] = useState(false);
@@ -83,6 +85,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       body.style.backgroundColor = previousBody;
     };
   }, []);
+  useEffect(() => {
+    if (!menuOpen) return;
+    requestAnimationFrame(() => {
+      const selected = menuRef.current?.querySelector<HTMLElement>('[aria-current="true"]');
+      (selected ?? menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]'))?.focus();
+    });
+  }, [menuOpen]);
+  const closeMenu = (restoreFocus = true) => {
+    setMenuOpen(false);
+    if (restoreFocus) requestAnimationFrame(() => menuTriggerRef.current?.focus());
+  };
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -581,24 +594,25 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
 
   const editionMenu = (
     <div style={{ position: "relative", flex: "none" }}>
-      <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area"
-        onClick={() => setMenuOpen((o) => !o)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
+      <button ref={menuTriggerRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-label="Switch tumor area"
+        onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)}
         className="rv-edition"
         style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0 }}>
         <span style={{ font: "700 13px system-ui", color: ALL_ACCENT, whiteSpace: "nowrap" }}>All oncology</span>
         <span aria-hidden style={{ width: 10, height: 10, borderRight: `2px solid ${ALL_ACCENT}`, borderBottom: `2px solid ${ALL_ACCENT}`, transform: menuOpen ? "translateY(3px) rotate(225deg)" : "translateY(-2px) rotate(45deg)", transition: "transform .18s ease", flex: "none", boxSizing: "border-box" }} />
-      </div>
+      </button>
       {menuOpen && (
         <>
-          <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-          <div style={{ position: "absolute", top: "calc(100% + 7px)", right: compact ? 0 : undefined, left: compact ? undefined : 0, width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
+          <div onClick={() => closeMenu()} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
+          <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeMenu(); } }}
+            style={{ position: "absolute", top: "calc(100% + 7px)", right: compact ? 0 : undefined, left: compact ? undefined : 0, width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
             <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: MUT2, padding: "6px 11px 8px" }}>Tumor area</div>
             {areas.map((a) => {
               const on = a === "All";
               const label = a === "All" ? "All oncology" : (AREA_FULL[a] ?? a);
               const isHome = a === primary;
               return (
-                <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (!on) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? SURFACE : "transparent", border: 0 }}>
+                <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { closeMenu(); if (!on) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? SURFACE : "transparent", border: 0 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: a === "All" ? ALL_ACCENT : accentOf(a) }} />
                   <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? ALL_ACCENT : INK_2 }}>{label}</span>
                   {isHome && <span title="Your default" style={{ color: MUT2, font: "700 12px system-ui" }}>⌂</span>}
@@ -609,7 +623,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             {onSetPrimary && primary !== "All" && (
               <>
                 <div style={{ height: 1, background: LINE, margin: "6px 4px" }} />
-                <button type="button" onClick={() => { onSetPrimary("All"); setMenuOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: ALL_ACCENT, font: "600 12.5px system-ui" }}>
+                <button type="button" role="menuitem" onClick={() => { onSetPrimary("All"); closeMenu(); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: ALL_ACCENT, font: "600 12.5px system-ui" }}>
                   <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>Make All oncology my default
                 </button>
               </>

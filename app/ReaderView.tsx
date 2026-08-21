@@ -112,7 +112,7 @@ export function Coin({ src, label, size, radius = "50%", ring, style }: { src?: 
 const INK = "#17181a";
 const INK_2 = "#4f5257";
 const LIGHT_MUT = "#696c71";
-const LIGHT_MUT2 = "#85878c";
+const LIGHT_MUT2 = "#6d7074";
 // These components are also reused by the dark All Oncology view. CSS variables let the
 // active Reader choose the light palette while the shared renderers retain dark fallbacks.
 const MUT = "var(--rv-muted, #9aa2b6)";
@@ -229,23 +229,29 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
       {!text && thread.length === 0 && <div style={{ marginTop: 6, font: "500 11.5px system-ui", color: MUT }}>Shared this source</div>}
-      {hasTranslation && (
-        <button type="button"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowOriginal((v) => !v); }}
-          style={{ background: "none", border: 0, padding: "6px 0 0", cursor: "pointer", font: "500 11px system-ui", color: MUT, textAlign: "left" }}>
-          {showOriginal ? `Show translation (from ${langName})` : `Translated from ${langName} · Show original`}
-        </button>
-      )}
     </>);
   const postUrl = original?.tweetUrl ?? t.tweetUrl;
-  const root = postUrl
-    ? <a href={postUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", color: "inherit", textDecoration: "none" }}>{body}</a>
-    : body;
   const reposters = t.repostedBy ?? [];
   const visibleReposters = compact ? reposters.slice(0, 3) : reposters;
   return (
     <div className={compact ? "readout-tweet-preview" : undefined} style={cardBox}>
-      {root}
+      {body}
+      {(hasTranslation || postUrl) && (
+        <div style={{ display: "flex", alignItems: "center", columnGap: 16, flexWrap: "wrap", marginTop: 3 }}>
+          {hasTranslation && (
+            <button type="button" onClick={() => setShowOriginal((v) => !v)}
+              style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "500 11px system-ui", color: MUT, textAlign: "left" }}>
+              {showOriginal ? `Show translation (from ${langName})` : `Translated from ${langName} · Show original`}
+            </button>
+          )}
+          {postUrl && (
+            <a href={postUrl} target="_blank" rel="noopener noreferrer" className="rv-text-action"
+              style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--rv-accent)", font: "600 12px system-ui", textDecoration: "none" }}>
+              View on X ↗
+            </a>
+          )}
+        </div>
+      )}
       {expanded && thread.map((part, i) => {
         const continuation = (
           <div style={{ marginTop: 13, paddingLeft: 11, borderLeft: "2px solid var(--rv-line, rgba(255,255,255,.14))" }}>
@@ -261,12 +267,6 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         style={{ cursor: "pointer", minHeight: 44, marginTop: 5, padding: "0 2px", border: 0, background: "transparent", color: "var(--rv-accent)", font: "600 12px system-ui" }}>
         {expanded ? "Show less ↑" : thread.length ? `Show full thread · ${thread.length + 1} posts ↓` : "Show longer excerpt ↓"}
       </button>}
-      {expanded && !thread.length && postUrl && (
-        <a href={postUrl} target="_blank" rel="noopener noreferrer" className="rv-text-action"
-          style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--rv-accent)", font: "600 12px system-ui", textDecoration: "none" }}>
-          Read complete post on X ↗
-        </a>
-      )}
       {reposters.length > 0 && (
         <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "flex-start", gap: 8 }}>
           <div aria-hidden style={{ display: "flex", alignItems: "center", flex: "none", paddingTop: 1 }}>
@@ -732,6 +732,19 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const subLabel = activeSub ? (subAreaOpts.find((s) => s.key === activeSub)?.label ?? activeSub) : null;
   const [shareMsg, setShareMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // masthead area/tumor switcher (mobile parity)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    requestAnimationFrame(() => {
+      const selected = menuRef.current?.querySelector<HTMLElement>('[aria-current="true"]');
+      (selected ?? menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]'))?.focus();
+    });
+  }, [menuOpen]);
+  const closeMenu = (restoreFocus = true) => {
+    setMenuOpen(false);
+    if (restoreFocus) requestAnimationFrame(() => menuTriggerRef.current?.focus());
+  };
   // On a phone, seven full Top Stories put "This week on the podcasts" ~3,000px down — the podcast
   // archive is the most differentiated asset and nobody scrolled to it. Show the first few and tuck
   // the rest (which, in split mode, are the already-read ones) behind an explicit control.
@@ -787,28 +800,28 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     const chip = variant === "chip";
     return (
       <div style={{ position: "relative", flex: "none" }}>
-        <div role="button" tabIndex={0} aria-expanded={menuOpen} aria-label="Switch tumor area"
-          onClick={() => setMenuOpen((o) => !o)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMenuOpen((o) => !o); } }}
+        <button ref={menuTriggerRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-label="Switch tumor area"
+          onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)}
           className={chip ? "rv-edition" : undefined}
           // .rv-edition::after carries the 44px hit area; color and the larger
           // chevron communicate interactivity without a capsule or hanging rule.
           style={chip
             ? { display: "inline-flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0, borderRadius: 0, boxSizing: "border-box" }
-            : { display: "flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer" }}>
+            : { display: "flex", alignItems: "center", gap: 9, padding: "4px 0", cursor: "pointer", background: "transparent", border: 0 }}>
           <span style={{ font: chip ? "700 13px system-ui" : "600 14px system-ui", color: pal.accent, whiteSpace: "nowrap" }}>{AREA_FULL[area] ?? area}</span>
           <span aria-hidden style={{ width: 10, height: 10, borderRight: `2px solid ${chip ? pal.accent : "var(--rv-ink-2, rgba(255,255,255,.72))"}`, borderBottom: `2px solid ${chip ? pal.accent : "var(--rv-ink-2, rgba(255,255,255,.72))"}`, transform: menuOpen ? "translateY(3px) rotate(225deg)" : "translateY(-2px) rotate(45deg)", transition: "transform .18s ease", flex: "none", boxSizing: "border-box" }} />
-        </div>
+        </button>
         {menuOpen && (
           <>
-            <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-            <div style={{ position: "absolute", top: "calc(100% + 7px)", ...(menuSide === "right" ? { right: 0 } : { left: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
+            <div onClick={() => closeMenu()} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
+            <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeMenu(); } }}
+              style={{ position: "absolute", top: "calc(100% + 7px)", ...(menuSide === "right" ? { right: 0 } : { left: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
               <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--rv-muted-2, rgba(255,255,255,.4))", padding: "6px 11px 8px" }}>Tumor area</div>
               {areas.map((a) => {
                 const on = a === area;
                 const isHome = a === primary;
                 return (
-                  <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { setMenuOpen(false); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "var(--rv-surface, rgba(255,255,255,.1))" : "transparent", border: 0 }}>
+                  <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { closeMenu(); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "var(--rv-surface, rgba(255,255,255,.1))" : "transparent", border: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
                     <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? pal.accent : INK_2 }}>{AREA_FULL[a] ?? a}</span>
                     {/* a filled home glyph marks the saved default, so switching to browse another
@@ -823,7 +836,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {onSetPrimary && area !== primary && (
                 <>
                   <div style={{ height: 1, background: "var(--rv-line, rgba(255,255,255,.08))", margin: "6px 4px" }} />
-                  <button type="button" onClick={() => { onSetPrimary(area); setMenuOpen(false); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: pal.accent, font: "600 12.5px system-ui" }}>
+                  <button type="button" role="menuitem" onClick={() => { onSetPrimary(area); closeMenu(); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: pal.accent, font: "600 12.5px system-ui" }}>
                     <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>
                     Make {AREA_FULL[area] ?? area} my default
                   </button>
