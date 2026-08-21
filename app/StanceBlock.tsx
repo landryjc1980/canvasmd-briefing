@@ -18,7 +18,7 @@
 // BANNED until speaker-level ownership is real: wording that claims measured sentiment, puts a
 // view in professionals' mouths, or counts takes as people. `npm test` enforces the exact list.
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { stanceParts } from "./briefVM";
 
 // PAPER/INK palette (audit 2026-08-19): this block was the theme port's miss — it still wore
@@ -73,6 +73,7 @@ function TakeRow({ t, accent }: { t: BriefingStanceTake; accent: string }) {
 
 export default function StanceBlock({ stance, accent, style }: { stance?: BriefingStance | null; accent: string; style?: React.CSSProperties }) {
   const [open, setOpen] = useState(false);
+  const receiptsId = useId();
   const st = stanceParts(stance);
   if (!st || !stance) return null; // self-suppresses (thin signal / non-drug) → callers never leave an empty gap
 
@@ -141,11 +142,12 @@ export default function StanceBlock({ stance, accent, style }: { stance?: Briefi
       {hasReceipts && (
         <>
           <button type="button" onClick={(e) => { stop(e); setOpen((o) => !o); }} onKeyDown={stopKey}
+            aria-expanded={open} aria-controls={receiptsId}
             style={{ marginTop: 12, background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent }}>
             {open ? "Hide the receipts ↑" : takes.length < st.total ? `See ${takes.length} of ${st.total} takes ↓` : `See all ${st.total} takes ↓`}
           </button>
           {open && (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12, borderTop: `1px solid ${S_LINE}`, paddingTop: 12 }}>
+            <div id={receiptsId} style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12, borderTop: `1px solid ${S_LINE}`, paddingTop: 12 }}>
               {takes.map((t, i) => <TakeRow key={i} t={t} accent={accent} />)}
               {takes.length < st.total && (
                 <div style={{ font: "400 11px system-ui", color: S_MUT }}>Showing {takes.length} of {st.total}.</div>

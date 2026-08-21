@@ -6,6 +6,7 @@ const reader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url)
 const all = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
 const hero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const flat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta.url), "utf8");
+const stance = fs.readFileSync(new URL("../app/StanceBlock.tsx", import.meta.url), "utf8");
 const standaloneFiles = ["Masthead.tsx", "PostCard.tsx", "PublicCard.tsx"];
 const standalone = standaloneFiles.map((file) =>
   fs.readFileSync(new URL(`../app/r/[slug]/${file}`, import.meta.url), "utf8"),
@@ -53,9 +54,17 @@ test("hero controls include the story headline in accessible names", () => {
 });
 
 test("flat fallback accordions are keyboard operable and separate paper disclosures", () => {
-  assert.match(flat, /role="button" tabIndex=\{0\} aria-expanded=\{open\}/);
+  assert.match(flat, /role=\{disabled \? undefined : "button"\}/);
   assert.match(flat, /event\.key === "Enter" \|\| event\.key === " "/);
   assert.match(flat, /const \[abstractOpen, setAbstractOpen\]/);
   assert.match(flat, /const \[sourcesOpen, setSourcesOpen\]/);
-  assert.match(flat, /\{sourcesOpen \? "Hide sources ↑" : "Sources ↓"\}/);
+  assert.match(flat, /Sources · \$\{revealableClinicians\} of \$\{totalClinicians\}/);
+  assert.match(flat, /minHeight: 44/);
+  assert.match(flat, /disabled=\{!eps\.length\}/);
+});
+
+test("stance receipt disclosure announces its expansion state and target", () => {
+  assert.match(stance, /aria-expanded=\{open\}/);
+  assert.match(stance, /aria-controls=\{receiptsId\}/);
+  assert.match(stance, /id=\{receiptsId\}/);
 });

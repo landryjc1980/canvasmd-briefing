@@ -240,7 +240,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     // host credit — and the visible numbers read as mis-sorted even though the rule is stated.
     .sort((x, y) => micValue(y) - micValue(x) || epCount(y) - epCount(x) || y.career - x.career || x.name.localeCompare(y.name));
 
-  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[] };
+  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; referenceKol: boolean; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[] };
   const xVoices = new Map<string, XEntry>();
   for (const a of AREAS) {
     for (const k of briefsByArea[a]?.topKols ?? []) {
@@ -251,18 +251,20 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       const amp = k.amp ?? k.posts.reduce((s, p) => s + (/^\s*RT @/.test(p.text ?? "") ? 0 : p.retweets + (p.quotes ?? 0)), 0);
       const key = k.handle ? k.handle.toLowerCase() : norm(k.name); if (!key) continue;
       let v = xVoices.get(key);
-      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [] as string[], amp: 0, tweets: 0, paperShares: 0, posts: [] as BriefingSharer[], articles: [] as XEntry["articles"] }; xVoices.set(key, v); }
+      if (!v) { v = { key, name: k.name, handle: k.handle, avatar: k.avatar, institution: k.institution, areas: [] as string[], amp: 0, tweets: 0, paperShares: 0, referenceKol: false, posts: [] as BriefingSharer[], articles: [] as XEntry["articles"] }; xVoices.set(key, v); }
       if (!v.areas.includes(a)) v.areas.push(a);
       v.amp = Math.max(v.amp, amp);
       v.tweets = Math.max(v.tweets, k.tweets);
       v.paperShares = Math.max(v.paperShares, k.paperShares ?? k.articles.length);
+      v.referenceKol ||= k.referenceKol === true;
       const seen = new Set(v.posts.map((p) => p.tweetUrl ?? p.text ?? ""));
       for (const p of k.posts) { const pk = p.tweetUrl ?? p.text ?? ""; if (!seen.has(pk)) { v.posts.push(p); seen.add(pk); } }
       const seenA = new Set(v.articles.map((ar) => ar.url));
       for (const ar of k.articles) if (!seenA.has(ar.url)) { v.articles.push(ar); seenA.add(ar.url); }
     }
   }
-  const xRanked = [...xVoices.values()].filter((v) => v.amp > 0).sort((x, y) => y.amp - x.amp || y.tweets - x.tweets);
+  const xRanked = [...xVoices.values()].filter((v) => v.amp > 0)
+    .sort((x, y) => Number(y.referenceKol) - Number(x.referenceKol) || y.amp - x.amp || y.tweets - x.tweets);
   const micKeys = new Set(micsRanked.map((m) => m.key)); // for the "🎙 on mics" cross-reference
 
   // Two tracks on desktop ≥1180 — the SAME layout rule as the tumor pages (editorial column +
@@ -792,7 +794,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           <section style={{ margin: "26px 0 6px", padding: "20px 22px 12px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
               <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
-              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · updated today</span>
+              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}</span>
             </div>
             {/* Collapsed by default: the lead is the 3-line teaser (it IS the summary); expanding
                 reveals the narrative paragraphs. Sources stay behind their own <details>. */}

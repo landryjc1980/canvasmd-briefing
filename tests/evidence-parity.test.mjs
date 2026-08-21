@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { canvasmdFile } from "./paired-repo.mjs";
 
 const webReader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
+const webAll = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
 const webDaily = fs.readFileSync(new URL("../app/DailyConversationEvidence.tsx", import.meta.url), "utf8");
 const dailyMail = fs.readFileSync(new URL("../lib/dailyMail.ts", import.meta.url), "utf8");
 const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
@@ -56,9 +57,11 @@ test("Daily email includes exact retained physician receipts and factual links",
   assert.match(dailyMail, /reaction\.url/);
 });
 
-test("reference experts survive client filtering and retain priority", () => {
+test("active reference experts retain priority without inventing X activity", () => {
   for (const source of [webReader, nativeDaily]) {
-    assert.match(source, /referenceKol === true \|\| \(k\.amp \?\? 0\) > 0/);
+    assert.match(source, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
     assert.match(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
   }
+  assert.match(webAll, /referenceKol:\s*boolean/);
+  assert.match(webAll, /Number\(y\.referenceKol\) - Number\(x\.referenceKol\)/);
 });

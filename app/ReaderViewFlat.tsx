@@ -112,7 +112,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 }
 // Expands INLINE to the abstract + the clinicians' tweets about the paper (parity with
 // the mobile story), so readers stay on the page. The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, publisherPosts, otherPosts, publishers, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; publishers?: string[]; accent?: string; peerReviewed?: boolean }) {
+function PaperCard({ title, journal, domain, meta, url, abstract, posts, publisherPosts, otherPosts, publishers, accent, peerReviewed, totalClinicians, revealableClinicians }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; publishers?: string[]; accent?: string; peerReviewed?: boolean; totalClinicians?: number; revealableClinicians?: number }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
@@ -121,6 +121,7 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, publish
   const hasOtherPosts = !!otherPosts?.length;
   const hasPublisherNames = !!publishers?.length;
   const hasSources = hasPosts || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
+  const sourcesTruncated = totalClinicians != null && revealableClinicians != null && totalClinicians > revealableClinicians;
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
@@ -142,21 +143,21 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, publish
         {hasOtherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasPublisherPosts ? 12 : 0 }}>Additional posts on X</div>{otherPosts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}</>}
         {hasPublisherNames && !hasPublisherPosts && <><div style={{ ...evLabel(accent ?? "#9aa0ac"), marginTop: hasPosts || hasOtherPosts ? 12 : 0 }}>From publishers &amp; journals</div><div style={{ font: "400 12px system-ui", color: "#9da0aa" }}>Shared by: {publishers!.join(" · ")}</div></>}
       </div>}
-      <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
-        {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
-        {hasSources && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
+      <div style={{ display: "flex", gap: 16, marginTop: 11, flexWrap: "wrap" }}>
+        {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
+        {hasSources && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "#9aa0ac" }}>{sourcesOpen ? "Hide sources ↑" : sourcesTruncated ? `Sources · ${revealableClinicians} of ${totalClinicians} ↓` : "Sources ↓"}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
   );
 }
 
-function Row({ open, onToggle, accent, head, children }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode }) {
+function Row({ open, onToggle, accent, head, children, disabled = false }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode; disabled?: boolean }) {
   return (
     <div>
-      <div role="button" tabIndex={0} aria-expanded={open} onClick={onToggle}
+      <div role={disabled ? undefined : "button"} tabIndex={disabled ? undefined : 0} aria-expanded={disabled ? undefined : open} onClick={disabled ? undefined : onToggle}
         onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onToggle(); } }}
-        style={{ cursor: "pointer" }}>{head}</div>
+        style={{ cursor: disabled ? "default" : "pointer" }}>{head}</div>
       {open && <div style={{ margin: "0 0 24px 0", display: "flex", flexDirection: "column", gap: 18 }}>{children}</div>}
     </div>
   );
@@ -435,7 +436,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
             const eps = g.episodes.filter((e) => e.audioUrl);
             return (
-            <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent}
+            <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent} disabled={!eps.length}
               head={
                 <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 2px" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -512,9 +513,9 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
             return (
               <PaperCard title={a.title} journal={a.journal} domain={a.domain}
                 peerReviewed={a.peerReviewed}
-                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined}
+                meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}${a.revealableClinicianCount != null && a.kolSharers > a.revealableClinicianCount ? ` · ${a.revealableClinicianCount} shown in sources` : ""}` : undefined}
                 url={a.url} abstract={a.abstract} posts={a.posts} publisherPosts={a.publisherPosts}
-                otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} />
+                otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} totalClinicians={a.kolSharers} revealableClinicians={a.revealableClinicianCount} />
             );
           }} />
         </>}
