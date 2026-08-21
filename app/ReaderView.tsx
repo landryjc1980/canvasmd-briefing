@@ -1149,7 +1149,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const dailyQuiet = !areaDailyParas.length && genDailyParas.length > 0;
   const dailyLead = dailyEd?.lead ?? null;
   const dailyAll = [...areaDailyParas, ...genDailyParas];
-  const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || !!dailyLead;
+  const dailyPreviewParas = dailyQuiet ? genDailyParas : areaDailyParas;
+  const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || (!!dailyLead && dailyAll.length > 0);
   const dailyAccent = dailyAccentOf(area, pal.accent);
   const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null; storyIds?: string[] }, i: number | string, n?: number) => (
     <div key={i}>
@@ -1168,7 +1169,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} area={area} accent={dailyAccent} ink="var(--rv-ink, #eef1f8)" muted={DAILY_MUTED} line={LINE} />
     </div>
   );
-  const dailySection = dailyAll.length > 0 && (
+  const dailySection = (dailyAll.length > 0 || !!dailyLead) && (
     <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <div className="daily-meta" style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <span className="daily-meta-primary" style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: dailyAccent }}>The Daily · {area}</span>
@@ -1192,7 +1193,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         <>
           {dailyLead && <p style={{ margin: "10px 0 0", font: "700 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{stripEmph(dailyLead)}</p>}
           <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
-            {areaDailyParas.slice(0, 3).map((p, i) => (
+            {dailyPreviewParas.slice(0, 3).map((p, i) => (
               <div key={i} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", font: "600 12.5px/1.45 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>
                 <span style={{ color: dailyAccent }}>{i + 1}. </span>{stripEmph(p.head ?? p.text)}
               </div>
