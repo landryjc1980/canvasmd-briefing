@@ -228,6 +228,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#e08aa0" }}>♥ {t.likes}</span>}
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
+      {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: MUT }}>{t.receiptNote}</div>}
       {!text && thread.length === 0 && <div style={{ marginTop: 6, font: "500 11.5px system-ui", color: MUT }}>Shared this source</div>}
     </>);
   const postUrl = original?.tweetUrl ?? t.tweetUrl;
@@ -424,7 +425,7 @@ function Collapse({ open, children }: { open: boolean; children: React.ReactNode
   return <div className="rv-drawer">{children}</div>;
 }
 
-export function Row({ open, onToggle, accent, head, children, landOffset = 70, variant = "surface" }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode; landOffset?: number; variant?: "surface" | "list" }) {
+export function Row({ open, onToggle, accent, head, children, landOffset = 70, variant = "surface", disabled = false }: { open: boolean; onToggle: () => void; accent: string; head: React.ReactNode; children: React.ReactNode; landOffset?: number; variant?: "surface" | "list"; disabled?: boolean }) {
   const headRef = useRef<HTMLDivElement>(null);
   // Single-open accordion: opening a row BELOW an already-open one collapses that one and yanks the
   // clicked row upward off the cursor. Capture the head's viewport position, commit the toggle
@@ -454,6 +455,7 @@ export function Row({ open, onToggle, accent, head, children, landOffset = 70, v
     // from the top of the document. Hand focus back to the row we just landed on.
     el.focus({ preventScroll: true });
   };
+  if (disabled) return <div className={variant === "list" ? "rv-list-row" : undefined}>{head}</div>;
   return (
     <div className={variant === "list" ? "rv-list-row" : undefined}>
       <div
@@ -745,6 +747,19 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     setMenuOpen(false);
     if (restoreFocus) requestAnimationFrame(() => menuTriggerRef.current?.focus());
   };
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") { event.preventDefault(); closeMenu(); return; }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    if (!items.length) return;
+    event.preventDefault();
+    const current = Math.max(0, items.indexOf(document.activeElement as HTMLElement));
+    const next = event.key === "Home" ? 0
+      : event.key === "End" ? items.length - 1
+      : event.key === "ArrowDown" ? (current + 1) % items.length
+      : (current - 1 + items.length) % items.length;
+    items[next].focus();
+  };
   // On a phone, seven full Top Stories put "This week on the podcasts" ~3,000px down — the podcast
   // archive is the most differentiated asset and nobody scrolled to it. Show the first few and tuck
   // the rest (which, in split mode, are the already-read ones) behind an explicit control.
@@ -814,14 +829,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {menuOpen && (
           <>
             <div onClick={() => closeMenu()} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-            <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeMenu(); } }}
+            <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={handleMenuKeyDown}
               style={{ position: "absolute", top: "calc(100% + 7px)", ...(menuSide === "right" ? { right: 0 } : { left: 0 }), width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
               <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--rv-muted-2, rgba(255,255,255,.4))", padding: "6px 11px 8px" }}>Tumor area</div>
               {areas.map((a) => {
                 const on = a === area;
                 const isHome = a === primary;
                 return (
-                  <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { closeMenu(); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "var(--rv-surface, rgba(255,255,255,.1))" : "transparent", border: 0 }}>
+                  <button key={a} type="button" role="menuitem" tabIndex={on ? 0 : -1} aria-current={on} onClick={() => { closeMenu(); if (a !== area) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? "var(--rv-surface, rgba(255,255,255,.1))" : "transparent", border: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: palOf(a).accent, flex: "none" }} />
                     <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? pal.accent : INK_2 }}>{AREA_FULL[a] ?? a}</span>
                     {/* a filled home glyph marks the saved default, so switching to browse another
@@ -836,7 +851,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               {onSetPrimary && area !== primary && (
                 <>
                   <div style={{ height: 1, background: "var(--rv-line, rgba(255,255,255,.08))", margin: "6px 4px" }} />
-                  <button type="button" role="menuitem" onClick={() => { onSetPrimary(area); closeMenu(); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: pal.accent, font: "600 12.5px system-ui" }}>
+                  <button type="button" role="menuitem" tabIndex={-1} onClick={() => { onSetPrimary(area); closeMenu(); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: pal.accent, font: "600 12.5px system-ui" }}>
                     <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>
                     Make {AREA_FULL[area] ?? area} my default
                   </button>
@@ -1261,7 +1276,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       <Capped items={data.guests} cap={6} accent={pal.accent} render={(g, i) => {
         const eps = g.episodes.filter((e) => e.audioUrl);
         return (
-        <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent} variant="list"
+        <Row key={"g:" + i} open={openId === "g:" + i} onToggle={() => { if (eps.length) toggle("g:" + i); }} accent={pal.accent} variant="list" disabled={!eps.length}
           head={
             <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 2px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>

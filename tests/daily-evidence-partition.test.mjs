@@ -10,11 +10,11 @@ test("Daily evidence keeps reference experts local and labels nonlocal voices ac
   const across = reaction("across", ["Skin"], ["Skin"]);
   const result = partitionDailyReactions([local, reference, across], ["GU", "Skin"], "GU");
   assert.deepEqual(result.local.map((row) => row.id), ["local", "reference"]);
-  assert.deepEqual(result.across.map((row) => row.id), ["across"]);
+  assert.deepEqual(result.across, []);
 });
 
-test("a specialty-relevant story retains an across-oncology-only evidence drawer", () => {
-  const across = reaction("across", ["Skin"], ["Skin"]);
+test("a specialty-relevant story retains only evidence assigned to that edition", () => {
+  const across = reaction("across", ["GU", "Skin"], ["Skin"]);
   const result = partitionDailyReactions([across], ["GU", "Skin"], "GU");
   assert.deepEqual(result.local, []);
   assert.deepEqual(result.across, [across]);

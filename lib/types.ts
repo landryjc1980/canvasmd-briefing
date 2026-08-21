@@ -463,6 +463,7 @@ export type BriefingSharer = {
   avatar: string | null; // real X profile image (pbs.twimg.com), initials fallback
   tweetUrl: string | null;
   text: string | null;
+  receiptNote?: string | null; // retained excerpt when the original X URL is unavailable
   lang?: string | null;   // ADDITIVE — original language (translation lane, 0322)
   textEn?: string | null; // ADDITIVE — stored English translation; original stays the receipt
   thread?: { id: string; text: string; tweetUrl: string | null }[]; // ADDITIVE — same-author thread continuations

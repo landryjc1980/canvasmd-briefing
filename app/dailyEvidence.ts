@@ -10,8 +10,7 @@ export function partitionDailyReactions<T extends AreaReaction>(
   area?: string,
 ): { local: T[]; across: T[] } {
   if (!area) return { local: reactions, across: [] };
-  const storyIsLocal = storyAreas.includes(area);
-  const relevant = reactions.filter((reaction) => storyIsLocal || reaction.areas.includes(area));
+  const relevant = reactions.filter((reaction) => reaction.areas.includes(area));
   const local = relevant.filter((reaction) => {
     if (reaction.referenceAreas?.includes(area)) return true;
     if (reaction.sourceAreas?.includes(area)) return true;

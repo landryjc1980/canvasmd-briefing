@@ -13,7 +13,7 @@
 
 import Masthead from "./Masthead";
 
-const INK = "#17181a", INK_2 = "#4f5257", MUT = "#696c71", MUT2 = "#85878c";
+const INK = "#17181a", INK_2 = "#4f5257", MUT = "#696c71", MUT2 = "#6d7074";
 const LINE = "#cfd0cb", SURFACE = "#ebeae5", PAPER = "#f4f4f1";
 
 export type PublicViewData = {

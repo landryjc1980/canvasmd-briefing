@@ -28,7 +28,7 @@ export default function Masthead({ accent, areaFull, href, note }: { accent: str
         </a>
         <a href={href} style={{ textDecoration: "none", font: "700 13px system-ui", color: accent, whiteSpace: "nowrap", paddingBottom: 2 }}>{areaFull}</a>
       </div>
-      {note && <div style={{ font: "600 10px system-ui", color: "#85878c", marginTop: 9 }}>{note}</div>}
+      {note && <div style={{ font: "600 10px system-ui", color: "#6d7074", marginTop: 9 }}>{note}</div>}
       <div aria-hidden style={{ height: 1, margin: "14px 0 12px", background: LINE }} />
     </>
   );

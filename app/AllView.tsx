@@ -96,6 +96,19 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     setMenuOpen(false);
     if (restoreFocus) requestAnimationFrame(() => menuTriggerRef.current?.focus());
   };
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") { event.preventDefault(); closeMenu(); return; }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    if (!items.length) return;
+    event.preventDefault();
+    const current = Math.max(0, items.indexOf(document.activeElement as HTMLElement));
+    const next = event.key === "Home" ? 0
+      : event.key === "End" ? items.length - 1
+      : event.key === "ArrowDown" ? (current + 1) % items.length
+      : (current - 1 + items.length) % items.length;
+    items[next].focus();
+  };
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -574,7 +587,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 </div>
                 <h3 style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: INK, letterSpacing: 0, margin: 0 }}>{s.headline}</h3>
                 {s.subtitle && <div style={{ font: "500 11.5px system-ui", color: MUT, marginTop: 6 }}>{s.subtitle}</div>}
-                {s.description && <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: "#aab0bf", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
+                {s.description && <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: MUT, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
                 <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   {faces.length > 0 && <FacePile faces={faces} extra={0} ring={PAPER} />}
                   <span style={{ font: "400 12px system-ui", color: MUT }}>{storyMetricLine(s)}</span>
@@ -604,7 +617,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {menuOpen && (
         <>
           <div onClick={() => closeMenu()} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
-          <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeMenu(); } }}
+          <div ref={menuRef} role="menu" aria-label="Tumor area" onKeyDown={handleMenuKeyDown}
             style={{ position: "absolute", top: "calc(100% + 7px)", right: compact ? 0 : undefined, left: compact ? undefined : 0, width: 210, background: "rgba(255,255,255,.98)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: `1px solid ${LINE}`, borderRadius: 6, boxShadow: "0 16px 36px rgba(31,35,42,.14)", padding: 8, zIndex: 31 }}>
             <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: MUT2, padding: "6px 11px 8px" }}>Tumor area</div>
             {areas.map((a) => {
@@ -612,7 +625,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               const label = a === "All" ? "All oncology" : (AREA_FULL[a] ?? a);
               const isHome = a === primary;
               return (
-                <button key={a} type="button" role="menuitem" aria-current={on} onClick={() => { closeMenu(); if (!on) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? SURFACE : "transparent", border: 0 }}>
+                <button key={a} type="button" role="menuitem" tabIndex={on ? 0 : -1} aria-current={on} onClick={() => { closeMenu(); if (!on) onArea(a); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: on ? SURFACE : "transparent", border: 0 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: a === "All" ? ALL_ACCENT : accentOf(a) }} />
                   <span style={{ flex: 1, font: "600 13.5px system-ui", color: on ? ALL_ACCENT : INK_2 }}>{label}</span>
                   {isHome && <span title="Your default" style={{ color: MUT2, font: "700 12px system-ui" }}>⌂</span>}
@@ -623,7 +636,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             {onSetPrimary && primary !== "All" && (
               <>
                 <div style={{ height: 1, background: LINE, margin: "6px 4px" }} />
-                <button type="button" role="menuitem" onClick={() => { onSetPrimary("All"); closeMenu(); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: ALL_ACCENT, font: "600 12.5px system-ui" }}>
+                <button type="button" role="menuitem" tabIndex={-1} onClick={() => { onSetPrimary("All"); closeMenu(); }} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, cursor: "pointer", background: "transparent", border: 0, color: ALL_ACCENT, font: "600 12.5px system-ui" }}>
                   <span aria-hidden style={{ font: "700 13px system-ui" }}>⌂</span>Make All oncology my default
                 </button>
               </>

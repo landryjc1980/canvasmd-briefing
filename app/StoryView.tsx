@@ -69,6 +69,7 @@ function TweetCard({ t }: { t: BriefingSharer }) {
       {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
     </div>
     {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
+    {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: "#9da0aa" }}>{t.receiptNote}</div>}
   </>);
   return t.tweetUrl
     ? <a href={t.tweetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ ...cardBox, display: "block", textDecoration: "none" }}>{body}</a>

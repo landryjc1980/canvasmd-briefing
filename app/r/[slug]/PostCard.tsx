@@ -25,7 +25,7 @@ import "@/app/brief.css";
 
 
 // House palette (paper/ink), matching the reader (app/ReaderView.tsx constants).
-const INK = "#17181a", INK_2 = "#4f5257", LIGHT_MUT = "#696c71", LIGHT_MUT2 = "#85878c";
+const INK = "#17181a", INK_2 = "#4f5257", LIGHT_MUT = "#696c71", LIGHT_MUT2 = "#6d7074";
 const LINE = "#cfd0cb", SURFACE = "#ebeae5", PAPER = "#f4f4f1";
 const MUT = "var(--rv-muted, #696c71)";
 const AREA_ACCENTS: Record<string, string> = {
