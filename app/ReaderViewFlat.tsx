@@ -6,7 +6,7 @@ import AudioQuote from "@/components/AudioQuote";
 import { palOf, barSegments, barSegmentsRaw, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, articleSource, isNewsItem, cleanArticleTitle, clipTs, pileFaces, stanceParts, trialEvidenceLine, AREA_FULL, UP, DOWN } from "./briefVM";
 import { BriefingStance } from "@/lib/types";
 import { logStorySeen } from "./gateClient";
-import { representedClinicianCount } from "./heroEvidence";
+import { paperClinicianMeta, representedClinicianCount } from "./heroEvidence";
 import { unrepresentedPublishers } from "./clientEvidence";
 
 // FROZEN SNAPSHOT (2026-07-21) of the pre-depth-redesign ReaderView, reachable at
@@ -78,16 +78,6 @@ function Bar({ m, accent }: { m: BriefingMover; accent: string }) {
 
 const cardBox: React.CSSProperties = { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 13, padding: 14, marginBottom: 9 };
 const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
-const paperMeta = (shown: number, total?: number | null): string | undefined => {
-  if (total != null) {
-    const n = Math.max(total, shown);
-    if (!n) return undefined;
-    if (!shown) return `shared by ${n} clinician${n === 1 ? "" : "s"} · posts unavailable`;
-    return `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}`;
-  }
-  return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
-};
-
 function mergeReceiptPosts(...groups: (BriefingSharer[] | null | undefined)[]): BriefingSharer[] {
   const seen = new Set<string>();
   return groups.flatMap((group) => group ?? []).filter((post) => {
@@ -457,7 +447,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                     {otherPosts.length > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{otherPosts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
                   </>;
                 })()}
-                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} showSources={false} />; })}</div>}
+                {s.papers.length > 0 && <div><div style={evLabel(pal.accent)}>{paperBlockLabel(s)}</div>{s.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} showSources={false} />; })}</div>}
               </div>
             </Row>
             </div>
@@ -544,11 +534,11 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
           <SectionHead id="sec-papers">Papers being shared</SectionHead>
           <Capped items={data.topArticles} cap={8} accent={pal.accent} render={(a, i) => {
             const id = "p:" + i;
-            const revealableClinicians = a.revealableClinicianCount ?? representedClinicianCount(a.posts);
+            const revealableClinicians = Math.min(a.kolSharers, a.revealableClinicianCount ?? 0);
             return (
               <PaperCard title={a.title} journal={a.journal} domain={a.domain}
                 peerReviewed={a.peerReviewed}
-                meta={paperMeta(revealableClinicians, a.kolSharers)}
+                meta={paperClinicianMeta(revealableClinicians, a.kolSharers)}
                 url={a.url} abstract={a.abstract} posts={a.posts} publisherPosts={a.publisherPosts}
                 otherPosts={a.otherPosts} publishers={a.publishers} accent={pal.accent} totalClinicians={a.kolSharers} revealableClinicians={revealableClinicians} />
             );
@@ -588,7 +578,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                 {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{t.publisherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{t.otherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
-                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
+                {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
                 <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
               </Row>
             );
@@ -629,7 +619,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   <StanceBlock stance={m.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
                   {m.podcast.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{m.podcast.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
                   {m.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{m.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                  {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
+                  {m.papers.length > 0 && <div><div style={evLabel(pal.accent)}>Papers shared</div>{m.papers.map((p, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}
                 </div>
               </Row>
             );

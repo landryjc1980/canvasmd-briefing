@@ -9,7 +9,7 @@ import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, authoredClinicianCount, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
-import { pickConversationPreview, representedClinicianCount, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
+import { paperClinicianMeta, pickConversationPreview, representedClinicianCount, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 import DailyConversationEvidence from "./DailyConversationEvidence";
@@ -170,18 +170,6 @@ const storyCard: React.CSSProperties = { background: "transparent", border: 0, b
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
 const EDITORIAL_MEASURE = 850;
 
-// The clinician census is the useful paper signal. Peak likes belong to one
-// post and are not evidence depth, so they never appear in paper metadata.
-export const paperMeta = (shown: number, _likes: number, total?: number | null): string | undefined => {
-  if (total != null) {
-    const n = Math.max(total, shown);
-    if (!n) return undefined;
-    if (!shown) return `shared by ${n} clinician${n === 1 ? "" : "s"} · posts unavailable`;
-    return `shared by ${n} clinician${n === 1 ? "" : "s"}${n > shown ? ` · ${shown} shown in sources` : ""}`;
-  }
-  return shown ? `shared by at least ${shown} clinician${shown === 1 ? "" : "s"}` : undefined;
-};
-
 // Embedded papers suppress their own source drawer to avoid a drawer inside a drawer. Hoist every
 // paper-specific clinician receipt into the containing evidence lane instead, deduped by the exact
 // source URL when available and by author+text for legacy receipts without one.
@@ -291,7 +279,7 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
       })}
       {canExpand && <button type="button" className="rv-text-action" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}
         style={{ cursor: "pointer", minHeight: 44, marginTop: 5, padding: "0 2px", border: 0, background: "transparent", color: "var(--rv-accent)", font: "600 12px system-ui" }}>
-        {expanded ? "Show less ↑" : thread.length ? `Show full thread · ${thread.length + 1} posts ↓` : "Show longer excerpt ↓"}
+        {expanded ? "Show less ↑" : thread.length ? `Show available thread · ${thread.length + 1} posts ↓` : "Show longer excerpt ↓"}
       </button>}
       {reposters.length > 0 && (
         <div style={{ marginTop: 11, paddingTop: 10, borderTop: `1px solid ${LINE}`, display: "flex", alignItems: "flex-start", gap: 8 }}>
@@ -649,7 +637,7 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = unrepresentedPublishers(story.papers.flatMap((pp) => pp.publishers ?? []), publisherPosts); return pubs.length ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         const posts = p.posts?.length ? p.posts : p.sharers;
-        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), p.topLikes || 0, total)} url={p.url} abstract={p.abstract} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), total)} url={p.url} abstract={p.abstract} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
       }} /></div>}
     </>
   );
@@ -682,7 +670,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const hasPublisherNames = paper.publishers.length > 0;
   const unrepresentedPublisherNames = unrepresentedPublishers(paper.publishers, paper.publisherPosts);
   const hasSources = paper.posts.length > 0 || hasPublisherPosts || hasOtherPosts || hasPublisherNames;
-  const revealableClinicians = paper.revealableClinicianCount ?? representedClinicianCount(paper.posts);
+  const revealableClinicians = Math.min(paper.kolSharers, paper.revealableClinicianCount ?? 0);
   const authoredClinicians = Math.min(paper.kolSharers, paper.authoredClinicianCount ?? authoredClinicianCount(paper.posts));
   const sourcesTruncated = revealableClinicians > 0 && paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
@@ -1507,7 +1495,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperMeta(representedClinicianCount(posts), 0, p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
         );

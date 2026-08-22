@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import { canvasmdFile } from "./paired-repo.mjs";
-import { representedClinicianCount } from "../app/heroEvidence.ts";
+import { paperClinicianMeta, representedClinicianCount } from "../app/heroEvidence.ts";
 
 const webReader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
@@ -19,6 +19,7 @@ const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
 const nativeDaily = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
 const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/StoryEvidence.tsx"), "utf8");
 const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
+const heroPost = fs.readFileSync(new URL("../app/heroPost.ts", import.meta.url), "utf8");
 
 function loadExportedFunction(source, name) {
   const start = source.indexOf(`export function ${name}`);
@@ -51,15 +52,18 @@ const representedReceipts = [
   { name: "Sara Example", handle: null, tweetUrl: "https://x.com/sara/4" },
 ];
 
-test("rendered paper evidence counts distinct clinicians including grouped reposters", () => {
+test("rendered paper evidence discloses receipts without inflating the authoritative census", () => {
   assert.equal(representedClinicianCount(representedReceipts), 3);
   assert.equal(representedClinicianCount(undefined), 0);
   const nativeRepresentedClinicianCount = loadExportedFunction(nativeCards, "representedClinicianCount");
   assert.equal(nativeRepresentedClinicianCount(representedReceipts), 3);
   assert.equal(nativeRepresentedClinicianCount(undefined), 0);
-  assert.match(webReader, /paper\.revealableClinicianCount \?\? representedClinicianCount\(paper\.posts\)/);
-  assert.match(webFlat, /a\.revealableClinicianCount \?\? representedClinicianCount\(a\.posts\)/);
-  assert.match(nativeSections, /a\.revealableClinicianCount \?\? representedClinicianCount\(a\.posts\)/);
+  assert.equal(paperClinicianMeta(9, 2), "shared by 2 clinicians");
+  assert.equal(paperClinicianMeta(1, 8), "shared by 8 clinicians · 1 shown in sources");
+  assert.equal(paperClinicianMeta(2), undefined);
+  assert.match(webReader, /Math\.min\(paper\.kolSharers, paper\.revealableClinicianCount \?\? 0\)/);
+  assert.match(webFlat, /Math\.min\(a\.kolSharers, a\.revealableClinicianCount \?\? 0\)/);
+  assert.match(nativeSections, /Math\.min\(a\.kolSharers \?\? 0, a\.revealableClinicianCount \?\? 0\)/);
 });
 
 test("authored commentary excludes classic reposts, link-only shares, and nested reposters", () => {
@@ -85,6 +89,13 @@ test("public archives inventory grouped reposters as clinician receipts", () => 
   assert.match(archivePage, /representedClinicianCount\(clinicianPosts\)/);
   assert.match(archivePage, /"clinician receipt", "clinician receipts"/);
   assert.doesNotMatch(archivePage, /const clinicians = [^\n]+\.length/);
+});
+
+test("public archives and Daily email read only the activated briefing contract", () => {
+  for (const source of [heroPost, dailyMail]) {
+    assert.match(source, /briefing_active\?select=/);
+    assert.doesNotMatch(source, /rest\/v1\/briefing_snapshots\?select=/);
+  }
 });
 
 test("primary sources render in a distinct provenance group on web and native", () => {

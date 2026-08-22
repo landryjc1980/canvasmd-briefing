@@ -50,12 +50,12 @@ function emphHtml(s: string): string {
 }
 const stripEmph = (t: string) => t.replace(/\*\*?/g, "");
 
-// ---- top stories (seated hero deck, same briefing_snapshots the site renders) --------------
+// ---- top stories (seated hero deck from the same activated build the site renders) ----------
 export async function fetchTopStories(): Promise<Record<string, TopStory[]>> {
   const URL_ = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!URL_ || !KEY) return {};
   const res = await fetch(
-    `${URL_}/rest/v1/briefing_snapshots?select=area,generated_at,cards:data->heroCandidates->cards&order=generated_at.desc&limit=12`,
+    `${URL_}/rest/v1/briefing_active?select=area,generated_at,cards:data->heroCandidates->cards`,
     { headers: { apikey: KEY, authorization: `Bearer ${KEY}` }, cache: "no-store" },
   );
   if (!res.ok) return {};

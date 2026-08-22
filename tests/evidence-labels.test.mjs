@@ -5,6 +5,7 @@ import fs from "node:fs";
 const reader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const vm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
 const allView = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+const evidence = fs.readFileSync(new URL("../app/heroEvidence.ts", import.meta.url), "utf8");
 
 test("web trial summaries describe serialized evidence instead of raw mention totals", () => {
   assert.match(vm, /authoredClinicianCount\(trial\.posts\)/);
@@ -36,14 +37,15 @@ test("web evidence disclosures do not present unrendered activity as receipt cou
   assert.doesNotMatch(reader, /What clinicians said/);
   assert.doesNotMatch(reader, /Shared on X ·/);
   assert.match(reader, /On X · physician posts/);
-  assert.match(reader, /shared by \$\{n\} clinician/);
-  assert.doesNotMatch(reader.slice(reader.indexOf("export const paperMeta"), reader.indexOf("export function PodCard")), /♥/);
+  assert.match(evidence, /shared by \$\{n\} clinician/);
+  assert.doesNotMatch(evidence, /♥/);
   assert.doesNotMatch(reader, /publisherPosts!\.slice/);
   assert.doesNotMatch(reader, /otherPosts!\.slice/);
   assert.doesNotMatch(allView, /v\.posts\.slice/);
   assert.doesNotMatch(allView, /v\.articles\.slice/);
 });
 
-test("paper metadata is explicit when only a capped lower bound is known", () => {
-  assert.match(reader, /shared by at least \$\{shown\} clinician/);
+test("paper metadata abstains when no authoritative clinician census exists", () => {
+  assert.match(evidence, /if \(total == null\) return undefined/);
+  assert.doesNotMatch(evidence, /shared by at least/);
 });

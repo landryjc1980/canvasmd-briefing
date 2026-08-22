@@ -24,7 +24,8 @@ test("X ingestion preserves long posts and bounded same-author threads", () => {
 
 test("web and native source receipts expose the same thread disclosure", () => {
   for (const source of [webCard, nativeCard]) {
-    assert.match(source, /Show full thread/);
+    assert.match(source, /Show available thread/);
+    assert.doesNotMatch(source, /Show full thread/);
     assert.match(source, /Show longer excerpt/);
     assert.match(source, /View on X/);
     assert.match(source, /Show less/);

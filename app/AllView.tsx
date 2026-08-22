@@ -975,7 +975,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Papers being shared</h2>
                 <span aria-hidden style={{ height: 1, flex: 1, background: LINE }} />
               </div>
-              <p style={{ margin: "0 0 6px", font: "400 11.5px/1.5 system-ui", color: MUT2 }}>The week&rsquo;s top ten across every area, ranked by verified clinicians who shared each paper.</p>
+              <p style={{ margin: "0 0 6px", font: "400 11.5px/1.5 system-ui", color: MUT2 }}>The week&rsquo;s top ten across every area, ranked by clinicians who shared each paper.</p>
               {reading.map(({ p, area }, i) => {
                 const acc = accentOf(area);
                 const id = "r:" + i;

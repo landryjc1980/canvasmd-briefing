@@ -53,6 +53,17 @@ export function representedClinicianCount(posts: BriefingSharer[] | null | undef
   return count;
 }
 
+// The backend clinician census is authoritative. `shown` only discloses how many
+// clinician receipts the payload can reveal; it must never increase that census.
+export function paperClinicianMeta(shown: number, total?: number | null): string | undefined {
+  if (total == null) return undefined;
+  const n = Math.max(0, total);
+  if (!n) return undefined;
+  const visible = Math.min(n, Math.max(0, shown));
+  if (!visible) return `shared by ${n} clinician${n === 1 ? "" : "s"} · posts unavailable`;
+  return `shared by ${n} clinician${n === 1 ? "" : "s"}${n > visible ? ` · ${visible} shown in sources` : ""}`;
+}
+
 export function supportLinkGroups(links: HeroSupportLink[] | null | undefined): {
   primarySources: HeroSupportLink[];
   relatedCoverage: HeroSupportLink[];

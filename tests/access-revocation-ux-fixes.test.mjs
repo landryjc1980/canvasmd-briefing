@@ -96,7 +96,7 @@ test("reader surfaces describe the rolling 14-day window consistently", () => {
 });
 
 test("flat zero receipts and no-rail desktop measure stay honest", () => {
-  assert.match(flat, /meta=\{paperMeta\(revealableClinicians, a\.kolSharers\)\}/);
+  assert.match(flat, /meta=\{paperClinicianMeta\(revealableClinicians, a\.kolSharers\)\}/);
   assert.doesNotMatch(flat, /revealableClinicians\} shown in sources/);
   assert.match(reader, /className="rv-editorial-column"[\s\S]{0,180}maxWidth: EDITORIAL_MEASURE/);
   assert.match(reader, /margin: railHasContent \? 0 : "0 auto"/);
