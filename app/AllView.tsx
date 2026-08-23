@@ -847,7 +847,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                             <span style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</span>
                           )}
                           {(it.areas ?? []).slice(0, 2).map((ar) => (
-                            <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", flex: "none", cursor: "pointer" }}>{ar}</button>
+                            <button key={ar} onClick={() => onArea(ar)} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: 0, flex: "none", background: "none", border: 0, cursor: "pointer" }}>
+                              <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px" }}>{ar}</span>
+                            </button>
                           ))}
                         </div>
                         {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}

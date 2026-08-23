@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const candidates = [
   process.env.CANVASMD_REPO,
+  path.resolve(webRoot, "../../canvasmd"),
   path.resolve(webRoot, "../canvasmd"),
   path.resolve(webRoot, "../anchored-development-dry-run-canvasmd"),
-  path.resolve(webRoot, "../../canvasmd"),
 ].filter(Boolean);
 
 const nativeRoot = candidates.find((candidate) =>

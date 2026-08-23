@@ -203,6 +203,7 @@ export function PodCard({ p, accent }: { p: BriefingPod; accent: string }) {
       {p.audioUrl
         ? <AudioQuote audioUrl={p.audioUrl} startMs={p.startMs} durationSeconds={p.durationSeconds} label="Listen to the clip" eventId={p.episodeId} eventLabel={p.episodeTitle} accent={accent} tone="dark" />
         : <div style={{ font: "500 11px system-ui", color: MUT }}>Audio unavailable</div>}
+      {p.sourceUrl && <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", marginTop: 2, font: "600 12px system-ui", color: accent, textDecoration: "none" }}>Open episode ↗</a>}
     </div>
   );
 }
@@ -625,6 +626,7 @@ function SupportLinkRow({ link, accent }: { link: HeroSupportLink; accent: strin
     <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "10px 2px", borderBottom: `1px solid ${LINE}`, color: "inherit", textDecoration: "none" }}>
       <div style={{ font: "600 11px/1.35 system-ui", color: accent }}>{link.sourceLabel} · {supportRelationship(link.relationshipType)}</div>
       <div style={{ marginTop: 3, font: "500 14px/1.4 system-ui", color: "var(--rv-ink, #f4f7ff)" }}>{link.title} <span aria-hidden>↗</span></div>
+      {link.description && <div style={{ marginTop: 6, font: "400 13.5px/1.5 system-ui", color: "var(--rv-muted, #aab0bf)" }}>{link.description}</div>}
     </a>
   );
 }
@@ -691,15 +693,17 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const authoredClinicians = Math.min(paper.kolSharers, paper.authoredClinicianCount ?? authoredClinicianCount(paper.posts));
   const sourcesTruncated = revealableClinicians > 0 && paper.kolSharers > revealableClinicians;
   const source = articleSource(paper.journal, paper.domain);
+  const resurfaced = paper.circulationState === "resurfaced";
 
   return (
     <div className="rv-list-row">
       <div className="rv-paper-share" style={{ padding: "16px 2px" }}>
-        {(contextLabel || source || isNewsItem(paper)) && (
+        {(contextLabel || source || isNewsItem(paper) || resurfaced) && (
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 7 }}>
             {contextLabel && <span style={{ font: "700 8px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accent, background: `${accent}12`, border: `1px solid ${accent}40`, borderRadius: 4, padding: "3px 6px", flex: "none" }}>{contextLabel}</span>}
             {source && <span style={{ font: "600 14px system-ui", color: MUT }}>{source}</span>}
             {isNewsItem(paper) && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
+            {resurfaced && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: accent }}>Resurfaced</span>}
           </div>
         )}
         <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, font: "500 17px/1.4 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", textDecoration: "none" }}>{cleanArticleTitle(paper.title)}</a>
@@ -1358,6 +1362,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </div>
               {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
               <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" accent={pal.accent} tone="dark" />
+              {ep.sourceUrl && <a href={ep.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", marginTop: 2, font: "600 12px system-ui", color: pal.accent, textDecoration: "none" }}>Open episode ↗</a>}
             </div>
           ))}
         </Row>
@@ -1444,6 +1449,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             </div>
             {ep.description && <p style={{ margin: "0 0 12px", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c8cad2)", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ep.description}</p>}
             <AudioQuote audioUrl={ep.audioUrl!} startMs={0} durationSeconds={ep.durationSeconds} label="Listen to the episode" eventId={ep.episodeId ?? null} eventLabel={ep.title} accent={pal.accent} tone="dark" />
+            {ep.sourceUrl && <a href={ep.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", marginTop: 2, font: "600 12px system-ui", color: pal.accent, textDecoration: "none" }}>Open episode ↗</a>}
             {hasXReceipts && (
               <div style={{ margin: "8px 0 0" }}>
                 <button type="button" onClick={() => toggle(ampId)} aria-expanded={ampOpen} aria-controls={drawerId} aria-label={`${ampOpen ? "Hide" : "Show"} amplification sources for ${ep.title}`} className="rv-text-action"
@@ -1516,8 +1522,8 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
-            <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} description={p.description} posts={[]} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
+            <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
         );
       }} />

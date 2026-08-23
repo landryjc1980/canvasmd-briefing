@@ -104,6 +104,7 @@ test("primary sources render in a distinct provenance group on web and native", 
     assert.match(source, />Primary sources</);
     assert.match(source, />Related coverage</);
     assert.match(source, /supportLinkGroups\(story\.supportLinks\)/);
+    assert.match(source, /link\.description/);
   }
 });
 
@@ -125,6 +126,14 @@ test("podcast, continuation, and grouped-repost actions retain exact X URLs", ()
   }
 });
 
+test("podcast cards expose canonical episode pages on web and native", () => {
+  for (const source of [webReader, nativeCards]) {
+    assert.match(source, /sourceUrl/);
+    assert.match(source, /Open episode ↗/);
+  }
+  assert.match(nativeTypes, /sourceUrl\?: string \| null/);
+});
+
 test("exact receipt links meet the web and native target-size contracts", () => {
   assert.match(webReader, /reposter\.tweetUrl[\s\S]{0,260}minHeight: 24/);
   assert.match(webDaily, /reaction\.url[\s\S]{0,260}minHeight: 44/);
@@ -137,6 +146,9 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(webReader, /abstractOpen/);
   assert.match(webReader, /sourcesOpen/);
   assert.match(nativeTypes, /peerReviewed\?: boolean/);
+  assert.match(webReader, /paper\.circulationState === "resurfaced"/);
+  assert.match(nativeSections, /a\.circulationState === "resurfaced"/);
+  assert.match(nativeTypes, /circulationState\?: "newly_published" \| "resurfaced"/);
   assert.match(nativeCards, /isNewsItem\(\{ peerReviewed, journal, domain \}\)/);
   assert.match(nativeSections, /hasPublisherNames/);
   assert.match(nativeSections, /Open article ↗/);
@@ -146,6 +158,12 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(webReader, /shown in sources/);
   assert.match(nativeSections, /shown in sources/);
   assert.doesNotMatch(nativeSections, /\{i \+ 1\}/);
+});
+
+test("trial paper receipts render once from the merged top-level evidence", () => {
+  for (const source of [webReader, nativeSections]) {
+    assert.match(source, /posts=\{\[\]\}/);
+  }
 });
 
 test("Daily email includes exact retained physician receipts and factual links", () => {

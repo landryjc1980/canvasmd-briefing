@@ -512,6 +512,7 @@ export type BriefingPod = {
   show: string;
   showArt: string | null; // podcast show artwork, shown next to the clip
   audioUrl: string | null;
+  sourceUrl?: string | null;
   durationSeconds?: number | null;
   publishedAt: string;
 };
@@ -892,7 +893,7 @@ export type BriefingGuest = {
   thisWeek: number;
   career: number;
   shows: string[];
-  episodes: { title: string; audioUrl: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; description: string | null; episodeId?: string | null }[]; // this-window appearances, tap to listen (episodeId ADDITIVE 2026-07-27 — the native app's player needs the real episodes.id)
+  episodes: { title: string; audioUrl: string | null; sourceUrl?: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; description: string | null; episodeId?: string | null }[]; // this-window appearances, tap to listen (episodeId ADDITIVE 2026-07-27 — the native app's player needs the real episodes.id)
   subAreas?: string[];
   congress?: boolean;
 };
@@ -900,7 +901,7 @@ export type BriefingGuest = {
 // "This week on the podcasts" — this-week area episodes the drug movers don't already surface
 // (untracked-topic blind spot). Same card shape as a guest's episode.
 export type BriefingEpisodeAmplifier = { name: string; handle: string | null; avatar: string | null; isQuote: boolean; text: string | null; likes: number; announcementId?: string | null; tweetUrl?: string | null };
-export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; durationSeconds?: number | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number ; amplifiers?: BriefingEpisodeAmplifier[]; announcements?: BriefingSharer[] };
+export type BriefingEpisode = { title: string; show: string | null; showArt: string | null; audioUrl: string | null; sourceUrl?: string | null; durationSeconds?: number | null; description: string | null; publishedAt: string; episodeId?: string; subAreas?: string[]; congress?: boolean; featured?: boolean; convCount?: number ; amplifiers?: BriefingEpisodeAmplifier[]; announcements?: BriefingSharer[] };
 
 // One source-anchored hero card (spec: one card = one editorial proposition anchored to one
 // identifiable source object). Server-authored; clients render, never re-rank.
@@ -914,7 +915,7 @@ export type HeroSupportPost = {
 };
 export type HeroSupportLink = {
   kind: "article" | "paper" | "episode"; id: string; title: string; url: string;
-  sourceLabel: string; relationshipType: string; occurredAt: string | null;
+  sourceLabel: string; description?: string | null; relationshipType: string; occurredAt: string | null;
 };
 export type HeroSupportBundle = {
   clinicianPosts: HeroSupportPost[]; publisherPosts: HeroSupportPost[]; otherPosts?: HeroSupportPost[]; links: HeroSupportLink[];
