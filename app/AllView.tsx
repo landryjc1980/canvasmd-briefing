@@ -223,7 +223,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     // host credit — and the visible numbers read as mis-sorted even though the rule is stated.
     .sort((x, y) => micValue(y) - micValue(x) || epCount(y) - epCount(x) || y.career - x.career || x.name.localeCompare(y.name));
 
-  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[] };
+  type XEntry = { key: string; name: string; handle: string | null; avatar: string | null; institution: string | null; areas: string[]; amp: number; tweets: number; paperShares: number; posts: BriefingSharer[]; articles: { title: string; url: string; journal: string | null; domain: string | null; abstract?: string | null; description?: string | null; peerReviewed?: boolean }[] };
   const xVoices = new Map<string, XEntry>();
   for (const a of AREAS) {
     for (const k of briefsByArea[a]?.topKols ?? []) {
@@ -337,11 +337,23 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   };
   const goArea = (a: string) => goTo(areaId(a));
 
-  // ---- cross-area reading list: dedupe by title, keep the max clinician-share, rank by it ----
+  // ---- cross-area reading list: use bibliographic identity before title fallback ----
+  const paperIdentity = (paper: BriefingArticle): string => {
+    if (paper.doi) return `doi:${paper.doi.toLowerCase().replace(/^https?:\/\/(?:dx\.)?doi\.org\//, "")}`;
+    if (paper.pmid) return `pmid:${paper.pmid}`;
+    try {
+      const url = new URL(paper.url);
+      url.hash = "";
+      ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"].forEach((key) => url.searchParams.delete(key));
+      return `url:${url.hostname.replace(/^www\./, "")}${url.pathname.replace(/\/$/, "")}${url.search}`;
+    } catch {
+      return `title:${norm(paper.title)}`;
+    }
+  };
   const best = new Map<string, { p: BriefingArticle; area: string }>();
   for (const a of AREAS) {
     for (const p of briefsByArea[a]?.topArticles ?? []) {
-      const k = norm(p.title); if (!k) continue;
+      const k = paperIdentity(p); if (!k) continue;
       const cur = best.get(k);
       if (!cur || p.kolSharers > cur.p.kolSharers) best.set(k, { p, area: a });
     }
@@ -502,7 +514,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           children: (v.posts.length || v.articles.length) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {v.posts.length > 0 && <div><div style={evLabel(acc)}>Their recent posts</div>{v.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} peerReviewed={a2.peerReviewed} url={a2.url} accent={acc} />)}</div>}
+              {v.articles.length > 0 && <div><div style={evLabel(acc)}>Papers shared</div>{v.articles.map((a2, j) => <PaperCard key={j} title={a2.title} journal={a2.journal} domain={a2.domain} peerReviewed={a2.peerReviewed} url={a2.url} abstract={a2.abstract} description={a2.description} accent={acc} />)}</div>}
             </div>
           ) : null,
         });
@@ -510,7 +522,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {moreBtn(xRanked.length, X_CAP, xMore, () => setXMore((v) => !v))}
 
       <div style={{ font: "400 10.5px/1.6 system-ui", color: MUT2, marginTop: 16, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
-        Episode counts = the current 14-day briefs (host, guest, or show · syndication deduped · interview-network hosts excluded). Ranked by guest appearances — hosting credits one per 14-day view; ties by lifetime appearances. Amplified = reposts + quote-posts earned on their own posts in the past 14 days; cross-area voices show their busiest area&rsquo;s count. Every number shown is a plain count.
+        Episode counts come from each specialty&rsquo;s current rolling brief (host, guest, or show · syndication deduped · interview-network hosts excluded). Ranked by guest appearances; ties by lifetime appearances. Amplified = reposts + quote-posts earned on their own posts in the same rolling source window. Every number shown is a plain count.
       </div>
     </div>
   );
@@ -731,7 +743,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0 }}>The Readout</h1>
               {!compact && editionMenu}
             </div>
-            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}14-day view · Busiest first</div>}
+            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}rolling view · Busiest first</div>}
             {/* On medium-width single-column desktop the Areas row still needs its own line; the
                 wide two-column layout moves it into the shared navigation band above. */}
             {!compact && <div style={{ marginTop: 13 }}>{areasRow(false)}</div>}
@@ -755,7 +767,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         </div>
         {!compact && <div aria-hidden style={{ height: 1, margin: "14px 0 12px", background: LINE }} />}
         {compact && <>
-          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}14-day view · Busiest first</div>
+          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>{oldestStamp ? `Updated ${ago(oldestStamp)} · ` : ""}rolling view · Busiest first</div>
           <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
         </>}
         {/* Section jumps stay sticky on compact and medium-width layouts. */}
@@ -774,7 +786,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
             digit-banned + validated. Area chips route into the specialty editions. */}
         {daily?.payload?.sections?.length ? (
           <section style={{ margin: "26px 0 6px", padding: "20px 22px 12px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
               <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
               <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}{daily.payload.coverage?.scope ? ` · ${daily.payload.coverage.scope.toLowerCase()}${daily.payload.coverage.rollingReadoutDays ? ` · source window ${daily.payload.coverage.rollingReadoutDays} days` : ""}` : ""}</span>
             </div>
@@ -801,7 +813,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                       {(p.refs ?? []).length > 0 && (
                         <span style={{ font: "500 11.5px system-ui", color: MUT }}>
                           {" "}{(p.refs ?? []).map((r, ri) => (
-                            <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: ALL_ACCENT, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
+                            <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", color: ALL_ACCENT, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
                           ))}
                         </span>
                       )}
@@ -835,7 +847,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           ))}
                         </div>
                         {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}
-                        {it.line && <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.line}</div>}
+                        {it.line && <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 3 }}>{it.line}</div>}
                       </div>
                     ))}
                   </div>
@@ -895,12 +907,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           </button>
                         )}
                         {heroDeck !== null && heroDeck.length === 0 && (
-                          <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>A quiet 14-day view — no source-anchored stories qualified.</div>
+                          <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>A quiet rolling view — no source-anchored stories qualified.</div>
                         )}
                         {heroDeck === null && stories.map((s, i) => renderStory(s, i, a, acc))}
                       </>
                     ) : (
-                      <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet in this 14-day {full} view. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
+                      <div style={{ font: "400 13.5px/1.5 system-ui", color: MUT, padding: "2px 2px 4px" }}>Quiet in this rolling {full} view. <button onClick={() => onArea(a)} style={{ background: "none", border: 0, cursor: "pointer", font: "600 13.5px system-ui", color: acc, padding: 0 }}>See the full brief →</button></div>
                     )}
                   </div>
                 );
@@ -913,7 +925,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           const podcastsJsx = allEpisodes.length > 0 && (
             <section id="all-listen" style={{ marginTop: compact ? 46 : 54, scrollMarginTop: 100 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
-                <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Podcasts from the past 14 days</h2>
+              <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Podcasts from current specialty briefs</h2>
                 <span aria-hidden style={{ height: 1, flex: 1, background: LINE }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
@@ -975,7 +987,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Papers being shared</h2>
                 <span aria-hidden style={{ height: 1, flex: 1, background: LINE }} />
               </div>
-              <p style={{ margin: "0 0 6px", font: "400 11.5px/1.5 system-ui", color: MUT2 }}>The week&rsquo;s top ten across every area, ranked by clinicians who shared each paper.</p>
+              <p style={{ margin: "0 0 6px", font: "400 11.5px/1.5 system-ui", color: MUT2 }}>Up to ten papers across every area, ranked by clinicians who shared each paper.</p>
               {reading.map(({ p, area }, i) => {
                 const acc = accentOf(area);
                 const id = "r:" + i;

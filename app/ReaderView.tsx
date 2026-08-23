@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { emph, stripEmph } from "@/app/emphasis";
 import { flushSync } from "react-dom";
-import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
+import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, BriefingEvent, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
 import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, authoredClinicianCount, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
@@ -241,6 +241,13 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#a93658" }}>♥ {t.likes}</span>}
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
+      {t.quotedContext && (t.quotedContext.title || t.quotedContext.text) && (
+        <a href={t.quotedContext.url ?? undefined} target={t.quotedContext.url ? "_blank" : undefined} rel={t.quotedContext.url ? "noopener noreferrer" : undefined}
+          style={{ display: "block", marginTop: 10, padding: 10, border: `1px solid ${LINE}`, borderRadius: 7, background: "var(--rv-surface, rgba(255,255,255,.05))", color: "inherit", textDecoration: "none", pointerEvents: t.quotedContext.url ? "auto" : "none" }}>
+          {t.quotedContext.title && <div style={{ font: "600 12.5px/1.4 system-ui", color: "var(--rv-ink, #eef1f8)" }}>{t.quotedContext.title}</div>}
+          {t.quotedContext.text && <p style={{ margin: t.quotedContext.title ? "5px 0 0" : 0, font: "400 12.5px/1.45 'Newsreader',Georgia,serif", color: MUT, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{cleanTweetText(t.quotedContext.text)}</p>}
+        </a>
+      )}
       {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: MUT }}>{t.receiptNote}</div>}
       {!text && thread.length === 0 && <div style={{ marginTop: 6, font: "500 11.5px system-ui", color: MUT }}>Shared this source</div>}
     </>);
@@ -394,11 +401,15 @@ export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announ
 }
 // Abstract and source receipts disclose independently, matching the main paper rail
 // and native. The source link remains a separate direct action.
-export function PaperCard({ title, journal, domain, meta, url, abstract, posts, accent, peerReviewed, showSources = true }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean; showSources?: boolean }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, description, posts, publishers, accent, peerReviewed, showSources = true }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; description?: string | null; posts?: BriefingSharer[]; publishers?: string[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean; showSources?: boolean }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
+  const sourceContext = !hasAbs ? description?.trim() || null : null;
+  const context = hasAbs ? abstract : sourceContext;
   const hasPosts = showSources && !!(posts && posts.length);
+  const hasPublishers = showSources && !!publishers?.length;
+  const hasSources = hasPosts || hasPublishers;
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
@@ -410,16 +421,20 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, posts, 
         <span style={{ font: "400 12px system-ui", color: MUT }}>{[src, meta].filter(Boolean).join(" · ")}</span>
         {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
       </div>}
-      {abstractOpen && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{abstract}</p>}
+      {abstractOpen && context && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-copy, #c3c6d0)" }}>{context}</p>}
       {sourcesOpen && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "var(--rv-muted, #9aa0ac)", marginBottom: 9 }}>
           On X · physician posts
         </div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
+      {sourcesOpen && hasPublishers && <div style={{ marginTop: 12 }}>
+        <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent ?? "var(--rv-muted, #9aa0ac)", marginBottom: 6 }}>Publisher provenance</div>
+        <div style={{ font: "400 12px/1.5 system-ui", color: MUT }}>{publishers!.join(" · ")}</div>
+      </div>}
       <div style={{ display: "flex", gap: 16, marginTop: 5, alignItems: "center" }}>
-        {hasAbs && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}</button>}
-        {hasPosts && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
+        {context && <button type="button" aria-expanded={abstractOpen} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{abstractOpen ? `Hide ${hasAbs ? "abstract" : "context"} ↑` : `${hasAbs ? "Abstract" : "Source context"} ↓`}</button>}
+        {hasSources && <button type="button" aria-expanded={sourcesOpen} onClick={() => setSourcesOpen((o) => !o)} className="rv-text-action" style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent ?? "var(--rv-muted, #9aa0ac)" }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "var(--rv-muted, rgba(255,255,255,.55))", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
@@ -637,7 +652,7 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = unrepresentedPublishers(story.papers.flatMap((pp) => pp.publishers ?? []), publisherPosts); return pubs.length ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         const posts = p.posts?.length ? p.posts : p.sharers;
-        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), total)} url={p.url} abstract={p.abstract} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCount(posts), total)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
       }} /></div>}
     </>
   );
@@ -663,6 +678,8 @@ export function FacePile({ faces, extra, ring }: { faces: (Face | string)[]; ext
 export function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured, contextLabel }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean; contextLabel?: string }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const abstract = paper.abstract?.replace(/\s+/g, " ").trim() || null;
+  const sourceContext = !abstract ? paper.description?.replace(/\s+/g, " ").trim() || null : null;
+  const context = abstract ?? sourceContext;
   const sourceId = `paper-source-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const abstractId = `paper-abstract-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const hasPublisherPosts = !!paper.publisherPosts?.length;
@@ -693,10 +710,10 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
         <div className="rv-paper-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0 14px", marginTop: 5 }}>
           {featured && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".07em", textTransform: "uppercase", color: accent, background: `${accent}17`, border: `1px solid ${accent}59`, borderRadius: 5, padding: "1.5px 6px" }}>Also in Top Stories</span>}
           <span style={{ display: "inline-flex", alignItems: "center", gap: 14, minHeight: 44, marginLeft: "auto" }}>
-            {abstract && (
+            {context && (
               <button type="button" aria-expanded={abstractOpen} aria-controls={abstractId} onClick={() => setAbstractOpen((o) => !o)} className="rv-text-action"
                 style={{ display: "inline-flex", alignItems: "center", minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, whiteSpace: "nowrap" }}>
-                {abstractOpen ? "Hide abstract ↑" : "Abstract ↓"}
+                {abstractOpen ? `Hide ${abstract ? "abstract" : "context"} ↑` : `${abstract ? "Abstract" : "Source context"} ↓`}
               </button>
             )}
             {hasSources && (
@@ -707,7 +724,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
             )}
           </span>
         </div>
-        {abstractOpen && abstract && <p id={abstractId} style={{ margin: "3px 0 0", maxWidth: 740, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b7bac3)" }}>{abstract}</p>}
+        {abstractOpen && context && <p id={abstractId} style={{ margin: "3px 0 0", maxWidth: 740, font: "400 15px/1.6 'Newsreader',Georgia,serif", color: "var(--rv-copy, #b7bac3)" }}>{context}</p>}
       </div>
       {open && (
         <div id={sourceId} className="rv-drawer">
@@ -921,6 +938,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
     { id: "sec-papers", label: "Papers", on: data.topArticles.length > 0 },
     { id: "sec-trials", label: "Trials", on: data.trials.length > 0 },
     { id: "sec-kols", label: "People", on: !!(data.guests?.length || carriedKols.length) },
+    { id: "sec-updates", label: "Updates", on: data.events.length > 0 },
     { id: "sec-drugs", label: "Drugs", on: data.movers.length > 0 },
   ].filter((s) => s.on);
   const [activeSec, setActiveSec] = useState<string>("sec-top");
@@ -933,7 +951,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   useEffect(() => {
     // On the wide layout the KOL/Trials sections live in the right rail; their pills now stay in
     // the nav (jump + active-state), so the scroll-spy tracks every section on both layouts.
-    const ids = ["sec-top", "sec-kols", "sec-episodes", "sec-papers", "sec-trials", "sec-drugs"];
+    const ids = ["sec-top", "sec-kols", "sec-episodes", "sec-papers", "sec-trials", "sec-updates", "sec-drugs"];
     let raf = 0;
     const check = () => {
       setStuck(window.scrollY > 120);
@@ -1113,7 +1131,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
 
   // Whether the desktop rail has ANY content — drives collapsing the two-column grid to one when a
   // Focus pick empties guests + KOLs + trials + drugs (else the fixed 320px track leaves a blank gap).
-  const railHasContent = !!(data.guests?.length || carriedKols.length || data.trials.length || data.movers.length);
+  const railHasContent = !!(data.guests?.length || carriedKols.length || data.trials.length || data.events.length || data.movers.length);
 
   // ---- section builders (placement differs by layout; content is identical) --------------
 
@@ -1203,21 +1221,21 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       {heroMode && heroCards && heroCards.length > 0 && <HeroCards cards={heroCards} accent={pal.accent} ink={{ soft: INK_2, softer: LIGHT_MUT, line: LINE, ring: PAPER, surface: SURFACE }} evidenceOf={heroEvidenceOf} shareUrlOf={(c) => `/r/${heroSlugFor(c.kind, c.headline, c.id)}`} />}
       {heroMode && heroCards && heroCards.length === 0 && !activeSub && !congressScope && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
-          A quiet 14-day view — no source-anchored stories qualified. The sections below still carry the corpus.
+          A quiet {data.windowDays}-day view — no source-anchored stories qualified. The sections below still carry the corpus.
         </div>
       )}
       {heroMode && heroCards && heroCards.length === 0 && (activeSub || congressScope) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
             ? <>No source-anchored top stories match this live-coverage view. The sections below may still have signal.</>
-            : <>No {subLabel} top stories in this 14-day view. The sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
+            : <>No {subLabel} top stories in this {data.windowDays}-day view. The sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {!heroMode && stories.length === 0 && (congressScope || subArea) && (
         <div style={{ font: "400 14px/1.5 system-ui", color: MUT, padding: "2px 2px 22px" }}>
           {congressScope
-            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>14-day brief</b> for the full read.</>
-            : <>No {subLabel} top stories in this 14-day view. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
+            ? <>{cState?.phase === "upcoming" ? `Nothing from ${cong?.shortName} yet — it hasn’t started.` : `Quiet so far on ${cong?.shortName}${subLabel ? ` for ${subLabel}` : ""}.`} Tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>{data.windowDays}-day brief</b> for the full read.</>
+            : <>No {subLabel} top stories in this {data.windowDays}-day view. The other sections below may still have {subLabel} signal — or tap <b style={{ color: "var(--rv-ink, #e9edf6)", fontWeight: 600 }}>All</b> for the full brief.</>}
         </div>
       )}
       {part.mode === "caughtup" && (
@@ -1315,14 +1333,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                 <div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{g.name}</div>
                 {(g.verified || g.affiliation) && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                    {g.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", flex: "none" }}>Verified</span>}
+                    {g.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", flex: "none" }}>NPI on file</span>}
                     {g.affiliation && <span style={{ font: "400 12.5px system-ui", color: MUT }}>{g.affiliation}</span>}
                   </div>
                 )}
                 {eps.length > 0 && <div style={{ font: "600 11.5px system-ui", color: pal.accent, marginTop: 7 }}>{openId === "g:" + i ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
               </div>
               <div style={{ flex: "none", display: "flex", gap: 8, textAlign: "center" }}>
-                <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={statTileLabel}>14-day</div></div>
+                <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={statTileLabel}>{data.windowDays}-day</div></div>
                 <div style={{ ...statTile }}><div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{g.career}</div><div style={statTileLabel}>Career</div></div>
               </div>
             </div>
@@ -1382,7 +1400,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             }>
             <div>
               {k.posts.length > 0 && <div><div style={evLabel(pal.accent)}>Top posts on X · {k.posts.length}{nPost > k.posts.length ? ` of ${nPost}` : ""}</div>{k.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-              {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Top papers shared · {k.articles.length}{nArt > k.articles.length ? ` of ${nArt}` : ""}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} url={a.url} accent={pal.accent} />)}</div>}
+              {k.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Top papers shared · {k.articles.length}{nArt > k.articles.length ? ` of ${nArt}` : ""}</div>{k.articles.map((a, j) => <PaperCard key={j} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} url={a.url} abstract={a.abstract} description={a.description} accent={pal.accent} />)}</div>}
             </div>
           </Row>
         );
@@ -1403,7 +1421,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   // spot). Flat list of episode cards, same shape as a guest's episode.
   const episodesSection = !!data.episodes?.some((e) => e.audioUrl) && (
     <div className="rv-editorial-measure" style={{ width: "100%", maxWidth: wide ? EDITORIAL_MEASURE : undefined }}>
-      <SectionHead id="sec-episodes" accent={pal.accent} left>Podcasts from the past 14 days</SectionHead>
+      <SectionHead id="sec-episodes" accent={pal.accent} left>Podcasts from the past {data.windowDays} days</SectionHead>
       <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
         {/* Show 4, then tuck the deeper server-ranked pool behind "Show N more". */}
         <Capped items={data.episodes.filter((e) => e.audioUrl)} cap={4} accent={pal.accent} render={(ep, i) => {
@@ -1475,10 +1493,11 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <div style={{ padding: "13px 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ flex: 1, minWidth: 0, font: "500 16px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.acronym || prettyPhase(t.phase)}</span>
-                  {t.resultsFresh && <span style={{ flex: "none", font: "700 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: pal.accent, border: `1px solid ${pal.accent}55`, borderRadius: 4, padding: "2px 5px" }}>New results</span>}
+                  {t.resultsFresh && <span style={{ flex: "none", font: "700 8px system-ui", letterSpacing: ".06em", textTransform: "uppercase", color: pal.accent, border: `1px solid ${pal.accent}55`, borderRadius: 4, padding: "2px 5px" }}>Results posted</span>}
                   <SignalTag id={id} style={{ flex: "none" }} />
                 </div>
                 {t.title && <div style={{ font: "400 12.5px/1.5 system-ui", color: MUT, marginTop: 6, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{t.title}</div>}
+                {[prettyPhase(t.phase), t.sponsor, t.status].filter(Boolean).length > 0 && <div style={{ font: "500 10.5px/1.4 system-ui", color: MUT, marginTop: 5 }}>{[prettyPhase(t.phase), t.sponsor, t.status].filter(Boolean).join(" · ")}</div>}
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 10 }}>
                   {tFaces.length > 0 && <FacePile faces={tFaces} extra={0} ring={pal.bg} />}
                   <span style={{ font: "400 11.5px system-ui", color: MUT }}>{evidenceLine}</span>
@@ -1495,10 +1514,32 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
-            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
+            {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}
             <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ font: "600 12px system-ui", color: pal.accent }}>View on ClinicalTrials.gov ↗</a>
           </Row>
         );
+      }} />
+    </>
+  );
+
+  const updatesSection = data.events.length > 0 && (
+    <>
+      <SectionHead id="sec-updates" accent={pal.accent} rail={wide} left>Clinical field updates</SectionHead>
+      <Capped items={data.events} cap={5} accent={pal.accent} render={(event: BriefingEvent, i) => {
+        const nct = event.nct?.trim().toUpperCase() ?? null;
+        const applicationDigits = event.application?.match(/\d+/)?.[0] ?? null;
+        const url = event.sourceUrl
+          || (event.application && /^https?:\/\//i.test(event.application) ? event.application : null)
+          || (applicationDigits ? `https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=${applicationDigits}` : null)
+          || (nct && /^NCT\d{8}$/.test(nct) ? `https://clinicaltrials.gov/study/${nct}` : null);
+        const typeLabel = event.type.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+        const meta = [typeLabel, event.occurredOn, event.drug, event.company].filter(Boolean).join(" · ");
+        return <article key={`${event.type}:${event.title}:${i}`} style={{ padding: "13px 0", borderBottom: `1px solid ${LINE}` }}>
+          <div style={{ font: "500 15px/1.4 'Newsreader',Georgia,serif", color: INK }}>{event.title}</div>
+          {meta && <div style={{ marginTop: 5, font: "400 11.5px/1.45 system-ui", color: MUT }}>{meta}</div>}
+          {event.whyStopped && <div style={{ marginTop: 7, font: "400 12px/1.5 system-ui", color: INK_2 }}>Reason: {event.whyStopped}</div>}
+          {url && <a href={url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", marginTop: 2, font: "600 11.5px system-ui", color: pal.accent, textDecoration: "none" }}>Open source ↗</a>}
+        </article>;
       }} />
     </>
   );
@@ -1618,7 +1659,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <span style={{ color: "#70530a", whiteSpace: "nowrap" }}>· {cState.label}</span>
             </span>
             <div role="group" aria-label="Congress coverage" style={{ marginLeft: "auto", display: "inline-flex", background: "rgba(255,255,255,.62)", border: `1px solid ${CG}66`, borderRadius: 20, padding: 3, flex: "none" }}>
-              {([["14-day brief", false], ["Live coverage", true]] as [string, boolean][]).map(([lbl, on]) => (
+              {([[`${data.windowDays}-day brief`, false], ["Live coverage", true]] as [string, boolean][]).map(([lbl, on]) => (
                 <button key={lbl} type="button" aria-pressed={congressScope === on} onClick={() => { setCongressOn(on); setOpenId(null); }}
                   style={{ minHeight: 44, cursor: "pointer", font: "700 11px system-ui", padding: "6px 12px", borderRadius: 16, border: 0, whiteSpace: "nowrap", background: congressScope === on ? CG : "transparent", color: congressScope === on ? "#12130f" : "var(--rv-muted, rgba(255,255,255,.62))" }}>{lbl}</button>
               ))}
@@ -1663,7 +1704,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <h1 style={{ font: `500 ${compact ? 22 : 26}px/1 Georgia,'Newsreader',serif`, color: INK, margin: 0, display: "inline" }}>The Readout</h1>
               {!compact && areaSwitcher("chip")}
             </div>
-            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)} · 14-day view</div>}
+            {!compact && <div style={{ font: "600 10px system-ui", color: MUT2, marginTop: 9 }}>Updated {ago(data.generatedAt)} · {data.windowDays}-day view</div>}
             {/* On medium-width single-column desktop, Focus still needs its own row. The wide
                 two-column layout moves it into the shared navigation band below. */}
             {!compact && !wide && <div style={{ marginTop: 13 }}>{focusSwitcher(false)}</div>}
@@ -1692,7 +1733,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
         {/* mobile: byline + freshness on a quiet second line, so the wordmark sits inline with the
             share + area controls (not floating against a 3-line stack) */}
         {compact && <>
-          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>Updated {ago(data.generatedAt)} · 14-day view</div>
+          <div style={{ font: "600 10px system-ui", color: MUT2, margin: "7px 0 0" }}>Updated {ago(data.generatedAt)} · {data.windowDays}-day view</div>
           <div aria-hidden style={{ height: 1, margin: "13px 0 10px", background: LINE }} />
         </>}
         {/* Section jumps stay sticky on compact and medium-width layouts. */}
@@ -1727,6 +1768,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               <aside style={{ minWidth: 0 }}>
                 {peopleSection}
                 {trialsSection}
+                {updatesSection}
                 {drugsSection}
               </aside>
             )}
@@ -1742,8 +1784,9 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             {storiesSection}
             {episodesSection}
             {papersSection}
-            {trialsSection}
             {peopleSection}
+            {trialsSection}
+            {updatesSection}
             {drugsSection}
           </>
         )}

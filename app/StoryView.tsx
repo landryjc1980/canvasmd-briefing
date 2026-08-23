@@ -58,6 +58,14 @@ const agoDay = (ymd?: string | null) => {
   const d = Math.round((Date.now() - new Date(`${ymd.slice(0, 10)}T00:00:00Z`).getTime()) / 86400_000);
   return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d}d ago`;
 };
+const eventUrl = (event: BriefingData["events"][number]) => {
+  const applicationDigits = event.application?.match(/\d+/)?.[0] ?? null;
+  const nct = event.nct?.trim().toUpperCase() ?? null;
+  return event.sourceUrl
+    || (event.application && /^https?:\/\//i.test(event.application) ? event.application : null)
+    || (applicationDigits ? `https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=${applicationDigits}` : null)
+    || (nct && /^NCT\d{8}$/.test(nct) ? `https://clinicaltrials.gov/study/${nct}` : null);
+};
 
 // One KOL tweet — links to X if we have the url. Self-contained (stops its own
 // propagation) so it works inside the sheet, paper expansions, etc.
@@ -69,6 +77,13 @@ function TweetCard({ t }: { t: BriefingSharer }) {
       {t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#ff8fa8" }}>♥ {t.likes}</span>}
     </div>
     {t.text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "#cbcdd5" }}>{t.text}</p>}
+    {t.quotedContext && (t.quotedContext.title || t.quotedContext.text) && (
+      <a href={t.quotedContext.url ?? undefined} target={t.quotedContext.url ? "_blank" : undefined} rel={t.quotedContext.url ? "noopener noreferrer" : undefined}
+        onClick={(e) => e.stopPropagation()} style={{ display: "block", marginTop: 10, padding: 10, border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, background: "rgba(255,255,255,.05)", color: "inherit", textDecoration: "none", pointerEvents: t.quotedContext.url ? "auto" : "none" }}>
+        {t.quotedContext.title && <div style={{ font: "600 12.5px/1.4 system-ui", color: "#eef1f8" }}>{t.quotedContext.title}</div>}
+        {t.quotedContext.text && <p style={{ margin: t.quotedContext.title ? "5px 0 0" : 0, font: "400 12.5px/1.45 'Newsreader',Georgia,serif", color: "#9da0aa", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.quotedContext.text}</p>}
+      </a>
+    )}
     {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: "#9da0aa" }}>{t.receiptNote}</div>}
   </>);
   return t.tweetUrl
@@ -78,38 +93,40 @@ function TweetCard({ t }: { t: BriefingSharer }) {
 
 // A paper card that expands INLINE to reveal the abstract AND the clinicians' tweets
 // about it (so readers don't have to leave). The ↗ still opens the source.
-function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, ring, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; posts?: BriefingSharer[]; faces?: string[]; ring?: string; accent: string; peerReviewed?: boolean }) {
-  const [open, setOpen] = useState(false);
+function PaperCard({ title, journal, domain, meta, url, abstract, description, posts, publishers, faces, ring, accent, peerReviewed }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; description?: string | null; posts?: BriefingSharer[]; publishers?: string[]; faces?: string[]; ring?: string; accent: string; peerReviewed?: boolean }) {
+  const [contextOpen, setContextOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
+  const context = hasAbs ? abstract : description?.trim() || null;
   const hasPosts = !!(posts && posts.length);
-  const canExpand = hasAbs || hasPosts;
-  const toggleLabel = open ? "Hide" : hasAbs ? (hasPosts ? "Abstract + posts" : "Read abstract") : "See posts";
+  const hasPublishers = !!publishers?.length;
+  const hasSources = hasPosts || hasPublishers;
   // Source line: journal if we have one, else the news outlet's clean name; a small "News" badge
   // marks a non-journal outlet. No "via <publisher>" — the source name already answers "from where".
   const src = articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
     <div onClick={(e) => e.stopPropagation()} style={cardBox}>
-      {/* whole header taps to expand (was a dead zone — abstract hid behind a tiny link) */}
-      <div onClick={(e) => { if (canExpand) { e.stopPropagation(); setOpen((o) => !o); } }} style={{ cursor: canExpand ? "pointer" : "default", display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>
+          {url ? <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ minHeight: 44, display: "flex", alignItems: "center", font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8", textDecoration: "none" }}>{cleanArticleTitle(title)}</a> : <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "#eef1f8" }}>{cleanArticleTitle(title)}</div>}
           {(src || meta) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
             <span style={{ font: "400 12px system-ui", color: "#7c7f88" }}>{[src, meta].filter(Boolean).join(" · ")}</span>
             {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "rgba(255,255,255,.55)", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
           </div>}
         </div>
         {faces && faces.length > 0 && <FacePile faces={faces} ring={ring ?? "#12305f"} size={22} />}
-        {canExpand && <span style={{ font: "700 13px system-ui", color: accent, flex: "none", transform: open ? "rotate(180deg)" : undefined, transition: "transform .2s" }}>⌄</span>}
       </div>
-      {open && hasAbs && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{abstract}</p>}
-      {open && hasPosts && <div style={{ marginTop: 12 }}>
+      {contextOpen && context && <p style={{ margin: "11px 0 0", font: "400 13.5px/1.55 'Newsreader',Georgia,serif", color: "#c3c6d0" }}>{context}</p>}
+      {sourcesOpen && hasPosts && <div style={{ marginTop: 12 }}>
         <div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>On X · physician posts</div>
         {posts!.map((t, i) => <div key={i} style={{ marginTop: i ? 8 : 0 }}><TweetCard t={t} /></div>)}
       </div>}
+      {sourcesOpen && hasPublishers && <div style={{ marginTop: 12 }}><div style={{ font: "600 10px system-ui", letterSpacing: ".12em", textTransform: "uppercase", color: accent, marginBottom: 6 }}>Publisher provenance</div><div style={{ font: "400 12px/1.5 system-ui", color: "#7c7f88" }}>{publishers!.join(" · ")}</div></div>}
       <div style={{ display: "flex", gap: 16, marginTop: 11 }}>
-        {canExpand && <button onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", font: "600 12px system-ui", color: accent }}>{toggleLabel}</button>}
-        {url && <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
+        {context && <button onClick={(e) => { e.stopPropagation(); setContextOpen((o) => !o); }} aria-expanded={contextOpen} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent }}>{contextOpen ? `Hide ${hasAbs ? "abstract" : "context"} ↑` : `${hasAbs ? "Abstract" : "Source context"} ↓`}</button>}
+        {hasSources && <button onClick={(e) => { e.stopPropagation(); setSourcesOpen((o) => !o); }} aria-expanded={sourcesOpen} style={{ minHeight: 44, background: "none", border: 0, padding: "0 2px", cursor: "pointer", font: "600 12px system-ui", color: accent }}>{sourcesOpen ? "Hide sources ↑" : "Sources ↓"}</button>}
+        {url && <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", font: "600 12px system-ui", color: "rgba(255,255,255,.55)", textDecoration: "none" }}>Open ↗</a>}
       </div>
     </div>
   );
@@ -120,12 +137,12 @@ function PaperCard({ title, journal, domain, meta, url, abstract, posts, faces, 
 type SheetEv = {
   title: string; sub?: string; stance?: BriefingStance | null;
   podcasts?: BriefingPod[]; posts?: BriefingSharer[];
-  papers?: { title: string; journal: string | null; domain?: string | null; url?: string; abstract?: string | null; meta?: string; posts?: BriefingSharer[]; peerReviewed?: boolean }[];
+  papers?: { title: string; journal: string | null; domain?: string | null; url?: string; abstract?: string | null; description?: string | null; publishers?: string[]; meta?: string; posts?: BriefingSharer[]; peerReviewed?: boolean }[];
 };
 const moverEv = (m: BriefingMover): SheetEv => ({
   title: m.drug, sub: metricsLine(m), stance: m.stance ?? null,
   podcasts: m.podcast, posts: m.posts,
-  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers, peerReviewed: p.peerReviewed })),
+  papers: m.papers.map((p) => ({ title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, description: p.description, publishers: p.publishers, meta: `shared by ${p.sharers.length} · ♥ ${p.topLikes}`, posts: p.sharers, peerReviewed: p.peerReviewed })),
 });
 // The evidence sheet for ANY story atom (drug | paper | topic) — same generic bundle.
 const storyEv = (s: BriefingStory): SheetEv => ({
@@ -133,7 +150,7 @@ const storyEv = (s: BriefingStory): SheetEv => ({
   podcasts: s.podcast, posts: s.posts,
   papers: s.papers.map((p) => {
     const shared = p.sharers.length || p.posts?.length || 0;
-    return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers, peerReviewed: p.peerReviewed };
+    return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, description: p.description, publishers: p.publishers, meta: shared ? `shared by ${shared}${p.topLikes ? ` · ♥ ${p.topLikes}` : ""}` : undefined, posts: p.posts?.length ? p.posts : p.sharers, peerReviewed: p.peerReviewed };
   }),
 });
 
@@ -412,7 +429,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             {/* COVER — area-led. The tumor area is the display title (was a whispered 11px kicker);
                 the story-player chrome is gone; credibility drops to a quiet footer. */}
-            <div style={{ font: "700 11.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>Past 14 days in</div>
+            <div style={{ font: "700 11.5px system-ui", letterSpacing: ".18em", textTransform: "uppercase", color: pal.accent }}>Past {data.windowDays} days in</div>
             <div style={{ font: "400 46px/1.02 'Newsreader',Georgia,serif", color: "#fff", letterSpacing: "-.02em", marginTop: 7 }}>{AREA_FULL[area] ?? area}</div>
             <div style={{ height: 1, background: `linear-gradient(90deg, ${pal.accent}, ${pal.accent}00)`, opacity: .5, margin: "20px 0 0" }} />
             {part.mode === "split" && (
@@ -446,13 +463,15 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
         {cur.kind === "events" && (
           <>
-            {sectionHead("Approvals & trial updates")}
+              {sectionHead("Clinical field updates")}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {data.events.map((e, i) => (
                 <div key={i} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, padding: 16 }}>
                   <div style={{ font: "600 10px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: pal.accent }}>{e.type.replace(/_/g, " ")}</div>
                   <div style={{ font: "600 17px/1.28 system-ui", color: "#f4f7ff", margin: "9px 0 6px" }}>{e.title}</div>
                   <div style={{ font: "400 13px system-ui", color: "rgba(255,255,255,.5)" }}>{[e.drug, e.company, agoDay(e.occurredOn)].filter(Boolean).join(" · ")}</div>
+                  {e.whyStopped && <div style={{ font: "400 12.5px/1.5 system-ui", color: "rgba(255,255,255,.65)", marginTop: 8 }}>Reason: {e.whyStopped}</div>}
+                  {eventUrl(e) && <a href={eventUrl(e)!} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", color: pal.accent, font: "600 12px system-ui", textDecoration: "none" }}>Open source ↗</a>}
                 </div>
               ))}
             </div>
@@ -519,7 +538,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                     <div style={{ position: "relative", maxHeight: expanded ? undefined : PEEK_H, overflow: expanded ? undefined : "hidden" }}>
                       {!!ev.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{ev.podcasts.map((p, j) => podCard(p, "ie" + j))}</div>}
                       {!!ev.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · physician posts</div>{ev.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+                      {!!ev.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{ev.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} description={p.description} publishers={p.publishers} posts={p.posts} accent={pal.accent} />)}</div>}
                       {!expanded && <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 58, background: `linear-gradient(to bottom, ${pal.bg}00, ${pal.bg})`, pointerEvents: "none" }} />}
                     </div>
                     <div onClick={(e) => { stop(e); setExpanded((v) => !v); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, padding: "12px 18px", borderRadius: 12, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.1)", cursor: "pointer", font: "700 13px system-ui", color: expanded ? "#fff" : pal.accent }}>
@@ -552,7 +571,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
         {cur.kind === "kols" && (
           <>
             {!!data.guests?.length && <div style={{ marginBottom: 24 }}>
-              {sectionHead("Guests from the past 14 days")}
+              {sectionHead(`Guests from the past ${data.windowDays} days`)}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {data.guests.slice(0, 10).map((g, i) => {
                   const eps = g.episodes.filter((e) => e.audioUrl);
@@ -566,7 +585,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                         {eps.length > 0 && <div style={{ font: "600 11px system-ui", color: pal.accent, marginTop: 4 }}>{gopen ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
                       </div>
                       <div style={{ display: "flex", gap: 6, flex: "none", textAlign: "center" }}>
-                        <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>14-day</div></div>
+                        <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: pal.accent }}>{g.thisWeek}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>{data.windowDays}-day</div></div>
                         <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 9, padding: "6px 9px", minWidth: 46 }}><div style={{ font: "600 18px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{g.career}</div><div style={{ font: "600 7px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginTop: 3 }}>Career</div></div>
                       </div>
                     </div>
@@ -594,7 +613,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
               {data.topKols.slice(0, 10).map((k, i) => {
                 const hasEv = k.posts.length + k.articles.length > 0;
                 return (
-                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: k.name, sub: k.handle ? `@${k.handle}` : undefined, posts: k.posts, papers: k.articles.map((a) => ({ title: a.title, journal: a.journal, domain: a.domain, url: a.url })) }); } }}
+                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: k.name, sub: k.handle ? `@${k.handle}` : undefined, posts: k.posts, papers: k.articles.map((a) => ({ title: a.title, journal: a.journal, domain: a.domain, url: a.url, abstract: a.abstract, description: a.description, peerReviewed: a.peerReviewed })) }); } }}
                     style={{ display: "flex", alignItems: "center", gap: 13, padding: "9px 0", cursor: hasEv ? "pointer" : "default" }}>
                     <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,.1)", color: "#f4f7ff", font: "600 13px system-ui", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", overflow: "hidden" }}>{k.avatar ? <img src={k.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini(k.name)}</div>
                     <div style={{ flex: 1, minWidth: 0 }}><div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{k.name}</div>{k.institution && <div style={{ font: "400 11px system-ui", color: "rgba(255,255,255,.42)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.institution}</div>}<div style={{ font: "400 12px system-ui", color: "rgba(255,255,255,.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.drugs.slice(0, 3).join(" · ") || (k.handle ? "@" + k.handle : "")}</div></div>
@@ -611,7 +630,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
 
         {cur.kind === "episodes" && (
           <>
-            {sectionHead("Podcasts from the past 14 days")}
+            {sectionHead(`Podcasts from the past ${data.windowDays} days`)}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {(data.episodes ?? []).filter((e) => e.audioUrl).map((ep, i) => (
                 <div key={i} onClick={stop} style={cardBox}>
@@ -631,7 +650,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
           <>
             {sectionHead("Papers being shared")}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} posts={a.posts} faces={a.faces} ring={pal.bg} accent={pal.accent} />)}
+              {data.topArticles.slice(0, 12).map((a, i) => <PaperCard key={i} title={a.title} journal={a.journal} domain={a.domain} peerReviewed={a.peerReviewed} meta={a.kolSharers ? `shared by ${a.kolSharers} clinician${a.kolSharers === 1 ? "" : "s"}` : undefined} url={a.url} abstract={a.abstract} description={a.description} publishers={a.publishers} posts={a.posts} faces={a.faces} ring={pal.bg} accent={pal.accent} />)}
             </div>
           </>
         )}
@@ -646,7 +665,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
                 const evidenceLine = trialEvidenceLine(t);
                 const tFaces = pileFaces({ posts: [...allPosts, ...t.articles.flatMap((a) => a.sharers)], podcast: t.pods });
                 return (
-                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: t.acronym || t.nctId, sub: t.title, podcasts: t.pods, posts: allPosts, papers: t.articles.map((p) => { const n = p.sharerCount ?? p.sharers.length; return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, meta: `shared by ${n} clinician${n === 1 ? "" : "s"}`, posts: p.posts?.length ? p.posts : p.sharers }; }) }); } }}
+                  <div key={i} onClick={(e) => { if (hasEv) { stop(e); setSheet({ title: t.acronym || t.nctId, sub: t.title, podcasts: t.pods, posts: allPosts, papers: t.articles.map((p) => { const n = p.sharerCount ?? p.sharers.length; return { title: p.title, journal: p.journal, domain: p.domain, url: p.url, abstract: p.abstract, description: p.description, publishers: p.publishers, meta: `shared by ${n} clinician${n === 1 ? "" : "s"}`, posts: p.posts?.length ? p.posts : p.sharers, peerReviewed: p.peerReviewed }; }) }); } }}
                     style={{ borderTop: "1px solid rgba(255,255,255,.1)", padding: "13px 0", display: "flex", alignItems: "flex-start", gap: 10, cursor: hasEv ? "pointer" : "default" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "500 16px 'Newsreader',Georgia,serif", color: "#f4f7ff" }}>{t.acronym || t.nctId}</div>
@@ -704,7 +723,7 @@ export default function StoryView({ data, area, areas, onArea, seen }: { data: B
             <StanceBlock stance={sheet.stance} accent={pal.accent} style={{ marginBottom: 18 }} />
             {!!sheet.podcasts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On the podcasts</div>{sheet.podcasts.map((p, j) => podCard(p, j))}</div>}
             {!!sheet.posts?.length && <div style={{ marginBottom: 8 }}><div style={evLabel(pal.accent)}>On X · physician posts</div>{sheet.posts.map((t, j) => <TweetCard key={j} t={t} />)}</div>}
-            {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} posts={p.posts} accent={pal.accent} />)}</div>}
+            {!!sheet.papers?.length && <div><div style={evLabel(pal.accent)}>Papers</div>{sheet.papers.map((p, j) => <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={p.meta} url={p.url} abstract={p.abstract} description={p.description} publishers={p.publishers} posts={p.posts} accent={pal.accent} />)}</div>}
             <div onClick={(e) => { stop(e); setSheet(null); }} style={{ textAlign: "center", marginTop: 14, font: "600 13px system-ui", color: pal.accent, cursor: "pointer" }}>Close</div>
           </div>
         </div>

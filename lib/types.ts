@@ -467,6 +467,7 @@ export type BriefingSharer = {
   lang?: string | null;   // ADDITIVE — original language (translation lane, 0322)
   textEn?: string | null; // ADDITIVE — stored English translation; original stays the receipt
   thread?: { id: string; text: string; tweetUrl: string | null }[]; // ADDITIVE — same-author thread continuations
+  quotedContext?: { url: string | null; title: string | null; text: string | null }; // ADDITIVE — the post or article being quoted
   likes: number;
   retweets: number;
   quotes?: number; // quote-posts (absent on pre-2026-07-24 snapshots)
@@ -492,6 +493,7 @@ export type BriefingPaper = {
   journal: string | null;
   domain: string | null; // article host — lets us show a clean news-outlet source + "News" badge when there's no journal
   abstract: string | null; // PubMed abstract (structured sections joined), for the expandable read
+  description?: string | null;
   sharers: BriefingSharer[]; // CAPPED for payload size — never render its length as a count
   sharerCount?: number; // the real number of verified clinicians who shared it (uncapped)
   topLikes: number;
@@ -522,6 +524,10 @@ export type BriefingEvent = {
   occurredOn: string | null;
   ahead: boolean; // true = upcoming congress, false = already happened
   drugId: string | null; // anchors a jump to the mover row
+  application?: string | null;
+  sourceUrl?: string | null;
+  nct?: string | null;
+  whyStopped?: string | null;
 };
 // One classified take behind the stance counts — the auditable "receipt".
 export type BriefingStanceTake = {
@@ -603,7 +609,7 @@ export type BriefingKol = {
   paperShares?: number; // distinct papers they shared this window
   referenceKol?: boolean; // curated specialty reference expert; preserves server ordering
   posts: BriefingSharer[]; // their actual tweets (for the expandable card)
-  articles: { title: string; url: string; journal: string | null; domain: string | null; peerReviewed?: boolean }[]; // articles they shared
+  articles: { title: string; url: string; journal: string | null; domain: string | null; abstract?: string | null; description?: string | null; peerReviewed?: boolean }[]; // articles they shared
   specialtyLocal?: boolean; // false = relevant content from a physician outside this specialty
   subAreas?: string[];
   congress?: boolean;
@@ -615,7 +621,12 @@ export type BriefingArticle = {
   url: string;
   journal: string | null;
   domain: string | null;
+  doi?: string | null;
+  pmid?: string | null;
   abstract: string | null; // PubMed abstract, for the expandable read
+  description?: string | null; // publisher/source context when no abstract exists
+  publishedAt?: string | null;
+  circulationState?: "newly_published" | "resurfaced" | "publication_date_unknown";
   sharers: number; // distinct accounts total (KOL + publisher)
   kolSharers: number; // distinct KOL (verified-clinician) accounts that shared it
   publishers: string[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; // institutional + uncategorized authored evidence

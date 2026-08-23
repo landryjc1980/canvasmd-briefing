@@ -14,11 +14,11 @@ import { evidenceBackedHeroWhy } from "@/app/clientEvidence";
 
 const KIND_KICKER: Record<HeroCard["kind"], string> = {
   paper: "Paper",
-  episode: "In-depth episode",
+  episode: "Episode",
   event: "Regulatory event",
   thread: "Clinician post",
   readout: "Trial readout",
-  development: "Breaking development",
+  development: "Development",
   trial_milestone: "Trial milestone",
 };
 
