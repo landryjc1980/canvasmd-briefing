@@ -160,7 +160,7 @@ export function resolveHeroEvidence(
     const faces = evidenceFaces(posts, publisherPosts, otherPosts);
     if (st) return { kind: "paper", story: { ...st, posts }, faces, publisherPosts, otherPosts, supportLinks };
     const a = reading;
-    if (a) return { kind: "article", posts, faces, publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks };
+    if (a) return { kind: "article", posts, faces, publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, description: a.description, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks };
     return null;
   }
   if (c.kind === "episode") {

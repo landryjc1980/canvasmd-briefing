@@ -916,7 +916,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
           const on = subArea === c.key;
           return (
             <button key={c.label} type="button" className="rv-focus-chip" aria-pressed={on} onClick={() => { setSubArea(c.key); setOpenId(null); }}
-              style={{ cursor: "pointer", font: `${on ? "700" : "600"} 12px system-ui`, padding: "8px 1px 9px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
+              style={{ cursor: "pointer", font: `${on ? "700" : "600"} 12px system-ui`, minHeight: 44, padding: "8px 1px 9px", borderRadius: 0, border: 0, borderBottom: `2px solid ${on ? pal.accent : "transparent"}`, background: "transparent", color: on ? INK : MUT, whiteSpace: "nowrap", flex: "none", transition: "border-color .15s, color .15s", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
               {c.label}
             </button>
           );
@@ -1037,12 +1037,14 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       const story = r.story as EvSource;
       const paper = story.papers?.[0];
       const firstPost = pickConversationPreview(story.posts, paper?.posts, paper?.sharers);
-      return { faces: r.faces, abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
+      const context = paper?.abstract?.replace(/\s+/g, " ").trim() || paper?.description?.replace(/\s+/g, " ").trim() || null;
+      return { faces: r.faces, context, contextLabel: paper?.abstract ? "Abstract" : "Source context", preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ ...story, publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "article") {
       const paper = r.paper as unknown as BriefingPaper;
       const firstPost = pickConversationPreview(r.posts, paper.posts, paper.sharers);
-      return { faces: r.faces, abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null, preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
+      const context = paper.abstract?.replace(/\s+/g, " ").trim() || paper.description?.replace(/\s+/g, " ").trim() || null;
+      return { faces: r.faces, context, contextLabel: paper.abstract ? "Abstract" : "Source context", preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
     if (r.kind === "episode") return { faces: r.faces, drawer: (
       <>

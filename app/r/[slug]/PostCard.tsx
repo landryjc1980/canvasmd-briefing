@@ -42,9 +42,11 @@ function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): Hero
     const story = resolved.story as BriefingStory;
     const paper = story.papers?.[0];
     const firstPost = story.posts?.[0] ?? paper?.posts?.[0] ?? paper?.sharers?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0];
+    const context = paper?.abstract?.replace(/\s+/g, " ").trim() || paper?.description?.replace(/\s+/g, " ").trim() || null;
     return {
       faces: resolved.faces,
-      abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null,
+      context,
+      contextLabel: paper?.abstract ? "Abstract" : "Source context",
       preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
       drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
     };
@@ -52,9 +54,11 @@ function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): Hero
   if (resolved.kind === "article") {
     const paper = resolved.paper as unknown as BriefingPaper;
     const firstPost = resolved.posts[0] ?? paper.posts?.[0] ?? paper.sharers?.[0] ?? resolved.publisherPosts[0] ?? resolved.otherPosts[0];
+    const context = paper.abstract?.replace(/\s+/g, " ").trim() || paper.description?.replace(/\s+/g, " ").trim() || null;
     return {
       faces: resolved.faces,
-      abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null,
+      context,
+      contextLabel: paper.abstract ? "Abstract" : "Source context",
       preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
       drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
     };

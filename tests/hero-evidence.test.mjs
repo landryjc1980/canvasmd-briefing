@@ -22,9 +22,10 @@ test("paper resolves via topStories first", () => {
   assert.deepEqual(r.faces, ["av1"]);
 });
 test("paper falls back to topArticles WITH publisher receipts", () => {
-  const a = { url: "u2", title: "T", journal: "J", domain: null, abstract: null, topLikes: 3, faces: ["f"], posts: [], publishers: ["OncLive", "NEJM"], kolSharers: 4 };
+  const a = { url: "u2", title: "T", journal: "J", domain: null, abstract: null, description: "A retained source description.", topLikes: 3, faces: ["f"], posts: [], publishers: ["OncLive", "NEJM"], kolSharers: 4 };
   const r = resolveHeroEvidence({ kind: "paper", anchorId: "u2", url: "u2", headline: "T" }, { topStories: [], topArticles: [a], movers: [] });
   assert.equal(r?.kind, "article");
+  assert.equal(r.paper.description, "A retained source description.", "non-journal source context must reach the hero drawer");
   assert.deepEqual(r.publishers, ["OncLive", "NEJM"], "publisher names must reach the drawer");
 });
 test("episode resolves ALL moment refs in card order — or nothing (count must never silently shrink)", () => {

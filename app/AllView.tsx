@@ -538,9 +538,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       const story = resolved.story as BriefingStory;
       const paper = story.papers?.[0];
       const firstPost = pickConversationPreview(story.posts, paper?.posts, paper?.sharers);
+      const context = paper?.abstract?.replace(/\s+/g, " ").trim() || paper?.description?.replace(/\s+/g, " ").trim() || null;
       return {
         faces: resolved.faces,
-        abstract: paper?.abstract?.replace(/\s+/g, " ").trim() || null,
+        context,
+        contextLabel: paper?.abstract ? "Abstract" : "Source context",
         preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
         drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };
@@ -548,9 +550,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     if (resolved.kind === "article") {
       const paper = resolved.paper as unknown as BriefingPaper;
       const firstPost = pickConversationPreview(resolved.posts, paper.posts, paper.sharers);
+      const context = paper.abstract?.replace(/\s+/g, " ").trim() || paper.description?.replace(/\s+/g, " ").trim() || null;
       return {
         faces: resolved.faces,
-        abstract: paper.abstract?.replace(/\s+/g, " ").trim() || null,
+        context,
+        contextLabel: paper.abstract ? "Abstract" : "Source context",
         preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
         drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };

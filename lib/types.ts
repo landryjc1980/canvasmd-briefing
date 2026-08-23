@@ -990,6 +990,7 @@ export type DailyConversationReaction = {
   likes: number; postedAt?: string | null; areas: string[]; sourceAreas?: string[]; referenceAreas?: string[]; translatedFrom?: string | null;
   fullText?: string | null; // additive: complete retained post text when the producer can hydrate it
   textTruncated?: boolean; // additive: true when `text` remains only an archived excerpt
+  quotedContext?: { url?: string | null; title?: string | null; text?: string | null };
 };
 export type DailyConversationStory = {
   id: string;

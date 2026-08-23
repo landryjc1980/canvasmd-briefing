@@ -50,7 +50,7 @@ test("web specialty menus expose keyboard popup semantics", () => {
 });
 
 test("hero controls include the story headline in accessible names", () => {
-  assert.match(hero, /aria-label=\{`Read abstract for \$\{c\.headline\}`\}/);
+  assert.match(hero, /aria-label=\{`Read \$\{ev\.contextLabel.*for \$\{c\.headline\}`\}/);
   assert.match(hero, /conversation and evidence for \$\{c\.headline\}/);
   assert.match(hero, /aria-label=\{`Share \$\{c\.headline\}`\}/);
 });

@@ -26,10 +26,17 @@ function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
   return (
     <blockquote style={{ margin: lead ? "7px 0 0" : 0, padding: lead ? "7px 0 7px 10px" : "9px 0", border: 0, borderLeft: lead ? `2px solid ${accent}` : 0, borderTop: lead ? 0 : `1px solid ${line}` }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 24, margin: "-5px 0", color: ink, textDecoration: "none", font: "650 12px system-ui" }}>{reaction.name}</a>
+        <a href={reaction.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, margin: "-10px 0", color: ink, textDecoration: "none", font: "650 12px system-ui" }}>{reaction.name}</a>
         <span style={{ color: muted, font: "500 10.5px system-ui" }}>@{reaction.handle} · ♥ {reaction.likes}</span>
       </div>
       <div style={{ color: muted, font: "400 12.5px/1.55 'Newsreader',Georgia,serif", marginTop: 4 }}>{preview}</div>
+      {reaction.quotedContext && (reaction.quotedContext.title || reaction.quotedContext.text) && (
+        <a href={reaction.quotedContext.url ?? undefined} target={reaction.quotedContext.url ? "_blank" : undefined} rel={reaction.quotedContext.url ? "noopener noreferrer" : undefined}
+          style={{ display: "block", marginTop: 8, padding: 9, border: `1px solid ${line}`, borderRadius: 7, color: "inherit", textDecoration: "none", pointerEvents: reaction.quotedContext.url ? "auto" : "none" }}>
+          {reaction.quotedContext.title && <div style={{ color: ink, font: "600 11.5px/1.4 system-ui" }}>{reaction.quotedContext.title}</div>}
+          {reaction.quotedContext.text && <div style={{ marginTop: reaction.quotedContext.title ? 4 : 0, color: muted, font: "400 11.5px/1.45 'Newsreader',Georgia,serif", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{cleanTweetText(reaction.quotedContext.text)}</div>}
+        </a>
+      )}
       {canExpand && (
         <button type="button" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}
           style={{ cursor: "pointer", minHeight: 44, marginTop: 3, padding: "0 2px", border: 0, background: "transparent", color: accent, font: "600 11.5px system-ui" }}>

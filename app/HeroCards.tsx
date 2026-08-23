@@ -27,7 +27,7 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // legacy arrays): faces for the pile, and a lazily-rendered receipts drawer. RECEIPTS RULE
 // (John, 2026-08-09): a count like "shared by 13 clinicians" must open into WHO and WHAT
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
-export type HeroEvidence = { faces: string[]; drawer: ReactNode; abstract?: string | null; preview?: ReactNode } | null;
+export type HeroEvidence = { faces: string[]; drawer: ReactNode; context?: string | null; contextLabel?: "Abstract" | "Source context"; preview?: ReactNode } | null;
 
 export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string }) {
   // defaultOpenId opens one card's evidence drawer on mount — the standalone /r/<slug> post page
@@ -69,10 +69,10 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
                 </p>
               )}
-              {c.kind === "paper" && ev?.abstract && (
+              {(c.kind === "paper" || c.kind === "readout") && ev?.context && (
                 <details className="readout-hero-abstract" style={{ color: accent }}>
-                  <summary aria-label={`Read abstract for ${c.headline}`}>Read abstract <span aria-hidden>↓</span></summary>
-                  <p>{ev.abstract}</p>
+                  <summary aria-label={`Read ${ev.contextLabel?.toLowerCase() ?? "context"} for ${c.headline}`}>{ev.contextLabel ?? "Source context"} <span aria-hidden>↓</span></summary>
+                  <p>{ev.context}</p>
                 </details>
               )}
               {ev?.preview && !compact && (

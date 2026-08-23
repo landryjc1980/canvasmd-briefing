@@ -127,7 +127,7 @@ test("podcast, continuation, and grouped-repost actions retain exact X URLs", ()
 
 test("exact receipt links meet the web and native target-size contracts", () => {
   assert.match(webReader, /reposter\.tweetUrl[\s\S]{0,260}minHeight: 24/);
-  assert.match(webDaily, /reaction\.url[\s\S]{0,260}minHeight: 24/);
+  assert.match(webDaily, /reaction\.url[\s\S]{0,260}minHeight: 44/);
   assert.match(nativeCards, /reposter\.tweetUrl[\s\S]{0,500}minHeight: 44/);
   assert.match(nativeDaily, /Open \$\{reaction\.name\}'s post on X[\s\S]{0,220}minHeight: 44/);
 });
