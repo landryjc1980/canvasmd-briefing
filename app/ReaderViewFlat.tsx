@@ -575,7 +575,7 @@ export default function ReaderViewFlat({ data, area, areas, onArea, seen, compac
                   </div>
                 )}>
                 {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-                {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
+                {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician mentions</div>{t.posts.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div>{t.publisherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div>{t.otherPosts!.map((tw, j) => <TweetCard key={j} t={tw} />)}</div>}
                 {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} posts={posts} accent={pal.accent} />; })}</div>}

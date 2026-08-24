@@ -104,7 +104,7 @@ export function trialEvidenceCounts(trial: Pick<BriefingTrial, "pods" | "posts" 
     pod.episodeId || pod.audioUrl || pod.episodeTitle || `__episode${index}`));
   return {
     episodes: episodeKeys.size,
-    clinicianComments: authoredClinicianCount(trial.posts),
+    clinicianMentions: authoredClinicianCount(trial.posts),
     hasXSharing: xEvidenceSourceCount(trial) > 0,
     papers: trial.articles.length,
   };
@@ -114,8 +114,8 @@ export function trialEvidenceLine(trial: Pick<BriefingTrial, "pods" | "posts" | 
   const counts = trialEvidenceCounts(trial);
   return [
     counts.episodes ? `${counts.episodes} episode${counts.episodes === 1 ? "" : "s"}` : "",
-    counts.clinicianComments ? `${counts.clinicianComments} clinician${counts.clinicianComments === 1 ? "" : "s"} commented` : "",
-    !counts.clinicianComments && counts.hasXSharing ? "X sharing evidence" : "",
+    counts.clinicianMentions ? `${counts.clinicianMentions} clinician mention${counts.clinicianMentions === 1 ? "" : "s"} on X` : "",
+    !counts.clinicianMentions && counts.hasXSharing ? "X sharing evidence" : "",
     counts.papers ? `${counts.papers} paper${counts.papers === 1 ? "" : "s"}` : "",
   ].filter(Boolean).join(" · ");
 }

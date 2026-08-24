@@ -1519,7 +1519,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
               </div>
             }>
             {t.pods.length > 0 && <div><div style={evLabel(pal.accent)}>On the podcasts</div>{t.pods.map((p, j) => <PodCard key={j} p={p} accent={pal.accent} />)}</div>}
-            {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician posts</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
+            {t.posts.length > 0 && <div><div style={evLabel(pal.accent)}>On X · physician mentions</div><Capped items={t.posts} cap={3} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.publisherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>From publishers &amp; journals</div><Capped items={t.publisherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {(t.otherPosts?.length ?? 0) > 0 && <div><div style={evLabel(pal.accent)}>Additional posts on X</div><Capped items={t.otherPosts!} cap={2} accent={pal.accent} render={(tw, j) => <TweetCard key={j} t={tw} />} /></div>}
             {t.articles.length > 0 && <div><div style={evLabel(pal.accent)}>Related papers</div>{t.articles.map((p: BriefingPaper, j) => { const posts = p.posts?.length ? p.posts : p.sharers; return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCount(posts), p.sharerCount)} url={p.url} abstract={p.abstract} description={p.description} posts={[]} accent={pal.accent} sharedTotal={p.sharerCount} />; })}</div>}

@@ -9,8 +9,8 @@ const evidence = fs.readFileSync(new URL("../app/heroEvidence.ts", import.meta.u
 
 test("web trial summaries describe serialized evidence instead of raw mention totals", () => {
   assert.match(vm, /authoredClinicianCount\(trial\.posts\)/);
-  assert.match(vm, /clinicianComments/);
-  assert.match(vm, /commented/);
+  assert.match(vm, /clinicianMentions/);
+  assert.match(vm, /clinician mention/);
   assert.match(vm, /episodeKeys\.size/);
   assert.match(vm, /trial\.articles\.length/);
   assert.match(reader, /trialEvidenceLine\(t\)/);
@@ -36,7 +36,7 @@ test("web evidence disclosures do not present unrendered activity as receipt cou
   assert.doesNotMatch(reader, /reposts\/quotes ↓/);
   assert.doesNotMatch(reader, /What clinicians said/);
   assert.doesNotMatch(reader, /Shared on X ·/);
-  assert.match(reader, /On X · physician posts/);
+  assert.match(reader, /On X · physician mentions/);
   assert.match(evidence, /shared by \$\{n\} clinician/);
   assert.doesNotMatch(evidence, /♥/);
   assert.doesNotMatch(reader, /publisherPosts!\.slice/);
