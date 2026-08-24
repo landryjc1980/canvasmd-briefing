@@ -378,7 +378,7 @@ export default function BriefView({ data, area }: { data: BriefingData; area: st
           <div className="b-stats">
             <span className="b-stat"><b>{data.movers.length}</b> drugs moving</span>
             <span className="b-stat"><b>{reg.length}</b> regulatory event{reg.length === 1 ? "" : "s"}</span>
-            <span className="b-stat"><b>{xTotal}</b> clinician posts</span>
+            <span className="b-stat"><b>{xTotal}</b> clinician signals on X</span>
             <span className="b-stat"><b>{podTotal}</b> podcast talks</span>
           </div>
         </header>
@@ -423,7 +423,7 @@ export default function BriefView({ data, area }: { data: BriefingData; area: st
           note="Trials the field talked about this week — matched across podcasts, tweets and papers; ranked by mentions."
           render={(t, i) => <TrialRow key={i} t={t as BriefingTrial} />} />
 
-        <div className="b-foot">Distilled from podcasts, verified-clinician X, journals, FDA and ClinicalTrials.gov — every figure links to a real source.</div>
+        <div className="b-foot">Distilled from podcasts, clinician X conversation, journals, FDA and ClinicalTrials.gov. Supporting sources are shown with each development.</div>
       </div>
     </div>
   );

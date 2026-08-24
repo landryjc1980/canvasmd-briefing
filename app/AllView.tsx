@@ -853,7 +853,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           ))}
                         </div>
                         {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}
-                        {it.line && <div style={{ font: "400 12px/1.5 system-ui", color: MUT, marginTop: 3 }}>{it.line}</div>}
                       </div>
                     ))}
                   </div>

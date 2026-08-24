@@ -331,7 +331,7 @@ export default function BroadsheetView({ data, area }: { data: BriefingData; are
             <span className="dot" />
             <span><b className="mono">{podTotal}</b> podcast conversations</span>
             <span className="dot" />
-            <span><b className="mono">{xTotal}</b> clinician posts on X</span>
+            <span><b className="mono">{xTotal}</b> clinician signals on X</span>
           </div>
           <div className="hint">
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>

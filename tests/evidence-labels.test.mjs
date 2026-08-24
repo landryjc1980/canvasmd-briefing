@@ -21,7 +21,8 @@ test("web trial summaries describe serialized evidence instead of raw mention to
 test("paper rows distinguish total reach from authored commentary", () => {
   assert.match(reader, /authoredClinicians/);
   assert.match(reader, /paper\.authoredClinicianCount \?\? authoredClinicianCount\(paper\.posts\)/);
-  assert.match(reader, /commented/);
+  assert.match(reader, /authored post/);
+  assert.doesNotMatch(reader, /commented/);
   assert.match(reader, /reposts only/);
 });
 
@@ -43,6 +44,7 @@ test("web evidence disclosures do not present unrendered activity as receipt cou
   assert.doesNotMatch(reader, /otherPosts!\.slice/);
   assert.doesNotMatch(allView, /v\.posts\.slice/);
   assert.doesNotMatch(allView, /v\.articles\.slice/);
+  assert.doesNotMatch(allView, /it\.line\s*&&/);
 });
 
 test("paper metadata abstains when no authoritative clinician census exists", () => {
