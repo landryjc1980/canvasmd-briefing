@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BriefingData } from "@/lib/types";
-import { buildPracticeCalls, CALL_AREAS, unansweredPracticeCalls } from "./callModel";
-import type { CallDecision, CallDecisionMap, PracticeCall } from "./callModel";
+import { areasForSelection, buildPracticeCalls, CALL_AREAS, unansweredPracticeCalls } from "./callModel";
+import type { CallAreaSelection, CallDecision, CallDecisionMap, PracticeCall } from "./callModel";
 import styles from "./the-call.module.css";
 
 const STORAGE_KEY = "canvasmd-the-call-v1";
@@ -102,12 +102,52 @@ function Evidence({ call }: { call: PracticeCall }) {
   );
 }
 
-function Loading() {
+function Brand() {
   return (
-    <main className={styles.loading} aria-busy="true">
-      <div className={styles.loadingLine} />
-      <div className={styles.loadingQuestion} />
-      <div className={styles.loadingTitle} />
+    <>
+      <a className={styles.wordmark} href="/">CANVASMD</a>
+      <span className={styles.productName}>The Call</span>
+    </>
+  );
+}
+
+function StartScreen({ onStart }: { onStart: (area: CallAreaSelection) => void }) {
+  const [selection, setSelection] = useState<CallAreaSelection | "">("");
+
+  return (
+    <main className={styles.shell}>
+      <header className={styles.topbar}><Brand /></header>
+      <section className={styles.startState}>
+        <h1>Choose your oncology area.</h1>
+        <div className={styles.startControls}>
+          <label htmlFor="call-area">Oncology area</label>
+          <select
+            id="call-area"
+            value={selection}
+            onChange={(event) => setSelection(event.target.value as CallAreaSelection)}
+          >
+            <option value="" disabled>Select an area</option>
+            <option>All oncology</option>
+            {CALL_AREAS.map((callArea) => <option key={callArea}>{callArea}</option>)}
+          </select>
+          <button type="button" disabled={!selection} onClick={() => selection && onStart(selection)}>
+            Start
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function Loading({ area, onChange }: { area: CallAreaSelection; onChange: () => void }) {
+  return (
+    <main className={styles.shell} aria-busy="true">
+      <Topbar area={area} generatedAt={null} onChange={onChange} />
+      <div className={styles.loading}>
+        <div className={styles.loadingLine} />
+        <div className={styles.loadingQuestion} />
+        <div className={styles.loadingTitle} />
+      </div>
     </main>
   );
 }
@@ -115,31 +155,28 @@ function Loading() {
 function Topbar({
   area,
   generatedAt,
-  onAreaChange,
+  onChange,
 }: {
-  area: string;
+  area: CallAreaSelection;
   generatedAt: string | null;
-  onAreaChange: (area: string) => void;
+  onChange: () => void;
 }) {
   return (
     <header className={styles.topbar}>
-      <a className={styles.wordmark} href="/">CANVASMD</a>
-      <span className={styles.productName}>The Call</span>
+      <Brand />
       <time>{formatUpdated(generatedAt)}</time>
-      <select value={area} onChange={(event) => onAreaChange(event.target.value)} aria-label="Choose oncology specialty">
-        <option>All oncology</option>
-        {CALL_AREAS.map((callArea) => <option key={callArea}>{callArea}</option>)}
-      </select>
+      <span className={styles.topbarArea}>{area}</span>
+      <button type="button" className={styles.changeArea} onClick={onChange}>Change</button>
     </header>
   );
 }
 
 export default function TheCall() {
   const [briefings, setBriefings] = useState<BriefingData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [loadKey, setLoadKey] = useState(0);
-  const [area, setArea] = useState("All oncology");
+  const [area, setArea] = useState<CallAreaSelection | null>(null);
   const [decisions, setDecisions] = useState<CallDecisionMap>({});
   const [revealedId, setRevealedId] = useState<string | null>(null);
 
@@ -153,11 +190,18 @@ export default function TheCall() {
   }, []);
 
   useEffect(() => {
+    if (!area) {
+      setBriefings([]);
+      setLoading(false);
+      setFailed(false);
+      return;
+    }
+
     const controller = new AbortController();
     setLoading(true);
     setFailed(false);
     Promise.allSettled(
-      CALL_AREAS.map(async (callArea) => {
+      areasForSelection(area).map(async (callArea) => {
         const response = await fetch(`/api/briefing?area=${encodeURIComponent(callArea)}`, {
           cache: "no-store",
           signal: controller.signal,
@@ -174,7 +218,7 @@ export default function TheCall() {
       setLoading(false);
     });
     return () => controller.abort();
-  }, [loadKey]);
+  }, [area, loadKey]);
 
   const calls = useMemo(() => buildPracticeCalls(briefings), [briefings]);
   const scopedCalls = useMemo(
@@ -209,8 +253,16 @@ export default function TheCall() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const changeArea = (nextArea: string) => {
+  const startArea = (nextArea: CallAreaSelection) => {
+    setLoading(true);
     setArea(nextArea);
+    setRevealedId(null);
+  };
+
+  const changeArea = () => {
+    setArea(null);
+    setBriefings([]);
+    setLoading(false);
     setRevealedId(null);
   };
 
@@ -223,7 +275,9 @@ export default function TheCall() {
     setRevealedId(null);
   };
 
-  if (loading) return <Loading />;
+  if (!area) return <StartScreen onStart={startArea} />;
+
+  if (loading) return <Loading area={area} onChange={changeArea} />;
 
   if (failed || calls.length === 0 || scopedCalls.length === 0) {
     return (
@@ -239,7 +293,7 @@ export default function TheCall() {
   if (!call) {
     return (
       <main className={styles.shell}>
-        <Topbar area={area} generatedAt={generatedAt} onAreaChange={changeArea} />
+        <Topbar area={area} generatedAt={generatedAt} onChange={changeArea} />
         <section className={styles.completeState}>
           <div className={styles.callMeta}><span>{area}</span></div>
           <p>You&apos;re caught up.</p>
@@ -252,7 +306,7 @@ export default function TheCall() {
 
   return (
     <main className={styles.shell}>
-      <Topbar area={area} generatedAt={generatedAt} onAreaChange={changeArea} />
+      <Topbar area={area} generatedAt={generatedAt} onChange={changeArea} />
 
       <article className={styles.call} key={call.id}>
         <div className={styles.callMeta}>

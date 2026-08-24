@@ -1,6 +1,8 @@
 import type { BriefingData, HeroCard, HeroSupportLink, HeroSupportPost } from "@/lib/types";
 
 export const CALL_AREAS = ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"] as const;
+export type CallArea = (typeof CALL_AREAS)[number];
+export type CallAreaSelection = "All oncology" | CallArea;
 
 export type CallSourceKind = "Official action" | "Primary report" | "Peer-reviewed paper" | "Expert discussion";
 
@@ -99,4 +101,9 @@ export function buildPracticeCalls(briefings: BriefingData[]): PracticeCall[] {
 
 export function unansweredPracticeCalls(calls: PracticeCall[], decisions: CallDecisionMap) {
   return calls.filter((call) => !decisions[call.id]);
+}
+
+export function areasForSelection(selection: CallAreaSelection | null): readonly CallArea[] {
+  if (!selection) return [];
+  return selection === "All oncology" ? CALL_AREAS : [selection];
 }

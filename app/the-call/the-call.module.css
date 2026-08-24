@@ -47,14 +47,90 @@
   font-size: 10px;
 }
 
-.topbar select {
-  height: 32px;
-  padding: 0 28px 0 10px;
-  color: #e9eeeb;
-  background: #242b27;
+.topbarArea {
+  color: #d7ded9;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.changeArea {
+  min-height: 32px;
+  padding: 0 10px;
+  color: #aeb8b2;
+  background: transparent;
   border: 1px solid #45504a;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.changeArea:hover {
+  color: #fff;
+  border-color: #75827b;
+}
+
+.startState {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(90px, 18vh, 180px) 0 60px;
+}
+
+.startState h1 {
+  max-width: 700px;
+  margin: 0;
+  font-family: Newsreader, Georgia, serif;
+  font-size: clamp(44px, 6.5vw, 74px);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.startControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: clamp(44px, 8vh, 72px);
+}
+
+.startControls label {
+  grid-column: 1 / -1;
+  color: #68736d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.startControls select {
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 42px 0 14px;
+  color: #202724;
+  background: #fff;
+  border: 1px solid #aeb7b2;
+  border-radius: 5px;
+  font-size: 15px;
+}
+
+.startControls button {
+  min-width: 120px;
+  min-height: 54px;
+  padding: 0 18px;
+  color: #fff;
+  background: #236c4f;
+  border: 1px solid #236c4f;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.startControls button:disabled {
+  color: #8d9792;
+  background: #e2e6e2;
+  border-color: #d5dad6;
+  cursor: default;
 }
 
 .call {
@@ -263,6 +339,7 @@
 }
 
 .loading {
+  min-height: calc(100vh - 58px);
   padding: 80px max(20px, calc((100vw - 900px) / 2));
 }
 
@@ -336,9 +413,17 @@
     display: none;
   }
 
-  .topbar select {
-    max-width: 138px;
+  .topbarArea {
     margin-left: auto;
+  }
+
+  .startState {
+    width: calc(100% - 30px);
+    padding-top: 84px;
+  }
+
+  .startState h1 {
+    font-size: 46px;
   }
 
   .call {
@@ -393,6 +478,14 @@
 
   .decisionButtons {
     grid-template-columns: 1fr;
+  }
+
+  .startControls {
+    grid-template-columns: 1fr;
+  }
+
+  .startControls button {
+    width: 100%;
   }
 
   .call h1 {

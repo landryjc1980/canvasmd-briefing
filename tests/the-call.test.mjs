@@ -12,7 +12,7 @@ const compiled = ts.transpileModule(source, {
 }).outputText;
 const module = { exports: {} };
 new Function("exports", "module", compiled)(module.exports, module);
-const { buildPracticeCalls } = module.exports;
+const { areasForSelection, buildPracticeCalls } = module.exports;
 const { unansweredPracticeCalls } = module.exports;
 
 const card = (kind, id, overrides = {}) => ({
@@ -123,4 +123,10 @@ test("answered calls leave a finite remaining set and never wrap", () => {
     unansweredPracticeCalls(calls, { [calls[0].id]: "yes", [calls[1].id]: "not-yet" }),
     []
   );
+});
+
+test("a tumor selection requests only that specialty while All requests every area", () => {
+  assert.deepEqual(areasForSelection(null), []);
+  assert.deepEqual(areasForSelection("GU"), ["GU"]);
+  assert.deepEqual(areasForSelection("All oncology"), ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"]);
 });
