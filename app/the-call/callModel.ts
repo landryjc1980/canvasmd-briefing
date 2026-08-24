@@ -103,6 +103,10 @@ export function unansweredPracticeCalls(calls: PracticeCall[], decisions: CallDe
   return calls.filter((call) => !decisions[call.id]);
 }
 
+export function practiceChangingCalls(calls: PracticeCall[], decisions: CallDecisionMap) {
+  return calls.filter((call) => decisions[call.id] === "yes");
+}
+
 export function areasForSelection(selection: CallAreaSelection | null): readonly CallArea[] {
   if (!selection) return [];
   return selection === "All oncology" ? CALL_AREAS : [selection];

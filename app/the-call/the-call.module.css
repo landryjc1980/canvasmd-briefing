@@ -330,12 +330,95 @@
 }
 
 .completeState h1 {
-  margin: 0 0 36px;
+  margin: 0;
   font-family: Newsreader, Georgia, serif;
   font-size: clamp(38px, 5.2vw, 62px);
   font-weight: 600;
   line-height: 1.04;
   letter-spacing: 0;
+}
+
+.keptCalls {
+  margin: 52px 0 28px;
+  border-top: 1px solid #cfd5d1;
+  border-bottom: 1px solid #cfd5d1;
+}
+
+.keptHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid #dde1de;
+}
+
+.keptHeading > span {
+  color: #277052;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.keptHeading h2 {
+  margin: 0;
+  font-family: Newsreader, Georgia, serif;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.keptCalls ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.keptCalls li {
+  border-bottom: 1px solid #dde1de;
+}
+
+.keptCalls li:last-child {
+  border-bottom: 0;
+}
+
+.keptCalls a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 28px;
+  align-items: baseline;
+  padding: 22px 0;
+  color: #202724;
+  text-decoration: none;
+}
+
+.keptCalls a:hover strong {
+  color: #246c50;
+}
+
+.keptCalls strong {
+  font-family: Newsreader, Georgia, serif;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.keptCalls a > span,
+.keptCalls > p {
+  color: #66716b;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.keptCalls a > span {
+  text-align: right;
+}
+
+.keptCalls > p {
+  margin: 0;
+  padding: 22px 0;
 }
 
 .loading {
@@ -463,6 +546,15 @@
   .completeState {
     width: calc(100% - 30px);
     padding-top: 70px;
+  }
+
+  .keptCalls a {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .keptCalls a > span {
+    text-align: left;
   }
 }
 

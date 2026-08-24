@@ -12,7 +12,7 @@ const compiled = ts.transpileModule(source, {
 }).outputText;
 const module = { exports: {} };
 new Function("exports", "module", compiled)(module.exports, module);
-const { areasForSelection, buildPracticeCalls } = module.exports;
+const { areasForSelection, buildPracticeCalls, practiceChangingCalls } = module.exports;
 const { unansweredPracticeCalls } = module.exports;
 
 const card = (kind, id, overrides = {}) => ({
@@ -129,4 +129,17 @@ test("a tumor selection requests only that specialty while All requests every ar
   assert.deepEqual(areasForSelection(null), []);
   assert.deepEqual(areasForSelection("GU"), ["GU"]);
   assert.deepEqual(areasForSelection("All oncology"), ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"]);
+});
+
+test("the final keep-list includes only Yes, now calls", () => {
+  const calls = buildPracticeCalls([
+    briefing("Lung", [card("event", "kept"), card("paper", "not-kept"), card("paper", "unanswered")]),
+  ]);
+  const kept = practiceChangingCalls(calls, {
+    [calls[0].id]: "yes",
+    [calls[1].id]: "not-yet",
+  });
+
+  assert.deepEqual(kept.map((call) => call.id), [calls[0].id]);
+  assert.equal(kept[0].primaryUrl, calls[0].primaryUrl);
 });

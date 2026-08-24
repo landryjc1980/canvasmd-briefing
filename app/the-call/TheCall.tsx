@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BriefingData } from "@/lib/types";
-import { areasForSelection, buildPracticeCalls, CALL_AREAS, unansweredPracticeCalls } from "./callModel";
+import {
+  areasForSelection,
+  buildPracticeCalls,
+  CALL_AREAS,
+  practiceChangingCalls,
+  unansweredPracticeCalls,
+} from "./callModel";
 import type { CallAreaSelection, CallDecision, CallDecisionMap, PracticeCall } from "./callModel";
 import styles from "./the-call.module.css";
 
@@ -229,6 +235,10 @@ export default function TheCall() {
     () => unansweredPracticeCalls(scopedCalls, decisions),
     [scopedCalls, decisions]
   );
+  const keptCalls = useMemo(
+    () => practiceChangingCalls(scopedCalls, decisions),
+    [scopedCalls, decisions]
+  );
   const call = remainingCalls[0] ?? null;
   const revealed = Boolean(call && revealedId === call.id);
   const generatedAt = briefings.reduce<string | null>((latest, briefing) => {
@@ -298,6 +308,26 @@ export default function TheCall() {
           <div className={styles.callMeta}><span>{area}</span></div>
           <p>You&apos;re caught up.</p>
           <h1>You&apos;ve made every current call in {area === "All oncology" ? "oncology" : area}.</h1>
+          <section className={styles.keptCalls} aria-labelledby="practice-changing-title">
+            <div className={styles.keptHeading}>
+              <span>Yes, now</span>
+              <h2 id="practice-changing-title">Practice-changing</h2>
+            </div>
+            {keptCalls.length > 0 ? (
+              <ul>
+                {keptCalls.map((keptCall) => (
+                  <li key={keptCall.id}>
+                    <a href={keptCall.primaryUrl} target="_blank" rel="noreferrer">
+                      <strong>{keptCall.headline}</strong>
+                      <span>{keptCall.sourceLabel} <span aria-hidden="true">&#8599;</span></span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>Nothing was marked practice-changing.</p>
+            )}
+          </section>
           <button type="button" onClick={reviewAgain}>Review again</button>
         </section>
       </main>
