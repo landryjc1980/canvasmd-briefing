@@ -201,7 +201,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     m.career = Math.max(m.career, g.career);
     if (role === "host") m.hostShow = m.hostShow ?? g.shows[0] ?? null;
     const eps = role === "host" ? m.hostEps : m.guestEps;
-    for (const e of g.episodes) eps.set(e.recordingKey || e.episodeId || epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt, episodeId: e.episodeId, recordingKey: e.recordingKey });
+    for (const e of g.episodes) eps.set(e.episodeId || e.recordingKey || epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt, episodeId: e.episodeId, recordingKey: e.recordingKey });
   };
   for (const a of AREAS) {
     for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");
