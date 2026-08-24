@@ -407,7 +407,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // `sub` is the truncatable identity line (institution / show); `facts` are the COUNTS behind
   // the ranking and never truncate — a long affiliation ("Medstar Medical Group Ii LLC") was
   // eating "· 30 posts · 10 papers" off the end of the line (John, 2026-07-24).
-  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
     const acc = accentOf(opts.areas[0] ?? "GU");
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
@@ -422,6 +422,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? acc : INK_2, padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                {opts.areasLabel && <span style={{ font: "500 10px system-ui", color: MUT2 }}>{opts.areasLabel}</span>}
                 {opts.areas.map(miniTag)}
                 {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
                 {(opts.sub || opts.facts) && (
@@ -512,6 +513,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           name: v.name,
           avatar: v.avatar,
           areas: v.areas,
+          areasLabel: "Recent activity",
           roleChip: onMics ? "🎙 on mics" : null,
           sub: shortInst(v.institution),
           facts,

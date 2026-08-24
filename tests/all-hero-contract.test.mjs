@@ -36,6 +36,11 @@ test("All Oncology exposes the same listening and paper interactions as specialt
   assert.match(source, /\{groupsJsx\}\{podcastsJsx\}\{readingJsx\}\{voicesInline\}/);
 });
 
+test("All Oncology labels People chips as recent activity rather than specialties", () => {
+  const source = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+  assert.match(source, /areasLabel: "Recent activity"/);
+});
+
 test("All Oncology does not collapse distinct podcast titles by a shared prefix", () => {
   const source = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
   const episodeKey = source.match(/const epKey = [^;]+;/)?.[0] ?? "";
