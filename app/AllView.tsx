@@ -181,10 +181,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   //   Carried on X — ranked by amplification (reposts + quote-posts earned this week).
   // Cross-area merge: same person in two briefs = one row with both area tags; X amp uses the
   // MAX across areas (each area scopes to its own posts — summing would double-count).
-  type EpRec = { title: string; audioUrl: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; episodeId?: string | null };
+  type EpRec = { title: string; audioUrl: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; episodeId?: string | null; recordingKey?: string | null };
   type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number };
-  // mirror the server's guestKey: strip numbered-episode prefixes so the same syndicated talk
-  // ("Ep. 12: X" on one feed, "X" on another) can't double-count across areas
+  // Episode UUID is authoritative. The normalized-title fallback exists only for older payloads
+  // without an ID, so two recordings with the same program title keep their distinct faculty.
   const epKey = (t: string | null) => norm((t ?? "").replace(/^\s*(ep\.?\s*\d+|episode\s*\d+|#\s*\d+|part\s*\d+)\s*[:.\-–—]*\s*/i, "")).replace(/\s+/g, "");
   // X avatars for mic rows: prefer the payload's avatar (people→x_sources, post-2026-07-24
   // snapshots); fall back to a name-match against the week's X-active KOLs so faces show up
@@ -201,7 +201,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     m.career = Math.max(m.career, g.career);
     if (role === "host") m.hostShow = m.hostShow ?? g.shows[0] ?? null;
     const eps = role === "host" ? m.hostEps : m.guestEps;
-    for (const e of g.episodes) eps.set(epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt, episodeId: e.episodeId });
+    for (const e of g.episodes) eps.set(e.recordingKey || e.episodeId || epKey(e.title), { title: e.title, audioUrl: e.audioUrl, durationSeconds: e.durationSeconds, show: e.show, showArt: e.showArt, episodeId: e.episodeId, recordingKey: e.recordingKey });
   };
   for (const a of AREAS) {
     for (const g of briefsByArea[a]?.guests ?? []) addMic(a, g, "guest");

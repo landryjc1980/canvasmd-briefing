@@ -113,6 +113,26 @@ const evidenceFaces = (...groups: (BriefingSharer[] | null | undefined)[]): stri
     .filter((avatar, index, all) => all.indexOf(avatar) === index)
     .slice(0, 4);
 
+const paperEvidenceFaces = (
+  readingFaces: string[] | null | undefined,
+  clinicianPosts: BriefingSharer[],
+  publisherPosts: BriefingSharer[],
+  otherPosts: BriefingSharer[],
+): string[] => {
+  const curated = (readingFaces ?? []).filter(Boolean)
+    .filter((avatar, index, all) => all.indexOf(avatar) === index);
+  if (curated.length) return curated.slice(0, 4);
+
+  return [
+    ...clinicianPosts.map((post) => post.avatar),
+    ...[...clinicianPosts, ...publisherPosts, ...otherPosts]
+      .flatMap((post) => post.repostedBy ?? [])
+      .map((reposter) => reposter.avatar),
+  ].filter((avatar): avatar is string => !!avatar)
+    .filter((avatar, index, all) => all.indexOf(avatar) === index)
+    .slice(0, 4);
+};
+
 // Pure hero-card → receipts resolution (Codex: extracted and tested — exact paper, episode,
 // thread, missing-evidence, and publisher cases). Type-only imports keep this loadable under
 // node:test. Views map the resolved DATA to JSX; nothing here re-ranks or re-selects.
@@ -183,7 +203,7 @@ export function resolveHeroEvidence(
     const otherPosts = mergeReceiptPosts(st?.otherPosts, st?.papers?.[0]?.otherPosts, reading?.otherPosts, c.support?.otherPosts);
     const { primarySources, relatedCoverage } = supportLinkGroups(c.support?.links);
     const supportLinks = [...primarySources, ...relatedCoverage];
-    const faces = evidenceFaces(posts, publisherPosts, otherPosts);
+    const faces = paperEvidenceFaces(reading?.faces, posts, publisherPosts, otherPosts);
     if (st) return { kind: "paper", story: { ...st, posts }, faces, publisherPosts, otherPosts, supportLinks };
     const a = reading;
     if (a) return { kind: "article", posts, faces, publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, description: a.description, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks };

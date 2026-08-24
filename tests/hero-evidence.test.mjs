@@ -27,6 +27,7 @@ test("paper falls back to topArticles WITH publisher receipts", () => {
   assert.equal(r?.kind, "article");
   assert.equal(r.paper.description, "A retained source description.", "non-journal source context must reach the hero drawer");
   assert.deepEqual(r.publishers, ["OncLive", "NEJM"], "publisher names must reach the drawer");
+  assert.deepEqual(r.faces, ["f"], "paper facepiles use the briefing engine's verified-clinician population");
 });
 test("episode resolves ALL moment refs in card order — or nothing (count must never silently shrink)", () => {
   const movers = [{ podcast: [pod("e1", 100), pod("e1", 300), pod("e1", 200), pod("e2", 999)] }];
@@ -88,7 +89,16 @@ test("paper receipts merge and deduplicate legacy rows with card support", () =>
   assert.equal(r?.kind, "paper");
   assert.deepEqual(r.story.posts, [clinician, supportClinician]);
   assert.deepEqual(r.publisherPosts, [publisher, supportPublisher]);
-  assert.deepEqual(r.faces, ["c.jpg", "d.jpg", "p.jpg", "s.jpg"]);
+  assert.deepEqual(r.faces, ["c.jpg", "d.jpg"], "publisher avatars never present as paper sharers");
+});
+
+test("paper facepiles fall back to clinician authors and nested clinician reposts", () => {
+  const reposter = { name: "Dr R", handle: "dr_r", avatar: "r.jpg", tweetUrl: "r" };
+  const clinician = { name: "Dr C", handle: "dr_c", avatar: "c.jpg", tweetUrl: "c", text: "Useful result", likes: 1, repostedBy: [] };
+  const publisher = { name: "Journal", handle: "journal", avatar: "publisher.jpg", tweetUrl: "p", text: "Paper", likes: 1, repostedBy: [reposter] };
+  const art = { url: "u6", title: "T6", journal: "J", domain: null, abstract: null, topLikes: 1, faces: [], posts: [clinician], publishers: ["Journal"], publisherPosts: [publisher], kolSharers: 2 };
+  const r = resolveHeroEvidence({ kind: "paper", anchorId: "u6", url: "u6", headline: "T6" }, { topStories: [], topArticles: [art], movers: [] });
+  assert.deepEqual(r.faces, ["c.jpg", "r.jpg"]);
 });
 
 test("primary sources are deduplicated and partitioned from related coverage", () => {

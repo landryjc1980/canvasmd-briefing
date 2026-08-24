@@ -893,7 +893,7 @@ export type BriefingGuest = {
   thisWeek: number;
   career: number;
   shows: string[];
-  episodes: { title: string; audioUrl: string | null; sourceUrl?: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; description: string | null; episodeId?: string | null }[]; // this-window appearances, tap to listen (episodeId ADDITIVE 2026-07-27 — the native app's player needs the real episodes.id)
+  episodes: { title: string; audioUrl: string | null; sourceUrl?: string | null; durationSeconds?: number | null; show: string | null; showArt: string | null; description: string | null; episodeId?: string | null; recordingKey?: string | null }[]; // this-window appearances, tap to listen (recordingKey keeps syndicated copies together without collapsing same-title recordings)
   subAreas?: string[];
   congress?: boolean;
 };

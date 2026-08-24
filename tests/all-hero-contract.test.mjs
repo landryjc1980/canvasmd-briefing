@@ -41,4 +41,6 @@ test("All Oncology does not collapse distinct podcast titles by a shared prefix"
   const episodeKey = source.match(/const epKey = [^;]+;/)?.[0] ?? "";
   assert.match(episodeKey, /replace\(\/\\s\+\/g, ""\)/);
   assert.doesNotMatch(episodeKey, /slice\(0,\s*34\)/);
+  assert.match(source, /eps\.set\(e\.recordingKey \|\| e\.episodeId \|\| epKey\(e\.title\)/,
+    "distinct recordings with the same title keep separate faculty appearances");
 });
