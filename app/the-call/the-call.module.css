@@ -170,33 +170,9 @@
   text-decoration: underline;
 }
 
-.answerLine {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 44px;
-  padding: 13px 0;
-  border-top: 1px solid #cfd5d1;
-  border-bottom: 1px solid #cfd5d1;
-}
-
-.answerLine span {
-  color: #6d7772;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.answerLine strong {
-  color: #1f6b4d;
-  font-family: Newsreader, Georgia, serif;
-  font-size: 24px;
-  font-weight: 650;
-}
-
 .evidence {
+  margin-top: 44px;
+  border-top: 1px solid #cfd5d1;
   border-bottom: 1px solid #cfd5d1;
 }
 
@@ -251,20 +227,7 @@
   text-decoration: underline;
 }
 
-.nextRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding-top: 24px;
-}
-
-.nextRow > span {
-  color: #77817c;
-  font-size: 10px;
-}
-
-.nextRow button,
+.completeState button,
 .errorState button {
   min-height: 42px;
   padding: 9px 15px;
@@ -275,6 +238,28 @@
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.completeState {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(70px, 14vh, 140px) 0 60px;
+}
+
+.completeState > p {
+  margin: 48px 0 12px;
+  color: #277052;
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.completeState h1 {
+  margin: 0 0 36px;
+  font-family: Newsreader, Georgia, serif;
+  font-size: clamp(38px, 5.2vw, 62px);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: 0;
 }
 
 .loading {
@@ -390,8 +375,9 @@
     font-size: 18px;
   }
 
-  .nextRow {
-    align-items: flex-end;
+  .completeState {
+    width: calc(100% - 30px);
+    padding-top: 70px;
   }
 }
 

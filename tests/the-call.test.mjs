@@ -13,6 +13,7 @@ const compiled = ts.transpileModule(source, {
 const module = { exports: {} };
 new Function("exports", "module", compiled)(module.exports, module);
 const { buildPracticeCalls } = module.exports;
+const { unansweredPracticeCalls } = module.exports;
 
 const card = (kind, id, overrides = {}) => ({
   id,
@@ -106,4 +107,20 @@ test("cards without a resolvable source URL cannot become calls", () => {
     briefing("Skin", [card("paper", "missing", { url: null })]),
   ]);
   assert.deepEqual(calls, []);
+});
+
+test("answered calls leave a finite remaining set and never wrap", () => {
+  const calls = buildPracticeCalls([
+    briefing("Heme", [card("event", "approval"), card("paper", "paper")]),
+  ]);
+
+  assert.equal(unansweredPracticeCalls(calls, {}).length, 2);
+  assert.deepEqual(
+    unansweredPracticeCalls(calls, { [calls[0].id]: "yes" }).map((call) => call.id),
+    [calls[1].id]
+  );
+  assert.deepEqual(
+    unansweredPracticeCalls(calls, { [calls[0].id]: "yes", [calls[1].id]: "not-yet" }),
+    []
+  );
 });

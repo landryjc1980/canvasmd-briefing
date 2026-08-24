@@ -2,12 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BriefingData } from "@/lib/types";
-import { buildPracticeCalls, CALL_AREAS } from "./callModel";
-import type { PracticeCall } from "./callModel";
+import { buildPracticeCalls, CALL_AREAS, unansweredPracticeCalls } from "./callModel";
+import type { CallDecision, CallDecisionMap, PracticeCall } from "./callModel";
 import styles from "./the-call.module.css";
-
-type Decision = "yes" | "not-yet";
-type DecisionMap = Record<string, Decision>;
 
 const STORAGE_KEY = "canvasmd-the-call-v1";
 
@@ -34,8 +31,8 @@ function DecisionButtons({
   decision,
   onDecision,
 }: {
-  decision: Decision | null;
-  onDecision: (decision: Decision) => void;
+  decision: CallDecision | null;
+  onDecision: (decision: CallDecision) => void;
 }) {
   return (
     <div className={styles.decisionButtons} aria-label="Your call">
@@ -115,14 +112,35 @@ function Loading() {
   );
 }
 
+function Topbar({
+  area,
+  generatedAt,
+  onAreaChange,
+}: {
+  area: string;
+  generatedAt: string | null;
+  onAreaChange: (area: string) => void;
+}) {
+  return (
+    <header className={styles.topbar}>
+      <a className={styles.wordmark} href="/">CANVASMD</a>
+      <span className={styles.productName}>The Call</span>
+      <time>{formatUpdated(generatedAt)}</time>
+      <select value={area} onChange={(event) => onAreaChange(event.target.value)} aria-label="Choose oncology specialty">
+        <option>All oncology</option>
+        {CALL_AREAS.map((callArea) => <option key={callArea}>{callArea}</option>)}
+      </select>
+    </header>
+  );
+}
+
 export default function TheCall() {
   const [briefings, setBriefings] = useState<BriefingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [loadKey, setLoadKey] = useState(0);
   const [area, setArea] = useState("All oncology");
-  const [index, setIndex] = useState(0);
-  const [decisions, setDecisions] = useState<DecisionMap>({});
+  const [decisions, setDecisions] = useState<CallDecisionMap>({});
   const [revealedId, setRevealedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,19 +181,19 @@ export default function TheCall() {
     () => area === "All oncology" ? calls : calls.filter((call) => call.area === area),
     [area, calls]
   );
-  const call = scopedCalls.length > 0 ? scopedCalls[index % scopedCalls.length] : null;
-  const decision = call ? decisions[call.id] ?? null : null;
-  const revealed = Boolean(call && (revealedId === call.id || decision));
+  const remainingCalls = useMemo(
+    () => unansweredPracticeCalls(scopedCalls, decisions),
+    [scopedCalls, decisions]
+  );
+  const call = remainingCalls[0] ?? null;
+  const revealed = Boolean(call && revealedId === call.id);
   const generatedAt = briefings.reduce<string | null>((latest, briefing) => {
     if (!latest) return briefing.generatedAt;
     return new Date(briefing.generatedAt) > new Date(latest) ? briefing.generatedAt : latest;
   }, null);
 
-  const choose = (nextDecision: Decision) => {
-    if (!call) return;
-    const next = { ...decisions, [call.id]: nextDecision };
+  const saveDecisions = (next: CallDecisionMap) => {
     setDecisions(next);
-    setRevealedId(call.id);
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
@@ -183,21 +201,31 @@ export default function TheCall() {
     }
   };
 
-  const nextCall = () => {
-    setIndex((current) => current + 1);
+  const choose = (nextDecision: CallDecision) => {
+    if (!call) return;
+    const next = { ...decisions, [call.id]: nextDecision };
+    saveDecisions(next);
     setRevealedId(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const changeArea = (nextArea: string) => {
     setArea(nextArea);
-    setIndex(0);
+    setRevealedId(null);
+  };
+
+  const reviewAgain = () => {
+    const scopedIds = new Set(scopedCalls.map((scopedCall) => scopedCall.id));
+    const next = Object.fromEntries(
+      Object.entries(decisions).filter(([id]) => !scopedIds.has(id))
+    ) as CallDecisionMap;
+    saveDecisions(next);
     setRevealedId(null);
   };
 
   if (loading) return <Loading />;
 
-  if (failed || !call) {
+  if (failed || calls.length === 0 || scopedCalls.length === 0) {
     return (
       <main className={styles.errorState}>
         <div className={styles.wordmark}>CANVASMD / THE CALL</div>
@@ -208,17 +236,23 @@ export default function TheCall() {
     );
   }
 
+  if (!call) {
+    return (
+      <main className={styles.shell}>
+        <Topbar area={area} generatedAt={generatedAt} onAreaChange={changeArea} />
+        <section className={styles.completeState}>
+          <div className={styles.callMeta}><span>{area}</span></div>
+          <p>You&apos;re caught up.</p>
+          <h1>You&apos;ve made every current call in {area === "All oncology" ? "oncology" : area}.</h1>
+          <button type="button" onClick={reviewAgain}>Review again</button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className={styles.shell}>
-      <header className={styles.topbar}>
-        <a className={styles.wordmark} href="/">CANVASMD</a>
-        <span className={styles.productName}>The Call</span>
-        <time>{formatUpdated(generatedAt)}</time>
-        <select value={area} onChange={(event) => changeArea(event.target.value)} aria-label="Choose oncology specialty">
-          <option>All oncology</option>
-          {CALL_AREAS.map((callArea) => <option key={callArea}>{callArea}</option>)}
-        </select>
-      </header>
+      <Topbar area={area} generatedAt={generatedAt} onAreaChange={changeArea} />
 
       <article className={styles.call} key={call.id}>
         <div className={styles.callMeta}>
@@ -230,24 +264,14 @@ export default function TheCall() {
         <h1>{call.headline}</h1>
         <p className={styles.sourceLine}>{call.sourceLabel}</p>
 
-        <DecisionButtons decision={decision} onDecision={choose} />
+        <DecisionButtons decision={null} onDecision={choose} />
 
         {!revealed ? (
           <button type="button" className={styles.evidenceFirst} onClick={() => setRevealedId(call.id)}>
             Show me the evidence first
           </button>
         ) : (
-          <>
-            <div className={styles.answerLine}>
-              <span>Your call</span>
-              <strong>{decision === "yes" ? "Yes, now" : decision === "not-yet" ? "Not yet" : "Evidence first"}</strong>
-            </div>
-            <Evidence call={call} />
-            <div className={styles.nextRow}>
-              <span>Your answer stays in this browser.</span>
-              <button type="button" onClick={nextCall}>Next call <span aria-hidden="true">&#8594;</span></button>
-            </div>
-          </>
+          <Evidence call={call} />
         )}
       </article>
     </main>

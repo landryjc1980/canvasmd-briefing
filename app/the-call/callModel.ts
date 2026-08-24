@@ -19,6 +19,9 @@ export type PracticeCall = {
   priority: number;
 };
 
+export type CallDecision = "yes" | "not-yet";
+export type CallDecisionMap = Record<string, CallDecision>;
+
 const sourceKindFor = (card: HeroCard): CallSourceKind => {
   if (card.kind === "event") return "Official action";
   if (card.kind === "development" || card.kind === "readout" || card.kind === "trial_milestone") {
@@ -92,4 +95,8 @@ export function buildPracticeCalls(briefings: BriefingData[]): PracticeCall[] {
       })
     )
     .sort((a, b) => b.priority - a.priority || a.headline.localeCompare(b.headline));
+}
+
+export function unansweredPracticeCalls(calls: PracticeCall[], decisions: CallDecisionMap) {
+  return calls.filter((call) => !decisions[call.id]);
 }
