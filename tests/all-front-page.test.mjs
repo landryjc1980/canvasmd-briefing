@@ -173,7 +173,7 @@ test("the band caps its rows and orders them by the same evidence rank", () => {
 // ---- Approvals & readouts --------------------------------------------------------------------
 
 test("the approvals rail takes only regulatory and readout cards, newest first", () => {
-  const ev = (id, at) => ({ card: card(id, "event", { support: { clinicianPosts: [], publisherPosts: [], links: [{ kind: "article", id: `l${id}`, relationshipType: "primary_source", occurredAt: at }] } }) });
+  const ev = (id, on) => ({ card: card(id, "event", { occurredOn: on }) });
   const rail = approvalsRail([
     { area: "GU", entries: [ev("old", "2026-08-19"), { card: card("paper1", "paper") }] },
     { area: "Heme", entries: [ev("new", "2026-08-22")] },
@@ -182,13 +182,40 @@ test("the approvals rail takes only regulatory and readout cards, newest first",
   assert.equal(rail[0].date, "2026-08-22");
 });
 
+// REGRESSION (2026-08-24): the rail used to date a development from its support links. No support
+// edge has ever carried relationshipType "primary_source", so that lookup always fell through to
+// the newest link — coverage of the act, dated days after the act. The real iberdomide card below
+// is the exact shape that printed "Aug 23" on the All page while the Heme card printed "11d ago".
+test("the rail dates a development by the regulator's action, never by its coverage", () => {
+  const iberdomide = card("event:fda:iberdomide", "event", {
+    occurredOn: "2026-08-13", // the FDA acted on Aug 13 — the card body says so verbatim
+    support: {
+      clinicianPosts: [], publisherPosts: [],
+      links: [
+        // links arrive newest-first; this is a CancerNetwork pickup, not the FDA action
+        { kind: "article", id: "l1", relationshipType: "covers_approval", occurredAt: "2026-08-23T18:04:01+00:00" },
+        { kind: "article", id: "l2", relationshipType: "covers_approval", occurredAt: "2026-08-13T20:30:24+00:00" },
+      ],
+    },
+  });
+  const [row] = approvalsRail([{ area: "Heme", entries: [{ card: iberdomide }] }]);
+  assert.equal(row.date, "2026-08-13", "the action date wins over every support timestamp");
+
+  // and with no canonical date the rail shows NO date — it must never fall back to support
+  const undated = card("event:fda:undated", "event", { support: iberdomide.support });
+  assert.equal(approvalsRail([{ area: "Heme", entries: [{ card: undated }] }])[0].date, null);
+});
+
 // ---- copy + engine-boundary guards ----------------------------------------------------------
 
 test("the locked labels are exactly the approved wording", () => {
   const source = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
   assert.match(source, />Most discussed across oncology</);
   assert.match(source, /ranked by independent clinician attention/);
-  assert.match(source, />Approvals &amp; readouts</);
+  assert.match(source, />Recent approvals &amp; readouts</);
+  // time claims we refuse to make: event cards stay in this rail for a rolling 14 days, so
+  // "this week" was false for every approval older than Monday (audit 2026-08-24)
+  assert.doesNotMatch(source, /this week, all specialties/);
   assert.match(source, /You&rsquo;re caught up — \{reviewedCount\}/);
   assert.match(source, />Since your last read</);
   // editorial claims we refuse to make

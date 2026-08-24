@@ -145,6 +145,15 @@ export function computeBand(opts: {
 
 export type ApprovalEntry = { card: HeroCard; area: string; date: string | null };
 
+// The rail dates each development by the server's CANONICAL ACTION DATE (`card.occurredOn`) — the
+// same value the specialty card's "Nd ago" is floored from, so one event cannot read as two dates.
+//
+// It used to infer the date from `card.support.links` instead: no support edge has ever carried
+// `relationshipType === "primary_source"` (the graph's types are covers_approval / discusses_trial /
+// …), so that lookup ALWAYS fell through to the first link with a timestamp — and links arrive
+// sorted newest-first, making the date "when coverage last mentioned this", not "when the FDA
+// acted". The Aug-13 iberdomide approval carried a CancerNetwork link stamped Aug 23 and the rail
+// printed Aug 23 while the card printed 11d ago (audit 2026-08-24). Support is never a date source.
 export function approvalsRail(perArea: { area: string; entries: { card: HeroCard }[] }[], cap = 8): ApprovalEntry[] {
   const out: ApprovalEntry[] = [];
   const taken = new Set<string>();
@@ -153,10 +162,8 @@ export function approvalsRail(perArea: { area: string; entries: { card: HeroCard
       if (card.kind !== "event" && card.kind !== "readout") continue;
       if (taken.has(card.id)) continue;
       taken.add(card.id);
-      const links = card.support?.links ?? [];
-      const date = links.find((l) => l.relationshipType === "primary_source" && l.occurredAt)?.occurredAt
-        ?? links.find((l) => l.occurredAt)?.occurredAt ?? null;
-      out.push({ card, area, date });
+      // No canonical date ⇒ show no date. A missing stamp is honest; an inferred one is not.
+      out.push({ card, area, date: card.occurredOn ?? null });
     }
   }
   out.sort((x, y) =>

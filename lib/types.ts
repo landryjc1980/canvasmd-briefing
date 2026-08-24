@@ -945,6 +945,11 @@ export type HeroCard = {
   subAreas?: string[];
   congress?: boolean;
   nct?: string | null;
+  // CANONICAL ACTION DATE (YYYY-MM-DD) on `event` / `readout` cards — the day the regulator acted,
+  // server-authored from the anchor's own occurred_on. This is the ONLY date any surface may show
+  // for the development: the All rail's absolute stamp and the card's "Nd ago" both derive from it.
+  // Never date one of these cards from `support` — support is coverage of the act, not the act.
+  occurredOn?: string | null;
   siblings?: { kind: string; label: string; url?: string | null }[];
   support?: HeroSupportBundle; // exact receipts only; never a ranking input
   conversation?: HeroConversationSpan;

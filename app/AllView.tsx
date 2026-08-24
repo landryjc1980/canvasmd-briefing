@@ -987,10 +987,15 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   );
 
   const approvalsJsx = approvals.length > 0 && (
-    <section aria-label="Approvals and readouts" style={{ marginTop: 34 }}>
+    <section aria-label="Recent approvals and readouts" style={{ marginTop: 34 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 12px" }}>
-        <h2 style={{ font: "700 12px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: INK, margin: 0 }}>Approvals &amp; readouts</h2>
-        <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>this week, all specialties</span>
+        {/* "this week" was a false claim: event cards stay hero-eligible for a rolling
+            EVENT_HERO_WINDOW_DAYS (14) after the regulator acts, so an Aug-13 approval sits here
+            on Aug 24. "Recent" is the honest scope, and every row now carries its own exact
+            action date — so the range is legible from the rows without duplicating a server
+            constant here (which would silently drift the day someone tunes the window). */}
+        <h2 style={{ font: "700 12px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: INK, margin: 0 }}>Recent approvals &amp; readouts</h2>
+        <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>all specialties</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {approvals.map(({ card, area, date }) => {
