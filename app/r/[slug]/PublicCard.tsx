@@ -51,7 +51,7 @@ export default function PublicCard({ v, signInHref }: { v: PublicViewData; signI
         .rpub-bar{height:9px;border-radius:3px;background:${SURFACE}}
       ` }} />
       <div className="rpub-frame">
-        <Masthead accent={accent} areaFull={v.areaFull} href="/" note="What oncology is reading, discussing, and citing recently" />
+        <Masthead accent={accent} areaFull={v.areaFull} href={`/?area=${encodeURIComponent(v.area)}`} note="What oncology is reading, discussing, and citing recently" />
 
         {/* THE STORY — the site's own hero-card language (classes from brief.css) */}
         <article className="readout-hero-card is-lead">

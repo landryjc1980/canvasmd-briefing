@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
     const c = await getContact(id).catch(() => null);
     if (c) {
       const base = siteUrl(req);
-      const link = `${base}/api/brief-auth?t=${await mintMagicToken(c.id)}`;
+      const assignedArea = area ?? c.default_area;
+      const areaParam = assignedArea ? `&area=${encodeURIComponent(assignedArea)}` : "";
+      const link = `${base}/api/brief-auth?t=${await mintMagicToken(c.id)}${areaParam}`;
       const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(c.id)}`;
       await sendMagicLink({ email: c.email, name: c.name, link, unsubUrl, areaLabel: areaLabel(c.default_area) }).catch(() => {});
     }

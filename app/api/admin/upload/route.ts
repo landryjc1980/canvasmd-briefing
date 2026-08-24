@@ -62,7 +62,10 @@ export async function POST(req: NextRequest) {
       // First-time access email: welcome brand-new adds AND newly-approved (previously pending)
       // contacts with their sign-in link. Never re-email someone already active (re-uploads).
       if (!existed || existed.status !== "active") {
-        const link = `${base}/api/brief-auth?t=${await mintMagicToken(contact.id)}`;
+        const areaParam = r.area && ["All", "GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(r.area)
+          ? `&area=${encodeURIComponent(r.area)}`
+          : "";
+        const link = `${base}/api/brief-auth?t=${await mintMagicToken(contact.id)}${areaParam}`;
         const unsubUrl = `${base}/api/brief-unsub?c=${await mintUnsubToken(contact.id)}`;
         await sendMagicLink({ email, name: r.name || null, link, unsubUrl, areaLabel: areaLabel(r.area || null) }).catch(() => {});
         emailed++;

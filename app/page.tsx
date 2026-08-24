@@ -119,8 +119,12 @@ export default function BriefingPage() {
           setPrimary(server);
           try { localStorage.setItem("readout_area", server); } catch { /* private mode */ }
           if (!urlArea) setArea(server); // the account default is authoritative — follows across devices
-        } else if (!urlArea && !saved) {
-          setArea("GU"); // nothing saved anywhere → default
+        } else if (!urlArea) {
+          // A successful account lookup is authoritative even when the account has no primary.
+          // Do not let an old browser-only `All` choice become a permanent implicit default.
+          setPrimary(null);
+          try { localStorage.removeItem("readout_area"); } catch { /* private mode */ }
+          setArea("GU");
         }
       })
       .catch(() => { if (!urlArea && !saved) setArea((cur) => cur ?? "GU"); });
