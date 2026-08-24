@@ -3,7 +3,7 @@
 // Client-side hooks into the gate: log a signal, and run the colleague-share flow. Both are
 // safe to call unconditionally — the API no-ops when there's no session.
 
-export type BriefSignalKind = "view" | "story_view" | "dwell" | "section_jump" | "source_open" | "podcast_play" | "show_more";
+export type BriefSignalKind = "view" | "story_view" | "story_impression" | "dwell" | "section_jump" | "source_open" | "podcast_play" | "show_more";
 
 export function logSignal(kind: BriefSignalKind, area?: string | null, storyId?: string | null, meta?: Record<string, unknown>) {
   try {
@@ -21,12 +21,22 @@ export function logSignal(kind: BriefSignalKind, area?: string | null, storyId?:
 // can tell "seen this exact version" from "seen an older version" (→ UPDATED chip). De-duped
 // per page load so swiping back and forth doesn't spam events.
 const seenLogged = new Set<string>();
-export function logStorySeen(area: string, storyId: string, fp?: string, details?: { label?: string; kind?: string }) {
+export function logStorySeen(area: string, storyId: string, fp?: string, details?: { label?: string; kind?: string; trigger?: string; surface?: string }) {
   const key = `${area}:${storyId}`;
   if (seenLogged.has(key)) return;
   seenLogged.add(key);
   const meta = { ...(fp ? { fp } : {}), ...details };
   logSignal("story_view", area, storyId, Object.keys(meta).length ? meta : undefined);
+}
+
+// Story impression — the card merely entered the viewport (seen is the stricter signal above).
+// Fired once per story per page load so the seen/impression pair reads as a funnel.
+const impressionLogged = new Set<string>();
+export function logStoryImpression(area: string, storyId: string, details?: { label?: string; kind?: string; surface?: string }) {
+  const key = `${area}:${storyId}`;
+  if (impressionLogged.has(key)) return;
+  impressionLogged.add(key);
+  logSignal("story_impression", area, storyId, details);
 }
 
 /** Mint a share link and hand it off via the native share sheet, falling back to clipboard. */

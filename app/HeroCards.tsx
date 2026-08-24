@@ -12,7 +12,7 @@ import { evidenceBackedHeroWhy } from "@/app/clientEvidence";
 // Mounted ONLY when the payload says mode==="hero" (central resolution in the edge fn);
 // callers keep the legacy Top Stories path as the fallback when cards are absent.
 
-const KIND_KICKER: Record<HeroCard["kind"], string> = {
+export const KIND_KICKER: Record<HeroCard["kind"], string> = {
   paper: "Paper",
   episode: "Episode",
   event: "Regulatory event",
@@ -29,10 +29,17 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
 export type HeroEvidence = { faces: string[]; drawer: ReactNode; context?: string | null; contextLabel?: "Abstract" | "Source context"; preview?: ReactNode; playback?: import("@/lib/types").BriefingPod } | null;
 
-export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string }) {
+export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf, openId: openIdProp, onOpenChange, seenIds, unseenDot }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string; openId?: string | null; onOpenChange?: (id: string | null) => void; seenIds?: ReadonlySet<string>; unseenDot?: string }) {
   // defaultOpenId opens one card's evidence drawer on mount — the standalone /r/<slug> post page
   // passes the card's own id so a shared link lands on the FULL expanded card, evidence and all.
-  const [openId, setOpenId] = useState<string | null>(defaultOpenId ?? null);
+  // Passing `openId` switches the drawer to CONTROLLED mode (the All page owns one open card
+  // across every area's deck and can auto-open a card a Since-your-last-read row points at).
+  const [internalOpenId, setInternalOpenId] = useState<string | null>(defaultOpenId ?? null);
+  const openId = openIdProp !== undefined ? openIdProp : internalOpenId;
+  const setOpenId = (id: string | null) => {
+    if (openIdProp === undefined) setInternalOpenId(id);
+    onOpenChange?.(id);
+  };
   // shareUrlOf (opt-in) turns each card into a shareable unit: the quiet share control copies /
   // native-shares its /r/<slug> post page (where a colleague gets the branded unfurl + the card).
   const [shared, setShared] = useState<string | null>(null);
@@ -52,11 +59,15 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
         const ev = evidenceOf?.(c) ?? null;
         const why = evidenceBackedHeroWhy(c.why, !!ev);
         const drawerId = `${idPrefix ? `${idPrefix}-` : ""}hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+        // Seen-state (All page): a seen card dims while closed; an unseen one carries a quiet
+        // 6px area-accent dot beside the kicker. No badges, no counts — no unread anxiety.
+        const dimmed = !!seenIds?.has(c.id) && openId !== c.id;
         return (
-          <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : undefined}>
+          <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={{ ...(compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : {}), ...(seenIds ? { opacity: dimmed ? 0.55 : 1, transition: "opacity .35s ease" } : {}) }}>
           <div className="hero-row" style={{ alignItems: "baseline" }}>
             <div style={{ minWidth: 0 }}>
               <div className="readout-hero-kicker" style={{ font: `700 ${compact ? 9 : 11}px system-ui`, letterSpacing: compact ? "0.12em" : "0.14em", textTransform: "uppercase", color: accent }}>
+                {unseenDot && seenIds && !seenIds.has(c.id) && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: unseenDot, marginRight: 7, verticalAlign: "1px" }} />}
                 {KIND_KICKER[c.kind] ?? c.kind}
                 {(c.drugTags ?? []).length > 0 && <span style={{ opacity: .72, textTransform: "none", letterSpacing: 0, marginLeft: 8, font: `600 ${compact ? 9.5 : 11}px system-ui` }}>· {(c.drugTags ?? [])[0]}</span>}
               </div>

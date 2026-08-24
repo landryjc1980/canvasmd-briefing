@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { emph, stripEmph } from "@/app/emphasis";
 import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard, DailyReadout } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
@@ -9,12 +9,16 @@ import { heroSlugFor } from "@/lib/postId";
 import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
-import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf } from "./briefVM";
-import HeroCards, { HeroEvidence } from "./HeroCards";
+import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf, clipTs } from "./briefVM";
+import HeroCards, { HeroEvidence, KIND_KICKER } from "./HeroCards";
 import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 import DailyConversationEvidence from "./DailyConversationEvidence";
 import { distinctSourceAnchorCount } from "./clientEvidence";
+import { logSignal, logStorySeen, logStoryImpression } from "./gateClient";
+import { artifactSig, storySig, rankAcrossSpecialties, computeBand, approvalsRail, approvalChipLabel, type AreaEntries } from "./allFrontPage";
+import { cardMetrics } from "./allCardMetrics";
+import { readSeenLog, recordSeen, beginVisit, readFirstObserved, recordFirstObserved } from "./readerMemory";
 
 // "All oncology" — a front page that reads as ONE continuous scan: each area's authoritative
 // hero order, grouped by area and shown in its own color, never re-ranked across areas (their
@@ -113,6 +117,128 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   };
   const toggle = (id: string) => setOpenId((c) => (c === id ? null : id));
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+  // ---- READER MEMORY (seen log · visit clock · first-observed clock) -----------------------
+  // Captured ONCE at mount so the Since-your-last-read band and NEW/UPDATED chips stay stable
+  // for the whole sitting — this visit's reading only affects the NEXT visit. localStorage is
+  // per-device and versioned (readout.*.v1); AllView never server-renders (the page shows its
+  // loading state until the client fetches land), so reading storage in the initializer is safe.
+  const [memory] = useState(() => {
+    const visit = beginVisit();
+    return { seenLog: readSeenLog(), lastVisit: visit.lastVisit, visitStart: visit.visitStart, firstObserved: readFirstObserved() };
+  });
+  // Live seen set (drives dimming and the caught-up line); sessionSeen tracks what was marked
+  // DURING this sitting (band rows dim on it — an UPDATED row is already in seenIds by definition).
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set(Object.keys(memory.seenLog)));
+  const [sessionSeen, setSessionSeen] = useState<Set<string>>(() => new Set());
+  // One open hero card across every specialty rail (controlled mode) — lets a band row or
+  // approvals row auto-open the card it points at.
+  const [heroOpen, setHeroOpen] = useState<string | null>(null);
+
+  // ---- FRONT-DOOR COMPOSITION over the per-area hero payloads --------------------------------
+  // Client-side promotion only: each area's deck order is the engine's authoritative signal; we
+  // never re-score it (see allFrontPage.ts for the locked order of operations).
+  const landedKey = AREAS.map((a) => briefsByArea[a]?.generatedAt ?? "-").join("|");
+  const heroPerArea = useMemo<(AreaEntries & { brief: BriefingData | undefined })[]>(() =>
+    AREAS.map((area) => {
+      const brief = briefsByArea[area];
+      const cards = brief ? heroDeckOf(brief) : null;
+      if (!brief || cards === null) return { area, brief, entries: [] };
+      return { area, brief, entries: cards.map((card) => ({ card, metrics: cardMetrics(card, brief) })) };
+    }),
+  // briefsByArea is rebuilt by the parent every render — generatedAt stamps are the true identity.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [landedKey]);
+  const deck = useMemo(() => rankAcrossSpecialties(heroPerArea, AREAS), [heroPerArea]);
+  const bandRows = useMemo(
+    () => computeBand({ perArea: heroPerArea, areaOrder: AREAS, seen: memory.seenLog, firstObserved: memory.firstObserved, lastVisit: memory.lastVisit }),
+    [heroPerArea, memory]);
+  const approvals = useMemo(() => approvalsRail(heroPerArea), [heroPerArea]);
+
+  // Everything on the page a seen-mark can attach to: hero cards (all areas) + legacy stories.
+  // Keys are the DURABLE anchor-derived ids (never the per-build index ids like `all:GU:0`).
+  const idMap = useMemo(() => {
+    const map = new Map<string, { area: string; label: string; kind: string; sig: string[] }>();
+    for (const { area, brief, entries } of heroPerArea) {
+      for (const { card } of entries) if (!map.has(card.id)) map.set(card.id, { area, label: card.headline, kind: card.kind, sig: artifactSig(card) });
+      if (brief && heroDeckOf(brief) === null) for (const s of storiesOf(brief)) if (!map.has(s.id)) map.set(s.id, { area, label: s.headline, kind: s.kind, sig: storySig(s) });
+    }
+    return map;
+  }, [heroPerArea]);
+  const idMapRef = useRef(idMap);
+  idMapRef.current = idMap;
+
+  // Mark a development seen. ALWAYS refreshes the stored artifact signature (re-reading an
+  // UPDATED story clears its UPDATED state next visit); logs story_view once per page load.
+  const markSeen = (sid: string, trigger: "expand" | "dwell" | "click" | "point") => {
+    const info = idMapRef.current.get(sid);
+    recordSeen(sid, info?.sig ?? []);
+    setSeenIds((prev) => (prev.has(sid) ? prev : new Set(prev).add(sid)));
+    setSessionSeen((prev) => (prev.has(sid) ? prev : new Set(prev).add(sid)));
+    if (info) logStorySeen(info.area, sid, undefined, { label: info.label, kind: info.kind, trigger, surface: "all" });
+  };
+  const markSeenRef = useRef(markSeen);
+  markSeenRef.current = markSeen;
+
+  // Stamp first-observed for every card currently in a payload (feeds NEW next visit). Runs
+  // again as late areas land so their cards are stamped too; never re-stamps an existing id.
+  const idMapKey = [...idMap.keys()].join("|");
+  const visitStart = memory.visitStart;
+  useEffect(() => {
+    recordFirstObserved([...idMapRef.current.keys()], visitStart);
+  }, [idMapKey, visitStart]);
+
+  // ---- impressions + dwell-seen -------------------------------------------------------------
+  // Impression: the card crossed half-visible (logged once per page load). Seen-by-dwell: the
+  // WHOLE card — or a viewport-filling slice of one taller than the screen — held CONTINUOUSLY
+  // for DWELL_MS. The clock resets the moment a card stops qualifying, so scrolling past never
+  // banks partial time and never counts as read.
+  //
+  // Rect polling, NOT IntersectionObserver — the same call the story-impression code in
+  // ReaderView made, for the same reason: IO callbacks are suppressed in embedded/backgrounded
+  // webviews (re-verified 2026-08-24 in the preview pane, where a fresh observer on a fully
+  // visible element never fired once). A poll over ~20 cards is free and actually runs. It also
+  // covers the no-scroll case a scroll listener alone would miss: the cards already on screen at
+  // load are exactly the ones a reader dwells on first.
+  const DWELL_MS = 2000;
+  const POLL_MS = 250;
+  const expandedKey = Object.keys(expandedAreas).filter((k) => expandedAreas[k]).join(",");
+  useEffect(() => {
+    const since = new Map<string, number>();
+    const check = () => {
+      const vh = window.innerHeight;
+      // Zero-rect guard: a hidden or mid-transition layout reports all-zero rects, and every
+      // `0 >= 0` comparison below would pass — mass-marking the page seen with nothing on screen.
+      if (vh <= 0 || document.hidden) { since.clear(); return; }
+      const now = Date.now();
+      const live = new Set<string>();
+      document.querySelectorAll<HTMLElement>("[data-sid]").forEach((el) => {
+        const sid = el.dataset.sid;
+        if (!sid) return;
+        const r = el.getBoundingClientRect();
+        if (r.height <= 0) return;
+        const visible = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+        if (visible <= 0) return;
+        const info = idMapRef.current.get(sid);
+        if (visible >= r.height * 0.5 && info) {
+          logStoryImpression(info.area, sid, { label: info.label, kind: info.kind, surface: el.closest<HTMLElement>("[data-ssurface]")?.dataset.ssurface ?? el.dataset.ssurface });
+        }
+        // "Fully dwelled": the whole card is on screen, or — for a card taller than the
+        // viewport, which can never be whole — it is filling most of the screen.
+        const whole = visible >= r.height * 0.95;
+        const fillsScreen = r.height > vh * 0.9 && visible >= vh * 0.7;
+        if (!whole && !fillsScreen) return;
+        live.add(sid);
+        const start = since.get(sid);
+        if (start === undefined) since.set(sid, now);
+        else if (now - start >= DWELL_MS) { since.delete(sid); markSeenRef.current(sid, "dwell"); }
+      });
+      for (const sid of since.keys()) if (!live.has(sid)) since.delete(sid); // left the screen → clock resets
+    };
+    const id = setInterval(check, POLL_MS);
+    check();
+    return () => clearInterval(id);
+  }, [idMapKey, expandedKey]);
 
   // ---- activity-ordered groups: busiest area first ----
   // The fixed GU→Gyn order was itself a quiet editorial statement (GU first because it was OUR
@@ -319,9 +445,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   }, [orderKey, wide, compact, jumpOffset]);
   // rAF glide (ported from ReaderView.goSec): the FacePile avatars above a jump target lazy-load
   // and shift layout mid-flight, so the target is re-measured every frame; wheel/touch cancels.
-  const goTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
+  const scrollToEl = (el: HTMLElement) => {
     const targetNow = () => el.getBoundingClientRect().top + window.scrollY - jumpOffset;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, targetNow()); return; }
     const start = window.scrollY;
@@ -329,8 +453,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const D = 520;
     const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     let raf = 0;
-    const cancel = () => { cancelAnimationFrame(raf); window.removeEventListener("wheel", cancel); window.removeEventListener("touchstart", cancel); };
+    let started = false;
+    // rAF is SUSPENDED outright in embedded webviews (the same environments where the repo
+    // already found IntersectionObserver dead — re-confirmed 2026-08-24). There the glide would
+    // never run a single frame and the reader would simply stay where they were, which for a
+    // Since-your-last-read row reads as a dead click. Timers still fire in those webviews, so
+    // this guard jumps straight to the target if no frame has landed shortly after the request.
+    const guard = setTimeout(() => { if (!started) { cancel(); window.scrollTo(0, targetNow()); } }, 120);
+    const cancel = () => { clearTimeout(guard); cancelAnimationFrame(raf); window.removeEventListener("wheel", cancel); window.removeEventListener("touchstart", cancel); };
     const step = (now: number) => {
+      started = true;
+      clearTimeout(guard);
       const t = Math.min(1, (now - t0) / D);
       window.scrollTo(0, start + (targetNow() - start) * ease(t));
       if (t < 1) raf = requestAnimationFrame(step);
@@ -340,7 +473,46 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     window.addEventListener("wheel", cancel, { passive: true });
     window.addEventListener("touchstart", cancel, { passive: true });
   };
+  const goTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) scrollToEl(el);
+  };
   const goArea = (a: string) => goTo(areaId(a));
+
+  // ---- band/rail rows POINT, never contain --------------------------------------------------
+  // A pointer row scrolls to the story's one canonical card (the deck copy when it was promoted,
+  // else its specialty-rail card), auto-opens the evidence drawer, and marks it seen. The target
+  // may only enter the DOM after a state change (area expansion, drawer open), so we poll a few
+  // frames; a story that truly isn't on the page falls through to its /r/ permalink — a pointer
+  // row must never be a dead click.
+  const cssEscape = (s: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, "\\$&"));
+  // Polls with setTimeout, not rAF: the permalink fallback is the whole point of this function,
+  // and in a webview with rAF suspended an rAF-driven retry would never fire — so the row would
+  // neither scroll NOR fall through to /r/, which is exactly the dead click this must prevent.
+  const scrollToSid = (card: HeroCard) => {
+    let tries = 0;
+    const attempt = () => {
+      const el = document.querySelector<HTMLElement>(`[data-sid="${cssEscape(card.id)}"]`);
+      if (el) { scrollToEl(el); return; }
+      if (++tries < 40) setTimeout(attempt, 16);
+      else window.location.assign(`/r/${heroSlugFor(card.kind, card.headline, card.id)}`);
+    };
+    setTimeout(attempt, 0);
+  };
+  const pointTo = (card: HeroCard, area: string, surface: string) => {
+    logSignal("section_jump", area, card.id, { surface });
+    if (deck.some((d) => d.card.id === card.id)) {
+      setOpenId(`deck:${card.id}`); // the deck copy is the first canonical card in document order
+    } else {
+      const per = heroPerArea.find((p) => p.area === area);
+      const idx = per?.entries.findIndex((e) => e.card.id === card.id) ?? -1;
+      if (idx < 0) { window.location.assign(`/r/${heroSlugFor(card.kind, card.headline, card.id)}`); return; }
+      if (idx >= (compact ? 2 : 3)) setExpandedAreas((cur) => ({ ...cur, [area]: true }));
+      setHeroOpen(card.id);
+    }
+    markSeen(card.id, "point");
+    scrollToSid(card);
+  };
 
   // ---- cross-area reading list: use bibliographic identity before title fallback ----
   const paperIdentity = (paper: BriefingArticle): string => {
@@ -583,14 +755,17 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const id = `all:${a}:${i}`;
     const open = openId === id;
     const faces = pileFacesL(s);
+    // Seen-state keys on the story's DURABLE id (drugId / paper key), never the per-build index id.
+    const isSeen = seenIds.has(s.id);
     const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
     return (
-      <div key={id} className="readout-story-card" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0 }}>
-        <Row open={open} onToggle={() => toggle(id)} accent={acc} landOffset={compact ? 108 : 70}
+      <div key={id} className="readout-story-card" data-sid={s.id} data-ssurface="all_rail" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0, opacity: isSeen && !open ? 0.55 : 1, transition: "opacity .35s ease" }}>
+        <Row open={open} onToggle={() => { if (!open) markSeen(s.id, "expand"); toggle(id); }} accent={acc} landOffset={compact ? 108 : 70}
           head={
             <div style={{ display: "flex", alignItems: "flex-start", padding: lead ? "18px 2px" : "15px 2px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                  {!isSeen && <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: acc, flex: "none" }} />}
                   <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{storyKicker(s)}</span>
                 </div>
                 <h3 style={{ font: `${headlineFont} 'Newsreader',Georgia,serif`, color: INK, letterSpacing: 0, margin: 0 }}>{s.headline}</h3>
@@ -612,6 +787,215 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       </div>
     );
   };
+
+  // ---- FRONT-DOOR SECTIONS (Since your last read · ranked deck · approvals · caught-up) -----
+  const relativeDay = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diff = Math.round((startOf(now) - startOf(d)) / 86400_000);
+    return diff <= 0 ? "earlier today" : diff === 1 ? "yesterday" : d.toLocaleDateString("en-US", { weekday: "long" });
+  };
+  const fmtLastVisit = (iso: string) => {
+    const day = relativeDay(iso);
+    const time = new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return `${day.charAt(0).toUpperCase()}${day.slice(1)} ${time}`;
+  };
+  // Editions rebuild twice daily at 03:15 / 15:15 UTC — quote the next one in local time.
+  const nextEditionLabel = () => {
+    const now = Date.now();
+    const at = (dayOffset: number, hourUtc: number) => {
+      const d = new Date();
+      d.setUTCHours(hourUtc, 15, 0, 0);
+      d.setUTCDate(d.getUTCDate() + dayOffset);
+      return d.getTime();
+    };
+    const next = Math.min(...[at(0, 3), at(0, 15), at(1, 3), at(1, 15)].filter((t) => t > now));
+    return new Date(next).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+  // Date-only strings anchor at noon so the label never slips a calendar day in western zones.
+  const fmtDay = (iso: string) => {
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T12:00:00`) : new Date(iso);
+    return Number.isFinite(d.getTime()) ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
+  };
+  const deckRange = (() => {
+    if (!newestStamp) return null;
+    const days = Math.max(0, ...heroPerArea.filter((p) => p.entries.length).map((p) => p.brief?.windowDays ?? 0));
+    if (!days) return null;
+    const end = new Date(newestStamp);
+    const start = new Date(end.getTime() - (days - 1) * 86400_000);
+    const f = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+    return sameMonth ? `${f(start)}–${end.getDate()}` : `${f(start)} – ${f(end)}`;
+  })();
+
+  // Routine new episodes never become band rows — one collapsed line points at Listen instead.
+  const sinceEpisodes = memory.lastVisit && bandRows.length
+    ? allEpisodes.filter((e) => e.episode.publishedAt && new Date(e.episode.publishedAt).getTime() > new Date(memory.lastVisit!).getTime())
+    : [];
+  const sinceShowCount = new Set(sinceEpisodes.map((e) => e.episode.show ?? e.episode.title)).size;
+
+  const bandJsx = bandRows.length > 0 && (
+    <section aria-label="Since your last read" style={{ margin: "26px 0 0", padding: compact ? "16px 16px 4px" : "18px 22px 8px", background: "#fff", border: "1px solid #d8d7d1", borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+        <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>Since your last read</span>
+        <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>{memory.lastVisit ? fmtLastVisit(memory.lastVisit) : ""} · {bandRows.length} development{bandRows.length === 1 ? "" : "s"}</span>
+      </div>
+      {bandRows.map((row, i) => {
+        const acc = accentOf(row.area);
+        const visited = sessionSeen.has(row.card.id);
+        const kicker = row.status === "updated" && row.reason ? row.reason : (KIND_KICKER[row.card.kind] ?? row.card.kind);
+        const activate = () => pointTo(row.card, row.area, "since_band");
+        return (
+          <div key={row.card.id} role="button" tabIndex={0} onClick={activate}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
+            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: i < bandRows.length - 1 || sinceEpisodes.length > 0 ? "1px solid #eceae5" : "none", cursor: "pointer", opacity: visited ? 0.55 : 1, transition: "opacity .35s ease" }}>
+            {row.status === "new"
+              ? <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: "#fff", background: ALL_ACCENT, borderRadius: 5, padding: "3px 7px" }}>NEW</span>
+              : <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: ALL_ACCENT, background: "#fff", border: `1px solid ${ALL_ACCENT}`, borderRadius: 5, padding: "2px 6px" }}>UPDATED</span>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc, marginBottom: 5 }}>{kicker} · {row.area}</div>
+              <h3 style={{ font: "500 16.5px/1.28 'Newsreader',Georgia,serif", color: INK, margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.card.headline}</h3>
+            </div>
+          </div>
+        );
+      })}
+      {sinceEpisodes.length > 0 && (
+        <button type="button" onClick={() => { logSignal("section_jump", "All", null, { surface: "since_band_episodes" }); goTo("all-listen"); }}
+          style={{ width: "100%", textAlign: "left", background: "none", border: 0, padding: "10px 0 12px", cursor: "pointer", font: "400 12.5px system-ui", color: MUT2, minHeight: 44 }}>
+          Also since {memory.lastVisit ? relativeDay(memory.lastVisit) : "your last read"}: {sinceEpisodes.length} new episode{sinceEpisodes.length === 1 ? "" : "s"} across {sinceShowCount} show{sinceShowCount === 1 ? "" : "s"} →
+        </button>
+      )}
+    </section>
+  );
+
+  const deckReceipts = (entry: (typeof deck)[number]): string => {
+    const { card, metrics } = entry;
+    const bits: string[] = [];
+    if (card.kind === "episode") {
+      bits.push(`Listen @ ${clipTs(card.startMs ?? 0)}`);
+      if (metrics.clinicians) bits.push(`${metrics.clinicians} clinician${metrics.clinicians === 1 ? "" : "s"} carried it`);
+    } else {
+      if (metrics.clinicians) bits.push(`${metrics.clinicians} clinician${metrics.clinicians === 1 ? "" : "s"}${metrics.spanDays ? ` over ${metrics.spanDays} days` : ""}`);
+      if (metrics.podcasts) bits.push(`${metrics.podcasts} podcast${metrics.podcasts === 1 ? "" : "s"}`);
+    }
+    return bits.join(" · ");
+  };
+
+  const deckJsx = deck.length > 0 && (
+    <section id="all-most-discussed" aria-label="Most discussed across oncology" style={{ marginTop: 34, scrollMarginTop: 100 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 2px", flexWrap: "wrap" }}>
+        <h2 style={{ font: "700 12px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: INK, margin: 0 }}>Most discussed across oncology</h2>
+        <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>{deckRange ? `${deckRange} · ` : ""}ranked by independent clinician attention</span>
+      </div>
+      {deck.map((entry, i) => {
+        const { card: c, area, metrics } = entry;
+        const acc = accentOf(area);
+        const lead = i === 0;
+        const rowId = `deck:${c.id}`;
+        const open = openId === rowId;
+        const brief = briefsByArea[area];
+        const ev = brief ? heroEvidenceFor(c, brief, acc) : null;
+        const isSeen = seenIds.has(c.id);
+        const receipts = deckReceipts(entry);
+        return (
+          // Border set in LONGHAND: the deck reorders as late areas land, so a card can move out
+          // of the lead slot on a rerender — mixing the `border` shorthand with a conditional
+          // borderLeft makes React drop the whole shorthand when it diffs that change.
+          <div key={c.id} className="readout-story-card" data-sid={c.id} data-ssurface="all_deck" style={{ background: "transparent", borderStyle: "solid", borderColor: `${LINE}`, borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 1, borderLeftWidth: lead ? 3 : 0, borderLeftColor: acc, borderRadius: 0, padding: 0, marginBottom: 0, opacity: isSeen && !open ? 0.55 : 1, transition: "opacity .35s ease" }}>
+            <Row open={open} onToggle={() => { if (!open) markSeen(c.id, "expand"); toggle(rowId); }} accent={acc} landOffset={compact ? 108 : 70} disabled={!ev}
+              head={
+                <div style={{ display: "flex", gap: compact ? 12 : 16, padding: lead ? "18px 2px 18px 14px" : "15px 2px 15px 17px" }}>
+                  {/* longhand, not the `font` shorthand — it sits beside fontVariantNumeric, and
+                      React warns (and drops one) when both describe the same element */}
+                  <span aria-hidden style={{ flex: "none", fontWeight: 500, fontSize: lead ? 26 : 22, lineHeight: 1, fontFamily: "'Newsreader',Georgia,serif", fontVariantNumeric: "tabular-nums", color: MUT2, marginTop: 2 }}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
+                      {!isSeen && <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: acc, flex: "none" }} />}
+                      <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{KIND_KICKER[c.kind] ?? c.kind} · {area}</span>
+                    </div>
+                    <h3 style={{ font: `500 ${lead ? "21px/1.18" : "18.5px/1.25"} 'Newsreader',Georgia,serif`, color: INK, margin: 0, maxWidth: 760 }}>{c.headline}</h3>
+                    {lead && c.excerpt && (
+                      <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: MUT, maxWidth: 740, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
+                        {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
+                      </p>
+                    )}
+                    <div style={{ marginTop: lead ? 12 : 11, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      {ev && ev.faces.length > 0 && (
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          {ev.faces.slice(0, 3).map((f, j) => (
+                            <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: `2px solid ${PAPER}`, background: `${acc}24`, marginLeft: j ? -7 : 0 }}>
+                              <img src={f} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {receipts && <span style={{ font: "400 12px system-ui", color: MUT }}>{receipts}</span>}
+                      {ev && !open && evidenceChip(acc)}
+                    </div>
+                  </div>
+                </div>
+              }>
+              {ev && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {c.kind === "episode" && ev.playback?.audioUrl && (
+                    <AudioQuote audioUrl={ev.playback.audioUrl} startMs={ev.playback.startMs ?? 0} durationSeconds={ev.playback.durationSeconds ?? c.durationSeconds} label="Listen to the clip" eventId={c.id} eventLabel={c.headline} accent={acc} />
+                  )}
+                  {ev.drawer}
+                </div>
+              )}
+            </Row>
+          </div>
+        );
+      })}
+    </section>
+  );
+
+  const approvalsJsx = approvals.length > 0 && (
+    <section aria-label="Approvals and readouts" style={{ marginTop: 34 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 12px" }}>
+        <h2 style={{ font: "700 12px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: INK, margin: 0 }}>Approvals &amp; readouts</h2>
+        <span style={{ font: "400 11.5px system-ui", color: MUT2 }}>this week, all specialties</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {approvals.map(({ card, area, date }) => {
+          const acc = accentOf(area);
+          const day = date ? fmtDay(date) : null;
+          const activate = () => pointTo(card, area, "approvals_rail");
+          return (
+            <div key={card.id} role="button" tabIndex={0} onClick={activate}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
+              style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #d8d7d1", borderRadius: 8, padding: "11px 14px", cursor: "pointer" }}>
+              <span style={{ flex: "none", font: "700 10px system-ui", letterSpacing: ".06em", color: "#fff", background: acc, borderRadius: 6, padding: "4px 8px" }}>{approvalChipLabel(card)}</span>
+              <span style={{ flex: 1, minWidth: 0, font: "500 13.5px system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{card.headline}</span>
+              {day && <span style={{ flex: "none", fontWeight: 400, fontSize: 12, fontFamily: "system-ui", fontVariantNumeric: "tabular-nums", color: MUT2 }}>{day}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+
+  // "You're caught up" appears only once every ranked-deck item is actually seen; the count is
+  // the distinct developments (deck + approvals) the reader reviewed, never a padded number.
+  const deckAllSeen = deck.length > 0 && deck.every((d) => seenIds.has(d.card.id));
+  const reviewedCount = new Set([...deck.map((d) => d.card.id), ...approvals.map((a) => a.card.id)].filter((id) => seenIds.has(id))).size;
+  const caughtUpJsx = deckAllSeen && (
+    <div role="status" style={{ display: "flex", alignItems: "center", gap: 16, margin: "38px 0 4px" }}>
+      <span aria-hidden style={{ flex: 1, height: 1, background: LINE }} />
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, font: "600 13px system-ui", color: INK_2 }}>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden><circle cx="8" cy="8" r="7" stroke={ALL_ACCENT} strokeWidth="1.5" /><path d="M5 8.2L7.1 10.3L11 6.2" stroke={ALL_ACCENT} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        You&rsquo;re caught up — {reviewedCount} development{reviewedCount === 1 ? "" : "s"} reviewed · next edition {nextEditionLabel()}
+      </span>
+      <span aria-hidden style={{ flex: 1, height: 1, background: LINE }} />
+    </div>
+  );
+
+  const browseHeaderJsx = (deck.length > 0 || approvals.length > 0) && (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "34px 0 -14px" }}>
+      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".1em", textTransform: "uppercase", color: MUT2, margin: 0 }}>Browse by specialty</h2>
+    </div>
+  );
 
   const editionMenu = (
     <div style={{ position: "relative", flex: "none" }}>
@@ -687,7 +1071,38 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   );
 
   return (
-    <div className="reader-editorial" style={{ minHeight: "100vh", background: PAPER, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", ["--rv-accent" as string]: ALL_ACCENT, ["--rv-ink" as string]: INK, ["--rv-ink-2" as string]: INK_2, ["--rv-copy" as string]: INK_2, ["--rv-muted" as string]: MUT, ["--rv-muted-2" as string]: MUT2, ["--rv-line" as string]: LINE, ["--rv-surface" as string]: SURFACE, ["--rv-card" as string]: "#fff", ["--rv-card-line" as string]: "#d8d7d1", ["--rv-card-radius" as string]: "8px", ["--rv-card-shadow" as string]: "0 8px 22px rgba(31,35,42,.07)" }}>
+    <div className="reader-editorial"
+      // One delegated capture doing two jobs, mirroring ReaderView.captureInteraction:
+      //  1. SEEN — any real interaction (link, button, disclosure) inside a story card marks that
+      //     story seen. Idle clicks on whitespace never count, nor does anything outside a card.
+      //  2. SIGNALS — the declarative data-brief-event controls (source_open, story_share,
+      //     show_more…) reach the analytics pipeline. Those attributes have been on the All page's
+      //     hero cards all along but nothing listened for them here, so the funnel had a hole
+      //     between impression and read. data-brief-open="true" means the control is CLOSING
+      //     something, which is not an open.
+      onClickCapture={(e) => {
+        const t = e.target as HTMLElement | null;
+        if (!t) return;
+        if (t.closest("a,button,[role=button],summary")) {
+          const host = t.closest<HTMLElement>("[data-sid],[data-seen-key]");
+          const sid = host?.dataset.sid ?? host?.dataset.seenKey;
+          if (sid) markSeen(sid, "click");
+        }
+        const el = t.closest<HTMLElement>("[data-brief-event]");
+        if (!el || el.dataset.briefOpen === "true") return;
+        const kind = el.dataset.briefEvent as Parameters<typeof logSignal>[0] | undefined;
+        if (!kind) return;
+        // The shared Row wrapper carries no story of its own, so fall back to the card it sits in
+        // — otherwise half this page's source_opens arrive story-less and can't be joined to
+        // anything downstream.
+        const storyId = el.dataset.briefStory ?? el.closest<HTMLElement>("[data-sid]")?.dataset.sid ?? null;
+        const meta = {
+          ...(el.dataset.briefTarget ? { target: el.dataset.briefTarget } : {}),
+          ...(el.dataset.briefLabel ? { label: el.dataset.briefLabel } : {}),
+        };
+        logSignal(kind, (storyId && idMapRef.current.get(storyId)?.area) ?? "All", storyId, Object.keys(meta).length ? meta : undefined);
+      }}
+      style={{ minHeight: "100vh", background: PAPER, color: INK, fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif", ["--rv-accent" as string]: ALL_ACCENT, ["--rv-ink" as string]: INK, ["--rv-ink-2" as string]: INK_2, ["--rv-copy" as string]: INK_2, ["--rv-muted" as string]: MUT, ["--rv-muted-2" as string]: MUT2, ["--rv-line" as string]: LINE, ["--rv-surface" as string]: SURFACE, ["--rv-card" as string]: "#fff", ["--rv-card-line" as string]: "#d8d7d1", ["--rv-card-radius" as string]: "8px", ["--rv-card-shadow" as string]: "0 8px 22px rgba(31,35,42,.07)" }}>
       <style>{`
         .rv-list-row{border-bottom:1px solid ${LINE}}
         .rv-edition{position:relative}
@@ -791,6 +1206,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {compact && areasRow(true)}
         </>}
 
+        {/* SINCE YOUR LAST READ — the personal delta. Rows point at canonical cards below;
+            they never contain the story themselves. */}
+        {bandJsx}
+
         {/* THE DAILY — one global edition, shown only when the deterministic gate said the
             day earned it (show=true rows only reach this component). Items are templated
             from anchored rows server-side; the lead is the only model prose and is
@@ -869,6 +1288,15 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           </section>
         ) : null}
 
+        {/* MOST DISCUSSED ACROSS ONCOLOGY — the concentration surface: cross-specialty
+            promotion over each area's own authoritative order (never a re-score), followed by
+            the Approvals & readouts rail and — once the deck is actually reviewed — the
+            caught-up line. The specialty rails below keep everything; the deck only promotes. */}
+        {deckJsx}
+        {approvalsJsx}
+        {caughtUpJsx}
+        {browseHeaderJsx}
+
         {/* six area groups — compact first-pass picks with an in-place "show more";
             groups ride in activity order, and the receipt count in each header justifies the slot.
             WIDE: two tracks like the tumor pages — editorial column (groups + podcasts + papers)
@@ -885,7 +1313,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 const stories = brief && heroDeck === null ? storiesOf(brief) : [];
                 const full = AREA_FULL[a] ?? a;
                 return (
-                  <div key={a} id={areaId(a)} style={{ marginTop: areaIndex === 0 ? 34 : compact ? 46 : 54, scrollMarginTop: 100 }}>
+                  <div key={a} id={areaId(a)} data-ssurface="all_rail" style={{ marginTop: areaIndex === 0 ? 34 : compact ? 46 : 54, scrollMarginTop: 100 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
                       <span style={{ width: 9, height: 9, borderRadius: "50%", background: acc, flex: "none" }} />
                       {/* a real h2: the story titles below are h3, and without this the page is
@@ -911,6 +1339,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           idPrefix={`all-${a}`}
                           evidenceOf={(card) => heroEvidenceFor(card, brief, acc)}
                           shareUrlOf={(card) => `/r/${heroSlugFor(card.kind, card.headline, card.id)}`}
+                          // Seen-state + one open drawer across every rail, so a Since-your-last-read
+                          // row can open the card it points at wherever that card lives.
+                          seenIds={seenIds}
+                          unseenDot={acc}
+                          openId={heroOpen}
+                          onOpenChange={(id) => { setHeroOpen(id); if (id) markSeen(id, "expand"); }}
                         />}
                         {heroDeck !== null && heroDeck.length > (compact ? 2 : 3) && (
                           <button type="button" onClick={() => setExpandedAreas((current) => ({ ...current, [a]: !current[a] }))}
