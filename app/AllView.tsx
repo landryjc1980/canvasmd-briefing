@@ -799,7 +799,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           <section style={{ margin: "26px 0 6px", padding: "20px 22px 12px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
               <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
-              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}{daily.payload.coverage?.scope ? ` · ${daily.payload.coverage.scope.toLowerCase()}${daily.payload.coverage.rollingReadoutDays ? ` · source window ${daily.payload.coverage.rollingReadoutDays} days` : ""}` : ""}</span>
+              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}{daily.payload.coverage?.scope ? ` · ${daily.payload.coverage.scope.toLowerCase()}` : ""}</span>
             </div>
             {/* Collapsed by default: the lead is the 3-line teaser (it IS the summary); expanding
                 reveals the narrative paragraphs. Sources stay behind their own <details>. */}

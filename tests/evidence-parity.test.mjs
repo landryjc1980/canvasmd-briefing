@@ -87,7 +87,7 @@ test("native labels and paper commentary copy match mobile web", () => {
   assert.match(nativeHero, /episode: "Episode"/);
   assert.match(nativeHero, /development: "Development"/);
   assert.doesNotMatch(nativeHero, /In-depth episode|Breaking development/);
-  assert.match(nativeSections, /authored post/);
+  assert.match(nativeSections, /clinician commentar/);
   assert.doesNotMatch(nativeSections, /commented/);
 });
 
