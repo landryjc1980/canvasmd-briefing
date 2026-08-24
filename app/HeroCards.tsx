@@ -22,6 +22,13 @@ export const KIND_KICKER: Record<HeroCard["kind"], string> = {
   trial_milestone: "Trial milestone",
 };
 
+// The ONE wording for the evidence disclosure. Exported because the All page's ranked deck draws
+// its own card anatomy (rank numeral, KIND · AREA kicker) but must open evidence the same way a
+// hero card does — John, 2026-08-24: "the expanding to see evidence is different than for the
+// stories, why not just make it the same." Two surfaces on one page cannot drift on this label.
+export const heroEvidenceLabel = (open: boolean, compact: boolean, hasFaces: boolean): string =>
+  open ? "Hide conversation ↑" : compact ? "Evidence ↓" : hasFaces ? "Conversation & evidence ↓" : "See evidence ↓";
+
 const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", line: "rgba(255,255,255,.08)", ring: "rgba(20,26,40,1)" };
 // Evidence is supplied by the mounting view (which owns the payload's dual-published
 // legacy arrays): faces for the pile, and a lazily-rendered receipts drawer. RECEIPTS RULE
@@ -112,7 +119,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                     aria-label={`${openId === c.id ? "Hide" : "Show"} conversation and evidence for ${c.headline}`}
                     data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target={`hero_${c.kind}`} data-brief-label={c.headline}
                     style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
-                    {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}
+                    {heroEvidenceLabel(openId === c.id, compact, ev.faces.length > 0)}
                   </button>
                 )}
                 {shareUrlOf && (
@@ -139,7 +146,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                   aria-label={`${openId === c.id ? "Hide" : "Show"} conversation and evidence for ${c.headline}`}
                   data-brief-event="source_open" data-brief-open={openId === c.id} data-brief-story={c.id} data-brief-target="hero_episode" data-brief-label={c.headline}
                   style={{ display: "inline-flex", alignItems: "center", background: "none", border: 0, padding: "8px 4px", marginTop: 4, cursor: "pointer", font: "600 12.5px system-ui", color: accent, minHeight: 44 }}>
-                  {openId === c.id ? "Hide conversation ↑" : compact ? "Evidence ↓" : ev.faces.length ? "Conversation & evidence ↓" : "See evidence ↓"}
+                  {heroEvidenceLabel(openId === c.id, compact, ev.faces.length > 0)}
                 </button>
               )}
               {ev && openId === c.id && <div id={drawerId} style={{ marginTop: 12 }}>{ev.drawer}</div>}

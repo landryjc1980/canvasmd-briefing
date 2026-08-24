@@ -174,7 +174,11 @@ export default function BriefingPage() {
     } catch { /* the weekly brief remains usable when Daily refresh fails */ }
   }, []);
 
+  // The All page no longer renders a Daily block (it duplicated Since-your-last-read and read as
+  // seven unrelated storylines above a ranked deck), so don't pay for the payload there. The
+  // specialty editions still show theirs, and switching into one re-runs this and fetches.
   useEffect(() => {
+    if (!area || area === "All") return;
     void loadDaily();
     const refreshIfStale = () => {
       if (document.visibilityState === "visible" && Date.now() - dailyLoadedAt.current > 5 * 60_000) void loadDaily();
@@ -186,7 +190,7 @@ export default function BriefingPage() {
       document.removeEventListener("visibilitychange", refreshIfStale);
       window.removeEventListener("focus", refreshIfStale);
     };
-  }, [loadDaily]);
+  }, [area, loadDaily]);
 
   // A browser tab can stay open across a weekly promotion. Keep instant tab
   // switching, but refresh the active edition after fifteen minutes on focus.
@@ -291,7 +295,7 @@ export default function BriefingPage() {
       );
     }
     const briefsByArea = Object.fromEntries(AREAS.map((a) => [a, cacheRef.current[a]?.briefing]));
-    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} failed={areaErr} onRetry={retryArea} daily={daily} />;
+    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} failed={areaErr} onRetry={retryArea} />;
   }
 
   // ---- DEFAULT: responsive story / reader ----

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { emph, stripEmph } from "@/app/emphasis";
-import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard, DailyReadout } from "@/lib/types";
+import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingPaper, BriefingEpisode, HeroCard } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
@@ -10,10 +9,9 @@ import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, Stor
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf, clipTs } from "./briefVM";
-import HeroCards, { HeroEvidence, KIND_KICKER } from "./HeroCards";
+import HeroCards, { HeroEvidence, KIND_KICKER, heroEvidenceLabel } from "./HeroCards";
 import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
-import DailyConversationEvidence from "./DailyConversationEvidence";
 import { distinctSourceAnchorCount } from "./clientEvidence";
 import { logSignal, logStorySeen, logStoryImpression } from "./gateClient";
 import { artifactSig, storySig, rankAcrossSpecialties, computeBand, approvalsRail, approvalChipLabel, type AreaEntries } from "./allFrontPage";
@@ -56,14 +54,13 @@ const ago = (iso: string) => {
 };
 const areaId = (a: string) => "all-" + a;
 
-export default function AllView({ briefsByArea, areas, onArea, compact = false, primary, onSetPrimary, failed, onRetry, daily }: {
+export default function AllView({ briefsByArea, areas, onArea, compact = false, primary, onSetPrimary, failed, onRetry }: {
   // Areas may be MISSING: the page renders whatever has landed rather than holding everything
   // hostage to the slowest (or the broken) one. Every read below is optional-chained.
   briefsByArea: Record<string, BriefingData | undefined>;
   areas: string[];
   onArea: (a: string) => void;
   compact?: boolean;
-  daily?: DailyReadout | null;
   primary?: string | null;
   onSetPrimary?: (a: string) => void;
   failed?: Record<string, string>;
@@ -74,7 +71,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [micsMore, setMicsMore] = useState(false);
-  const [dailyOpen, setDailyOpen] = useState(false);
   const [xMore, setXMore] = useState(false);
   const [episodesMore, setEpisodesMore] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>({});
@@ -127,9 +123,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const visit = beginVisit();
     return { seenLog: readSeenLog(), lastVisit: visit.lastVisit, visitStart: visit.visitStart, firstObserved: readFirstObserved() };
   });
-  // Live seen set (drives dimming and the caught-up line); sessionSeen tracks what was marked
-  // DURING this sitting (band rows dim on it — an UPDATED row is already in seenIds by definition).
+  // TWO sets, and the distinction is the whole point (John, 2026-08-24: "I hate how it whites
+  // things out in real time when I scroll"):
+  //   seenAtLoad — FROZEN at mount. The only thing that may dim a story or drop its unseen dot.
+  //     A story you read during THIS sitting stays full ink until your next visit; the page must
+  //     never fade out from under someone who is still reading it. Signalling what's new is the
+  //     Since-your-last-read band's job, so live graying is both redundant and hostile.
+  //   seenIds — live. Drives storage and the caught-up line ONLY. That line is the reward for
+  //     finishing and SHOULD appear the moment the last item is read.
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set(Object.keys(memory.seenLog)));
+  const [seenAtLoad] = useState<ReadonlySet<string>>(() => new Set(Object.keys(memory.seenLog)));
   const [sessionSeen, setSessionSeen] = useState<Set<string>>(() => new Set());
   // One open hero card across every specialty rail (controlled mode) — lets a band row or
   // approvals row auto-open the card it points at.
@@ -755,8 +758,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const id = `all:${a}:${i}`;
     const open = openId === id;
     const faces = pileFacesL(s);
-    // Seen-state keys on the story's DURABLE id (drugId / paper key), never the per-build index id.
-    const isSeen = seenIds.has(s.id);
+    // Seen-state keys on the story's DURABLE id (drugId / paper key), never the per-build index id,
+    // and reads the FROZEN set so a row never fades while it is being read.
+    const isSeen = seenAtLoad.has(s.id);
     const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
     return (
       <div key={id} className="readout-story-card" data-sid={s.id} data-ssurface="all_rail" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0, opacity: isSeen && !open ? 0.55 : 1, transition: "opacity .35s ease" }}>
@@ -896,55 +900,70 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         const open = openId === rowId;
         const brief = briefsByArea[area];
         const ev = brief ? heroEvidenceFor(c, brief, acc) : null;
-        const isSeen = seenIds.has(c.id);
+        const isSeen = seenAtLoad.has(c.id); // frozen at load — never fades mid-read
         const receipts = deckReceipts(entry);
+        const drawerId = `all-deck-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+        // The deck keeps its OWN anatomy (rank numeral, KIND · AREA kicker, lead step-up) but
+        // opens evidence exactly the way the hero cards in the rails below do: the same control
+        // wording, the same inline drawer, the same collapse. It deliberately does NOT use the
+        // Row accordion any more — that gave this page two different evidence experiences
+        // depending on which section a story happened to sit in.
+        const openEvidence = () => { if (!open) markSeen(c.id, "expand"); toggle(rowId); };
+        const discloseBtn = ev && (
+          <button type="button" onClick={openEvidence} aria-expanded={open} aria-controls={drawerId}
+            aria-label={`${open ? "Hide" : "Show"} conversation and evidence for ${c.headline}`}
+            data-brief-event="source_open" data-brief-open={open} data-brief-story={c.id} data-brief-target={`deck_${c.kind}`} data-brief-label={c.headline}
+            style={{ background: "none", border: 0, padding: "12px 4px", cursor: "pointer", font: "600 12.5px system-ui", color: acc, minHeight: 44 }}>
+            {/* `false`, not this page's `compact`: the rails below mount HeroCards at the default
+                variant="full", so their label never takes the compact branch even on a phone.
+                Passing the viewport flag here made the deck read "Evidence ↓" while the rails read
+                "Conversation & evidence ↓" on mobile — the same split this change exists to close. */}
+            {heroEvidenceLabel(open, false, ev.faces.length > 0)}
+          </button>
+        );
         return (
           // Border set in LONGHAND: the deck reorders as late areas land, so a card can move out
           // of the lead slot on a rerender — mixing the `border` shorthand with a conditional
           // borderLeft makes React drop the whole shorthand when it diffs that change.
-          <div key={c.id} className="readout-story-card" data-sid={c.id} data-ssurface="all_deck" style={{ background: "transparent", borderStyle: "solid", borderColor: `${LINE}`, borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 1, borderLeftWidth: lead ? 3 : 0, borderLeftColor: acc, borderRadius: 0, padding: 0, marginBottom: 0, opacity: isSeen && !open ? 0.55 : 1, transition: "opacity .35s ease" }}>
-            <Row open={open} onToggle={() => { if (!open) markSeen(c.id, "expand"); toggle(rowId); }} accent={acc} landOffset={compact ? 108 : 70} disabled={!ev}
-              head={
-                <div style={{ display: "flex", gap: compact ? 12 : 16, padding: lead ? "18px 2px 18px 14px" : "15px 2px 15px 17px" }}>
-                  {/* longhand, not the `font` shorthand — it sits beside fontVariantNumeric, and
-                      React warns (and drops one) when both describe the same element */}
-                  <span aria-hidden style={{ flex: "none", fontWeight: 500, fontSize: lead ? 26 : 22, lineHeight: 1, fontFamily: "'Newsreader',Georgia,serif", fontVariantNumeric: "tabular-nums", color: MUT2, marginTop: 2 }}>{i + 1}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
-                      {!isSeen && <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: acc, flex: "none" }} />}
-                      <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{KIND_KICKER[c.kind] ?? c.kind} · {area}</span>
-                    </div>
-                    <h3 style={{ font: `500 ${lead ? "21px/1.18" : "18.5px/1.25"} 'Newsreader',Georgia,serif`, color: INK, margin: 0, maxWidth: 760 }}>{c.headline}</h3>
-                    {lead && c.excerpt && (
-                      <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: MUT, maxWidth: 740, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
-                        {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
-                      </p>
-                    )}
-                    <div style={{ marginTop: lead ? 12 : 11, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                      {ev && ev.faces.length > 0 && (
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          {ev.faces.slice(0, 3).map((f, j) => (
-                            <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: `2px solid ${PAPER}`, background: `${acc}24`, marginLeft: j ? -7 : 0 }}>
-                              <img src={f} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            </div>
-                          ))}
+          <div key={c.id} className="readout-story-card" data-sid={c.id} data-ssurface="all_deck" style={{ background: "transparent", borderStyle: "solid", borderColor: `${LINE}`, borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 1, borderLeftWidth: lead ? 3 : 0, borderLeftColor: acc, borderRadius: 0, padding: 0, marginBottom: 0, opacity: isSeen ? 0.55 : 1 }}>
+            <div style={{ display: "flex", gap: compact ? 12 : 16, padding: lead ? "18px 2px 18px 14px" : "15px 2px 15px 17px" }}>
+              {/* longhand, not the `font` shorthand — it sits beside fontVariantNumeric, and
+                  React warns (and drops one) when both describe the same element */}
+              <span aria-hidden style={{ flex: "none", fontWeight: 500, fontSize: lead ? 26 : 22, lineHeight: 1, fontFamily: "'Newsreader',Georgia,serif", fontVariantNumeric: "tabular-nums", color: MUT2, marginTop: 2 }}>{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
+                  {!isSeen && <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: acc, flex: "none" }} />}
+                  <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{KIND_KICKER[c.kind] ?? c.kind} · {area}</span>
+                </div>
+                <h3 style={{ font: `500 ${lead ? "21px/1.18" : "18.5px/1.25"} 'Newsreader',Georgia,serif`, color: INK, margin: 0, maxWidth: 760 }}>{c.headline}</h3>
+                {lead && c.excerpt && (
+                  <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: MUT, maxWidth: 740, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
+                    {c.excerptVerbatim ? <>&ldquo;{c.excerpt}&rdquo;</> : c.excerpt}
+                  </p>
+                )}
+                <div style={{ marginTop: lead ? 12 : 11, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  {ev && ev.faces.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      {ev.faces.slice(0, 3).map((f, j) => (
+                        <div key={j} style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", border: `2px solid ${PAPER}`, background: `${acc}24`, marginLeft: j ? -7 : 0 }}>
+                          <img src={f} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         </div>
-                      )}
-                      {receipts && <span style={{ font: "400 12px system-ui", color: MUT }}>{receipts}</span>}
-                      {ev && !open && evidenceChip(acc)}
+                      ))}
                     </div>
-                  </div>
-                </div>
-              }>
-              {ev && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {c.kind === "episode" && ev.playback?.audioUrl && (
-                    <AudioQuote audioUrl={ev.playback.audioUrl} startMs={ev.playback.startMs ?? 0} durationSeconds={ev.playback.durationSeconds ?? c.durationSeconds} label="Listen to the clip" eventId={c.id} eventLabel={c.headline} accent={acc} />
                   )}
-                  {ev.drawer}
+                  {receipts && <span style={{ font: "400 12px system-ui", color: MUT }}>{receipts}</span>}
+                  {c.kind !== "episode" && discloseBtn}
                 </div>
-              )}
-            </Row>
+                {/* episodes get the seeking player inline above the control, same as a hero card */}
+                {c.kind === "episode" && ev?.playback?.audioUrl && (
+                  <div style={{ marginTop: 10, width: "100%" }}>
+                    <AudioQuote audioUrl={ev.playback.audioUrl} startMs={ev.playback.startMs ?? 0} durationSeconds={ev.playback.durationSeconds ?? c.durationSeconds} label="Listen to the clip" eventId={c.id} eventLabel={c.headline} accent={acc} />
+                  </div>
+                )}
+                {c.kind === "episode" && discloseBtn}
+                {ev && open && <div id={drawerId} className="rv-drawer" style={{ marginTop: 12 }}>{ev.drawer}</div>}
+              </div>
+            </div>
           </div>
         );
       })}
@@ -1206,102 +1225,42 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         {compact && areasRow(true)}
         </>}
 
-        {/* SINCE YOUR LAST READ — the personal delta. Rows point at canonical cards below;
-            they never contain the story themselves. */}
-        {bandJsx}
+        {(() => {
 
-        {/* THE DAILY — one global edition, shown only when the deterministic gate said the
-            day earned it (show=true rows only reach this component). Items are templated
-            from anchored rows server-side; the lead is the only model prose and is
-            digit-banned + validated. Area chips route into the specialty editions. */}
-        {daily?.payload?.sections?.length ? (
-          <section style={{ margin: "26px 0 6px", padding: "20px 22px 12px", background: "#fff", border: `1px solid #d8d7d1`, borderRadius: 10, boxShadow: "0 8px 22px rgba(31,35,42,.06)" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ font: "700 11px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: ALL_ACCENT }}>The Daily</span>
-              <span style={{ font: "500 11px system-ui", color: MUT2 }}>{daily.date} · {daily.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}{daily.payload.coverage?.scope ? ` · ${daily.payload.coverage.scope.toLowerCase()}` : ""}</span>
-            </div>
-            {/* Collapsed by default: the lead is the 3-line teaser (it IS the summary); expanding
-                reveals the narrative paragraphs. Sources stay behind their own <details>. */}
-            {(() => {
-              // Teaser = the lead when the generator's validators kept one, else the first
-              // narrative paragraph (the lead is optional prose and drops on any violation).
-              const teaser = daily.lead ?? (stripEmph((daily.payload.narrative ?? [])[0]?.text ?? "") || null);
-              if (!teaser || (dailyOpen && !daily.lead)) return null; // expanded w/o lead: paragraphs alone, no duplicate
-              return <p style={{ margin: "12px 0 4px", font: "700 17px/1.5 'Newsreader',Georgia,serif", color: INK, ...(dailyOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{dailyOpen ? daily.lead : teaser}</p>;
-            })()}
-            {dailyOpen && (daily.payload.narrative ?? []).length ? (
-              <div style={{ marginTop: 6 }}>
-                {(daily.payload.narrative ?? []).map((p, i) => (
-                  <div key={i}>
-                    <p style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: INK_2 }}>
-                      <strong style={{ fontWeight: 700, color: ALL_ACCENT }}>{i + 1}. </strong>
-                      {(p.areas ?? []).slice(0, 2).map((ar) => (
-                        <button key={ar} onClick={() => onArea(ar)} style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px", marginRight: 7, cursor: "pointer", verticalAlign: "2px" }}>{ar}</button>
-                      ))}
-                      {p.head && <strong style={{ fontWeight: 700, color: INK }}>{stripEmph(p.head)}. </strong>}
-                      {emph(p.text)}
-                      {(p.refs ?? []).length > 0 && (
-                        <span style={{ font: "500 11.5px system-ui", color: MUT }}>
-                          {" "}{(p.refs ?? []).map((r, ri) => (
-                            <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", color: ALL_ACCENT, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
-                          ))}
-                        </span>
-                      )}
-                    </p>
-                    <DailyConversationEvidence stories={daily.payload.conversationStories} storyIds={p.storyIds} accent={ALL_ACCENT} ink={INK} muted={MUT} line={LINE} />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {(daily.payload.narrative ?? []).length ? (
-              <button onClick={() => setDailyOpen((o) => !o)} aria-expanded={dailyOpen} style={{ margin: "4px 0 2px", padding: "0 2px", minHeight: 44, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: ALL_ACCENT }}>
-                {dailyOpen ? "Show less ↑" : "Read the daily ↓"}
-              </button>
-            ) : null}
-            {dailyOpen && <details style={{ margin: "14px 0 4px" }}>
-              <summary style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center", font: "600 11.5px system-ui", color: MUT, listStyle: "none" }}>Sources & items ↓</summary>
-              <div style={{ display: "grid", gridTemplateColumns: wide ? "1fr 1fr" : "1fr", gap: wide ? "0 34px" : 0, marginTop: 8 }}>
-                {daily.payload.sections.map((s) => (
-                  <div key={s.key} style={{ padding: "10px 0 12px", borderTop: `1px solid ${LINE}` }}>
-                    <div style={{ font: "700 10px system-ui", letterSpacing: ".13em", textTransform: "uppercase", color: MUT2 }}>{s.title}</div>
-                    {s.items.map((it, i) => (
-                      <div key={i} style={{ marginTop: 9 }}>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
-                          {it.url ? (
-                            <a href={it.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, textDecoration: "none", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</a>
-                          ) : (
-                            <span style={{ flex: 1, minWidth: 0, font: "600 13px/1.4 system-ui", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</span>
-                          )}
-                          {(it.areas ?? []).slice(0, 2).map((ar) => (
-                            <button key={ar} onClick={() => onArea(ar)} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: 0, flex: "none", background: "none", border: 0, cursor: "pointer" }}>
-                              <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: accentOf(ar), background: `${accentOf(ar)}12`, border: `1px solid ${accentOf(ar)}40`, borderRadius: 4, padding: "2px 5px" }}>{ar}</span>
-                            </button>
-                          ))}
-                        </div>
-                        {it.sub && <div style={{ font: "500 11px system-ui", color: MUT2, marginTop: 2 }}>{it.sub}</div>}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </details>}
-          </section>
-        ) : null}
-
-        {/* MOST DISCUSSED ACROSS ONCOLOGY — the concentration surface: cross-specialty
-            promotion over each area's own authoritative order (never a re-score), followed by
-            the Approvals & readouts rail and — once the deck is actually reviewed — the
-            caught-up line. The specialty rails below keep everything; the deck only promotes. */}
-        {deckJsx}
-        {approvalsJsx}
-        {caughtUpJsx}
-        {browseHeaderJsx}
+        // Everything above the specialty rails, in one block so BOTH layouts place it identically.
+        // On wide it rides the editorial column of the two-track grid rather than running
+        // full-bleed above it (John, 2026-08-24: "the side bar can be up top, no reason to drop it
+        // down and make the top part full screen on desktop").
+        //   SINCE YOUR LAST READ — the personal delta; rows point at canonical cards below and
+        //     never contain the story themselves.
+        //   MOST DISCUSSED — the concentration surface: cross-specialty promotion over each area's
+        //     own authoritative order (never a re-score), then the Approvals & readouts rail and,
+        //     once the deck is actually reviewed, the caught-up line. The rails keep everything;
+        //     the deck only promotes.
+        //
+        // NO DAILY HERE (John, 2026-08-24: "it's just a repost of the since you left … especially
+        // on the All page it's a mess of content"). On-site the band strictly dominates it: the
+        // band knows what this reader has actually seen, the Daily only knows what happened in
+        // 24h — so a daily visitor gets the same ground twice and a weekly visitor gets a subset
+        // of their own delta. Scoped to ALL of oncology it was also seven unrelated storylines in
+        // one prose block sitting directly above a ranked deck that does cross-specialty triage
+        // more legibly. The SPECIALTY editions keep theirs (a coherent single-area narrative), and
+        // the Daily EMAIL is untouched — that is where it earns its keep, as re-entry for someone
+        // who isn't on the site.
+        const topJsx = (
+          <>
+            {bandJsx}
+            {deckJsx}
+            {approvalsJsx}
+            {caughtUpJsx}
+            {browseHeaderJsx}
+          </>
+        );
 
         {/* six area groups — compact first-pass picks with an in-place "show more";
             groups ride in activity order, and the receipt count in each header justifies the slot.
-            WIDE: two tracks like the tumor pages — editorial column (groups + podcasts + papers)
-            and the People rail. NARROW: everything follows the same nav order inline. */}
-        {(() => {
+            WIDE: two tracks like the tumor pages — editorial column (top sections + groups +
+            podcasts + papers) and the People rail. NARROW: everything follows the nav order. */}
           const groupsJsx = (
             <>
               {orderedAreas.map((a, areaIndex) => {
@@ -1446,13 +1405,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           );
           // old snapshots ship no hosts/amp — collapse the rail rather than render an empty shell
           const hasVoices = micsRanked.length + xRanked.length > 0;
+          // The two-track grid starts at the TOP of the page, so the People rail sits alongside
+          // Since-your-last-read and the ranked deck instead of the page running full-bleed up
+          // top and only turning columnar further down.
           return wide ? (
             <div style={{ display: "grid", gridTemplateColumns: hasVoices ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
-              <div style={{ minWidth: 0 }}>{groupsJsx}{podcastsJsx}{readingJsx}</div>
-              {hasVoices && <aside style={{ minWidth: 0, marginTop: 34 }}>{voicesModules}</aside>}
+              <div style={{ minWidth: 0 }}>{topJsx}{groupsJsx}{podcastsJsx}{readingJsx}</div>
+              {hasVoices && <aside style={{ minWidth: 0, marginTop: 26 }}>{voicesModules}</aside>}
             </div>
           ) : (
-            <>{groupsJsx}{podcastsJsx}{readingJsx}{voicesInline}</>
+            <>{topJsx}{groupsJsx}{podcastsJsx}{readingJsx}{voicesInline}</>
           );
         })()}
 

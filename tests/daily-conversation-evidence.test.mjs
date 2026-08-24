@@ -14,7 +14,25 @@ test("web Daily renders exact, specialty-scoped physician evidence", () => {
   assert.match(evidence, /reaction\.text/);
   assert.match(evidence, /cleanTweetText\(reaction\.fullText\?\.trim\(\) \|\| reaction\.text\)/);
   assert.match(reader, /<DailyConversationEvidence[^>]+area=\{area\}/);
-  assert.match(all, /<DailyConversationEvidence/);
+});
+
+// The All page no longer carries a Daily block (John, 2026-08-24). On-site it duplicated
+// Since-your-last-read — the band knows what THIS reader has seen, the Daily only knows what
+// happened in 24h — and scoped to all of oncology it read as seven unrelated storylines sitting
+// above a ranked deck that does cross-specialty triage more legibly. These assertions pin the
+// removal so it cannot creep back, and pin what deliberately SURVIVES: the specialty editions'
+// Daily and the Daily email, which are separate decisions.
+test("the All page carries no Daily block, while specialty editions keep theirs", () => {
+  assert.doesNotMatch(all, /<DailyConversationEvidence/);
+  assert.doesNotMatch(all, /The Daily</);
+  assert.doesNotMatch(all, /Read the daily ↓/);
+  assert.doesNotMatch(all, /Sources & items ↓/);
+  // and the payload is not fetched for a page that no longer renders it
+  const page = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /if \(!area \|\| area === "All"\) return;/);
+  // specialty editions are untouched
+  assert.match(reader, /<DailyConversationEvidence/);
+  assert.match(reader, /dailyOpen \? "Show less ↑" : "Read more ↓"/);
 });
 
 test("Daily refreshes stale payloads and All renders complete source drawers", () => {
@@ -27,7 +45,6 @@ test("Daily refreshes stale payloads and All renders complete source drawers", (
   assert.match(all, /pickConversationPreview\(story\.posts/);
   assert.doesNotMatch(all, /resolved\.publisherPosts\[0\]/);
   assert.match(evidence, /minHeight: 44/);
-  assert.match(all, /Sources & items ↓/);
 });
 
 test("collapsed specialty Daily keeps its story headlines visible", () => {
@@ -37,7 +54,6 @@ test("collapsed specialty Daily keeps its story headlines visible", () => {
 
 test("Daily leads stay bold before and after expansion", () => {
   assert.equal((reader.match(/font: "700 (?:14\.5|15\.5)px\/1\.(?:65|55) 'Newsreader'/g) ?? []).length, 2);
-  assert.match(all, /font: "700 17px\/1\.5 'Newsreader'/);
 });
 
 test("a serialized quiet specialty edition still renders its honest lead", () => {
