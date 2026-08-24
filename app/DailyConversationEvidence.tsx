@@ -30,11 +30,11 @@ function ReactionCard({ reaction, lead, accent, ink, muted, line }: {
         <span style={{ color: muted, font: "500 10.5px system-ui" }}>@{reaction.handle} · ♥ {reaction.likes}</span>
       </div>
       <div style={{ color: muted, font: "400 12.5px/1.55 'Newsreader',Georgia,serif", marginTop: 4 }}>{preview}</div>
-      {reaction.quotedContext && (reaction.quotedContext.title || reaction.quotedContext.text) && (
+      {reaction.quotedContext && (reaction.quotedContext.title || reaction.quotedContext.description || reaction.quotedContext.text) && (
         <a href={reaction.quotedContext.url ?? undefined} target={reaction.quotedContext.url ? "_blank" : undefined} rel={reaction.quotedContext.url ? "noopener noreferrer" : undefined}
           style={{ display: "block", marginTop: 8, padding: 9, border: `1px solid ${line}`, borderRadius: 7, color: "inherit", textDecoration: "none", pointerEvents: reaction.quotedContext.url ? "auto" : "none" }}>
           {reaction.quotedContext.title && <div style={{ color: ink, font: "600 11.5px/1.4 system-ui" }}>{reaction.quotedContext.title}</div>}
-          {reaction.quotedContext.text && <div style={{ marginTop: reaction.quotedContext.title ? 4 : 0, color: muted, font: "400 11.5px/1.45 'Newsreader',Georgia,serif", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{cleanTweetText(reaction.quotedContext.text)}</div>}
+          {(reaction.quotedContext.description || reaction.quotedContext.text) && <div style={{ marginTop: reaction.quotedContext.title ? 4 : 0, color: muted, font: "400 11.5px/1.45 'Newsreader',Georgia,serif", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{cleanTweetText(reaction.quotedContext.description || reaction.quotedContext.text || "")}</div>}
         </a>
       )}
       {canExpand && (

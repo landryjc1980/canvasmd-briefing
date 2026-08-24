@@ -467,7 +467,7 @@ export type BriefingSharer = {
   lang?: string | null;   // ADDITIVE — original language (translation lane, 0322)
   textEn?: string | null; // ADDITIVE — stored English translation; original stays the receipt
   thread?: { id: string; text: string; tweetUrl: string | null }[]; // ADDITIVE — same-author thread continuations
-  quotedContext?: { url: string | null; title: string | null; text: string | null }; // ADDITIVE — the post or article being quoted
+  quotedContext?: { url: string | null; title: string | null; text: string | null; description?: string | null }; // ADDITIVE — the post or article being quoted
   likes: number;
   retweets: number;
   quotes?: number; // quote-posts (absent on pre-2026-07-24 snapshots)
@@ -991,7 +991,7 @@ export type DailyConversationReaction = {
   likes: number; postedAt?: string | null; areas: string[]; sourceAreas?: string[]; referenceAreas?: string[]; translatedFrom?: string | null;
   fullText?: string | null; // additive: complete retained post text when the producer can hydrate it
   textTruncated?: boolean; // additive: true when `text` remains only an archived excerpt
-  quotedContext?: { url?: string | null; title?: string | null; text?: string | null };
+  quotedContext?: { url?: string | null; title?: string | null; text?: string | null; description?: string | null };
 };
 export type DailyConversationStory = {
   id: string;

@@ -242,11 +242,11 @@ export function TweetCard({ t, compact = false }: { t: BriefingSharer; compact?:
         {!rtOf && t.likes > 0 && <span style={{ font: "600 11px system-ui", color: "#a93658" }}>♥ {t.likes}</span>}
       </div>
       {text && <p style={{ margin: "9px 0 0", font: "400 14px/1.5 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)", overflowWrap: "anywhere", ...collapsedText }}>{text}</p>}
-      {t.quotedContext && (t.quotedContext.title || t.quotedContext.text) && (
+      {t.quotedContext && (t.quotedContext.title || t.quotedContext.description || t.quotedContext.text) && (
         <a href={t.quotedContext.url ?? undefined} target={t.quotedContext.url ? "_blank" : undefined} rel={t.quotedContext.url ? "noopener noreferrer" : undefined}
           style={{ display: "block", marginTop: 10, padding: 10, border: `1px solid ${LINE}`, borderRadius: 7, background: "var(--rv-surface, rgba(255,255,255,.05))", color: "inherit", textDecoration: "none", pointerEvents: t.quotedContext.url ? "auto" : "none" }}>
           {t.quotedContext.title && <div style={{ font: "600 12.5px/1.4 system-ui", color: "var(--rv-ink, #eef1f8)" }}>{t.quotedContext.title}</div>}
-          {t.quotedContext.text && <p style={{ margin: t.quotedContext.title ? "5px 0 0" : 0, font: "400 12.5px/1.45 'Newsreader',Georgia,serif", color: MUT, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{cleanTweetText(t.quotedContext.text)}</p>}
+          {(t.quotedContext.description || t.quotedContext.text) && <p style={{ margin: t.quotedContext.title ? "5px 0 0" : 0, font: "400 12.5px/1.45 'Newsreader',Georgia,serif", color: MUT, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{cleanTweetText(t.quotedContext.description || t.quotedContext.text || "")}</p>}
         </a>
       )}
       {t.receiptNote && <div style={{ marginTop: 6, font: "500 11px system-ui", color: MUT }}>{t.receiptNote}</div>}
