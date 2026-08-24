@@ -15,13 +15,17 @@ import type { BriefingStory, HeroCard } from "@/lib/types";
 import type { SeenLog } from "./readerMemory";
 
 // ---- typed-artifact signatures (the honest "UPDATED" trigger) -------------------------------
-// A story's signature is the set of typed artifacts behind it: its anchor plus every support
-// link (paper / article / episode ids). Shares, reposts, and like counts are deliberately NOT
-// in the signature — "+N shares" must never read as "UPDATED".
+// A story's signature contains only material artifacts: its anchor, attached papers, and whether
+// it has acquired its first podcast discussion. Routine coverage articles and additional episodes
+// add useful evidence, but they do not make the underlying development "UPDATED". Shares, reposts,
+// and like counts are also deliberately absent — "+N shares" must never read as "UPDATED".
 
 export const artifactSig = (card: HeroCard): string[] => {
   const ids = new Set<string>([`${card.kind}:${card.anchorId}`]);
-  for (const link of card.support?.links ?? []) ids.add(`${link.kind}:${link.id}`);
+  for (const link of card.support?.links ?? []) {
+    if (link.kind === "paper") ids.add(`paper:${link.id}`);
+    if (link.kind === "episode") ids.add("episode:first");
+  }
   return [...ids].sort();
 };
 
@@ -29,16 +33,22 @@ export const artifactSig = (card: HeroCard): string[] => {
 export const storySig = (story: BriefingStory): string[] => {
   const ids = new Set<string>();
   for (const p of story.papers ?? []) ids.add(`paper:${p.url ?? p.title}`);
-  for (const pod of story.podcast ?? []) if (pod.episodeId) ids.add(`episode:${pod.episodeId}`);
+  if ((story.podcast ?? []).some((pod) => pod.episodeId)) ids.add("episode:first");
   return [...ids].sort();
 };
 
 export const gainReason = (gained: string[]): string | null => {
   const kinds = new Set(gained.map((g) => g.split(":")[0]));
   if (kinds.has("paper")) return "Paper added";
-  if (kinds.has("article")) return "Article added";
   if (kinds.has("episode")) return "Podcast discussion added";
   return gained.length ? "Source added" : null;
+};
+
+const hadArtifact = (previous: string[], artifact: string): boolean => {
+  // Older seen logs stored exact episode ids. Treat any of those as the already-seen first
+  // discussion so this stricter signature does not manufacture an UPDATED row after rollout.
+  if (artifact === "episode:first") return previous.some((item) => item.startsWith("episode:"));
+  return previous.includes(artifact);
 };
 
 // Plain receipt counts for one card, resolved next door in allCardMetrics.ts. The conversation
@@ -130,7 +140,7 @@ export function computeBand(opts: {
         if (!Number.isFinite(firstMs) || firstMs > lastVisitMs) rows.push({ card, area, status: "new", reason: null, score });
         return;
       }
-      const gained = artifactSig(card).filter((x) => !rec.sig.includes(x));
+      const gained = artifactSig(card).filter((x) => !hadArtifact(rec.sig, x));
       if (gained.length) rows.push({ card, area, status: "updated", reason: gainReason(gained), score });
     });
   }

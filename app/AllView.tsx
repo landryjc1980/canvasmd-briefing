@@ -140,7 +140,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   //     finishing and SHOULD appear the moment the last item is read.
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set(Object.keys(memory.seenLog)));
   const [seenAtLoad] = useState<ReadonlySet<string>>(() => new Set(Object.keys(memory.seenLog)));
-  const [sessionSeen, setSessionSeen] = useState<Set<string>>(() => new Set());
   // One open hero card across every specialty rail (controlled mode) — lets a band row or
   // approvals row auto-open the card it points at.
   const [heroOpen, setHeroOpen] = useState<string | null>(null);
@@ -184,7 +183,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const info = idMapRef.current.get(sid);
     recordSeen(sid, info?.sig ?? []);
     setSeenIds((prev) => (prev.has(sid) ? prev : new Set(prev).add(sid)));
-    setSessionSeen((prev) => (prev.has(sid) ? prev : new Set(prev).add(sid)));
     if (info) logStorySeen(info.area, sid, undefined, { label: info.label, kind: info.kind, trigger, surface: "all" });
   };
   const markSeenRef = useRef(markSeen);
@@ -854,13 +852,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       </div>
       {bandRows.map((row, i) => {
         const acc = accentOf(row.area);
-        const visited = sessionSeen.has(row.card.id);
         const kicker = row.status === "updated" && row.reason ? row.reason : (KIND_KICKER[row.card.kind] ?? row.card.kind);
         const activate = () => pointTo(row.card, row.area, "since_band");
         return (
           <div key={row.card.id} role="button" tabIndex={0} onClick={activate}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
-            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: i < bandRows.length - 1 || sinceEpisodes.length > 0 ? "1px solid #eceae5" : "none", cursor: "pointer", opacity: visited ? DIM : 1, transition: "opacity .35s ease" }}>
+            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: i < bandRows.length - 1 || sinceEpisodes.length > 0 ? "1px solid #eceae5" : "none", cursor: "pointer" }}>
             {row.status === "new"
               ? <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: "#fff", background: ALL_ACCENT, borderRadius: 5, padding: "3px 7px" }}>NEW</span>
               : <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: ALL_ACCENT, background: "#fff", border: `1px solid ${ALL_ACCENT}`, borderRadius: 5, padding: "2px 6px" }}>UPDATED</span>}

@@ -140,7 +140,7 @@ test("UPDATED fires on a GAINED typed artifact, and carries the reason", () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0].status, "updated");
   assert.equal(rows[0].reason, "Paper added");
-  assert.equal(gainReason(["episode:e1"]), "Podcast discussion added");
+  assert.equal(gainReason(["episode:first"]), "Podcast discussion added");
 
   // an unchanged signature is NOT news, however much the counts moved
   const same = computeBand({
@@ -149,6 +149,30 @@ test("UPDATED fires on a GAINED typed artifact, and carries the reason", () => {
     firstObserved: { s1: iso(NOW - 3 * DAY) }, lastVisit: YESTERDAY, now: new Date(NOW),
   });
   assert.deepEqual(same, []);
+});
+
+test("routine coverage and additional podcast episodes do not trigger UPDATED", () => {
+  const support = (links) => ({ clinicianPosts: [], publisherPosts: [], links });
+  const first = card("s1", "event", { support: support([
+    { kind: "episode", id: "e1" },
+    { kind: "article", id: "coverage-1" },
+  ]) });
+  const later = card("s1", "event", { support: support([
+    { kind: "episode", id: "e1" },
+    { kind: "episode", id: "e2" },
+    { kind: "article", id: "coverage-2" },
+  ]) });
+  assert.deepEqual(artifactSig(first), ["episode:first", "event:s1"]);
+  assert.deepEqual(artifactSig(later), artifactSig(first));
+
+  const rows = computeBand({
+    perArea: [{ area: "GU", entries: [{ card: later, metrics: { clinicians: 10, spanDays: null, podcasts: 2 } }] }],
+    areaOrder: AREAS,
+    // Exact episode ids are the pre-rollout storage shape and must remain compatible.
+    seen: { s1: { at: YESTERDAY, sig: ["event:s1", "episode:e1"] } },
+    firstObserved: { s1: iso(NOW - 3 * DAY) }, lastVisit: YESTERDAY, now: new Date(NOW),
+  });
+  assert.deepEqual(rows, []);
 });
 
 test("+N shares NEVER trigger UPDATED — the signature holds typed artifacts only", () => {
@@ -243,4 +267,10 @@ test("seen-state keys on the durable anchor id, never the per-build index id", (
   assert.doesNotMatch(source, /markSeen\(\s*`all:/);
   assert.doesNotMatch(source, /recordSeen\(\s*`all:/);
   assert.match(source, /data-sid=\{s\.id\}/);
+});
+
+test("reading a Since-band row during this visit never dims it", () => {
+  const source = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /sessionSeen/);
+  assert.doesNotMatch(source, /opacity:\s*visited/);
 });
