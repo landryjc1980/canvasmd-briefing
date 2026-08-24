@@ -26,6 +26,11 @@ export const KIND_KICKER: Record<HeroCard["kind"], string> = {
 // its own card anatomy (rank numeral, KIND · AREA kicker) but must open evidence the same way a
 // hero card does — John, 2026-08-24: "the expanding to see evidence is different than for the
 // stories, why not just make it the same." Two surfaces on one page cannot drift on this label.
+// How far an already-read card fades. Kept at parity with AllView's DIM: the mock's .55 put the
+// kicker and receipts line under 4:1 contrast, which made a read row hard to read rather than
+// merely quiet. Only ever applied to a CLOSED card.
+export const SEEN_DIM = 0.72;
+
 export const heroEvidenceLabel = (open: boolean, compact: boolean, hasFaces: boolean): string =>
   open ? "Hide conversation ↑" : compact ? "Evidence ↓" : hasFaces ? "Conversation & evidence ↓" : "See evidence ↓";
 
@@ -66,11 +71,13 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
         const ev = evidenceOf?.(c) ?? null;
         const why = evidenceBackedHeroWhy(c.why, !!ev);
         const drawerId = `${idPrefix ? `${idPrefix}-` : ""}hero-ev-${c.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-        // Seen-state (All page): a seen card dims while closed; an unseen one carries a quiet
+        // Seen-state (All page): a seen card dims while CLOSED; an unseen one carries a quiet
         // 6px area-accent dot beside the kicker. No badges, no counts — no unread anxiety.
+        // The open card returns to full ink: its drawer renders inside this <article>, and faded
+        // evidence is exactly what someone who just clicked "show me the sources" must not get.
         const dimmed = !!seenIds?.has(c.id) && openId !== c.id;
         return (
-          <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={{ ...(compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : {}), ...(seenIds ? { opacity: dimmed ? 0.55 : 1, transition: "opacity .35s ease" } : {}) }}>
+          <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={{ ...(compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : {}), ...(seenIds ? { opacity: dimmed ? SEEN_DIM : 1, transition: "opacity .35s ease" } : {}) }}>
           <div className="hero-row" style={{ alignItems: "baseline" }}>
             <div style={{ minWidth: 0 }}>
               <div className="readout-hero-kicker" style={{ font: `700 ${compact ? 9 : 11}px system-ui`, letterSpacing: compact ? "0.12em" : "0.14em", textTransform: "uppercase", color: accent }}>

@@ -9,7 +9,7 @@ import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, Stor
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf, clipTs } from "./briefVM";
-import HeroCards, { HeroEvidence, KIND_KICKER, heroEvidenceLabel } from "./HeroCards";
+import HeroCards, { HeroEvidence, KIND_KICKER, heroEvidenceLabel, SEEN_DIM } from "./HeroCards";
 import { pickConversationPreview, resolveHeroEvidence } from "./heroEvidence";
 import { featuredHeroPaperKeys, visibleAllHeroCards } from "./allHeroContract";
 import { distinctSourceAnchorCount } from "./clientEvidence";
@@ -44,6 +44,13 @@ const AREA_ACCENTS: Record<string, string> = {
   Skin: "#6d28d9",
 };
 const accentOf = (area: string) => AREA_ACCENTS[area] ?? ALL_ACCENT;
+// How far an already-read story fades — ONE value shared with the hero cards, so the deck, the
+// rails and the band can't drift apart. NOT the mock's .55: INK at 55% over PAPER lands around
+// #7a7b7d, which is ~3.9:1 — under the 4.5:1 the kicker and receipts line need, so a read row
+// became genuinely hard to read rather than merely quiet (John, 2026-08-24). At .72 it resolves
+// near #555557 (~6.8:1) and still reads as clearly de-emphasised beside a full-ink row, with the
+// missing accent dot carrying the rest of the signal.
+const DIM = SEEN_DIM;
 const ago = (iso: string) => {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 60) return mins < 1 ? "just now" : `${mins}m ago`;
@@ -763,7 +770,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     const isSeen = seenAtLoad.has(s.id);
     const headlineFont = lead ? (compact ? "500 20px/1.18" : "500 21px/1.18") : (compact ? "500 17.5px/1.3" : "500 18.5px/1.25");
     return (
-      <div key={id} className="readout-story-card" data-sid={s.id} data-ssurface="all_rail" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0, opacity: isSeen && !open ? 0.55 : 1, transition: "opacity .35s ease" }}>
+      <div key={id} className="readout-story-card" data-sid={s.id} data-ssurface="all_rail" style={{ background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, ...(lead ? { borderLeft: `3px solid ${acc}` } : {}), borderRadius: 0, padding: "0 2px", marginBottom: 0, opacity: isSeen && !open ? DIM : 1, transition: "opacity .35s ease" }}>
         <Row open={open} onToggle={() => { if (!open) markSeen(s.id, "expand"); toggle(id); }} accent={acc} landOffset={compact ? 108 : 70}
           head={
             <div style={{ display: "flex", alignItems: "flex-start", padding: lead ? "18px 2px" : "15px 2px" }}>
@@ -853,7 +860,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         return (
           <div key={row.card.id} role="button" tabIndex={0} onClick={activate}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
-            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: i < bandRows.length - 1 || sinceEpisodes.length > 0 ? "1px solid #eceae5" : "none", cursor: "pointer", opacity: visited ? 0.55 : 1, transition: "opacity .35s ease" }}>
+            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: i < bandRows.length - 1 || sinceEpisodes.length > 0 ? "1px solid #eceae5" : "none", cursor: "pointer", opacity: visited ? DIM : 1, transition: "opacity .35s ease" }}>
             {row.status === "new"
               ? <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: "#fff", background: ALL_ACCENT, borderRadius: 5, padding: "3px 7px" }}>NEW</span>
               : <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: ALL_ACCENT, background: "#fff", border: `1px solid ${ALL_ACCENT}`, borderRadius: 5, padding: "2px 6px" }}>UPDATED</span>}
@@ -925,7 +932,11 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           // Border set in LONGHAND: the deck reorders as late areas land, so a card can move out
           // of the lead slot on a rerender — mixing the `border` shorthand with a conditional
           // borderLeft makes React drop the whole shorthand when it diffs that change.
-          <div key={c.id} className="readout-story-card" data-sid={c.id} data-ssurface="all_deck" style={{ background: "transparent", borderStyle: "solid", borderColor: `${LINE}`, borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 1, borderLeftWidth: lead ? 3 : 0, borderLeftColor: acc, borderRadius: 0, padding: 0, marginBottom: 0, opacity: isSeen ? 0.55 : 1 }}>
+          <div key={c.id} className="readout-story-card" data-sid={c.id} data-ssurface="all_deck" style={{ background: "transparent", borderStyle: "solid", borderColor: `${LINE}`, borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 1, borderLeftWidth: lead ? 3 : 0, borderLeftColor: acc, borderRadius: 0, padding: 0, marginBottom: 0,
+            // `&& !open`: the drawer renders INSIDE this box, so a dimmed card would hand back
+            // faded evidence — abstracts, posts and receipts — to someone who just asked to read
+            // it. Opening a story always restores full ink.
+            opacity: isSeen && !open ? DIM : 1 }}>
             <div style={{ display: "flex", gap: compact ? 12 : 16, padding: lead ? "18px 2px 18px 14px" : "15px 2px 15px 17px" }}>
               {/* longhand, not the `font` shorthand — it sits beside fontVariantNumeric, and
                   React warns (and drops one) when both describe the same element */}
@@ -961,7 +972,12 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   </div>
                 )}
                 {c.kind === "episode" && discloseBtn}
-                {ev && open && <div id={drawerId} className="rv-drawer" style={{ marginTop: 12 }}>{ev.drawer}</div>}
+                {/* No .rv-drawer fade here: the hero cards in the rails open their drawer with no
+                    animation, so adding one would be a fresh difference between the two expanders.
+                    It is also a real hazard — that class starts at opacity 0 and animates up, so
+                    anywhere CSS animations don't run (the same embedded webviews where rAF and
+                    IntersectionObserver are suspended) the evidence would render invisible. */}
+                {ev && open && <div id={drawerId} style={{ marginTop: 12 }}>{ev.drawer}</div>}
               </div>
             </div>
           </div>
@@ -1300,7 +1316,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                           shareUrlOf={(card) => `/r/${heroSlugFor(card.kind, card.headline, card.id)}`}
                           // Seen-state + one open drawer across every rail, so a Since-your-last-read
                           // row can open the card it points at wherever that card lives.
-                          seenIds={seenIds}
+                          seenIds={seenAtLoad}
                           unseenDot={acc}
                           openId={heroOpen}
                           onOpenChange={(id) => { setHeroOpen(id); if (id) markSeen(id, "expand"); }}
