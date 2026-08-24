@@ -3,6 +3,7 @@
 
 # next
 /.next/
+/.next-iso/
 /out/
 next-env.d.ts
 
