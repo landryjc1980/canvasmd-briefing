@@ -35,3 +35,10 @@ test("All Oncology exposes the same listening and paper interactions as specialt
   assert.match(source, /contextLabel=\{area\}/);
   assert.match(source, /\{groupsJsx\}\{podcastsJsx\}\{readingJsx\}\{voicesInline\}/);
 });
+
+test("All Oncology does not collapse distinct podcast titles by a shared prefix", () => {
+  const source = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+  const episodeKey = source.match(/const epKey = [^;]+;/)?.[0] ?? "";
+  assert.match(episodeKey, /replace\(\/\\s\+\/g, ""\)/);
+  assert.doesNotMatch(episodeKey, /slice\(0,\s*34\)/);
+});

@@ -185,7 +185,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   type MicEntry = { key: string; name: string; aff: string | null; verified: boolean; avatar: string | null; areas: string[]; guestEps: Map<string, EpRec>; hostEps: Map<string, EpRec>; hostShow: string | null; career: number };
   // mirror the server's guestKey: strip numbered-episode prefixes so the same syndicated talk
   // ("Ep. 12: X" on one feed, "X" on another) can't double-count across areas
-  const epKey = (t: string | null) => norm((t ?? "").replace(/^\s*(ep\.?\s*\d+|episode\s*\d+|#\s*\d+|part\s*\d+)\s*[:.\-–—]*\s*/i, "")).replace(/\s+/g, "").slice(0, 34);
+  const epKey = (t: string | null) => norm((t ?? "").replace(/^\s*(ep\.?\s*\d+|episode\s*\d+|#\s*\d+|part\s*\d+)\s*[:.\-–—]*\s*/i, "")).replace(/\s+/g, "");
   // X avatars for mic rows: prefer the payload's avatar (people→x_sources, post-2026-07-24
   // snapshots); fall back to a name-match against the week's X-active KOLs so faces show up
   // against older snapshots too. Initials remain the final fallback.
