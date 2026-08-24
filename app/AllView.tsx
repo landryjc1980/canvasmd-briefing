@@ -935,7 +935,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           const podcastsJsx = allEpisodes.length > 0 && (
             <section id="all-listen" style={{ marginTop: compact ? 46 : 54, scrollMarginTop: 100 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
-              <h2 style={{ flex: "none", font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Podcasts from current specialty briefs</h2>
+                <h2 style={{ flex: "0 1 auto", minWidth: 0, font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Podcasts from current specialty briefs</h2>
                 <span aria-hidden style={{ height: 1, flex: 1, background: LINE }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", marginBottom: 24 }}>
