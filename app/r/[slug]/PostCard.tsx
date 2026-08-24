@@ -63,7 +63,7 @@ function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): Hero
       drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
     };
   }
-  if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
+  if (resolved.kind === "episode") return { faces: resolved.faces, playback: resolved.playback, drawer: (
     <>
       <StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />
       {((card.announcements ?? []).length > 0 || (card.amplifiers ?? []).length > 0) && <EpisodeXReceipts announcements={card.announcements ?? []} amplifiers={card.amplifiers ?? []} accent={accent} />}

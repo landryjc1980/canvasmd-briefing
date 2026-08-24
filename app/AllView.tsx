@@ -214,8 +214,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // also guested). Two co-hosts each showing the same episode is simply true — the same way two
   // guests on one episode both count it.
   for (const m of mics.values()) m.hostShow = m.hostEps.size ? ([...m.hostEps.values()][0].show ?? m.hostShow) : null;
-  const micValue = (m: MicEntry) => m.guestEps.size + (m.hostEps.size ? 1 : 0); // host credit capped at 1/wk
-  const epCount = (m: MicEntry) => m.guestEps.size + m.hostEps.size; // what the chip displays
+  const micEpisodes = (m: MicEntry) => [...new Map([
+    ...m.guestEps.entries(),
+    ...m.hostEps.entries(),
+  ]).values()];
+  const micValue = (m: MicEntry) => m.guestEps.size +
+    ([...m.hostEps.keys()].some((key) => !m.guestEps.has(key)) ? 1 : 0); // host credit capped at 1/wk, never twice for one episode
+  const epCount = (m: MicEntry) => micEpisodes(m).length; // one episode stays one even if role extraction disagrees
   const micsRanked = [...mics.values()]
     .filter((m) => micValue(m) > 0)
     // credit first (hosting counts once/wk), then the DISPLAYED episode count, then career.
@@ -453,7 +458,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by podcast appearances</span>
       </div>}
       {micsShown.map((m) => {
-        const eps = [...m.guestEps.values(), ...m.hostEps.values()];
+        const eps = micEpisodes(m);
         // The chip shows the REAL episode count — the host-credit cap is a RANKING rule only
         // (stated in the footnote), never a displayed number (2026-07-24 adversarial review:
         // the capped micValue rendered "1 episode" above a drawer holding three).
@@ -559,7 +564,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
       };
     }
-    if (resolved.kind === "episode") return { faces: resolved.faces, drawer: (
+    if (resolved.kind === "episode") return { faces: resolved.faces, playback: resolved.playback, drawer: (
       <>
         <StoryEvidence story={{ podcast: resolved.pods, posts: [], papers: [], kind: "episode" }} accent={accent} paperLabel="Papers" />
         {((card.announcements ?? []).length > 0 || (card.amplifiers ?? []).length > 0) && <EpisodeXReceipts announcements={card.announcements ?? []} amplifiers={card.amplifiers ?? []} accent={accent} />}

@@ -27,7 +27,7 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // legacy arrays): faces for the pile, and a lazily-rendered receipts drawer. RECEIPTS RULE
 // (John, 2026-08-09): a count like "shared by 13 clinicians" must open into WHO and WHAT
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
-export type HeroEvidence = { faces: string[]; drawer: ReactNode; context?: string | null; contextLabel?: "Abstract" | "Source context"; preview?: ReactNode } | null;
+export type HeroEvidence = { faces: string[]; drawer: ReactNode; context?: string | null; contextLabel?: "Abstract" | "Source context"; preview?: ReactNode; playback?: import("@/lib/types").BriefingPod } | null;
 
 export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string }) {
   // defaultOpenId opens one card's evidence drawer on mount — the standalone /r/<slug> post page
@@ -62,7 +62,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               </div>
               <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{c.sourceLabel}</div>
               <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
-                {c.url && c.kind !== "episode" ? <a href={c.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
+                {c.url ? <a href={c.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
               </h3>
               {c.excerpt && (
                 <p className="hero-excerpt" style={{ font: compact ? "400 13.5px/1.5 system-ui" : undefined, color: ink.soft, margin: compact ? "8px 0 0" : undefined, ...(compact && openId !== c.id ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } : {}) }}>
@@ -117,9 +117,9 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
               {/* Episodes get the REAL seeking player (media fragment + JS re-seek) — a bare
                   href on a podcast enclosure opens at 0:00, which fails "reach the original
                   moment" (Codex acceptance item). */}
-              {c.kind === "episode" && c.startMs != null && c.url && (
+              {c.kind === "episode" && ev?.playback?.audioUrl && (
                 <div style={{ marginTop: 10, width: "100%" }}>
-                  <AudioQuote audioUrl={c.url} startMs={c.startMs} durationSeconds={c.durationSeconds} label="Listen to the clip" eventId={c.id} eventLabel={c.headline} accent={accent} tone="dark" />
+                  <AudioQuote audioUrl={ev.playback.audioUrl} startMs={ev.playback.startMs ?? 0} durationSeconds={ev.playback.durationSeconds ?? c.durationSeconds} label="Listen to the clip" eventId={c.id} eventLabel={c.headline} accent={accent} tone="dark" />
                 </div>
               )}
               {ev && c.kind === "episode" && (

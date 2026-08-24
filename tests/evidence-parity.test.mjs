@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import { canvasmdFile } from "./paired-repo.mjs";
-import { paperClinicianMeta, representedClinicianCount } from "../app/heroEvidence.ts";
+import { paperClinicianMeta, representedClinicianCount, representedClinicianCountAcrossLanes } from "../app/heroEvidence.ts";
 
 const webReader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
 const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
@@ -18,6 +18,7 @@ const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections
 const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
 const nativeDaily = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
 const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/StoryEvidence.tsx"), "utf8");
+const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
 const heroPost = fs.readFileSync(new URL("../app/heroPost.ts", import.meta.url), "utf8");
 
@@ -55,6 +56,11 @@ const representedReceipts = [
 test("rendered paper evidence discloses receipts without inflating the authoritative census", () => {
   assert.equal(representedClinicianCount(representedReceipts), 3);
   assert.equal(representedClinicianCount(undefined), 0);
+  assert.equal(representedClinicianCountAcrossLanes(
+    [{ name: "Clinician", handle: "clinician", repostedBy: [{ name: "Reposter A", handle: "reposter_a" }] }],
+    [{ name: "Journal", handle: "journal", repostedBy: [{ name: "Reposter B", handle: "reposter_b" }] }],
+    [{ name: "Research group", handle: "group", repostedBy: [{ name: "Reposter A", handle: "reposter_a" }] }],
+  ), 3, "publisher authors stay out while their inspectable clinician reposters count once");
   const nativeRepresentedClinicianCount = loadExportedFunction(nativeCards, "representedClinicianCount");
   assert.equal(nativeRepresentedClinicianCount(representedReceipts), 3);
   assert.equal(nativeRepresentedClinicianCount(undefined), 0);
@@ -64,6 +70,31 @@ test("rendered paper evidence discloses receipts without inflating the authorita
   assert.match(webReader, /Math\.min\(paper\.kolSharers, paper\.revealableClinicianCount \?\? 0\)/);
   assert.match(webFlat, /Math\.min\(a\.kolSharers, a\.revealableClinicianCount \?\? 0\)/);
   assert.match(nativeSections, /Math\.min\(a\.kolSharers \?\? 0, a\.revealableClinicianCount \?\? 0\)/);
+  assert.match(webReader, /representedClinicianCountAcrossLanes\(posts, publisherPosts, otherPosts\)/);
+  assert.match(nativeStoryEvidence, /representedClinicianCountAcrossLanes\(posts, publisherPosts, otherPosts\)/);
+});
+
+test("hero podcast playback uses the retained enclosure while the headline keeps the canonical page", () => {
+  assert.match(webHero, /audioUrl=\{ev\.playback\.audioUrl\}/);
+  assert.match(webHero, /c\.url \? <a href=\{c\.url\}/);
+  assert.doesNotMatch(webHero, /audioUrl=\{c\.url\}/);
+  assert.match(nativeHero, /audioUrl: receipt\.audioUrl/);
+  assert.match(nativeHero, /c\.url \? \(/);
+  assert.doesNotMatch(nativeHero, /audioUrl: c\.url/);
+});
+
+test("native labels and paper commentary copy match mobile web", () => {
+  assert.match(nativeHero, /episode: "Episode"/);
+  assert.match(nativeHero, /development: "Development"/);
+  assert.doesNotMatch(nativeHero, /In-depth episode|Breaking development/);
+  assert.match(nativeSections, /authored post/);
+  assert.doesNotMatch(nativeSections, /commented/);
+});
+
+test("All Oncology counts one podcast episode once when role extraction disagrees", () => {
+  assert.match(webAll, /const micEpisodes =/);
+  assert.match(webAll, /const epCount = \(m: MicEntry\) => micEpisodes\(m\)\.length/);
+  assert.match(webAll, /!m\.guestEps\.has\(key\)/);
 });
 
 test("authored commentary excludes classic reposts, link-only shares, and nested reposters", () => {

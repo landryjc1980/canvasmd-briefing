@@ -30,9 +30,10 @@ test("paper falls back to topArticles WITH publisher receipts", () => {
 });
 test("episode resolves ALL moment refs in card order — or nothing (count must never silently shrink)", () => {
   const movers = [{ podcast: [pod("e1", 100), pod("e1", 300), pod("e1", 200), pod("e2", 999)] }];
-  const full = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "a", headline: "E", momentStartMs: [300, 100] }, { topStories: [], topArticles: [], movers });
+  const full = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "canonical-page", headline: "E", startMs: 100, momentStartMs: [300, 100] }, { topStories: [], topArticles: [], movers });
   assert.equal(full?.kind, "episode");
   assert.deepEqual(full.pods.map((p) => p.startMs), [300, 100], "card order preserved, exactly the refs — 200 never re-selected in");
+  assert.equal(full.playback.startMs, 100, "playback uses the exact selected moment receipt rather than the canonical page URL");
   const partial = resolveHeroEvidence({ kind: "episode", anchorId: "e1", url: "a", headline: "E", momentStartMs: [300, 100, 555] }, { topStories: [], topArticles: [], movers });
   assert.equal(partial, null, "ANY unresolvable ref → no drawer; a partial drawer would contradict the card count");
 });

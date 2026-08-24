@@ -53,6 +53,32 @@ export function representedClinicianCount(posts: BriefingSharer[] | null | undef
   return count;
 }
 
+export function representedClinicianCountAcrossLanes(
+  clinicianPosts: BriefingSharer[] | null | undefined,
+  publisherPosts: BriefingSharer[] | null | undefined,
+  otherPosts: BriefingSharer[] | null | undefined,
+): number {
+  const identities = new Set<string>();
+  let count = 0;
+  const add = (person: { name?: string | null; handle?: string | null; tweetUrl?: string | null }) => {
+    const handle = person.handle?.replace(/^@/, "").trim().toLowerCase();
+    const name = person.name?.replace(/\s+/g, " ").trim().toLowerCase();
+    const url = person.tweetUrl?.trim().toLowerCase();
+    const aliases = [handle && `handle:${handle}`, name && `name:${name}`, url && `url:${url}`].filter((x): x is string => !!x);
+    if (!aliases.length) return;
+    if (!aliases.some((alias) => identities.has(alias))) count += 1;
+    aliases.forEach((alias) => identities.add(alias));
+  };
+  for (const post of clinicianPosts ?? []) {
+    add(post);
+    for (const reposter of post.repostedBy ?? []) add(reposter);
+  }
+  for (const post of [...(publisherPosts ?? []), ...(otherPosts ?? [])]) {
+    for (const reposter of post.repostedBy ?? []) add(reposter);
+  }
+  return count;
+}
+
 // The backend clinician census is authoritative. `shown` only discloses how many
 // clinician receipts the payload can reveal; it must never increase that census.
 export function paperClinicianMeta(shown: number, total?: number | null): string | undefined {
@@ -93,7 +119,7 @@ const evidenceFaces = (...groups: (BriefingSharer[] | null | undefined)[]): stri
 export type ResolvedEvidence =
   | { kind: "paper"; story: unknown; faces: string[]; publisherPosts: BriefingSharer[]; otherPosts: BriefingSharer[]; supportLinks: HeroSupportLink[] }
   | { kind: "article"; posts: BriefingSharer[]; faces: string[]; publishers: string[]; publisherPosts: BriefingSharer[]; otherPosts: BriefingSharer[]; paper: Record<string, unknown>; supportLinks: HeroSupportLink[] }
-  | { kind: "episode"; pods: BriefingPod[]; faces: string[] }
+  | { kind: "episode"; pods: BriefingPod[]; playback: BriefingPod; faces: string[] }
   | { kind: "thread"; post: BriefingSharer; faces: string[] }
   | { kind: "event"; posts: BriefingSharer[]; publisherPosts: BriefingSharer[]; otherPosts: BriefingSharer[]; supportLinks: HeroSupportLink[]; faces: string[] }
   | null;
@@ -136,7 +162,7 @@ export function sliceBriefForCard(c: HeroCard, data: CardBrief): CardBrief {
 }
 
 export function resolveHeroEvidence(
-  c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "momentStartMs" | "amplifiers" | "support">,
+  c: Pick<HeroCard, "kind" | "anchorId" | "url" | "headline" | "startMs" | "momentStartMs" | "amplifiers" | "support">,
   data: Pick<BriefingData, "topStories" | "topArticles" | "movers" | "heroCandidates">,
 ): ResolvedEvidence {
   if (c.kind === "development" && c.support) {
@@ -176,8 +202,9 @@ export function resolveHeroEvidence(
     const maybe = refs.map((ms) => all.find((p) => p.startMs === ms));
     if (!refs.length || maybe.some((p) => !p)) return null;
     const pods = maybe as BriefingPod[];
+    const playback = all.find((p) => p.startMs === c.startMs) ?? pods[0];
     const ampFaces = (c.amplifiers ?? []).map((a) => a.avatar).filter((a): a is string => !!a);
-    return { kind: "episode", pods, faces: [...ampFaces, ...pods.map((p) => p.showArt).filter((a): a is string => !!a)].slice(0, 4) };
+    return { kind: "episode", pods, playback, faces: [...ampFaces, ...pods.map((p) => p.showArt).filter((a): a is string => !!a)].slice(0, 4) };
   }
   if (c.kind === "thread") {
     const post = (data.movers ?? []).flatMap((m) => m.posts ?? []).find((p) => p.tweetUrl === c.url);

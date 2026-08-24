@@ -9,7 +9,7 @@ import AudioQuote from "@/components/AudioQuote";
 import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, authoredClinicianCount, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
-import { paperClinicianMeta, pickConversationPreview, representedClinicianCount, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
+import { paperClinicianMeta, pickConversationPreview, representedClinicianCount, representedClinicianCountAcrossLanes, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 import DailyConversationEvidence from "./DailyConversationEvidence";
@@ -654,7 +654,7 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = unrepresentedPublishers(story.papers.flatMap((pp) => pp.publishers ?? []), publisherPosts); return pubs.length ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         const posts = p.posts?.length ? p.posts : p.sharers;
-        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCount(posts), total)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCountAcrossLanes(posts, publisherPosts, otherPosts), total)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
       }} /></div>}
     </>
   );
@@ -1050,7 +1050,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
       const context = paper.abstract?.replace(/\s+/g, " ").trim() || paper.description?.replace(/\s+/g, " ").trim() || null;
       return { faces: r.faces, context, contextLabel: paper.abstract ? "Abstract" : "Source context", preview: firstPost ? <TweetCard t={firstPost} compact /> : null, drawer: <StoryEvidence story={{ podcast: [], posts: r.posts, papers: [paper], kind: "paper", publisherPosts: r.publisherPosts, otherPosts: r.otherPosts, supportLinks: r.supportLinks }} accent={pal.accent} paperLabel="The paper" /> };
     }
-    if (r.kind === "episode") return { faces: r.faces, drawer: (
+    if (r.kind === "episode") return { faces: r.faces, playback: r.playback, drawer: (
       <>
         <StoryEvidence story={{ podcast: r.pods, posts: [], papers: [], kind: "episode" }} accent={pal.accent} paperLabel="Papers" />
         {((c.announcements ?? []).length > 0 || (c.amplifiers ?? []).length > 0) && (
