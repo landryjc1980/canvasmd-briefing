@@ -66,9 +66,8 @@ test("web evidence controls meet target and contrast contracts", () => {
   assert.equal((stance.match(/minHeight: 44/g) ?? []).length >= 3, true);
   assert.match(hero, /c\.url[\s\S]{0,260}minHeight: 44/);
   assert.match(hero, /sb\.url[\s\S]{0,240}minHeight: 44/);
-  assert.match(reader, /p\.refs[\s\S]{0,420}minHeight: 44/);
+  assert.match(reader, /hasSources &&[\s\S]{0,520}minHeight: 44/);
   assert.match(reader, /\[\[`\$\{data\.windowDays\}-day brief`, false\][\s\S]{0,420}minHeight: 44/);
-  assert.match(nativeBriefing, /sourceLinks\(story\)[\s\S]{0,300}minHeight: 44/);
   assert.match(nativeBriefing, /\[\[`\$\{data\?\.windowDays \?\? 14\}-day brief`, false\][\s\S]{0,520}minHeight: 44/);
   assert.match(nativeHero, /sibling\.url![\s\S]{0,180}minHeight: 44/);
   assert.match(css, /\.aq-range\s*\{[\s\S]*?height: 44px/);

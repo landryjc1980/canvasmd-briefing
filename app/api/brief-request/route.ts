@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mintMagicToken, mintUnsubToken } from "@/lib/gate";
 import { siteUrl, areaLabel } from "@/lib/gateServer";
-import { findContactByEmail, upsertContact, setDailyOptIn, setDefaultArea, logEvent } from "@/lib/db";
+import { findContactByEmail, upsertContact, setDefaultArea, logEvent } from "@/lib/db";
 import { sendMagicLink } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
   // `chosen` = they tapped a focus chip (a deliberate answer); area may also arrive URL-derived
   // (which link they hit the wall on) — that still seeds a NEW contact but never overwrites.
   const chosen = body?.chosen === true && (area === null || ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(area));
-  const daily = body?.daily === true; // "email me The Daily" checkbox — explicit opt-in only
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ ok: false, error: "Enter a valid work email." }, { status: 400 });
   }
@@ -38,10 +37,9 @@ export async function POST(req: NextRequest) {
   // sign-in link, and shown the same generic reply as an approved user (no membership leak).
   if (!contact || contact.status !== "active") {
     if (!contact) {
-      const pending = await upsertContact({ email, source: "self", status: "pending", defaultArea: area, dailyOptIn: daily });
+      const pending = await upsertContact({ email, source: "self", status: "pending", defaultArea: area });
       await logEvent({ contactId: pending.id, kind: "access_request", area, meta: { domain, newDomain: !FREEMAIL.has(domain), source: "welcome" } }).catch(() => {});
     } else if (contact.status === "pending") {
-      if (daily && !contact.daily_opt_in) await setDailyOptIn(contact.id, true).catch(() => {});
       if (chosen) await setDefaultArea(contact.id, area ?? "All").catch(() => {});
       await logEvent({ contactId: contact.id, kind: "access_request", area, meta: { domain, repeat: true } }).catch(() => {});
     }
@@ -52,7 +50,6 @@ export async function POST(req: NextRequest) {
   // actively viewing (URL `area`), else the neutral "oncology" — never fall back to default_area
   // (seed/URL-derived, not a deliberate specialty choice).
   const base = siteUrl(req);
-  if (daily && !contact.daily_opt_in) await setDailyOptIn(contact.id, true).catch(() => {});
   if (chosen) await setDefaultArea(contact.id, area ?? "All").catch(() => {});
   const token = await mintMagicToken(contact.id);
   const link = `${base}/api/brief-auth?t=${token}${area ? `&area=${encodeURIComponent(area)}` : ""}`;

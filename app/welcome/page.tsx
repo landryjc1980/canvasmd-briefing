@@ -5,7 +5,7 @@
 // every submit is a lead — a new corporate domain is a sales signal.
 //
 // Styled on the paper/ink system the product itself uses (John 2026-08-18: the old navy
-// gate no longer matched the brand) — same tokens as ReaderView/AllView and the Daily email.
+// gate no longer matched the brand) — same tokens as ReaderView/AllView.
 
 import { useEffect, useState } from "react";
 
@@ -22,7 +22,6 @@ export default function Welcome() {
   const [expired, setExpired] = useState(false);
   const [area, setArea] = useState<string | null>(null);
   const [chosen, setChosen] = useState(false); // true once they TAP a focus chip (vs URL-derived)
-  const [daily, setDaily] = useState(true); // default ON (John): opt-out, not opt-in
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -43,7 +42,7 @@ export default function Welcome() {
         method: "POST", headers: { "content-type": "application/json" },
         // Submitting with a visibly highlighted chip counts as an answer, even if it was
         // pre-filled from the URL they arrived on and they never tapped it.
-        body: JSON.stringify({ email, area, chosen: chosen || area !== null, daily }),
+        body: JSON.stringify({ email, area, chosen: chosen || area !== null }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) { setState("error"); setMsg(j.error || "Something went wrong."); return; }
@@ -85,7 +84,7 @@ export default function Welcome() {
                 placeholder="you@company.com" autoComplete="email" style={input}
               />
               {/* The specialty question, asked ONCE at the door — it decides which edition of the
-                  brief and The Daily this reader gets, so it can't stay an accident of which link
+                  brief this reader gets, so it can't stay an accident of which link
                   they arrived on. Pre-highlighted from the URL when they came via an area link. */}
               <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, margin: "2px 0 8px" }}>Your focus</div>
@@ -106,10 +105,6 @@ export default function Welcome() {
                 style={{ background: INK, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
                 {state === "sending" ? "Sending…" : expired ? "Send me a fresh link" : "Request access"}
               </button>
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: INK2 }}>
-                <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: INK }} />
-                <span>Also email me <strong style={{ color: INK }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
-              </label>
             </form>
             {state === "error" && <p style={{ color: AREA_ACCENTS.Heme, fontSize: 13, marginTop: 10 }}>{msg}</p>}
             <p style={{ fontSize: 12, lineHeight: 1.5, color: MUT, marginTop: 18 }}>A private benefit for oncology-focused teams. No password — the link signs you in.</p>

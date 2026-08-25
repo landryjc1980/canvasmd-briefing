@@ -24,10 +24,9 @@ export default function InviteLanding() {
   const [state, setState] = useState<"idle" | "sending" | "error">("idle");
   const [msg, setMsg] = useState("");
   // Focus pre-highlights the sharer's area (the ?area= on the share link) but stays the
-  // colleague's own answer — it becomes their default edition for the brief and The Daily.
+  // colleague's own answer — it becomes their default edition for the brief.
   const [focus, setFocus] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-  const [daily, setDaily] = useState(true); // default ON (John): opt-out, not opt-in
   useEffect(() => {
     const a = new URLSearchParams(window.location.search).get("area");
     if (a && ["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"].includes(a)) setFocus(a);
@@ -40,7 +39,7 @@ export default function InviteLanding() {
       const r = await fetch("/api/brief-invite", {
         method: "POST", headers: { "content-type": "application/json" },
         // A pre-filled (sharer's) focus counts as chosen if they submit with it visibly selected.
-        body: JSON.stringify({ code, email, name, area: focus, chosen: touched || focus !== null, daily }),
+        body: JSON.stringify({ code, email, name, area: focus, chosen: touched || focus !== null }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) { setState("error"); setMsg(j.error || "Couldn't open the invite."); return; }
@@ -83,10 +82,6 @@ export default function InviteLanding() {
               })}
             </div>
           </div>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 12.5, lineHeight: 1.45, color: INK2 }}>
-            <input type="checkbox" checked={daily} onChange={(e) => setDaily(e.target.checked)} style={{ marginTop: 2, accentColor: INK }} />
-            <span>Also email me <strong style={{ color: INK }}>The Daily</strong> — a short morning read of what moved, only on days something did.</span>
-          </label>
           <button type="submit" disabled={state === "sending"}
             style={{ background: INK, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, padding: "13px 15px", cursor: "pointer", opacity: state === "sending" ? .6 : 1 }}>
             {state === "sending" ? "Opening…" : "Open the brief"}

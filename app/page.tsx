@@ -61,7 +61,6 @@ export default function BriefingPage() {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [data, setData] = useState<BriefingData | null>(null);
   const [seen, setSeen] = useState<Record<string, string>>({});
-  const [daily, setDaily] = useState<import("@/lib/types").DailyReadout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [, bump] = useState(0); // re-render when a brief lands in cache (the All view reads the cache directly)
@@ -75,8 +74,6 @@ export default function BriefingPage() {
   // visit's views only affect the NEXT visit).
   const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string>; fetchedAt: number }>>({});
   const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
-  const dailyLoadedAt = useRef(0);
-  const dailyRequest = useRef(0);
   const load = useCallback((a: string, force = false): Promise<void> => {
     if (a === "All") return Promise.resolve(); // no brief of its own — assembled from the six
     if (cacheRef.current[a] && !force) return Promise.resolve();
@@ -159,38 +156,6 @@ export default function BriefingPage() {
     if (!area) return;
     for (const a of AREAS) if (a !== area) load(a).catch((e) => setAreaErr((m) => ({ ...m, [a]: String(e?.message ?? e) })));
   }, [area, load]);
-
-  // Retry a single failed area (or every failed area). `load` short-circuits on anything already
-  // cached, so this only re-fetches what actually needs it.
-  const loadDaily = useCallback(async () => {
-    const request = ++dailyRequest.current;
-    try {
-      const response = await fetch("/api/daily", { cache: "no-store" });
-      const json = await response.json();
-      if (request === dailyRequest.current) {
-        setDaily(json.daily ?? null);
-        dailyLoadedAt.current = Date.now();
-      }
-    } catch { /* the weekly brief remains usable when Daily refresh fails */ }
-  }, []);
-
-  // The All page no longer renders a Daily block (it duplicated Since-your-last-read and read as
-  // seven unrelated storylines above a ranked deck), so don't pay for the payload there. The
-  // specialty editions still show theirs, and switching into one re-runs this and fetches.
-  useEffect(() => {
-    if (!area || area === "All") return;
-    void loadDaily();
-    const refreshIfStale = () => {
-      if (document.visibilityState === "visible" && Date.now() - dailyLoadedAt.current > 5 * 60_000) void loadDaily();
-    };
-    document.addEventListener("visibilitychange", refreshIfStale);
-    window.addEventListener("focus", refreshIfStale);
-    return () => {
-      dailyRequest.current++;
-      document.removeEventListener("visibilitychange", refreshIfStale);
-      window.removeEventListener("focus", refreshIfStale);
-    };
-  }, [area, loadDaily]);
 
   // A browser tab can stay open across a weekly promotion. Keep instant tab
   // switching, but refresh the active edition after fifteen minutes on focus.
@@ -313,5 +278,5 @@ export default function BriefingPage() {
   // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
   // (no AI cover line) + horizontally-scrolling section pills.
   if (design === "flat" && !heroActive) return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
-  return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} daily={daily} />;
+  return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
 }

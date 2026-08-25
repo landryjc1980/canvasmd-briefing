@@ -14,8 +14,7 @@ test("public story mastheads preserve the story specialty", () => {
   assert.match(source, /href=\{`\/\?area=\$\{encodeURIComponent\(v\.area\)\}`\}/);
 });
 
-test("Daily and onboarding links encode their intended specialty explicitly", () => {
-  assert.match(read("app/api/daily-send/route.ts"), /const allLink = linkForArea\("All"\)/);
+test("onboarding links encode their intended specialty explicitly", () => {
   assert.match(read("app/api/admin/upload/route.ts"), /&area=\$\{encodeURIComponent\(r\.area\)\}/);
   assert.match(read("app/api/admin/requests/route.ts"), /const assignedArea = area \?\? c\.default_area/);
 });

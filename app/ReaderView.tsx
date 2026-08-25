@@ -1,18 +1,16 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
-import { emph, stripEmph } from "@/app/emphasis";
 import { flushSync } from "react-dom";
 import { BriefingData, BriefingSharer, BriefingPod, BriefingPaper, BriefingCongress, BriefingEpisode, BriefingArticle, BriefingEvent, HeroCard as HeroCardT, HeroSupportLink } from "@/lib/types";
 import { heroSlugFor } from "@/lib/postId";
 import AudioQuote from "@/components/AudioQuote";
-import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, authoredClinicianCount, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, dailyAccentOf, DAILY_MUTED, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
+import { palOf, inkOf, metricsLine, storyMetricLine, storyKicker, paperBlockLabel, storiesOf, partitionStories, heroDeckOf, articleSource, authoredClinicianCount, isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, clipTs, pileFacesL, trialEvidenceLine, type Face, AREA_FULL, UP, DOWN } from "./briefVM";
 import StanceBlock from "./StanceBlock";
 import HeroCards, { type HeroEvidence } from "./HeroCards";
 import { paperClinicianMeta, pickConversationPreview, representedClinicianCount, representedClinicianCountAcrossLanes, resolveHeroEvidence, supportLinkGroups } from "./heroEvidence";
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
-import DailyConversationEvidence from "./DailyConversationEvidence";
 import { unrepresentedPublishers } from "./clientEvidence";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
@@ -746,7 +744,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   );
 }
 
-export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary, daily }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void; daily?: import("@/lib/types").DailyReadout | null }) {
+export default function ReaderView({ data: rawData, area, areas, onArea, seen, compact = false, primary, onSetPrimary }: { data: BriefingData; area: string; areas: string[]; onArea: (a: string) => void; seen?: Record<string, string>; compact?: boolean; primary?: string | null; onSetPrimary?: (a: string) => void }) {
   // One publication canvas across every edition; area color is an interaction accent.
   const darkPal = inkOf(area);
   const pal = { bg: PAPER, accent: READER_ACCENTS[area] ?? darkPal.accent };
@@ -1147,79 +1145,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   const storiesCapped = compact && !showAllStories && stories.length > MOBILE_STORY_CAP;
   const deckStories = storiesCapped ? stories.slice(0, MOBILE_STORY_CAP) : stories;
 
-  // THE DAILY, area slice (John 2026-08-18): narrative paragraphs tagged for THIS area,
-  // rendered above Top stories; hidden entirely when today's edition has nothing here.
-  const [dailyOpen, setDailyOpen] = useState(false);
-  // THE DAILY, v4 per-area editions (John): this area's own mini-brief (lead + paragraphs),
-  // with the shared Frontier section under it — or AS the top on a quiet day. Legacy
-  // narrative-slicing remains the fallback for pre-editions payloads.
-  const dailyEd = daily?.payload?.editions?.[area] ?? null;
-  const dailyGen = daily?.payload?.editions?.general ?? null;
-  const legacyParas = daily?.payload?.narrative ?? [];
-  const areaDailyParas = dailyEd ? dailyEd.paragraphs : legacyParas.filter((p) => (p.areas ?? []).includes(area));
-  const genDailyParas = (dailyGen ? dailyGen.paragraphs : legacyParas.filter((p) => (p.areas ?? []).length === 0)).filter((p) => !((p as { dupFor?: string[] }).dupFor ?? []).includes(area));
-  const dailyQuiet = !areaDailyParas.length && genDailyParas.length > 0;
-  const dailyLead = dailyEd?.lead ?? null;
-  const dailyAll = [...areaDailyParas, ...genDailyParas];
-  const dailyPreviewParas = dailyQuiet ? genDailyParas : areaDailyParas;
-  const dailyLong = dailyAll.length > 1 || (dailyAll[0]?.text.length ?? 0) > 200 || (!!dailyLead && dailyAll.length > 0);
-  const dailyAccent = dailyAccentOf(area, pal.accent);
-  const dailyPara = (p: { head?: string | null; text: string; refs?: { label: string; url: string }[] | null; storyIds?: string[] }, i: number | string, n?: number) => (
-    <div key={i}>
-      <p style={{ margin: "12px 0 0", font: "400 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-copy, #cbcdd5)" }}>
-        {n !== undefined && <strong style={{ fontWeight: 700, color: dailyAccent }}>{n}. </strong>}
-        {p.head && <strong style={{ fontWeight: 700, color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(p.head)}. </strong>}
-        {emph(p.text)}
-        {(p.refs ?? []).length > 0 && (
-          <span style={{ font: "500 11.5px system-ui", color: MUT }}>
-            {" "}{(p.refs ?? []).map((r, ri) => (
-              <a key={ri} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: dailyAccent, textDecoration: "none" }}>{ri > 0 ? " · " : ""}{r.label} ↗</a>
-            ))}
-          </span>
-        )}
-      </p>
-      <DailyConversationEvidence stories={daily?.payload?.conversationStories} storyIds={p.storyIds} area={area} accent={dailyAccent} ink="var(--rv-ink, #eef1f8)" muted={DAILY_MUTED} line={LINE} />
-    </div>
-  );
-  const dailySection = (dailyAll.length > 0 || !!dailyLead) && (
-    <section style={{ margin: "18px 0 8px", padding: "16px 18px", background: "var(--rv-surface, rgba(255,255,255,.03))", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-      <div className="daily-meta" style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span className="daily-meta-primary" style={{ font: "700 10.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: dailyAccent }}>The Daily · {area}</span>
-        <span style={{ font: "500 11px system-ui", color: DAILY_MUTED }}>{daily?.date}</span>
-        <span style={{ font: "500 11px system-ui", color: DAILY_MUTED }}>· {daily?.date === new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()) ? "updated today" : "latest edition"}</span>
-        {daily?.payload?.coverage?.scope && <span style={{ font: "500 11px system-ui", color: DAILY_MUTED }}>· {daily.payload.coverage.scope.toLowerCase()}</span>}
-      </div>
-      {dailyQuiet && <div style={{ margin: "9px 0 -2px", font: "italic 500 12.5px/1.5 'Newsreader',Georgia,serif", color: DAILY_MUTED }}>Quiet in {area} for this edition — from the frontier:</div>}
-      {dailyOpen || !dailyLong ? (
-        <>
-          {dailyLead && <p style={{ margin: "10px 0 0", font: "700 15.5px/1.55 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{stripEmph(dailyLead)}</p>}
-          {areaDailyParas.map((p, i) => dailyPara(p, i, i + 1))}
-          {genDailyParas.length > 0 && (
-            <>
-              {!dailyQuiet && <div style={{ margin: "16px 0 -4px", font: "700 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: DAILY_MUTED }}>Frontiers</div>}
-              {genDailyParas.map((p, i) => dailyPara(p, "g" + i, areaDailyParas.length + i + 1))}
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {dailyLead && <p style={{ margin: "10px 0 0", font: "700 14.5px/1.65 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{stripEmph(dailyLead)}</p>}
-          <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
-            {dailyPreviewParas.slice(0, 3).map((p, i) => (
-              <div key={i} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", font: "600 12.5px/1.45 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>
-                <span style={{ color: dailyAccent }}>{i + 1}. </span>{stripEmph(p.head ?? p.text)}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      {dailyLong && (
-        <button onClick={() => setDailyOpen((o) => !o)} aria-expanded={dailyOpen} style={{ margin: "3px 0 0", padding: "0 2px", minHeight: 44, border: "none", background: "none", cursor: "pointer", font: "600 11.5px system-ui", color: dailyAccent }}>
-          {dailyOpen ? "Show less ↑" : "Read more ↓"}
-        </button>
-      )}
-    </section>
-  );
+  const dailySection = null;
 
   const storiesSection = (
     <>

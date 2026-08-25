@@ -11,12 +11,10 @@ const webFlat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
 const webAll = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
-const webDaily = fs.readFileSync(new URL("../app/DailyConversationEvidence.tsx", import.meta.url), "utf8");
-const dailyMail = fs.readFileSync(new URL("../lib/dailyMail.ts", import.meta.url), "utf8");
 const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
 const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections.tsx"), "utf8");
 const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
-const nativeDaily = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
+const nativeReadout = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
 const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/StoryEvidence.tsx"), "utf8");
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
@@ -122,11 +120,9 @@ test("public archives inventory grouped reposters as clinician receipts", () => 
   assert.doesNotMatch(archivePage, /const clinicians = [^\n]+\.length/);
 });
 
-test("public archives and Daily email read only the activated briefing contract", () => {
-  for (const source of [heroPost, dailyMail]) {
-    assert.match(source, /briefing_active\?select=/);
-    assert.doesNotMatch(source, /rest\/v1\/briefing_snapshots\?select=/);
-  }
+test("public archives read only the activated briefing contract", () => {
+  assert.match(heroPost, /briefing_active\?select=/);
+  assert.doesNotMatch(heroPost, /rest\/v1\/briefing_snapshots\?select=/);
 });
 
 test("primary sources render in a distinct provenance group on web and native", () => {
@@ -136,16 +132,6 @@ test("primary sources render in a distinct provenance group on web and native", 
     assert.match(source, />Related coverage</);
     assert.match(source, /supportLinkGroups\(story\.supportLinks\)/);
     assert.match(source, /link\.description/);
-  }
-});
-
-test("Daily evidence expands honestly and renders every factual source", () => {
-  for (const source of [webDaily, nativeDaily]) {
-    assert.match(source, /Show longer excerpt/);
-    assert.match(source, /Show full post/);
-    assert.match(source, /textTruncated/);
-    assert.match(source, /story\.sources/);
-    assert.match(source, /source\.url/);
   }
 });
 
@@ -167,9 +153,7 @@ test("podcast cards expose canonical episode pages on web and native", () => {
 
 test("exact receipt links meet the web and native target-size contracts", () => {
   assert.match(webReader, /reposter\.tweetUrl[\s\S]{0,260}minHeight: 24/);
-  assert.match(webDaily, /reaction\.url[\s\S]{0,260}minHeight: 44/);
   assert.match(nativeCards, /reposter\.tweetUrl[\s\S]{0,500}minHeight: 44/);
-  assert.match(nativeDaily, /Open \$\{reaction\.name\}'s post on X[\s\S]{0,220}minHeight: 44/);
 });
 
 test("paper renderers keep source and classification parity", () => {
@@ -197,19 +181,6 @@ test("trial paper receipts render once from the merged top-level evidence", () =
   }
 });
 
-test("Daily email includes exact retained physician receipts and factual links", () => {
-  assert.match(dailyMail, /Physician conversation/);
-  assert.match(dailyMail, /reaction\.fullText\?\.trim\(\) \|\| reaction\.text/);
-  assert.match(dailyMail, /partitionDailyReactions/);
-  assert.match(dailyMail, /Across oncology/);
-  assert.doesNotMatch(dailyMail, /\}\)\.slice\(0, 2\)/);
-  assert.match(dailyMail, /story\.sources/);
-  assert.match(dailyMail, /reaction\.url/);
-  assert.match(dailyMail, /textTruncated/);
-  assert.match(dailyMail, />Excerpt</);
-  assert.match(dailyMail, /Read complete post on X/);
-});
-
 test("podcast moments render one timestamp and legacy Open links meet the 44px target", () => {
   assert.doesNotMatch(webHero, /label=\{`Listen @/);
   assert.doesNotMatch(webFlat, /label=\{`clip /);
@@ -219,7 +190,7 @@ test("podcast moments render one timestamp and legacy Open links meet the 44px t
 });
 
 test("reference status does not affect visible People ranking", () => {
-  for (const source of [webReader, nativeDaily]) {
+  for (const source of [webReader, nativeReadout]) {
     assert.match(source, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
     assert.doesNotMatch(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
   }

@@ -2,63 +2,48 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const evidence = fs.readFileSync(new URL("../app/DailyConversationEvidence.tsx", import.meta.url), "utf8");
-const reader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
-const all = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
+const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("web Daily renders exact, specialty-scoped physician evidence", () => {
-  assert.match(evidence, /Physician conversation/);
-  assert.match(evidence, /partitionDailyReactions/);
-  assert.match(evidence, /Across oncology/);
-  assert.match(evidence, /<blockquote/);
-  assert.match(evidence, /reaction\.text/);
-  assert.match(evidence, /cleanTweetText\(reaction\.fullText\?\.trim\(\) \|\| reaction\.text\)/);
-  assert.match(reader, /<DailyConversationEvidence[^>]+area=\{area\}/);
-});
+test("web reader never fetches or renders The Daily surface", () => {
+  const page = read("app/page.tsx");
+  const reader = read("app/ReaderView.tsx");
+  const all = read("app/AllView.tsx");
 
-// The All page no longer carries a Daily block (John, 2026-08-24). On-site it duplicated
-// Since-your-last-read — the band knows what THIS reader has seen, the Daily only knows what
-// happened in 24h — and scoped to all of oncology it read as seven unrelated storylines sitting
-// above a ranked deck that does cross-specialty triage more legibly. These assertions pin the
-// removal so it cannot creep back, and pin what deliberately SURVIVES: the specialty editions'
-// Daily and the Daily email, which are separate decisions.
-test("the All page carries no Daily block, while specialty editions keep theirs", () => {
-  assert.doesNotMatch(all, /<DailyConversationEvidence/);
+  assert.doesNotMatch(page, /\/api\/daily/);
+  assert.doesNotMatch(page, /setDaily/);
+  assert.doesNotMatch(reader, /<DailyConversationEvidence/);
+  assert.doesNotMatch(reader, /The Daily ·/);
+  assert.doesNotMatch(reader, /daily_readout/);
   assert.doesNotMatch(all, /The Daily</);
-  assert.doesNotMatch(all, /Read the daily ↓/);
-  assert.doesNotMatch(all, /Sources & items ↓/);
-  // and the payload is not fetched for a page that no longer renders it
-  const page = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /if \(!area \|\| area === "All"\) return;/);
-  // specialty editions are untouched
-  assert.match(reader, /<DailyConversationEvidence/);
-  assert.match(reader, /dailyOpen \? "Show less ↑" : "Read more ↓"/);
 });
 
-test("Daily refreshes stale payloads and All renders complete source drawers", () => {
-  const page = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /visibilitychange/);
-  assert.match(page, /window\.addEventListener\("focus"/);
-  assert.match(page, /fetchedAt/);
-  assert.match(page, /load\(target, true\)/);
-  assert.doesNotMatch(all, /s\.items\.slice\(/);
-  assert.match(all, /pickConversationPreview\(story\.posts/);
-  assert.doesNotMatch(all, /resolved\.publisherPosts\[0\]/);
-  assert.match(evidence, /minHeight: 44/);
+test("web Daily API and sender are disabled without reading historical rows", () => {
+  const dailyRoute = read("app/api/daily/route.ts");
+  const sendRoute = read("app/api/daily-send/route.ts");
+
+  assert.match(dailyRoute, /daily: null, disabled: true/);
+  assert.doesNotMatch(dailyRoute, /daily_readout\?select/);
+  assert.match(sendRoute, /disabled: true/);
+  assert.match(sendRoute, /reason: "daily_disabled"/);
+  assert.doesNotMatch(sendRoute, /listDailyOptIns|renderDailyEmail|sendDailyEmail|recordDailySend/);
 });
 
-test("collapsed specialty Daily keeps its story headlines visible", () => {
-  assert.match(reader, /dailyPreviewParas\.slice\(0, 3\)/);
-  assert.match(reader, /stripEmph\(p\.head \?\? p\.text\)/);
+test("web onboarding no longer offers Daily opt-in", () => {
+  for (const source of [read("app/welcome/page.tsx"), read("app/i/[code]/page.tsx")]) {
+    assert.doesNotMatch(source, /The Daily/);
+    assert.doesNotMatch(source, /daily,?\s*\}/);
+    assert.doesNotMatch(source, /setDaily/);
+  }
+  assert.doesNotMatch(read("app/api/brief-request/route.ts"), /setDailyOptIn|dailyOptIn/);
+  assert.doesNotMatch(read("app/api/brief-invite/route.ts"), /setDailyOptIn|dailyOptIn/);
 });
 
-test("Daily leads stay bold before and after expansion", () => {
-  assert.equal((reader.match(/font: "700 (?:14\.5|15\.5)px\/1\.(?:65|55) 'Newsreader'/g) ?? []).length, 2);
-});
-
-test("a serialized quiet specialty edition still renders its honest lead", () => {
-  assert.match(reader, /dailySection = \(dailyAll\.length > 0 \|\| !!dailyLead\)/);
-  assert.match(reader, /\(!!dailyLead && dailyAll\.length > 0\)/);
-  assert.match(reader, /dailyPreviewParas = dailyQuiet \? genDailyParas : areaDailyParas/);
-  assert.match(reader, /dailyPreviewParas\.slice\(0, 3\)/);
+test("standard Readout sections remain available on web", () => {
+  const reader = read("app/ReaderView.tsx");
+  assert.match(reader, /Top stories/);
+  assert.match(reader, /episodesSection/);
+  assert.match(reader, /papersSection/);
+  assert.match(reader, /peopleSection/);
+  assert.match(reader, /trialsSection/);
+  assert.match(reader, /drugsSection/);
 });

@@ -39,7 +39,6 @@ test("live story cards show paper context and use one title size", () => {
   assert.match(liveCss, /@media \(max-width: 640px\)[\s\S]*\.readout-hero-card\.is-lead \.readout-hero-title \{[^}]*font-size: 16px/);
 });
 
-test("Daily metadata wraps across the full mobile breakpoint", () => {
-  assert.match(liveCss, /@media \(max-width: 640px\)[\s\S]*\.daily-meta \{[^}]*flex-wrap: wrap/);
-  assert.match(liveCss, /@media \(max-width: 640px\)[\s\S]*\.daily-meta-primary \{[^}]*flex-basis: 100%/);
+test("mobile story cards keep the live hero title bounded", () => {
+  assert.match(liveCss, /@media \(max-width: 640px\)[\s\S]*\.readout-hero-card\.is-lead \.readout-hero-title \{[^}]*font-size: 16px/);
 });
