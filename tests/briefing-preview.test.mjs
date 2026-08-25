@@ -128,14 +128,17 @@ test("a development already leading a section is removed from Also Relevant by s
   assert.match(preview, /sameEditorialArticle\(item, lead\)/);
 });
 
-test("mobile cards prioritize the source article and progressively disclose dense evidence", () => {
-  assert.match(preview, /MOBILE_FINDING_THRESHOLD = 360/);
+test("cards keep long findings to four lines until expanded at any viewport", () => {
+  assert.match(preview, /node\.scrollHeight > node\.clientHeight \+ 1/);
+  assert.match(preview, /new ResizeObserver\(measure\)/);
   assert.match(preview, /Show full result/);
   assert.match(preview, /function SourceArticle/);
   assert.match(preview, /Read article/);
   assert.match(preview, /className="er-citation-topline"/);
   assert.match(preview, /<span className="er-sharer-label">Including<\/span>/);
-  assert.match(previewCss, /\.er-finding\.is-mobile-collapsed/);
+  assert.match(previewCss, /\.er-finding\.is-collapsed/);
+  assert.match(previewCss, /-webkit-line-clamp: 4/);
+  assert.match(previewCss, /\.er-proof-count \{ white-space: normal/);
   assert.match(previewCss, /\.er-voice-secondary:not\(\.is-mobile-open\)/);
   assert.match(previewCss, /\.er-related-links:not\(\.is-open\)/);
 });

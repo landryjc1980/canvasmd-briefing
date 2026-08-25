@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import {
@@ -40,7 +40,6 @@ const AREA_LABELS: Record<EditionArea, string> = {
 const SHARER_PREVIEW_LIMIT = 3;
 const SHARER_EXPANDED_LIMIT = 12;
 const EVIDENCE_REFRESH_MS = 60 * 60_000;
-const MOBILE_FINDING_THRESHOLD = 360;
 
 function CanvasMdLogo() {
   return (
@@ -266,14 +265,28 @@ function PhysicianVoices({ article, accent, sharedBy }: { article: BriefingArtic
 
 function DevelopmentFinding({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [collapsible, setCollapsible] = useState(false);
+  const findingRef = useRef<HTMLParagraphElement>(null);
+  const findingId = useId();
   const finding = text.trim();
+
+  useEffect(() => {
+    const node = findingRef.current;
+    if (!node || expanded) return;
+    const measure = () => setCollapsible(node.scrollHeight > node.clientHeight + 1);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [expanded, finding]);
+
   if (!finding) return null;
-  const collapsible = finding.length > MOBILE_FINDING_THRESHOLD;
   return (
     <>
-      <p className={`er-finding ${collapsible && !expanded ? "is-mobile-collapsed" : ""}`}>{finding}</p>
+      <p ref={findingRef} id={findingId} className={`er-finding ${!expanded ? "is-collapsed" : ""}`}>{finding}</p>
       {collapsible && (
-        <button className="er-finding-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+        <button className="er-finding-toggle" type="button" aria-controls={findingId} aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
           {expanded ? "Show less" : "Show full result"}
         </button>
       )}
