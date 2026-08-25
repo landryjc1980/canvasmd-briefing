@@ -600,7 +600,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // `stats` switches the row to the tumor pages' Recent-guests anatomy: serif name, identity
   // chips, a "▸ Listen · N episodes" line, and the two box-score tiles pinned right. Without it
   // the row keeps the compact form "Carried on X" shares with the specialty kols rail.
-  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; stats?: { value: number; label: string }[]; children: React.ReactNode | null }) => {
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; verified?: boolean; stats?: { value: number; label: string }[]; children: React.ReactNode | null }) => {
     const acc = accentOf(opts.areas[0] ?? "GU");
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
@@ -608,16 +608,23 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc} landOffset={compact ? 108 : 70} disabled={!canOpen}
         head={
           <div style={{ display: "flex", alignItems: opts.stats ? "center" : "flex-start", gap: opts.stats ? 12 : 11, padding: opts.stats ? "16px 2px" : "13px 2px" }}>
-            <Coin src={opts.avatar} label={opts.name} size={34} ring={PAPER} style={{ marginTop: opts.stats ? 0 : 2 }} />
+            {!opts.stats && <Coin src={opts.avatar} label={opts.name} size={34} ring={PAPER} style={{ marginTop: 2 }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0, font: `500 ${opts.stats ? "17px" : "15px"}/1.25 'Newsreader',Georgia,serif`, color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
                 {!opts.stats && <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? acc : INK_2, padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-                {opts.areasLabel && <span style={{ font: "500 10px system-ui", color: MUT2 }}>{opts.areasLabel}</span>}
-                {opts.areas.map(miniTag)}
-                {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                {/* Box-score rows carry the tumor pages' NPI chip; the area and the show ride the
+                    muted identity line as text, since a cross-specialty page still has to say
+                    WHERE someone was heard. Chip clusters and face coins belong to the other form. */}
+                {opts.stats
+                  ? opts.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: "#fff", background: acc, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", flex: "none" }}>NPI on file</span>
+                  : <>
+                      {opts.areasLabel && <span style={{ font: "500 10px system-ui", color: MUT2 }}>{opts.areasLabel}</span>}
+                      {opts.areas.map(miniTag)}
+                      {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
+                    </>}
                 {(opts.sub || opts.facts) && (
                   <span style={{ display: "flex", alignItems: "baseline", gap: 5, minWidth: 0, flex: "1 1 auto", font: "400 11.5px system-ui", color: MUT }}>
                     {opts.sub && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
@@ -675,13 +682,15 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         const n = eps.length;
         // a host's SHOW is the identifying fact (Florez → Lung Cancer Considered); a guest's is
         // where they practice. Hosts who also guested keep both, show first.
-        const sub = m.hostShow ? [m.hostShow, shortInst(m.aff)].filter(Boolean).join(" · ") : shortInst(m.aff);
+        // The identity line carries what the tumor pages put beside a guest — affiliation, or the
+        // SHOW when they host it — prefixed with the areas they were heard in, which a
+        // cross-specialty rail has to state and a single-area one never does.
+        const sub = [m.areas.join(" · "), m.hostShow || null, shortInst(m.aff)].filter(Boolean).join(" · ");
         return voiceRow({
           id: "vm:" + m.key,
           name: m.name,
-          avatar: m.avatar,
           areas: m.areas,
-          roleChip: m.hostShow ? (m.guestEps.size ? "Host + Guest" : "Host") : "Guest",
+          verified: m.verified,
           sub,
           count: `▸ Listen · ${n} episode${n === 1 ? "" : "s"}`,
           stats: [{ value: n, label: `${railWindowDays}-day` }, { value: m.career, label: "Career" }],
@@ -893,6 +902,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               : <span style={{ flex: "none", marginTop: 2, font: "700 9px system-ui", letterSpacing: ".08em", color: ALL_ACCENT, background: "#fff", border: `1px solid ${ALL_ACCENT}`, borderRadius: 5, padding: "2px 6px" }}>UPDATED</span>}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc, marginBottom: 5 }}>{kicker} · {row.area}</div>
+              {row.card.sourceLabel && <div style={{ font: "500 12px system-ui", color: MUT, margin: "0 0 3px" }}>{row.card.sourceLabel}</div>}
               <h3 style={{ font: "500 16.5px/1.28 'Newsreader',Georgia,serif", color: INK, margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.card.headline}</h3>
             </div>
           </div>
@@ -973,6 +983,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   {!isSeen && <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: acc, flex: "none" }} />}
                   <span style={{ font: "700 9.5px system-ui", letterSpacing: ".16em", textTransform: "uppercase", color: acc }}>{KIND_KICKER[c.kind] ?? c.kind} · {area}</span>
                 </div>
+                {c.sourceLabel && <div style={{ font: `500 ${lead ? 13.5 : 12.5}px system-ui`, color: MUT, margin: "0 0 5px" }}>{c.sourceLabel}</div>}
                 <h3 style={{ font: `500 ${lead ? "21px/1.18" : "18.5px/1.25"} 'Newsreader',Georgia,serif`, color: INK, margin: 0, maxWidth: 760 }}>{c.headline}</h3>
                 {lead && c.excerpt && (
                   <p style={{ margin: "9px 0 0", font: "400 13.5px/1.5 system-ui", color: MUT, maxWidth: 740, ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
