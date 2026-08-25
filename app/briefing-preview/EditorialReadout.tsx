@@ -190,7 +190,7 @@ export default function EditorialReadout() {
   return (
     <main className={`er-page er-area-${area.toLowerCase()}`}>
       <header className="er-header">
-        <div className="er-brand"><span>CANVASMD</span><h1>The Readout</h1></div>
+        <div className="er-brand"><h1>The Readout</h1></div>
         <nav className="er-filters" aria-label="Tumor area">
           {EDITION_AREAS.map((candidate) => (
             <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => { setArea(candidate); setAlsoOpen(false); }}>
@@ -198,13 +198,12 @@ export default function EditorialReadout() {
             </button>
           ))}
         </nav>
-        <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>{usingFallback ? "Best of 72h" : "Last 24h"}</span></div>
+        {area !== "All" && <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>{usingFallback ? "Best of 72h" : "Last 24h"}</span></div>}
       </header>
 
       <section className="er-section er-worth">
         <div className="er-section-title">
-          <div><p className="er-eyebrow">{area === "All" ? "ACROSS ONCOLOGY" : AREA_LABELS[area].toUpperCase()}</p><h2>Worth Your Time</h2></div>
-          <span>{worth.length ? `${worth.length} selected` : "No selection"}</span>
+          <div>{area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}<h2>Worth Your Time</h2></div>
         </div>
         {usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
         {worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} key={item.id} />) : (
@@ -214,10 +213,14 @@ export default function EditorialReadout() {
 
       {relevant.length > 0 && (
         <section className="er-section er-relevant">
-          <button className="er-section-title er-section-button" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
-            <h2>Also Relevant</h2><span>{alsoOpen ? "Show less −" : relevant.length > 1 ? `Show all ${relevant.length} +` : "Details +"}</span>
-          </button>
-          <div className="er-compact-list">{(alsoOpen ? relevant : relevant.slice(0, 1)).map((item) => {
+          {relevant.length > 1 ? (
+            <button className="er-section-title er-section-button" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
+              <h2>Also Relevant</h2><span>{alsoOpen ? "Show less −" : `Show ${relevant.length - 1} more +`}</span>
+            </button>
+          ) : (
+            <div className="er-section-title"><h2>Also Relevant</h2></div>
+          )}
+          <div className="er-compact-list">{(alsoOpen || relevant.length === 1 ? relevant : relevant.slice(0, 1)).map((item) => {
             const article = findArticle(item, briefs);
             return (
               <article key={item.id}>
@@ -235,7 +238,7 @@ export default function EditorialReadout() {
 
       {listen.length > 0 && (
         <section className="er-section er-listen">
-          <div className="er-section-title"><h2>New To Listen To</h2><span>{listen.length} selected</span></div>
+          <div className="er-section-title"><h2>New To Listen To</h2></div>
           <div className="er-listen-grid">
             {listen.map((item) => {
               const episode = findEpisode(item, briefs);
