@@ -29,6 +29,17 @@ export type EditorialEpisode = {
   match: string;
 };
 
+export type EditorialEpisodeFeature = EditorialEpisode & {
+  kind: "episode";
+  site: string;
+  nickname: string;
+  finding: string;
+  remember: string;
+  evidence: string;
+};
+
+export type EditorialDevelopment = EditorialArticle | EditorialEpisodeFeature;
+
 export const WORTH_YOUR_TIME: EditorialArticle[] = [
   {
     id: "star-trec",
@@ -104,6 +115,24 @@ export const WORTH_YOUR_TIME: EditorialArticle[] = [
     evidence: "Phase 3",
     sharedBy: 1,
     match: { titleIncludes: "Ivonescimab plus chemotherapy versus placebo" },
+  },
+];
+
+export const FEATURED_EPISODES: EditorialEpisodeFeature[] = [
+  {
+    id: "ovarian-guideline",
+    kind: "episode",
+    area: "Gyn",
+    site: "Ovary",
+    nickname: "ASCO Living Guideline",
+    hook: "A living guideline gives ovarian recurrence a durable treatment backbone.",
+    finding: "ASCO released its first living guideline dedicated to systemic treatment after ovarian cancer recurrence, covering both platinum-sensitive and platinum-resistant disease. The episode is a practical route into the recommendations and the evidence behind them.",
+    remember: "Use the living guideline as the starting point when treatment choices change after recurrence.",
+    show: "ASCO Guidelines",
+    title: "Systemic Treatment of Ovarian Cancer Recurrence: ASCO Living Guideline 2026.1.0",
+    url: "https://guideline.libsyn.com/systemic-treatment-of-ovarian-cancer-recurrence-asco-living-guideline-202610",
+    evidence: "Living guideline",
+    match: "Systemic Treatment of Ovarian Cancer Recurrence",
   },
 ];
 

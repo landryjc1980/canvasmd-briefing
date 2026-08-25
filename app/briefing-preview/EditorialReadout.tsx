@@ -5,6 +5,7 @@ import type { BriefingArticle, BriefingData, BriefingSharer } from "@/lib/types"
 import {
   ALSO_RELEVANT,
   EDITION_AREAS,
+  FEATURED_EPISODES,
   NEW_TO_LISTEN,
   SPECIALTY_FALLBACKS,
   WORTH_YOUR_TIME,
@@ -12,6 +13,8 @@ import {
   findEpisode,
   visibleForArea,
   type EditorialArticle,
+  type EditorialDevelopment,
+  type EditorialEpisodeFeature,
   type EditionArea,
 } from "./edition";
 
@@ -70,47 +73,35 @@ function FacePile({ article }: { article: BriefingArticle | null }) {
   );
 }
 
-function PhysicianConversation({ article, accent, sharedBy }: { article: BriefingArticle | null; accent: string; sharedBy: number }) {
+function PhysicianVoices({ article, accent, sharedBy }: { article: BriefingArticle | null; accent: string; sharedBy: number }) {
   const posts = usefulPosts(article);
-  const [open, setOpen] = useState(false);
   if (!posts.length) {
     return sharedBy > 0 ? <p className="er-no-commentary">Shared, no commentary yet.</p> : null;
   }
   return (
-    <div className="er-conversation" style={{ "--accent": accent } as React.CSSProperties}>
-      <button className="er-conversation-toggle" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        What physicians are saying <span aria-hidden="true">{open ? "−" : "+"}</span>
-      </button>
-      {open && (
-        <div className="er-receipts">
-          {posts.slice(0, 3).map((post, index) => (
-            <article className="er-receipt" key={`${post.handle ?? post.name}-${index}`}>
-              <header>
-                {post.avatar ? <img src={post.avatar} alt="" /> : <span className="er-avatar-fallback">{post.name.slice(0, 1)}</span>}
-                <div>
-                  <strong>{post.name}</strong>
-                  {post.handle && <span>@{post.handle.replace(/^@/, "")}</span>}
-                </div>
-                {post.likes > 0 && <small>{post.likes} likes</small>}
-              </header>
-              <p>{post.text}</p>
-              {post.tweetUrl && <a href={post.tweetUrl} target="_blank" rel="noreferrer">View on X ↗</a>}
-            </article>
-          ))}
-        </div>
-      )}
+    <div className="er-voices" style={{ "--accent": accent } as React.CSSProperties}>
+      <p className="er-voices-label">Physician perspective</p>
+      {posts.slice(0, 2).map((post, index) => (
+        <figure className="er-voice" key={`${post.handle ?? post.name}-${index}`}>
+          <blockquote>{post.text}</blockquote>
+          <figcaption>
+            {post.avatar ? <img src={post.avatar} alt="" /> : <span className="er-avatar-fallback">{post.name.slice(0, 1)}</span>}
+            <span><strong>{post.name}</strong>{post.handle && <> @{post.handle.replace(/^@/, "")}</>}</span>
+            {post.tweetUrl && <a href={post.tweetUrl} target="_blank" rel="noreferrer">View on X ↗</a>}
+          </figcaption>
+        </figure>
+      ))}
     </div>
   );
 }
 
-function Development({ item, briefs, index }: { item: EditorialArticle; briefs: BriefingData[]; index: number }) {
+function ArticleDevelopment({ item, briefs }: { item: EditorialArticle; briefs: BriefingData[] }) {
   const article = findArticle(item, briefs);
   const href = article?.url || item.url;
   return (
     <article className="er-development">
-      <div className="er-number" aria-hidden="true">{index + 1}</div>
       <div className="er-development-body">
-        <div className="er-kicker"><span>{item.site}</span><b>{item.nickname}</b></div>
+        <div className="er-kicker"><span>{item.site}</span>{item.nickname && <><i aria-hidden="true">·</i><b>{item.nickname}</b></>}</div>
         <h3>{item.takeaway}</h3>
         <p className="er-finding">{item.finding}</p>
         <p className="er-remember"><strong>Remember:</strong> {item.remember}</p>
@@ -124,10 +115,37 @@ function Development({ item, briefs, index }: { item: EditorialArticle; briefs: 
           <i aria-hidden="true">·</i>
           <span>shared by {item.sharedBy} clinician{item.sharedBy === 1 ? "" : "s"}</span>
         </div>
-        <PhysicianConversation article={article} accent="currentColor" sharedBy={item.sharedBy} />
+        <PhysicianVoices article={article} accent="currentColor" sharedBy={item.sharedBy} />
       </div>
     </article>
   );
+}
+
+function EpisodeDevelopment({ item, briefs }: { item: EditorialEpisodeFeature; briefs: BriefingData[] }) {
+  const episode = findEpisode(item, briefs);
+  const href = episode?.sourceUrl || episode?.audioUrl || item.url;
+  return (
+    <article className="er-development er-development-episode">
+      <div className="er-development-body">
+        <div className="er-kicker"><span>{item.site}</span><i aria-hidden="true">·</i><b>{item.nickname}</b></div>
+        <h3>{item.hook}</h3>
+        <p className="er-finding">{item.finding}</p>
+        <p className="er-remember"><strong>Remember:</strong> {item.remember}</p>
+        <p className="er-citation"><span>{episode?.show || item.show}</span><a href={href} target="_blank" rel="noreferrer">{episode?.title || item.title} ↗</a></p>
+        <div className="er-episode-actions"><a className="er-listen-button" href={href} target="_blank" rel="noreferrer"><span aria-hidden="true">▶</span> Listen to the episode</a><small>{item.evidence}</small></div>
+      </div>
+    </article>
+  );
+}
+
+function isEpisodeDevelopment(item: EditorialDevelopment): item is EditorialEpisodeFeature {
+  return "kind" in item && item.kind === "episode";
+}
+
+function Development({ item, briefs }: { item: EditorialDevelopment; briefs: BriefingData[] }) {
+  return isEpisodeDevelopment(item)
+    ? <EpisodeDevelopment item={item} briefs={briefs} />
+    : <ArticleDevelopment item={item} briefs={briefs} />;
 }
 
 export default function EditorialReadout() {
@@ -151,38 +169,45 @@ export default function EditorialReadout() {
     return () => { cancelled = true; };
   }, []);
 
-  const currentWorth = useMemo(() => visibleForArea(WORTH_YOUR_TIME, area), [area]);
+  const currentWorth = useMemo(() => {
+    const developments: EditorialDevelopment[] = [
+      ...WORTH_YOUR_TIME.slice(0, 4),
+      ...FEATURED_EPISODES,
+      ...WORTH_YOUR_TIME.slice(4),
+    ];
+    const visible = visibleForArea(developments, area);
+    return area === "All" ? visible.slice(0, 5) : visible;
+  }, [area]);
   const fallbackWorth = useMemo(() => area === "All" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length]);
   const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
   const usingFallback = fallbackWorth.length > 0;
   const relevant = useMemo(() => visibleForArea(ALSO_RELEVANT, area), [area]);
-  const listen = useMemo(() => visibleForArea(NEW_TO_LISTEN, area), [area]);
+  const listen = useMemo(() => {
+    const featuredIds = new Set(worth.filter(isEpisodeDevelopment).map((item) => item.id));
+    return visibleForArea(NEW_TO_LISTEN, area).filter((item) => !featuredIds.has(item.id));
+  }, [area, worth]);
 
   return (
     <main className={`er-page er-area-${area.toLowerCase()}`}>
       <header className="er-header">
         <div className="er-brand"><span>CANVASMD</span><h1>The Readout</h1></div>
-        <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>Aug 25, 2026</span><span>{usingFallback ? "best of past 72h ET" : "last 24h ET"}</span></div>
+        <nav className="er-filters" aria-label="Tumor area">
+          {EDITION_AREAS.map((candidate) => (
+            <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => { setArea(candidate); setAlsoOpen(false); }}>
+              {candidate}
+            </button>
+          ))}
+        </nav>
+        <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>{usingFallback ? "Best of 72h" : "Last 24h"}</span></div>
       </header>
 
-      <nav className="er-filters" aria-label="Tumor area">
-        {EDITION_AREAS.map((candidate) => (
-          <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => { setArea(candidate); setAlsoOpen(false); }}>
-            {candidate}
-          </button>
-        ))}
-      </nav>
-
-      <section className="er-intro">
-        <p className="er-eyebrow">ONCOLOGY BRIEFING · {area === "All" ? "ACROSS SPECIALTIES" : AREA_LABELS[area].toUpperCase()}</p>
-        <h2>{area === "All" ? "The developments worth your time today." : `What matters in ${AREA_LABELS[area]} today.`}</h2>
-        <p>Results first, caveats intact, with the physician conversation attached.</p>
-      </section>
-
       <section className="er-section er-worth">
-        <div className="er-section-title"><h2>Worth Your Time</h2><span>{worth.length || "No"} development{worth.length === 1 ? "" : "s"}</span></div>
+        <div className="er-section-title">
+          <div><p className="er-eyebrow">{area === "All" ? "ACROSS ONCOLOGY" : AREA_LABELS[area].toUpperCase()}</p><h2>Worth Your Time</h2></div>
+          <span>{worth.length ? `${worth.length} selected` : "No selection"}</span>
+        </div>
         {usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
-        {worth.length > 0 ? worth.map((item, index) => <Development item={item} briefs={briefs} index={index} key={item.id} />) : (
+        {worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} key={item.id} />) : (
           <p className="er-empty">No development cleared the bar in this area during the past 72 hours.</p>
         )}
       </section>
@@ -190,15 +215,18 @@ export default function EditorialReadout() {
       {relevant.length > 0 && (
         <section className="er-section er-relevant">
           <button className="er-section-title er-section-button" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
-            <h2>Also Relevant</h2><span>{alsoOpen ? "Show less −" : relevant.length > 1 ? `${relevant.length - 1} more +` : "Details +"}</span>
+            <h2>Also Relevant</h2><span>{alsoOpen ? "Show less −" : relevant.length > 1 ? `Show all ${relevant.length} +` : "Details +"}</span>
           </button>
           <div className="er-compact-list">{(alsoOpen ? relevant : relevant.slice(0, 1)).map((item) => {
             const article = findArticle(item, briefs);
             return (
               <article key={item.id}>
-                <div className="er-compact-copy"><b>{item.site} <span>{item.nickname}</span></b><p>{item.takeaway}</p></div>
+                <div className="er-compact-topline">
+                  <div className="er-compact-label"><b>{item.site}</b>{item.nickname && <><i aria-hidden="true">·</i><span>{item.nickname}</span></>}</div>
+                  <small>{item.evidence} · shared by {item.sharedBy} clinician{item.sharedBy === 1 ? "" : "s"}</small>
+                </div>
+                <h3>{item.takeaway}</h3>
                 <div className="er-compact-citation"><span>{item.journal}</span><a href={article?.url || item.url} target="_blank" rel="noreferrer">{article?.title || item.title} ↗</a></div>
-                <small>{item.evidence}<br />shared by {item.sharedBy} clinician{item.sharedBy === 1 ? "" : "s"}</small>
               </article>
             );
           })}</div>
@@ -237,7 +265,7 @@ export default function EditorialReadout() {
         </section>
       )}
 
-      <footer className="er-footer"><span>{loadingEvidence ? "Connecting physician receipts…" : "Physician receipts connected to the live Readout payload."}</span><span>Preview edition · editorial contract v1</span></footer>
+      <footer className="er-footer"><span>{loadingEvidence ? "Connecting physician evidence..." : "Evidence connected to the live Readout."}</span><span>CanvasMD</span></footer>
     </main>
   );
 }
