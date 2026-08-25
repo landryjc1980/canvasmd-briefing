@@ -23,7 +23,9 @@ const AREAS = new Set(["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"]);
 // Deliberately in-process, not a Cache-Control header: the route verifies the reader session,
 // and a shared/CDN cache could otherwise serve one reader's response outside that boundary.
 const TTL_MS = 5 * 60_000;
+const OVERLAY_TTL_MS = 60_000;
 const memo = new Map<string, { at: number; briefing: unknown }>();
+const overlayMemo = new Map<string, { at: number; overlay: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
 export async function GET(req: NextRequest) {
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+  const briefingFunctionUrl = process.env.BRIEFING_FUNCTION_URL ?? `${url}/functions/v1/briefing`;
 
   const raw = req.nextUrl.searchParams.get("area") ?? "GU";
   const area = AREAS.has(raw) ? raw : "GU";
@@ -59,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const fetchOnce = async () => {
-      const res = await fetch(`${url}/functions/v1/briefing`, {
+      const res = await fetch(briefingFunctionUrl, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -95,6 +98,64 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message ?? "Failed to reach the briefing service." },
+      { status: 502 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    if (!(await currentContactId(req))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    return NextResponse.json(
+      { error: "Missing SUPABASE_URL / SUPABASE_ANON_KEY env vars." },
+      { status: 500 }
+    );
+  }
+  const briefingFunctionUrl = process.env.BRIEFING_FUNCTION_URL ?? `${url}/functions/v1/briefing`;
+
+  const body = await req.json().catch(() => ({}));
+  if (body?.mode !== "evidence-overlay" && body?.mode !== "readout-window") {
+    return NextResponse.json({ error: "Unsupported briefing POST mode." }, { status: 400 });
+  }
+  const mode = body.mode as "evidence-overlay" | "readout-window";
+  const cards = mode === "evidence-overlay" && Array.isArray(body.cards) ? body.cards.slice(0, 12) : [];
+  const windowHours = Number(body.windowHours) >= 168 ? 168 : Number(body.windowHours) >= 72 ? 72 : 24;
+  const area = AREAS.has(body.area) || body.area === "All" ? body.area : "All";
+  const days = Number(body.days) >= 7 ? 7 : 1;
+  const upstreamBody = mode === "evidence-overlay"
+    ? { mode, cards, windowHours }
+    : { mode, area, days };
+  const cacheKey = JSON.stringify(upstreamBody);
+  const hit = overlayMemo.get(cacheKey);
+  if (hit && Date.now() - hit.at < OVERLAY_TTL_MS) return NextResponse.json(hit.overlay);
+
+  try {
+    const res = await fetch(briefingFunctionUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${key}`,
+        apikey: key,
+      },
+      body: JSON.stringify(upstreamBody),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Briefing ${mode} returned ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
+    }
+    const overlay = await res.json();
+    overlayMemo.set(cacheKey, { at: Date.now(), overlay });
+    return NextResponse.json(overlay);
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message ?? "Failed to reach the briefing evidence overlay." },
       { status: 502 }
     );
   }

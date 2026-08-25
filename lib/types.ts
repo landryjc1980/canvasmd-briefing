@@ -629,16 +629,120 @@ export type BriefingArticle = {
   publishedAt?: string | null;
   circulationState?: "newly_published" | "resurfaced" | "publication_date_unknown";
   sharers: number; // distinct accounts total (KOL + publisher)
-  kolSharers: number; // distinct KOL (verified-clinician) accounts that shared it
+  kolSharers: number; // distinct eligible clinicians, deduplicated by person
   publishers: string[]; publisherPosts?: BriefingSharer[]; otherPosts?: BriefingSharer[]; // institutional + uncategorized authored evidence
   faces: string[]; // up to 5 KOL sharer avatar urls
   topLikes: number;
   posts: BriefingSharer[]; // the actual tweets the KOLs posted about this paper (expandable)
+  sharerPeople?: BriefingEvidenceSharer[]; // person-deduped identities for the compact Readout proof row
   revealableClinicianCount?: number; // identities represented by serialized clinician receipts
   authoredClinicianCount?: number; // uncapped distinct clinicians who added their own words
   peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
   subAreas?: string[];
   congress?: boolean;
+};
+
+export type BriefingEvidenceSharer = {
+  name: string;
+  handle: string | null;
+  avatar: string | null;
+  tweetUrl: string | null;
+};
+
+export type BriefingEvidenceOverlayItem = {
+  id: string;
+  articleIds?: string[];
+  kolSharers: number;
+  faces: string[];
+  posts: BriefingSharer[];
+  sharerPeople: BriefingEvidenceSharer[];
+  authoredClinicianCount?: number;
+};
+
+export type BriefingEvidenceOverlay = {
+  generatedAt: string;
+  overlays: BriefingEvidenceOverlayItem[];
+};
+
+export type ReadoutArchivedCard = {
+  area: string;
+  card: HeroCard & {
+    rankTotal?: number;
+    rankTrace?: { input: string; value: number; weight: number; contribution: number }[];
+  };
+  evidence: BriefingData;
+  firstSeen: string;
+  lastSeen: string;
+};
+
+export type ReadoutListenEpisode = {
+  episodeId: string;
+  title: string;
+  show: string;
+  showArt: string | null;
+  audioUrl: string | null;
+  sourceUrl: string | null;
+  description: string | null;
+  publishedAt: string;
+  durationSeconds: number | null;
+  areas: string[];
+};
+
+export type ReadoutRegulatoryCandidate = {
+  id: string;
+  kind: "event";
+  regulatoryKind: "approval" | "label" | "safety";
+  eligibleLabel: string;
+  headline: string;
+  sourceLabel: string;
+  url: string;
+  occurredOn: string | null;
+  areas: string[];
+  articleIds: string[];
+  drugTags?: string[];
+  finding?: string | null;
+  primaryStudy?: {
+    id: string;
+    title: string;
+    url: string | null;
+    sourceLabel: string;
+    abstract?: string | null;
+    description?: string | null;
+  } | null;
+  relatedCoverage?: HeroSupportLink[];
+  metrics: {
+    clinicians: number;
+    cliniciansFeedEligible: number;
+    reposters: number;
+    totalSharers: number;
+    lastSharedAt: string | null;
+  };
+};
+
+export type ReadoutDesignationCandidate = {
+  id: string;
+  kind: "designation";
+  designationKind: "priority_review" | "fast_track" | "breakthrough_therapy" | "orphan_drug";
+  label: string;
+  headline: string;
+  sourceLabel: string;
+  url: string;
+  occurredOn: string | null;
+  areas: string[];
+  articleIds: string[];
+  description?: string | null;
+  metrics: ReadoutRegulatoryCandidate["metrics"];
+};
+
+export type ReadoutWindowPayload = {
+  generatedAt: string;
+  windowDays: 1 | 7;
+  area: string;
+  cards: ReadoutArchivedCard[];
+  episodes: ReadoutListenEpisode[];
+  regulatoryCards: ReadoutRegulatoryCandidate[];
+  designationCards: ReadoutDesignationCandidate[];
+  candidateGeneratedAt: string | null;
 };
 // A clinical trial the field is TALKING ABOUT this week — matched by acronym against
 // podcast conversations, KOL tweets and shared-article title/abstracts (not the raw

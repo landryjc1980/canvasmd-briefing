@@ -1,11 +1,13 @@
-import type { BriefingArticle, BriefingData, BriefingEpisode } from "@/lib/types";
+import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutRegulatoryCandidate } from "@/lib/types";
 
 export const EDITION_AREAS = ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"] as const;
 export type EditionArea = (typeof EDITION_AREAS)[number];
+export type SpecialtyArea = Exclude<EditionArea, "All">;
+export type EditorialArea = SpecialtyArea | "All";
 
 export type EditorialArticle = {
   id: string;
-  area: Exclude<EditionArea, "All">;
+  area: EditorialArea;
   site: string;
   nickname: string;
   takeaway: string;
@@ -17,11 +19,14 @@ export type EditorialArticle = {
   evidence: string;
   sharedBy: number;
   match: { doi?: string; pmid?: string; titleIncludes?: string };
+  articleIds?: string[];
+  primarySources?: HeroSupportLink[];
+  relatedCoverage?: HeroSupportLink[];
 };
 
 export type EditorialEpisode = {
   id: string;
-  area: Exclude<EditionArea, "All">;
+  area: SpecialtyArea;
   hook: string;
   show: string;
   title: string;
@@ -39,6 +44,51 @@ export type EditorialEpisodeFeature = EditorialEpisode & {
 };
 
 export type EditorialDevelopment = EditorialArticle | EditorialEpisodeFeature;
+
+const LISTEN_HOLD_HOURS = 72;
+const SPECIALTY_HELD_EPISODE_CAP = 2;
+const ALL_LISTEN_CAP = 3;
+
+const CORE_LISTEN_HOLD_SHOWS: Record<SpecialtyArea, string[]> = {
+  GU: ["The Uromigos", "GU Cast | Urology Podcast"],
+  Lung: ["Lung Cancer Considered"],
+  Heme: ["Blood Podcast"],
+  Breast: ["The Breast Friends Podcast"],
+  Skin: ["Melanoma Matters"],
+  GI: [],
+  Gyn: [],
+};
+
+const CROSS_SPECIALTY_LISTEN_HOLD_SHOWS = [
+  "The Lancet Oncology in conversation with",
+  "ASCO Guidelines",
+  "Oncology Brothers: Practice-Changing Cancer Discussions",
+];
+
+const EXCLUDED_LISTEN_HOLD_SHOWS = [
+  "Oncology Today with Dr Neil Love",
+  "Research To Practice | Oncology Videos",
+  "OncLive® On Air",
+  "PeerView Oncology & Hematology CME/CNE/CPE Audio Podcast",
+  "Two Onc Docs",
+  "BackTable Urology",
+  "BackTable Tumor Board",
+  "AUAUniversity",
+  "Lymphoma Hub",
+];
+
+const CONDITIONAL_GU_SHOW = "Oncology Insights with Petros Grivas";
+const CONDITIONAL_HEALTHCARE_UNFILTERED_SHOW = "Healthcare Unfiltered";
+
+const SPECIALTY_TITLE_CUES: Record<SpecialtyArea, RegExp> = {
+  GU: /\b(prostate|bladder|urothelial|renal|kidney|rcc|testicular|gu)\b/i,
+  Lung: /\b(lung|nsclc|sclc|alk|egfr)\b/i,
+  Heme: /\b(myeloma|leukemia|lymphoma|aml|cll|heme|haematolog|hematolog|celmod)\b/i,
+  Breast: /\b(breast|her2|er-positive|hr-positive|tnbc)\b/i,
+  Skin: /\b(melanoma|skin|cutaneous)\b/i,
+  GI: /\b(gi|colorectal|rectal|colon|pancrea|gastric|esophageal|hepatocellular|liver|biliary)\b/i,
+  Gyn: /\b(ovarian|endometrial|cervical|gynecologic|gyn)\b/i,
+};
 
 export const WORTH_YOUR_TIME: EditorialArticle[] = [
   {
@@ -209,7 +259,7 @@ export const NEW_TO_LISTEN: EditorialEpisode[] = [
     id: "loi-tils",
     area: "Breast",
     hook: "TILs as a decision tool in breast cancer, not just a biomarker.",
-    show: "The Lancet Oncology in conversation",
+    show: "The Lancet Oncology in conversation with",
     title: "Tumour-infiltrating lymphocytes in breast cancer with Professor Sherene Loi",
     url: "https://lancetonc.podbean.com/e/tumour-infiltrating-lymphocytes-in-breast-cancer-with-professor-sherene-loi/",
     match: "Tumour-infiltrating lymphocytes in breast cancer",
@@ -238,8 +288,108 @@ function norm(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").trim();
 }
 
+function validHttpUrl(value: string | null | undefined): string | null {
+  try {
+    const url = new URL(value ?? "");
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function relatedCoverageLinks(links: HeroSupportLink[] | null | undefined, primaryUrl: string | null | undefined): HeroSupportLink[] {
+  const primary = validHttpUrl(primaryUrl)?.toLowerCase() ?? null;
+  const seen = new Set<string>();
+  return (links ?? []).filter((link) => {
+    if (link.relationshipType === "primary_source") return false;
+    const url = validHttpUrl(link.url);
+    const key = url?.toLowerCase() ?? "";
+    if (!url || !key || key === primary || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialArticle {
+  const card = item.card;
+  const clinicianRank = card.rankTrace?.find((entry) => entry.input === "clinicianSharers")?.value ?? 0;
+  const supportLinks = card.support?.links ?? [];
+  const articleIds = supportLinks
+    .filter((link) => link.kind === "article" || link.kind === "paper")
+    .map((link) => link.id)
+    .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const primaryDescription = supportLinks.find((link) => link.relationshipType === "primary_source")?.description;
+  const site = item.area === "All" ? "Oncology" : item.area;
+  return {
+    id: `archive-${card.id}`,
+    area: item.area as EditorialArea,
+    site,
+    nickname: card.kind === "event" ? "REGULATORY" : "",
+    takeaway: card.headline,
+    finding: card.excerpt || primaryDescription || card.why,
+    remember: "Review the primary source and attached evidence for the exact population and result.",
+    journal: card.sourceLabel,
+    title: card.headline,
+    url: card.url ?? supportLinks[0]?.url ?? "",
+    evidence: card.kind === "event" ? "Regulatory action" : card.kind === "readout" ? "Trial readout" : "Published evidence",
+    sharedBy: Math.max(card.conversation?.authoredClinicians ?? 0, clinicianRank),
+    match: { titleIncludes: card.headline },
+    articleIds,
+    primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
+    relatedCoverage: supportLinks,
+  };
+}
+
+export function findArchivedEditorialSource(item: EditorialArticle, cards: ReadoutArchivedCard[]): ReadoutArchivedCard | null {
+  const itemUrl = validHttpUrl(item.url)?.toLowerCase() ?? null;
+  const needle = norm(item.match.titleIncludes || item.title);
+  return cards.find(({ card }) => {
+    const cardUrl = validHttpUrl(card.url)?.toLowerCase() ?? null;
+    if (itemUrl && cardUrl && itemUrl === cardUrl) return true;
+    const headline = norm(card.headline);
+    return !!needle && (headline.includes(needle) || needle.includes(headline));
+  }) ?? null;
+}
+
+export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate, area: EditionArea): EditorialArticle {
+  const primaryStudy = candidate.primaryStudy;
+  const primaryUrl = primaryStudy?.url || candidate.url;
+  const noticeLink: HeroSupportLink = {
+    id: candidate.id,
+    kind: "article",
+    title: candidate.headline,
+    url: candidate.url,
+    sourceLabel: candidate.sourceLabel,
+    relationshipType: "primary_source",
+    occurredAt: candidate.metrics.lastSharedAt,
+  };
+  const remember = candidate.regulatoryKind === "approval"
+    ? "This is an FDA approval, not a designation."
+    : candidate.regulatoryKind === "label"
+      ? "This is an FDA label change; confirm the exact indicated population."
+      : "This is an FDA safety update; review the source before changing care.";
+  return {
+    id: candidate.id,
+    area,
+    site: candidate.areas[0] ?? "Oncology",
+    nickname: candidate.eligibleLabel,
+    takeaway: candidate.headline,
+    finding: candidate.finding || primaryStudy?.description || "The clinician-shared regulatory source is linked below.",
+    remember,
+    journal: primaryStudy?.sourceLabel ?? candidate.sourceLabel,
+    title: primaryStudy?.title ?? candidate.headline,
+    url: primaryUrl,
+    evidence: candidate.eligibleLabel,
+    sharedBy: candidate.metrics.totalSharers,
+    match: { titleIncludes: candidate.headline },
+    articleIds: candidate.articleIds,
+    primarySources: primaryUrl === candidate.url ? [] : [noticeLink],
+    relatedCoverage: candidate.relatedCoverage ?? [],
+  };
+}
+
 export function findArticle(item: EditorialArticle, briefs: BriefingData[]): BriefingArticle | null {
-  const articles = briefs.flatMap((brief) => brief.topArticles ?? []);
+  const articles = briefs.flatMap(articleEvidencePool);
   return articles.find((article) => {
     if (item.match.doi && norm(article.doi) === norm(item.match.doi)) return true;
     if (item.match.pmid && norm(article.pmid) === norm(item.match.pmid)) return true;
@@ -249,11 +399,167 @@ export function findArticle(item: EditorialArticle, briefs: BriefingData[]): Bri
   }) ?? null;
 }
 
+function articleEvidencePool(brief: BriefingData): BriefingArticle[] {
+  const articles = [...(brief.topArticles ?? [])];
+  const seen = new Set(articles.map(articleKey));
+  const addPaper = (paper: BriefingPaper) => {
+    const article = articleFromPaper(paper);
+    const key = articleKey(article);
+    if (seen.has(key)) return;
+    seen.add(key);
+    articles.push(article);
+  };
+
+  for (const story of brief.topStories ?? []) for (const paper of story.papers ?? []) addPaper(paper);
+  for (const mover of brief.movers ?? []) for (const paper of mover.papers ?? []) addPaper(paper);
+  for (const trial of brief.trials ?? []) for (const paper of trial.articles ?? []) addPaper(paper);
+  for (const topic of brief.topics ?? []) for (const paper of topic.papers ?? []) addPaper(paper);
+
+  return articles;
+}
+
+function articleFromPaper(paper: BriefingPaper): BriefingArticle {
+  const paperWithIds = paper as BriefingPaper & Pick<Partial<BriefingArticle>, "doi" | "pmid" | "publishedAt">;
+  const kolSharers = paper.sharerCount ?? paper.sharers.length;
+  return {
+    title: paper.title,
+    url: paper.url,
+    journal: paper.journal,
+    domain: paper.domain,
+    doi: paperWithIds.doi,
+    pmid: paperWithIds.pmid,
+    abstract: paper.abstract,
+    description: paper.description,
+    publishedAt: paperWithIds.publishedAt,
+    sharers: kolSharers + (paper.publishers?.length ?? 0),
+    kolSharers,
+    publishers: paper.publishers ?? [],
+    publisherPosts: paper.publisherPosts,
+    otherPosts: paper.otherPosts,
+    faces: paper.sharers.map((sharer) => sharer.avatar).filter(Boolean).slice(0, 5) as string[],
+    topLikes: paper.topLikes,
+    posts: paper.posts ?? [],
+    peerReviewed: paper.peerReviewed,
+  };
+}
+
+function articleKey(article: Pick<BriefingArticle, "doi" | "pmid" | "url" | "title">): string {
+  return norm(article.doi) || norm(article.pmid) || norm(article.url) || norm(article.title);
+}
+
 export function findEpisode(item: EditorialEpisode, briefs: BriefingData[]): BriefingEpisode | null {
   return briefs.flatMap((brief) => brief.episodes ?? [])
     .find((episode) => norm(episode.title).includes(norm(item.match))) ?? null;
 }
 
-export function visibleForArea<T extends { area: Exclude<EditionArea, "All"> }>(items: T[], area: EditionArea) {
+export function listenForArea(
+  baseItems: EditorialEpisode[],
+  briefs: BriefingData[],
+  area: EditionArea,
+  featuredItems: EditorialEpisode[] = [],
+  now = new Date(),
+): EditorialEpisode[] {
+  const featured = new Set(featuredItems.flatMap((item) => episodeKeys(item)));
+  const base = visibleForArea(baseItems, area).filter((item) => !hasAnyKey(item, featured));
+  const held = heldEpisodesForArea(briefs, area, featured, now);
+  const seen = new Set(held.flatMap((item) => episodeKeys(item)));
+  const remainder = base.filter((item) => {
+    if (hasAnyKey(item, seen)) return false;
+    for (const key of episodeKeys(item)) seen.add(key);
+    return true;
+  });
+  const items = [...held, ...remainder];
+  return area === "All" ? items.slice(0, ALL_LISTEN_CAP) : items;
+}
+
+function heldEpisodesForArea(
+  briefs: BriefingData[],
+  area: EditionArea,
+  featured: Set<string>,
+  now: Date,
+): EditorialEpisode[] {
+  const heldByArea = new Map<SpecialtyArea, EditorialEpisode[]>();
+  for (const brief of briefs) {
+    const briefArea = asEditionArea(brief.area);
+    if (!briefArea || (area !== "All" && area !== briefArea)) continue;
+    const episodes = (brief.episodes ?? [])
+      .filter((episode) => isListenHoldEpisode(episode, briefArea, now))
+      .map((episode) => heldEpisodeFromBriefEpisode(episode, briefArea))
+      .filter((episode) => !hasAnyKey(episode, featured))
+      .sort((left, right) => publishedTime(findEpisode(right, briefs)) - publishedTime(findEpisode(left, briefs)));
+    const existing = heldByArea.get(briefArea) ?? [];
+    const seen = new Set(existing.flatMap((episode) => episodeKeys(episode)));
+    const unique = episodes.filter((episode) => {
+      if (hasAnyKey(episode, seen)) return false;
+      for (const key of episodeKeys(episode)) seen.add(key);
+      return true;
+    });
+    heldByArea.set(briefArea, [...existing, ...unique].slice(0, SPECIALTY_HELD_EPISODE_CAP));
+  }
+  const held = [...heldByArea.values()].flat();
+  return held.sort((left, right) => publishedTime(findEpisode(right, briefs)) - publishedTime(findEpisode(left, briefs)));
+}
+
+function heldEpisodeFromBriefEpisode(episode: BriefingEpisode, area: SpecialtyArea): EditorialEpisode {
+  return {
+    id: episode.episodeId ?? `held-${slug([area, episode.show, episode.title].filter(Boolean).join("-"))}`,
+    area,
+    hook: episode.title,
+    show: episode.show ?? "Podcast",
+    title: episode.title,
+    url: episode.sourceUrl || episode.audioUrl || "",
+    match: episode.title,
+  };
+}
+
+function isListenHoldEpisode(episode: BriefingEpisode, area: SpecialtyArea, now: Date): boolean {
+  const show = episode.show ?? "";
+  if (!show || EXCLUDED_LISTEN_HOLD_SHOWS.some((excluded) => sameText(show, excluded))) return false;
+  if (!withinHours(episode.publishedAt, now, LISTEN_HOLD_HOURS)) return false;
+  if (CORE_LISTEN_HOLD_SHOWS[area].some((candidate) => sameText(show, candidate))) return true;
+  if (CROSS_SPECIALTY_LISTEN_HOLD_SHOWS.some((candidate) => sameText(show, candidate))) return true;
+  if (sameText(show, CONDITIONAL_GU_SHOW)) return area === "GU" && hasSpecialtyCue(area, episode);
+  if (sameText(show, CONDITIONAL_HEALTHCARE_UNFILTERED_SHOW)) return hasSpecialtyCue(area, episode);
+  return false;
+}
+
+function hasSpecialtyCue(area: SpecialtyArea, episode: BriefingEpisode): boolean {
+  const text = [episode.title, episode.description, ...(episode.subAreas ?? [])].filter(Boolean).join(" ");
+  return SPECIALTY_TITLE_CUES[area].test(text);
+}
+
+function withinHours(value: string | null | undefined, now: Date, hours: number): boolean {
+  if (!value) return false;
+  const published = Date.parse(value);
+  if (!Number.isFinite(published)) return false;
+  const elapsed = now.getTime() - published;
+  return elapsed >= 0 && elapsed <= hours * 60 * 60 * 1000;
+}
+
+function publishedTime(episode: BriefingEpisode | null): number {
+  return episode ? Date.parse(episode.publishedAt) || 0 : 0;
+}
+
+function asEditionArea(value: string | null | undefined): SpecialtyArea | null {
+  return EDITION_AREAS.includes(value as EditionArea) && value !== "All" ? value as SpecialtyArea : null;
+}
+
+function episodeKeys(item: Pick<EditorialEpisode, "id" | "show" | "title" | "match">): string[] {
+  return [item.id, `title:${item.title}`, `${item.show}:${item.title}`, item.match].map(norm).filter(Boolean);
+}
+
+function hasAnyKey(item: EditorialEpisode, keys: Set<string>): boolean {
+  return episodeKeys(item).some((key) => keys.has(key));
+}
+
+function sameText(left: string | null | undefined, right: string | null | undefined) {
+  return norm(left) === norm(right);
+}
+
+function slug(value: string) {
+  return norm(value).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+export function visibleForArea<T extends { area: EditorialArea }>(items: T[], area: EditionArea) {
   return area === "All" ? items : items.filter((item) => item.area === area);
 }
