@@ -5,6 +5,7 @@ import fs from "node:fs";
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
 const edition = read("app/briefing-preview/edition.ts");
+const middleware = read("middleware.ts");
 
 test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /What physicians are saying/);
@@ -30,4 +31,9 @@ test("specialty filters are lenses on the same earned briefing", () => {
     assert.match(edition, new RegExp(`\\b${area}\\b`));
   }
   assert.match(edition, /area === "All" \? items : items\.filter/);
+});
+
+test("the preview is public locally without weakening the production gate", () => {
+  assert.match(middleware, /NODE_ENV !== "production"/);
+  assert.match(middleware, /pathname\.startsWith\("\/briefing-preview"\)/);
 });

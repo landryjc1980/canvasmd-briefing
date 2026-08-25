@@ -19,7 +19,10 @@ const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favico
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isSharePage = pathname === "/r" || pathname.startsWith("/r/");
-  if (process.env.NODE_ENV !== "production" && pathname.startsWith("/design-lab")) {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    (pathname.startsWith("/design-lab") || pathname.startsWith("/briefing-preview"))
+  ) {
     return NextResponse.next();
   }
   if (!isSharePage && PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return NextResponse.next();
