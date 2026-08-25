@@ -168,7 +168,7 @@ export const cardBox: React.CSSProperties = { background: "var(--rv-card, rgba(2
 // the page; the evidence cards inside step up again.
 const storyCard: React.CSSProperties = { background: "transparent", border: 0, borderBottom: `1px solid ${LINE}`, borderRadius: 0, padding: "0 2px", marginBottom: 0 };
 export const evLabel = (accent: string): React.CSSProperties => ({ font: "600 10px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: accent, marginBottom: 11 });
-const EDITORIAL_MEASURE = 850;
+export const EDITORIAL_MEASURE = 850; // the editorial column measure every edition shares
 
 // Embedded papers suppress their own source drawer to avoid a drawer inside a drawer. Hoist every
 // paper-specific clinician receipt into the containing evidence lane instead, deduped by the exact
@@ -1809,13 +1809,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
   );
 }
 
-const statTile: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 11px", minWidth: 56 };
-const statTileLabel: React.CSSProperties = { font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: MUT2, marginTop: 5 };
+export const statTile: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 11px", minWidth: 56 };
+export const statTileLabel: React.CSSProperties = { font: "600 8px system-ui", letterSpacing: ".09em", textTransform: "uppercase", color: MUT2, marginTop: 5 };
 
 // Section header as a real h2. ReaderView left-aligns every section on desktop and mobile;
 // `rail` only tightens the spacing for the supporting column. The optional centered form remains
 // available for other callers.
-function SectionHead({ children, id, accent, rail = false, left = false }: { children: React.ReactNode; id?: string; accent: string; rail?: boolean; left?: boolean }) {
+export function SectionHead({ children, id, accent, rail = false, left = false }: { children: React.ReactNode; id?: string; accent: string; rail?: boolean; left?: boolean }) {
   const leftAlign = rail || left;
   return (
     <h2 id={id} style={{ display: "flex", alignItems: "center", gap: 14, margin: rail ? "54px 0 10px" : "54px 0 18px", scrollMarginTop: 66 }}>

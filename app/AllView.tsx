@@ -5,7 +5,7 @@ import { BriefingData, BriefingArticle, BriefingStory, BriefingSharer, BriefingP
 import { heroSlugFor } from "@/lib/postId";
 // Reuse the exact evidence machinery from the single-area reader so the expand /
 // Hide-at-bottom / clips / receipts behave identically everywhere.
-import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, StoryEvidence, EpisodeXReceipts } from "./ReaderView";
+import { Row, TweetCard, PaperCard, PaperShareRow, FacePile, Coin, evLabel, StoryEvidence, EpisodeXReceipts, SectionHead, statTile, statTileLabel, EDITORIAL_MEASURE } from "./ReaderView";
 import StanceBlock from "./StanceBlock";
 import AudioQuote from "@/components/AudioQuote";
 import { AREA_FULL, storiesOf, storyKicker, paperBlockLabel, storyMetricLine, pileFacesL, heroDeckOf, clipTs } from "./briefVM";
@@ -420,7 +420,9 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       setTimeout(() => setShareMsg(""), copied ? 2800 : 6000);
     } catch { setShareMsg("Couldn’t create a link"); setTimeout(() => setShareMsg(""), 3000); }
   };
-  const [activeSec, setActiveSec] = useState<string>(areaId(orderedAreas[0]));
+  // "" = above the first area group, i.e. the whole-page view. NOT the first area: the row
+  // reads as a scope selector, so defaulting it to GU claimed a filter that isn't applied.
+  const [activeSec, setActiveSec] = useState<string>("");
   const orderKey = orderedAreas.join(",");
   // What a jump has to clear. Each layout stickies a DIFFERENT element: wide pins the full
   // masthead (the Areas band below it scrolls away), while medium and compact pin only the
@@ -437,19 +439,27 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       setStuck(window.scrollY > 120);
       let cur = "";
       for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= threshold) cur = id; }
-      setActiveSec(cur || ids[0]);
+      setActiveSec(cur);
     };
     check();
     // `stuck` drives the bar's opaque backing, so it is set SYNCHRONOUSLY — deferring it to rAF
     // meant that whenever rAF was throttled (background tab, low-power mode) the bar kept a
     // transparent background while page text scrolled visibly through it. Only the spy, which
     // measures every section, is worth deferring.
+    // Throttled on a TIMER, not rAF. The Areas row's selection is now a real claim — "All" until
+    // you are actually inside an area's group — so a spy that never runs would pin it to All
+    // forever. rAF is suspended outright in the embedded webviews this app is read in (the same
+    // place IntersectionObserver is dead), while timers keep firing; the comment below on `stuck`
+    // records the earlier half of exactly this lesson.
+    let queued = false;
     const onScroll = () => {
       setStuck(window.scrollY > 120);
-      if (!raf) raf = requestAnimationFrame(() => { raf = 0; check(); });
+      if (queued) return;
+      queued = true;
+      raf = window.setTimeout(() => { queued = false; check(); }, 100) as unknown as number;
     };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+    return () => { window.removeEventListener("scroll", onScroll); if (raf) clearTimeout(raf); };
   }, [orderKey, wide, compact, jumpOffset]);
   // rAF glide (ported from ReaderView.goSec): the FacePile avatars above a jump target lazy-load
   // and shift layout mid-flight, so the target is re-measured every frame; wheel/touch cancels.
@@ -587,19 +597,22 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // `sub` is the truncatable identity line (institution / show); `facts` are the COUNTS behind
   // the ranking and never truncate — a long affiliation ("Medstar Medical Group Ii LLC") was
   // eating "· 30 posts · 10 papers" off the end of the line (John, 2026-07-24).
-  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; children: React.ReactNode | null }) => {
+  // `stats` switches the row to the tumor pages' Recent-guests anatomy: serif name, identity
+  // chips, a "▸ Listen · N episodes" line, and the two box-score tiles pinned right. Without it
+  // the row keeps the compact form "Carried on X" shares with the specialty kols rail.
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; stats?: { value: number; label: string }[]; children: React.ReactNode | null }) => {
     const acc = accentOf(opts.areas[0] ?? "GU");
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
     return (
       <Row key={opts.id} open={open} onToggle={() => { if (canOpen) toggle(opts.id); }} accent={acc} landOffset={compact ? 108 : 70} disabled={!canOpen}
         head={
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 2px" }}>
-            <Coin src={opts.avatar} label={opts.name} size={34} ring={PAPER} style={{ marginTop: 2 }} />
+          <div style={{ display: "flex", alignItems: opts.stats ? "center" : "flex-start", gap: opts.stats ? 12 : 11, padding: opts.stats ? "16px 2px" : "13px 2px" }}>
+            <Coin src={opts.avatar} label={opts.name} size={34} ring={PAPER} style={{ marginTop: opts.stats ? 0 : 2 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0, font: "500 15px/1.25 'Newsreader',Georgia,serif", color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
-                <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? acc : INK_2, padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>
+                <span style={{ flex: 1, minWidth: 0, font: `500 ${opts.stats ? "17px" : "15px"}/1.25 'Newsreader',Georgia,serif`, color: INK, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{opts.name}</span>
+                {!opts.stats && <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? acc : INK_2, padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                 {opts.areasLabel && <span style={{ font: "500 10px system-ui", color: MUT2 }}>{opts.areasLabel}</span>}
@@ -613,13 +626,29 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                   </span>
                 )}
               </div>
+              {opts.stats && <div data-disclosure style={{ font: "600 11.5px system-ui", color: acc, marginTop: 7 }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</div>}
             </div>
+            {opts.stats && (
+              <div style={{ flex: "none", display: "flex", gap: 8, textAlign: "center" }}>
+                {opts.stats.map((t, i) => (
+                  <div key={t.label} style={{ ...statTile }}>
+                    <div style={{ font: "600 21px 'Newsreader',Georgia,serif", color: i === 0 ? acc : INK }}>{t.value}</div>
+                    <div style={statTileLabel}>{t.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         }>
         {opts.children}
       </Row>
     );
   };
+
+  // The window the "N-day" tile quotes. Every area rebuilds on one cadence, so these agree in
+  // practice; take the max so the label can never claim a SHORTER window than some area actually
+  // used. Falls back to the specialty default when no brief has landed yet.
+  const railWindowDays = Math.max(14, ...AREAS.map((a) => briefsByArea[a]?.windowDays ?? 0));
 
   const MICS_CAP = 6, X_CAP = 6, MORE_CAP = 14; // expanded view still caps — a rail, not a directory
   const micsShown = micsMore ? micsRanked.slice(0, MORE_CAP) : micsRanked.slice(0, MICS_CAP);
@@ -628,16 +657,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
     <button type="button" onClick={flip} style={{ background: "none", border: 0, cursor: "pointer", font: "600 11.5px system-ui", color: MUT2, padding: "8px 2px 0", textAlign: "left" }}>{on ? "Show fewer ↑" : `Show ${Math.min(total, MORE_CAP) - cap} more ↓`}</button>
   );
 
+  // The rail uses the SPECIALTY editions' section furniture, not its own. It previously stacked
+  // three headers of its own invention — a "Voices of the week" h2, a descriptive line, then a
+  // serif module title — where a tumor page shows one SectionHead rule and goes straight to rows
+  // (John, 2026-08-25: "a totally different header and layout as the specialty pages").
   const voicesModules = (
     <div>
-      <h2 style={{ font: "700 12px system-ui", letterSpacing: ".15em", textTransform: "uppercase", color: INK, margin: 0 }}>Voices of the week</h2>
-      <div style={{ font: "400 11.5px system-ui", color: MUT2, marginTop: 5 }}>who the field heard · who it amplified</div>
-
-      {/* ── On the mics ── */}
-      {micsRanked.length > 0 && <div style={{ margin: "18px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: INK }}>On the mics</span>
-        <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by podcast appearances</span>
-      </div>}
+      {micsRanked.length > 0 && <>
+        <SectionHead accent={ALL_ACCENT} rail={wide} left>On the mics</SectionHead>
+        <div style={{ font: "400 11px system-ui", color: MUT2, margin: "-4px 0 2px" }}>by podcast appearances</div>
+      </>}
       {micsShown.map((m) => {
         const eps = micEpisodes(m);
         // The chip shows the REAL episode count — the host-credit cap is a RANKING rule only
@@ -654,7 +683,8 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           areas: m.areas,
           roleChip: m.hostShow ? (m.guestEps.size ? "Host + Guest" : "Host") : "Guest",
           sub,
-          count: `${n} episode${n === 1 ? "" : "s"} ↓`,
+          count: `▸ Listen · ${n} episode${n === 1 ? "" : "s"}`,
+          stats: [{ value: n, label: `${railWindowDays}-day` }, { value: m.career, label: "Career" }],
           children: eps.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {eps.map((e, j) => (
@@ -676,10 +706,10 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
       {moreBtn(micsRanked.length, MICS_CAP, micsMore, () => setMicsMore((v) => !v))}
 
       {/* ── Carried on X ── */}
-      {xRanked.length > 0 && <div style={{ margin: "26px 0 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ font: "500 16px 'Newsreader',Georgia,serif", color: INK }}>Carried on X</span>
-        <span style={{ font: "400 10.5px system-ui", color: MUT2 }}>by reposts + quotes earned</span>
-      </div>}
+      {xRanked.length > 0 && <>
+        <SectionHead accent={ALL_ACCENT} rail={wide} left>Carried on X</SectionHead>
+        <div style={{ font: "400 11px system-ui", color: MUT2, margin: "-4px 0 2px" }}>by reposts + quotes earned</div>
+      </>}
       {xShown.map((v) => {
         const acc = accentOf(v.areas[0] ?? "GU");
         const onMics = micKeys.has(norm(v.name));
@@ -1093,9 +1123,22 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // Area scope row — the All page's equivalent of the specialty editions' Focus row: same position
   // (shares the masthead line on wide, its own row on medium, below the sticky pills on mobile) and
   // the same non-sticky treatment; styled with each area's own accent dot.
+  // Whether the reader has actually scrolled into one area's group. Until they have, "All" holds.
+  const inArea = orderedAreas.some((a) => activeSec === areaId(a));
+  const goTop = () => {
+    logSignal("section_jump", "All", null, { surface: "areas_all" });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { window.scrollTo(0, 0); return; }
+    // native smooth scroll, not the rAF glide — this one has no element to re-measure, and rAF is
+    // suspended outright in the embedded webviews this app is read in.
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const areasRow = (mobile: boolean) => (
     <div className={`all-pills${mobile ? " all-fade" : ""}`} style={{ display: "flex", alignItems: "center", gap: mobile ? 18 : 20, flexWrap: mobile ? "nowrap" : "wrap", overflowX: mobile ? "auto" : "visible", margin: mobile ? "10px -20px 0" : 0, padding: mobile ? "0 20px" : 0, minWidth: 0 }}>
       <span style={{ font: "600 9.5px system-ui", letterSpacing: ".14em", textTransform: "uppercase", color: MUT2, flex: "none" }}>Areas</span>
+      <button key="all" onClick={goTop} style={tabStyle(!inArea, ALL_ACCENT)}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: ALL_ACCENT, flex: "none" }} />All
+      </button>
       {orderedAreas.map((a) => {
         const on = activeSec === areaId(a);
         return (
@@ -1168,13 +1211,13 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
         @media(prefers-reduced-motion:reduce){.rv-drawer{animation:none}}
       `}</style>
 
-      <div style={{ maxWidth: wide ? 1116 : 760, margin: "0 auto", padding: compact ? "18px 20px 100px" : wide ? "0 30px 120px" : "0 32px 120px" }}>
+      <div style={{ maxWidth: wide ? 1280 : 690, margin: "0 auto", padding: compact ? "18px 20px 100px" : "0 32px 120px" }}>
         {/* WIDE — the specialty editions' masthead, structure for structure: brand on the left,
             section jumps centered, edition picker + freshness + Share on the right. The Areas
             scope row then rides its own quiet band beneath, exactly where Focus sits on a tumor
             page, because it scopes the whole page rather than navigating within it. */}
         {wide && !compact && <>
-          <div style={{ position: "sticky", top: 0, zIndex: 15, minHeight: 86, margin: "0 -30px", padding: "0 30px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 42, background: stuck ? "rgba(244,244,241,.94)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 12px 28px -22px rgba(31,35,42,.35)" : "none", transition: "box-shadow .2s ease" }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 15, minHeight: 86, margin: "0 -32px", padding: "0 32px", display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", columnGap: 42, background: stuck ? "rgba(244,244,241,.94)" : PAPER, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", borderBottom: `1px solid ${LINE}`, boxShadow: stuck ? "0 12px 28px -22px rgba(31,35,42,.35)" : "none", transition: "box-shadow .2s ease" }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ color: ALL_ACCENT, font: "750 10px/1 system-ui", textTransform: "uppercase" }}>CanvasMD</span>
               <h1 style={{ font: "500 28px/1 Georgia,'Newsreader',serif", color: INK, margin: "5px 0 0", whiteSpace: "nowrap" }}>The Readout</h1>
@@ -1191,7 +1234,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
               </button>
             </div>
           </div>
-          <div style={{ minHeight: 58, margin: "0 -30px 18px", padding: "0 30px", display: "flex", alignItems: "center", gap: 20, borderBottom: `1px solid ${LINE}` }}>
+          <div style={{ minHeight: 58, margin: "0 -32px 18px", padding: "0 32px", display: "flex", alignItems: "center", gap: 20, borderBottom: `1px solid ${LINE}` }}>
             {areasRow(false)}
             <span style={{ marginLeft: "auto", flex: "none", font: "600 10px system-ui", letterSpacing: ".08em", textTransform: "uppercase", color: MUT2, whiteSpace: "nowrap" }}>Busiest first</span>
           </div>
@@ -1428,7 +1471,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           // top and only turning columnar further down.
           return wide ? (
             <div style={{ display: "grid", gridTemplateColumns: hasVoices ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)", columnGap: 46, alignItems: "start" }}>
-              <div style={{ minWidth: 0 }}>{topJsx}{groupsJsx}{podcastsJsx}{readingJsx}</div>
+              <div className="rv-editorial-column" style={{ minWidth: 0, width: "100%", maxWidth: EDITORIAL_MEASURE }}>{topJsx}{groupsJsx}{podcastsJsx}{readingJsx}</div>
               {hasVoices && <aside style={{ minWidth: 0, marginTop: 26 }}>{voicesModules}</aside>}
             </div>
           ) : (
