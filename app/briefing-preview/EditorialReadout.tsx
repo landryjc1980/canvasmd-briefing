@@ -38,6 +38,7 @@ const AREA_LABELS: Record<EditionArea, string> = {
 const SHARER_PREVIEW_LIMIT = 3;
 const SHARER_EXPANDED_LIMIT = 12;
 const EVIDENCE_REFRESH_MS = 60 * 60_000;
+const MOBILE_FINDING_THRESHOLD = 360;
 
 function CanvasMdLogo() {
   return (
@@ -207,7 +208,7 @@ function SharerNames({ article, sharedBy }: { article: BriefingArticle | null; s
 
   return (
     <div className="er-sharer-names">
-      <span className="er-sharer-label">Shared by</span>
+      <span className="er-sharer-label">Including</span>
       <span className="er-sharer-list">
         {visibleSharers.map((sharer, index) => (
           <span className="er-sharer-name" key={sharerKey(sharer)}>
@@ -233,6 +234,7 @@ function SharerNames({ article, sharedBy }: { article: BriefingArticle | null; s
 }
 
 function PhysicianVoices({ article, accent, sharedBy }: { article: BriefingArticle | null; accent: string; sharedBy: number }) {
+  const [showAllMobile, setShowAllMobile] = useState(false);
   const posts = usefulPosts(article);
   if (!posts.length) {
     return sharedBy > 0 ? <p className="er-no-commentary">Shared, no commentary yet.</p> : null;
@@ -242,7 +244,7 @@ function PhysicianVoices({ article, accent, sharedBy }: { article: BriefingArtic
     <div className={`er-voices ${visiblePosts.length === 1 ? "is-single" : ""}`} style={{ "--accent": accent } as React.CSSProperties}>
       <p className="er-voices-label">What clinicians are saying</p>
       {visiblePosts.map((post, index) => (
-        <figure className="er-voice" key={`${post.handle ?? post.name}-${index}`}>
+        <figure className={`er-voice ${index > 0 ? "er-voice-secondary" : ""} ${showAllMobile ? "is-mobile-open" : ""}`} key={`${post.handle ?? post.name}-${index}`}>
           <blockquote>{post.text}</blockquote>
           <figcaption>
             {post.avatar ? <img src={post.avatar} alt="" /> : <span className="er-avatar-fallback">{post.name.slice(0, 1)}</span>}
@@ -251,7 +253,42 @@ function PhysicianVoices({ article, accent, sharedBy }: { article: BriefingArtic
           </figcaption>
         </figure>
       ))}
+      {visiblePosts.length > 1 && (
+        <button className="er-voices-more" type="button" aria-expanded={showAllMobile} onClick={() => setShowAllMobile((value) => !value)}>
+          {showAllMobile ? "Show fewer comments" : `Show ${visiblePosts.length - 1} more comment`}
+        </button>
+      )}
     </div>
+  );
+}
+
+function DevelopmentFinding({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const collapsible = text.length > MOBILE_FINDING_THRESHOLD;
+  return (
+    <>
+      <p className={`er-finding ${collapsible && !expanded ? "is-mobile-collapsed" : ""}`}>{text}</p>
+      {collapsible && (
+        <button className="er-finding-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+          {expanded ? "Show less" : "Show full result"}
+        </button>
+      )}
+    </>
+  );
+}
+
+function SourceArticle({ href, journal, title, action = "Read article", compact = false }: {
+  href: string;
+  journal: string;
+  title: string;
+  action?: string;
+  compact?: boolean;
+}) {
+  return (
+    <a className={`er-citation ${compact ? "er-compact-citation" : ""}`} href={href} target="_blank" rel="noreferrer">
+      <span className="er-citation-topline"><b>{journal}</b><em>{action} ↗</em></span>
+      <strong>{title}</strong>
+    </a>
   );
 }
 
@@ -271,17 +308,29 @@ function validSupportLinks(links: HeroSupportLink[] | undefined, primaryUrl: str
 }
 
 function CoverageLinks({ item, primaryUrl }: { item: EditorialArticle; primaryUrl: string }) {
+  const [coverageOpen, setCoverageOpen] = useState(false);
   const primarySources = validSupportLinks(item.primarySources, primaryUrl);
   const related = relatedCoverageLinks(item.relatedCoverage, primaryUrl).slice(0, 2);
   if (!primarySources.length && !related.length) return null;
   return (
-    <div className="er-related-links">
-      {primarySources.map((link) => (
-        <p key={`primary-${link.id}`}><span>Primary source</span><i aria-hidden="true">·</i><a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a></p>
-      ))}
-      {related.map((link) => (
-        <p key={`related-${link.id}`}><span>Related coverage</span><i aria-hidden="true">·</i><a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a></p>
-      ))}
+    <div className="er-support-links">
+      <div className="er-primary-links">
+        {primarySources.map((link) => (
+          <p key={`primary-${link.id}`}><span>Primary source</span><i aria-hidden="true">·</i><a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a></p>
+        ))}
+      </div>
+      {related.length > 0 && (
+        <>
+          <button className="er-related-toggle" type="button" aria-expanded={coverageOpen} onClick={() => setCoverageOpen((value) => !value)}>
+            Related coverage ({related.length}) <span aria-hidden="true">{coverageOpen ? "−" : "+"}</span>
+          </button>
+          <div className={`er-related-links ${coverageOpen ? "is-open" : ""}`}>
+            {related.map((link) => (
+              <p key={`related-${link.id}`}><span>Related coverage</span><i aria-hidden="true">·</i><a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a></p>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -296,16 +345,13 @@ function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle
       <div className="er-development-body">
         <div className="er-kicker"><span>{item.site}</span>{item.nickname && <><i aria-hidden="true">·</i><b>{item.nickname}</b></>}</div>
         <h3>{item.takeaway}</h3>
-        <p className="er-finding">{item.finding}</p>
+        <DevelopmentFinding text={item.finding} />
         <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>
-        <p className="er-citation">
-          <span>{item.journal}</span>
-          <a href={href} target="_blank" rel="noreferrer">{article?.title || item.title} ↗</a>
-        </p>
+        <SourceArticle href={href} journal={item.journal} title={article?.title || item.title} />
         <CoverageLinks item={item} primaryUrl={href} />
         <div className="er-proof">
           <FacePile article={article} count={sharedBy} />
-          <span>{item.evidence}</span>
+          <span className="er-evidence-kind">{item.evidence}</span>
           <span className="er-proof-count">{shareCommentaryLabel(sharedBy, authoredCount)}</span>
         </div>
         <SharerNames article={article} sharedBy={sharedBy} />
@@ -338,9 +384,9 @@ function EpisodeDevelopment({ item, briefs }: { item: EditorialEpisodeFeature; b
       <div className="er-development-body">
         <div className="er-kicker"><span>{item.site}</span><i aria-hidden="true">·</i><b>{item.nickname}</b></div>
         <h3>{item.hook}</h3>
-        <p className="er-finding">{item.finding}</p>
+        <DevelopmentFinding text={item.finding} />
         <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>
-        <p className="er-citation"><span>{episode?.show || item.show}</span><a href={sourceHref} target="_blank" rel="noreferrer">{episode?.title || item.title} ↗</a></p>
+        <SourceArticle href={sourceHref} journal={episode?.show || item.show} title={episode?.title || item.title} action="Open episode" />
         <EpisodeAudio
           audioUrl={audioUrl}
           sourceHref={sourceHref}
@@ -607,7 +653,7 @@ export default function EditorialReadout() {
                   <small>{item.evidence}</small>
                 </div>
                 <h3>{item.takeaway}</h3>
-                <div className="er-compact-citation"><span>{item.journal}</span><a href={article?.url || item.url} target="_blank" rel="noreferrer">{article?.title || item.title} ↗</a></div>
+                <SourceArticle href={article?.url || item.url} journal={item.journal} title={article?.title || item.title} compact />
                 <CoverageLinks item={item} primaryUrl={article?.url || item.url} />
                 <div className="er-compact-proof">
                   <FacePile article={article} count={sharedBy} />

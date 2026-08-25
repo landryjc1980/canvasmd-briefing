@@ -17,6 +17,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /is-single/);
   assert.match(preview, /isTitleOnlyShare/);
   assert.match(preview, /posts\.slice\(0, 2\)/);
+  assert.match(preview, /Show \$\{visiblePosts\.length - 1\} more comment/);
   assert.match(preview, /<blockquote>\{post\.text\}<\/blockquote>/);
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /Promise\.allSettled/);
@@ -57,7 +58,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
 
 test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.match(preview, /<h3>\{item\.takeaway\}<\/h3>/);
-  assert.match(preview, /className="er-finding">\{item\.finding\}/);
+  assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} \/>/);
   assert.match(preview, /<strong>Key takeaway:<\/strong> \{item\.remember\}/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/);
   assert.match(preview, /faces: overlay\.faces/);
@@ -91,7 +92,20 @@ test("attached related coverage is compact, validated, and deduped from the prim
   ];
   assert.deepEqual(relatedCoverageLinks(links, "https://journal.example/paper").map((link) => link.sourceLabel), ["OncLive"]);
   assert.match(preview, /Related coverage/);
+  assert.match(preview, /er-related-toggle/);
   assert.match(preview, /<CoverageLinks item=\{item\}/);
+});
+
+test("mobile cards prioritize the source article and progressively disclose dense evidence", () => {
+  assert.match(preview, /MOBILE_FINDING_THRESHOLD = 360/);
+  assert.match(preview, /Show full result/);
+  assert.match(preview, /function SourceArticle/);
+  assert.match(preview, /Read article/);
+  assert.match(preview, /className="er-citation-topline"/);
+  assert.match(preview, /<span className="er-sharer-label">Including<\/span>/);
+  assert.match(previewCss, /\.er-finding\.is-mobile-collapsed/);
+  assert.match(previewCss, /\.er-voice-secondary:not\(\.is-mobile-open\)/);
+  assert.match(previewCss, /\.er-related-links:not\(\.is-open\)/);
 });
 
 test("the hidden production canary is gated, unlisted, and noindex", () => {
