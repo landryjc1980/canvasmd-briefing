@@ -600,7 +600,7 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
   // `stats` switches the row to the tumor pages' Recent-guests anatomy: serif name, identity
   // chips, a "▸ Listen · N episodes" line, and the two box-score tiles pinned right. Without it
   // the row keeps the compact form "Carried on X" shares with the specialty kols rail.
-  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; verified?: boolean; stats?: { value: number; label: string }[]; children: React.ReactNode | null }) => {
+  const voiceRow = (opts: { id: string; name: string; avatar?: string | null; areas: string[]; areasLabel?: string | null; roleChip?: string | null; sub: string | null; facts?: string | null; count: string; countOpen?: string; stats?: { value: number; label: string }[]; children: React.ReactNode | null }) => {
     const acc = accentOf(opts.areas[0] ?? "GU");
     const open = openId === opts.id;
     const canOpen = opts.children !== null;
@@ -615,16 +615,16 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
                 {!opts.stats && <span data-disclosure style={{ display: "inline-flex", alignItems: "center", minHeight: 44, flex: "none", margin: "-10px 0 -10px", font: "600 11.5px system-ui", color: open ? acc : INK_2, padding: "0 2px", whiteSpace: "nowrap" }}>{open ? (opts.countOpen ?? "Hide ↑") : opts.count}</span>}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                {/* Box-score rows carry the tumor pages' NPI chip; the area and the show ride the
+                {/* Box-score rows carry NO chips at all — matching the tumor pages, and carrying no
+                    "NPI on file" badge either (see ReaderView: the registry flag is provenance for
+                    us, not a label to pin on a named physician). The area and the show ride the
                     muted identity line as text, since a cross-specialty page still has to say
                     WHERE someone was heard. Chip clusters and face coins belong to the other form. */}
-                {opts.stats
-                  ? opts.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: "#fff", background: acc, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", flex: "none" }}>NPI on file</span>
-                  : <>
-                      {opts.areasLabel && <span style={{ font: "500 10px system-ui", color: MUT2 }}>{opts.areasLabel}</span>}
-                      {opts.areas.map(miniTag)}
-                      {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
-                    </>}
+                {!opts.stats && <>
+                  {opts.areasLabel && <span style={{ font: "500 10px system-ui", color: MUT2 }}>{opts.areasLabel}</span>}
+                  {opts.areas.map(miniTag)}
+                  {opts.roleChip && <span style={{ font: "700 7.5px system-ui", letterSpacing: ".05em", textTransform: "uppercase", color: MUT, background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1.5px 5px", flex: "none" }}>{opts.roleChip}</span>}
+                </>}
                 {(opts.sub || opts.facts) && (
                   <span style={{ display: "flex", alignItems: "baseline", gap: 5, minWidth: 0, flex: "1 1 auto", font: "400 11.5px system-ui", color: MUT }}>
                     {opts.sub && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{opts.sub}</span>}
@@ -690,7 +690,6 @@ export default function AllView({ briefsByArea, areas, onArea, compact = false, 
           id: "vm:" + m.key,
           name: m.name,
           areas: m.areas,
-          verified: m.verified,
           sub,
           count: `▸ Listen · ${n} episode${n === 1 ? "" : "s"}`,
           stats: [{ value: n, label: `${railWindowDays}-day` }, { value: m.career, label: "Career" }],

@@ -1337,10 +1337,13 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
             <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 2px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ font: "500 17px 'Newsreader',Georgia,serif", color: "var(--rv-ink, #f4f7ff)" }}>{g.name}</div>
-                {(g.verified || g.affiliation) && (
+                {/* No "NPI on file" badge. The registry check still happens upstream and the flag
+                    still travels on the payload — but stamping it on a named physician's row reads
+                    as surveillance of them rather than provenance for the reader (John, 2026-08-25).
+                    Their affiliation is the identity fact worth showing. */}
+                {g.affiliation && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                    {g.verified && <span style={{ font: "700 8px system-ui", letterSpacing: ".06em", color: pal.bg, background: pal.accent, borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", flex: "none" }}>NPI on file</span>}
-                    {g.affiliation && <span style={{ font: "400 12.5px system-ui", color: MUT }}>{g.affiliation}</span>}
+                    <span style={{ font: "400 12.5px system-ui", color: MUT }}>{g.affiliation}</span>
                   </div>
                 )}
                 {eps.length > 0 && <div style={{ font: "600 11.5px system-ui", color: pal.accent, marginTop: 7 }}>{openId === "g:" + i ? "Hide ↑" : `▸ Listen · ${eps.length} episode${eps.length === 1 ? "" : "s"}`}</div>}
