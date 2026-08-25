@@ -107,6 +107,26 @@ export const WORTH_YOUR_TIME: EditorialArticle[] = [
   },
 ];
 
+// Specialty lenses may use this earned 72-hour layer when their 24-hour slate is empty.
+// These remain editorially selected developments; the longer window never lowers the bar.
+export const SPECIALTY_FALLBACKS: EditorialArticle[] = [
+  {
+    id: "litespark-011",
+    area: "GU",
+    site: "Kidney",
+    nickname: "LITESPARK-011",
+    takeaway: "Belzutifan plus lenvatinib improved PFS after prior immunotherapy, without a proven survival gain.",
+    finding: "In previously treated advanced clear-cell RCC, belzutifan plus lenvatinib improved median PFS versus cabozantinib (14.8 versus 10.7 months; HR 0.70). Overall survival was not significantly different at the interim analysis (HR 0.85).",
+    remember: "A meaningful post-IO PFS option; OS remains unproven.",
+    journal: "The Lancet",
+    title: "Belzutifan plus lenvatinib versus cabozantinib in patients with previously treated advanced renal cell carcinoma (LITESPARK-011): an open-label, randomised, controlled, phase 3 trial",
+    url: "https://pubmed.ncbi.nlm.nih.gov/42586114/",
+    evidence: "Phase 3",
+    sharedBy: 5,
+    match: { doi: "10.1016/S0140-6736(26)01089-5", pmid: "42586114", titleIncludes: "LITESPARK-011" },
+  },
+];
+
 export const ALSO_RELEVANT: EditorialArticle[] = [
   {
     id: "elevate",

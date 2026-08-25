@@ -6,6 +6,7 @@ import {
   ALSO_RELEVANT,
   EDITION_AREAS,
   NEW_TO_LISTEN,
+  SPECIALTY_FALLBACKS,
   WORTH_YOUR_TIME,
   findArticle,
   findEpisode,
@@ -30,12 +31,33 @@ function usefulPosts(article: BriefingArticle | null): BriefingSharer[] {
   const seen = new Set<string>();
   return (article.posts ?? []).filter((post) => {
     const text = post.text?.trim() ?? "";
+    const contentWords = words(text);
     const key = post.handle?.toLowerCase() || post.name.toLowerCase();
-    if (!text || text.length < 24 || /^rt\s+@/i.test(text) || text === "*") return false;
+    if (!text || contentWords.length < 3 || /^rt\s+@/i.test(text) || isTitleOnlyShare(text, article.title)) return false;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
+
+function words(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[@#][\p{L}\p{N}_-]+/gu, " ")
+    .replace(/\b(?:new|paper|study|article|published|online)\b/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+}
+
+function isTitleOnlyShare(text: string, title: string): boolean {
+  const postWords = words(text);
+  const titleWords = new Set(words(title));
+  if (postWords.length < 5 || titleWords.size < 5) return false;
+  const overlap = postWords.filter((word) => titleWords.has(word)).length;
+  return overlap / postWords.length >= 0.82;
 }
 
 function FacePile({ article }: { article: BriefingArticle | null }) {
@@ -48,10 +70,12 @@ function FacePile({ article }: { article: BriefingArticle | null }) {
   );
 }
 
-function PhysicianConversation({ article, accent }: { article: BriefingArticle | null; accent: string }) {
+function PhysicianConversation({ article, accent, sharedBy }: { article: BriefingArticle | null; accent: string; sharedBy: number }) {
   const posts = usefulPosts(article);
   const [open, setOpen] = useState(false);
-  if (!posts.length) return null;
+  if (!posts.length) {
+    return sharedBy > 0 ? <p className="er-no-commentary">Shared, no commentary yet.</p> : null;
+  }
   return (
     <div className="er-conversation" style={{ "--accent": accent } as React.CSSProperties}>
       <button className="er-conversation-toggle" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -86,7 +110,7 @@ function Development({ item, briefs, index }: { item: EditorialArticle; briefs: 
     <article className="er-development">
       <div className="er-number" aria-hidden="true">{index + 1}</div>
       <div className="er-development-body">
-        <div className="er-kicker"><span>{item.site}</span><b>·</b>{item.nickname}</div>
+        <div className="er-kicker"><span>{item.site}</span><b>{item.nickname}</b></div>
         <h3>{item.takeaway}</h3>
         <p className="er-finding">{item.finding}</p>
         <p className="er-remember"><strong>Remember:</strong> {item.remember}</p>
@@ -100,7 +124,7 @@ function Development({ item, briefs, index }: { item: EditorialArticle; briefs: 
           <i aria-hidden="true">·</i>
           <span>shared by {item.sharedBy} clinician{item.sharedBy === 1 ? "" : "s"}</span>
         </div>
-        <PhysicianConversation article={article} accent="currentColor" />
+        <PhysicianConversation article={article} accent="currentColor" sharedBy={item.sharedBy} />
       </div>
     </article>
   );
@@ -127,7 +151,10 @@ export default function EditorialReadout() {
     return () => { cancelled = true; };
   }, []);
 
-  const worth = useMemo(() => visibleForArea(WORTH_YOUR_TIME, area), [area]);
+  const currentWorth = useMemo(() => visibleForArea(WORTH_YOUR_TIME, area), [area]);
+  const fallbackWorth = useMemo(() => area === "All" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length]);
+  const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
+  const usingFallback = fallbackWorth.length > 0;
   const relevant = useMemo(() => visibleForArea(ALSO_RELEVANT, area), [area]);
   const listen = useMemo(() => visibleForArea(NEW_TO_LISTEN, area), [area]);
 
@@ -135,7 +162,7 @@ export default function EditorialReadout() {
     <main className={`er-page er-area-${area.toLowerCase()}`}>
       <header className="er-header">
         <div className="er-brand"><span>CANVASMD</span><h1>The Readout</h1></div>
-        <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>Aug 25, 2026</span><span>last 24h ET</span></div>
+        <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>Aug 25, 2026</span><span>{usingFallback ? "best of past 72h ET" : "last 24h ET"}</span></div>
       </header>
 
       <nav className="er-filters" aria-label="Tumor area">
@@ -154,26 +181,27 @@ export default function EditorialReadout() {
 
       <section className="er-section er-worth">
         <div className="er-section-title"><h2>Worth Your Time</h2><span>{worth.length || "No"} development{worth.length === 1 ? "" : "s"}</span></div>
+        {usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
         {worth.length > 0 ? worth.map((item, index) => <Development item={item} briefs={briefs} index={index} key={item.id} />) : (
-          <p className="er-empty">No development cleared the bar in this area during the last 24 hours.</p>
+          <p className="er-empty">No development cleared the bar in this area during the past 72 hours.</p>
         )}
       </section>
 
       {relevant.length > 0 && (
         <section className="er-section er-relevant">
           <button className="er-section-title er-section-button" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
-            <h2>Also Relevant</h2><span>{alsoOpen ? "Hide −" : `${relevant.length} more +`}</span>
+            <h2>Also Relevant</h2><span>{alsoOpen ? "Show less −" : relevant.length > 1 ? `${relevant.length - 1} more +` : "Details +"}</span>
           </button>
-          {alsoOpen && <div className="er-compact-list">{relevant.map((item) => {
+          <div className="er-compact-list">{(alsoOpen ? relevant : relevant.slice(0, 1)).map((item) => {
             const article = findArticle(item, briefs);
             return (
               <article key={item.id}>
-                <div><b>{item.site} · {item.nickname}</b><p>{item.takeaway}</p></div>
-                <a href={article?.url || item.url} target="_blank" rel="noreferrer">{item.title} ↗</a>
-                <small>{item.evidence} · shared by {item.sharedBy} clinician{item.sharedBy === 1 ? "" : "s"}</small>
+                <div className="er-compact-copy"><b>{item.site} <span>{item.nickname}</span></b><p>{item.takeaway}</p></div>
+                <div className="er-compact-citation"><span>{item.journal}</span><a href={article?.url || item.url} target="_blank" rel="noreferrer">{article?.title || item.title} ↗</a></div>
+                <small>{item.evidence}<br />shared by {item.sharedBy} clinician{item.sharedBy === 1 ? "" : "s"}</small>
               </article>
             );
-          })}</div>}
+          })}</div>
         </section>
       )}
 
