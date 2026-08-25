@@ -185,6 +185,15 @@ function applyEvidenceOverlay(article: BriefingArticle | null, overlay: Briefing
   };
 }
 
+function articleWithLiveEvidence(
+  item: EditorialArticle,
+  briefs: BriefingData[],
+  overlay: BriefingEvidenceOverlayItem | undefined,
+): BriefingArticle {
+  const base = overlay ? findArticle(item, briefs) ?? articleFromEditorial(item) : articleFromEditorial(item);
+  return applyEvidenceOverlay(base, overlay) ?? articleFromEditorial(item);
+}
+
 function SharerNames({ article, sharedBy }: { article: BriefingArticle | null; sharedBy: number }) {
   const [expanded, setExpanded] = useState(false);
   const sharers = clinicianSharers(article).slice(0, sharedBy);
@@ -278,7 +287,7 @@ function CoverageLinks({ item, primaryUrl }: { item: EditorialArticle; primaryUr
 }
 
 function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem> }) {
-  const article = applyEvidenceOverlay(findArticle(item, briefs) ?? articleFromEditorial(item), overlays.get(item.id));
+  const article = articleWithLiveEvidence(item, briefs, overlays.get(item.id));
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const authoredCount = usefulPosts(article).length;
@@ -588,7 +597,7 @@ export default function EditorialReadout() {
             <div className="er-section-title"><h2>Also Relevant</h2></div>
           )}
           <div className="er-compact-list">{(alsoOpen || relevant.length === 1 ? relevant : relevant.slice(0, 1)).map((item) => {
-            const article = applyEvidenceOverlay(findArticle(item, briefs), evidenceOverlays.get(item.id));
+            const article = articleWithLiveEvidence(item, briefs, evidenceOverlays.get(item.id));
             const sharedBy = article?.kolSharers ?? item.sharedBy;
             const authoredCount = usefulPosts(article).length;
             return (

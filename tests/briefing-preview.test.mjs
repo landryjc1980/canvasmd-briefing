@@ -41,6 +41,9 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /<CompactClinicianComment article=\{article\} \/>/);
   assert.match(preview, /className="er-compact-proof"/);
   assert.match(preview, /applyEvidenceOverlay/);
+  assert.match(preview, /function articleWithLiveEvidence/);
+  assert.match(preview, /const base = overlay \? findArticle\(item, briefs\) \?\? articleFromEditorial\(item\) : articleFromEditorial\(item\)/);
+  assert.doesNotMatch(preview, /applyEvidenceOverlay\(findArticle\(item, briefs\)/);
   assert.match(preview, /EVIDENCE_REFRESH_MS = 60 \* 60_000/);
   assert.match(preview, /mode: "evidence-overlay"/);
   assert.match(preview, /window\.addEventListener\("focus", onFocus\)/);
