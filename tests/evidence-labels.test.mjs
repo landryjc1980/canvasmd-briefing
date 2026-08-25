@@ -21,7 +21,7 @@ test("web trial summaries describe serialized evidence instead of raw mention to
 test("paper rows distinguish total reach from authored commentary", () => {
   assert.match(reader, /authoredClinicians/);
   assert.match(reader, /paper\.authoredClinicianCount \?\? authoredClinicianCount\(paper\.posts\)/);
-  assert.match(reader, /clinician comments/);
+  assert.match(reader, /clinician commentar/);
   assert.doesNotMatch(reader, /commented/);
   assert.match(reader, /reposts only/);
 });
