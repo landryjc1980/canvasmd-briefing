@@ -310,6 +310,21 @@ export function relatedCoverageLinks(links: HeroSupportLink[] | null | undefined
   });
 }
 
+export function sameEditorialArticle(left: EditorialArticle, right: EditorialArticle): boolean {
+  const leftDoi = norm(left.match.doi);
+  const rightDoi = norm(right.match.doi);
+  if (leftDoi && rightDoi && leftDoi === rightDoi) return true;
+  const leftPmid = norm(left.match.pmid);
+  const rightPmid = norm(right.match.pmid);
+  if (leftPmid && rightPmid && leftPmid === rightPmid) return true;
+  const leftUrl = validHttpUrl(left.url)?.toLowerCase();
+  const rightUrl = validHttpUrl(right.url)?.toLowerCase();
+  if (leftUrl && rightUrl && leftUrl === rightUrl) return true;
+  const leftTitle = norm(left.title);
+  const rightTitle = norm(right.title);
+  return leftTitle.length >= 12 && leftTitle === rightTitle;
+}
+
 export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
 
 export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialArticle {
@@ -335,7 +350,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialAr
     url: card.url ?? supportLinks[0]?.url ?? "",
     evidence: card.kind === "event" ? "Regulatory action" : card.kind === "readout" ? "Trial readout" : "Published evidence",
     sharedBy: Math.max(card.conversation?.authoredClinicians ?? 0, clinicianRank),
-    match: { titleIncludes: card.headline },
+    match: { doi: card.doi ?? undefined, titleIncludes: card.headline },
     articleIds,
     primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
     relatedCoverage: supportLinks,

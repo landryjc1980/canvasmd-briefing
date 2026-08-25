@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, listenForArea, relatedCoverageLinks, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, listenForArea, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -22,9 +22,11 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /Promise\.allSettled/);
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
-  assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount\)/);
+  assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount, 2\)/);
+  assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount, 1\)/);
   assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
   assert.match(preview, /1 commentary/);
+  assert.match(preview, /visible < authoredCount/);
   assert.match(preview, /clinician comments/);
   assert.match(preview, /function clinicianSharers/);
   assert.match(preview, /post\.repostedBy/);
@@ -77,10 +79,14 @@ test("the 7-day tab reads the promoted-card archive and never quota-fills", () =
   assert.match(preview, /days: readoutWindow === "7d" \? 7 : 1/);
   assert.match(preview, /windowPayload\?\.cards/);
   assert.match(preview, /map\(archivedEditorialArticle\)/);
-  assert.match(preview, /windowHours: readoutWindow === "7d" \? 168/);
+  assert.match(preview, /const evidenceWindowHours = readoutWindow === "7d" \? 168 : hasFallbackWindow \? 72 : 24/);
+  assert.match(preview, /windowHours: evidenceWindowHours/);
   assert.match(preview, /setLoadingWindow\(true\)/);
+  assert.match(preview, /setWindowPayload\(null\); setReadoutWindow\("7d"\)/);
   assert.match(preview, /readoutWindow === "7d" && loadingWindow/);
   assert.match(preview, /role="status">Loading the strongest developments from the past 7 days/);
+  assert.match(preview, /Checking the strongest qualifying development from the past 72 hours/);
+  assert.match(preview, /activeEvidenceOverlays\.get\(item\.id\)\?\.kolSharers \?\? 0\) > 0/);
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.match(briefingRoute, /"readout-window"/);
 });
@@ -97,6 +103,29 @@ test("attached related coverage is compact, validated, and deduped from the prim
   assert.match(preview, /Related coverage/);
   assert.match(preview, /er-related-toggle/);
   assert.match(preview, /<CoverageLinks item=\{item\}/);
+});
+
+test("a development already leading a section is removed from Also Relevant by stable identity", () => {
+  const article = (id, doi, url) => ({
+    id,
+    area: "Breast",
+    site: "Breast",
+    nickname: "",
+    takeaway: id,
+    finding: "",
+    remember: "",
+    journal: "Journal",
+    title: "Elacestrant plus everolimus from ELEVATE",
+    url,
+    evidence: "Phase 2",
+    sharedBy: 1,
+    match: { doi },
+  });
+  assert.equal(sameEditorialArticle(
+    article("lead", "10.1158/1078-0432.CCR-26-1816", "https://aacrjournals.org/article"),
+    article("relevant", "10.1158/1078-0432.ccr-26-1816", "https://doi.org/10.1158/1078-0432.ccr-26-1816"),
+  ), true);
+  assert.match(preview, /sameEditorialArticle\(item, lead\)/);
 });
 
 test("mobile cards prioritize the source article and progressively disclose dense evidence", () => {
@@ -116,6 +145,7 @@ test("archived cards do not render boilerplate as an editorial takeaway", () => 
   assert.match(preview, /item\.remember !== ARCHIVED_TAKEAWAY_FALLBACK/);
   assert.match(preview, /No additional oncology approval, safety warning, or designation in this window\./);
   assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Clear"/);
+  assert.match(preview, /if \(!finding\) return null/);
 });
 
 test("the hidden production canary is gated, unlisted, and noindex", () => {

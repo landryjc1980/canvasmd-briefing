@@ -18,6 +18,7 @@ import {
   listenForArea,
   regulatoryEditorialArticle,
   relatedCoverageLinks,
+  sameEditorialArticle,
   visibleForArea,
   type EditorialArticle,
   type EditorialDevelopment,
@@ -265,10 +266,12 @@ function PhysicianVoices({ article, accent, sharedBy }: { article: BriefingArtic
 
 function DevelopmentFinding({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
-  const collapsible = text.length > MOBILE_FINDING_THRESHOLD;
+  const finding = text.trim();
+  if (!finding) return null;
+  const collapsible = finding.length > MOBILE_FINDING_THRESHOLD;
   return (
     <>
-      <p className={`er-finding ${collapsible && !expanded ? "is-mobile-collapsed" : ""}`}>{text}</p>
+      <p className={`er-finding ${collapsible && !expanded ? "is-mobile-collapsed" : ""}`}>{finding}</p>
       {collapsible && (
         <button className="er-finding-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
           {expanded ? "Show less" : "Show full result"}
@@ -353,7 +356,7 @@ function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle
         <div className="er-proof">
           <FacePile article={article} count={sharedBy} />
           <span className="er-evidence-kind">{item.evidence}</span>
-          <span className="er-proof-count">{shareCommentaryLabel(sharedBy, authoredCount)}</span>
+          <span className="er-proof-count">{shareCommentaryLabel(sharedBy, authoredCount, 2)}</span>
         </div>
         <SharerNames article={article} sharedBy={sharedBy} />
         <PhysicianVoices article={article} accent="currentColor" sharedBy={sharedBy} />
@@ -447,10 +450,13 @@ function isEpisodeDevelopment(item: EditorialDevelopment): item is EditorialEpis
   return "kind" in item && item.kind === "episode";
 }
 
-function shareCommentaryLabel(sharedBy: number, authoredCount: number): string {
+function shareCommentaryLabel(sharedBy: number, authoredCount: number, visibleLimit: number): string {
   const shared = `Shared by ${sharedBy} clinician${sharedBy === 1 ? "" : "s"}`;
   if (authoredCount === 1) return `${shared} · 1 commentary`;
-  if (authoredCount > 1) return `${shared} · ${authoredCount} clinician comments`;
+  if (authoredCount > 1) {
+    const visible = Math.min(authoredCount, visibleLimit);
+    return `${shared} · ${visible < authoredCount ? `${visible} of ${authoredCount}` : authoredCount} clinician comments`;
+  }
   return shared;
 }
 
@@ -487,6 +493,7 @@ export default function EditorialReadout() {
   const [windowPayload, setWindowPayload] = useState<ReadoutWindowPayload | null>(null);
   const [loadingWindow, setLoadingWindow] = useState(true);
   const [evidenceOverlays, setEvidenceOverlays] = useState<Map<string, BriefingEvidenceOverlayItem>>(new Map());
+  const [evidenceOverlayKey, setEvidenceOverlayKey] = useState("");
   const [loadingEvidence, setLoadingEvidence] = useState(true);
   const [alsoOpen, setAlsoOpen] = useState(false);
 
@@ -551,11 +558,9 @@ export default function EditorialReadout() {
     const developments = [...regulatory, ...supported];
     return area === "All" ? developments.slice(0, 5) : developments;
   }, [area, readoutWindow, windowPayload]);
-  const fallbackWorth = useMemo(() => area === "All" || readoutWindow === "7d" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length, readoutWindow]);
-  const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
-  const usingFallback = fallbackWorth.length > 0;
-  const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
-    !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
+  const fallbackCandidates = useMemo(() => area === "All" || readoutWindow === "7d" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length, readoutWindow]);
+  const hasFallbackWindow = fallbackCandidates.length > 0;
+  const evidenceWorth = useMemo(() => currentWorth.length > 0 ? currentWorth : fallbackCandidates, [currentWorth, fallbackCandidates]);
   const relevant = useMemo(() => visibleForArea(ALSO_RELEVANT, area).map((item) => {
     const archived = findArchivedEditorialSource(item, windowPayload?.cards ?? []);
     if (!archived?.card.support?.links?.length) return item;
@@ -566,15 +571,28 @@ export default function EditorialReadout() {
       primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
       relatedCoverage: supportLinks,
     };
-  }), [area, windowPayload]);
+  }).filter((item) => !evidenceWorth.some((lead) => !isEpisodeDevelopment(lead) && sameEditorialArticle(item, lead))), [area, evidenceWorth, windowPayload]);
   const evidenceTargets = useMemo(() => {
-    const articleItems = [...worth, ...relevant].filter((item): item is EditorialArticle => !isEpisodeDevelopment(item));
+    const articleItems = [...evidenceWorth, ...relevant].filter((item): item is EditorialArticle => !isEpisodeDevelopment(item));
     return articleItems.map(evidenceTarget);
-  }, [worth, relevant]);
+  }, [evidenceWorth, relevant]);
+  const evidenceWindowHours = readoutWindow === "7d" ? 168 : hasFallbackWindow ? 72 : 24;
+  const evidenceRequestKey = useMemo(() => JSON.stringify({ evidenceWindowHours, evidenceTargets }), [evidenceTargets, evidenceWindowHours]);
+  const activeEvidenceOverlays = useMemo(() => evidenceOverlayKey === evidenceRequestKey ? evidenceOverlays : new Map<string, BriefingEvidenceOverlayItem>(), [evidenceOverlayKey, evidenceOverlays, evidenceRequestKey]);
+  const fallbackReady = !hasFallbackWindow || fallbackCandidates.every((item) => activeEvidenceOverlays.has(item.id));
+  const fallbackWorth = fallbackReady
+    ? fallbackCandidates.filter((item) => (activeEvidenceOverlays.get(item.id)?.kolSharers ?? 0) > 0)
+    : [];
+  const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
+  const usingFallback = fallbackWorth.length > 0;
+  const checkingFallback = hasFallbackWindow && !fallbackReady;
+  const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
+    !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
 
   useEffect(() => {
     if (!evidenceTargets.length) {
       setEvidenceOverlays(new Map());
+      setEvidenceOverlayKey(evidenceRequestKey);
       return;
     }
     let cancelled = false;
@@ -585,13 +603,16 @@ export default function EditorialReadout() {
         body: JSON.stringify({
           mode: "evidence-overlay",
           cards: evidenceTargets,
-          windowHours: readoutWindow === "7d" ? 168 : usingFallback ? 72 : 24,
+          windowHours: evidenceWindowHours,
         }),
         cache: "no-store",
       });
       if (!response.ok) return;
       const body = await response.json() as BriefingEvidenceOverlay;
-      if (!cancelled) setEvidenceOverlays(new Map((body.overlays ?? []).map((overlay) => [overlay.id, overlay])));
+      if (!cancelled) {
+        setEvidenceOverlays(new Map((body.overlays ?? []).map((overlay) => [overlay.id, overlay])));
+        setEvidenceOverlayKey(evidenceRequestKey);
+      }
     };
     refresh().catch(() => {});
     const interval = window.setInterval(() => { refresh().catch(() => {}); }, EVIDENCE_REFRESH_MS);
@@ -602,7 +623,7 @@ export default function EditorialReadout() {
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [evidenceTargets, readoutWindow, usingFallback]);
+  }, [evidenceRequestKey, evidenceTargets, evidenceWindowHours]);
 
   const listenBriefs = useMemo(() => [...liveListenBriefs(windowPayload), ...briefs], [briefs, windowPayload]);
   const listen = useMemo(() => {
@@ -617,7 +638,7 @@ export default function EditorialReadout() {
         </div>
         <nav className="er-filters" aria-label="Tumor area">
           {EDITION_AREAS.map((candidate) => (
-            <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => { setArea(candidate); setAlsoOpen(false); }}>
+            <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => { setLoadingWindow(true); setWindowPayload(null); setArea(candidate); setAlsoOpen(false); }}>
               {candidate}
             </button>
           ))}
@@ -629,14 +650,16 @@ export default function EditorialReadout() {
         <div className="er-section-title">
           <div>{area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}<h2>The Readout</h2></div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window">
-            <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => setReadoutWindow("today")}>Today</button>
-            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => setReadoutWindow("7d")}>7 days</button>
+            <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => { setLoadingWindow(true); setWindowPayload(null); setReadoutWindow("today"); }}>Today</button>
+            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => { setLoadingWindow(true); setWindowPayload(null); setReadoutWindow("7d"); }}>7 days</button>
           </div>
         </div>
         {usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
         {readoutWindow === "7d" && loadingWindow ? (
           <p className="er-window-loading" role="status">Loading the strongest developments from the past 7 days...</p>
-        ) : worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={evidenceOverlays} key={item.id} />) : (
+        ) : checkingFallback ? (
+          <p className="er-window-loading" role="status">Checking the strongest qualifying development from the past 72 hours...</p>
+        ) : worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={activeEvidenceOverlays} key={item.id} />) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
       </section>
@@ -651,7 +674,7 @@ export default function EditorialReadout() {
             <div className="er-section-title"><h2>Also Relevant</h2></div>
           )}
           <div className="er-compact-list">{(alsoOpen || relevant.length === 1 ? relevant : relevant.slice(0, 1)).map((item) => {
-            const article = articleWithLiveEvidence(item, briefs, evidenceOverlays.get(item.id));
+            const article = articleWithLiveEvidence(item, briefs, activeEvidenceOverlays.get(item.id));
             const sharedBy = article?.kolSharers ?? item.sharedBy;
             const authoredCount = usefulPosts(article).length;
             return (
@@ -665,7 +688,7 @@ export default function EditorialReadout() {
                 <CoverageLinks item={item} primaryUrl={article?.url || item.url} />
                 <div className="er-compact-proof">
                   <FacePile article={article} count={sharedBy} />
-                  <span>{shareCommentaryLabel(sharedBy, authoredCount)}</span>
+                  <span>{shareCommentaryLabel(sharedBy, authoredCount, 1)}</span>
                 </div>
                 <SharerNames article={article} sharedBy={sharedBy} />
                 <CompactClinicianComment article={article} />
