@@ -78,6 +78,9 @@ test("the 7-day tab reads the promoted-card archive and never quota-fills", () =
   assert.match(preview, /windowPayload\?\.cards/);
   assert.match(preview, /map\(archivedEditorialArticle\)/);
   assert.match(preview, /windowHours: readoutWindow === "7d" \? 168/);
+  assert.match(preview, /setLoadingWindow\(true\)/);
+  assert.match(preview, /readoutWindow === "7d" && loadingWindow/);
+  assert.match(preview, /role="status">Loading the strongest developments from the past 7 days/);
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.match(briefingRoute, /"readout-window"/);
 });
@@ -106,6 +109,13 @@ test("mobile cards prioritize the source article and progressively disclose dens
   assert.match(previewCss, /\.er-finding\.is-mobile-collapsed/);
   assert.match(previewCss, /\.er-voice-secondary:not\(\.is-mobile-open\)/);
   assert.match(previewCss, /\.er-related-links:not\(\.is-open\)/);
+});
+
+test("archived cards do not render boilerplate as an editorial takeaway", () => {
+  assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
+  assert.match(preview, /item\.remember !== ARCHIVED_TAKEAWAY_FALLBACK/);
+  assert.match(preview, /No additional oncology approval, safety warning, or designation in this window\./);
+  assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Clear"/);
 });
 
 test("the hidden production canary is gated, unlisted, and noindex", () => {

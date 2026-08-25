@@ -310,6 +310,8 @@ export function relatedCoverageLinks(links: HeroSupportLink[] | null | undefined
   });
 }
 
+export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
+
 export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialArticle {
   const card = item.card;
   const clinicianRank = card.rankTrace?.find((entry) => entry.input === "clinicianSharers")?.value ?? 0;
@@ -327,7 +329,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialAr
     nickname: card.kind === "event" ? "REGULATORY" : "",
     takeaway: card.headline,
     finding: card.excerpt || primaryDescription || card.why,
-    remember: "Review the primary source and attached evidence for the exact population and result.",
+    remember: ARCHIVED_TAKEAWAY_FALLBACK,
     journal: card.sourceLabel,
     title: card.headline,
     url: card.url ?? supportLinks[0]?.url ?? "",

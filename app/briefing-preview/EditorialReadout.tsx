@@ -5,6 +5,7 @@ import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingEvidenceOv
 import AudioQuote from "@/components/AudioQuote";
 import {
   ALSO_RELEVANT,
+  ARCHIVED_TAKEAWAY_FALLBACK,
   EDITION_AREAS,
   FEATURED_EPISODES,
   NEW_TO_LISTEN,
@@ -346,7 +347,7 @@ function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle
         <div className="er-kicker"><span>{item.site}</span>{item.nickname && <><i aria-hidden="true">·</i><b>{item.nickname}</b></>}</div>
         <h3>{item.takeaway}</h3>
         <DevelopmentFinding text={item.finding} />
-        <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>
+        {item.remember !== ARCHIVED_TAKEAWAY_FALLBACK && <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>}
         <SourceArticle href={href} journal={item.journal} title={article?.title || item.title} />
         <CoverageLinks item={item} primaryUrl={href} />
         <div className="er-proof">
@@ -484,6 +485,7 @@ export default function EditorialReadout() {
   const [readoutWindow, setReadoutWindow] = useState<ReadoutWindow>("today");
   const [briefs, setBriefs] = useState<BriefingData[]>([]);
   const [windowPayload, setWindowPayload] = useState<ReadoutWindowPayload | null>(null);
+  const [loadingWindow, setLoadingWindow] = useState(true);
   const [evidenceOverlays, setEvidenceOverlays] = useState<Map<string, BriefingEvidenceOverlayItem>>(new Map());
   const [loadingEvidence, setLoadingEvidence] = useState(true);
   const [alsoOpen, setAlsoOpen] = useState(false);
@@ -507,6 +509,7 @@ export default function EditorialReadout() {
   useEffect(() => {
     let cancelled = false;
     setWindowPayload(null);
+    setLoadingWindow(true);
     fetch("/api/briefing", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -514,7 +517,8 @@ export default function EditorialReadout() {
       cache: "no-store",
     }).then(async (response) => response.ok ? response.json() as Promise<ReadoutWindowPayload> : null)
       .then((payload) => { if (!cancelled && payload) setWindowPayload(payload); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingWindow(false); });
     return () => { cancelled = true; };
   }, [area, readoutWindow]);
 
@@ -550,6 +554,8 @@ export default function EditorialReadout() {
   const fallbackWorth = useMemo(() => area === "All" || readoutWindow === "7d" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length, readoutWindow]);
   const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
   const usingFallback = fallbackWorth.length > 0;
+  const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
+    !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
   const relevant = useMemo(() => visibleForArea(ALSO_RELEVANT, area).map((item) => {
     const archived = findArchivedEditorialSource(item, windowPayload?.cards ?? []);
     if (!archived?.card.support?.links?.length) return item;
@@ -628,7 +634,9 @@ export default function EditorialReadout() {
           </div>
         </div>
         {usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
-        {worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={evidenceOverlays} key={item.id} />) : (
+        {readoutWindow === "7d" && loadingWindow ? (
+          <p className="er-window-loading" role="status">Loading the strongest developments from the past 7 days...</p>
+        ) : worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={evidenceOverlays} key={item.id} />) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
       </section>
@@ -704,7 +712,9 @@ export default function EditorialReadout() {
       <section className="er-section er-regulatory">
         <div className="er-section-title">
           <h2>Regulatory Watch</h2>
-          <span>{windowPayload?.designationCards.length ? `${windowPayload.designationCards.length} designation${windowPayload.designationCards.length === 1 ? "" : "s"}` : "Clear"}</span>
+          <span>{windowPayload?.designationCards.length
+            ? `${windowPayload.designationCards.length} designation${windowPayload.designationCards.length === 1 ? "" : "s"}`
+            : hasRegulatoryDevelopment ? "Covered above" : "Clear"}</span>
         </div>
         {(windowPayload?.designationCards ?? []).map((designation) => (
           <article key={designation.id}>
@@ -716,7 +726,9 @@ export default function EditorialReadout() {
             </div>
           </article>
         ))}
-        {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">No new oncology approval, safety warning, or designation in this window.</p>}
+        {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">{hasRegulatoryDevelopment
+          ? "No additional oncology approval, safety warning, or designation in this window."
+          : "No new oncology approval, safety warning, or designation in this window."}</p>}
       </section>
 
       <footer className="er-footer"><span>{loadingEvidence ? "Connecting physician evidence..." : "Evidence connected to the live Readout."}</span><span>CanvasMD</span></footer>

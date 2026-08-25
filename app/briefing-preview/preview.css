@@ -162,7 +162,8 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-regulatory article > span { width: max-content; max-width: 100%; height: max-content; padding: 8px 11px; border-radius: 4px; background: #46546a; color: white; font-size: 11px; font-weight: 850; letter-spacing: 1.3px; overflow-wrap: anywhere; }
 .er-regulatory b { font: 700 18px/1.35 system-ui, sans-serif; }
 .er-regulatory article p { color: var(--er-muted); margin: 5px 0 4px; }
-.er-regulatory-empty, .er-empty { color: var(--er-muted); font: 400 15px/1.5 inherit; }
+.er-regulatory-empty, .er-empty, .er-window-loading { color: var(--er-muted); font: 400 15px/1.5 inherit; }
+.er-window-loading { margin: 18px 0 0; min-height: 120px; }
 .er-footer { display: flex; justify-content: space-between; gap: 24px; border-top: 1px solid var(--er-line); margin-top: 42px; padding-top: 18px; color: var(--er-faint); font-size: 12px; }
 
 @media (max-width: 800px) {
