@@ -86,7 +86,8 @@ test("the 7-day tab reads the promoted-card archive and never quota-fills", () =
   assert.match(preview, /readoutWindow === "7d" && loadingWindow/);
   assert.match(preview, /role="status">Loading the strongest developments from the past 7 days/);
   assert.match(preview, /Checking the strongest qualifying development from the past 72 hours/);
-  assert.match(preview, /activeEvidenceOverlays\.get\(item\.id\)\?\.kolSharers \?\? 0\) > 0/);
+  assert.match(preview, /activeEvidenceOverlays\.get\(item\.id\)\?\.windowClinicianCount \?\? 0\) > 0/);
+  assert.match(preview, /kolSharers: overlay\.kolSharers/, "the visible Shared by count comes from lifetime overlay evidence");
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.match(briefingRoute, /"readout-window"/);
 });

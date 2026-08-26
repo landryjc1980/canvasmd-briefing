@@ -652,6 +652,7 @@ export type BriefingEvidenceSharer = {
 export type BriefingEvidenceOverlayItem = {
   id: string;
   articleIds?: string[];
+  windowClinicianCount: number; // person-deduped activity used only for Today/7-day eligibility
   kolSharers: number;
   faces: string[];
   posts: BriefingSharer[];

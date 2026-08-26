@@ -359,7 +359,8 @@ function CoverageLinks({ item, primaryUrl }: { item: EditorialArticle; primaryUr
 }
 
 function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem> }) {
-  const article = articleWithLiveEvidence(item, briefs, overlays.get(item.id));
+  const overlay = overlays.get(item.id);
+  const article = articleWithLiveEvidence(item, briefs, overlay);
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const authoredCount = usefulPosts(article).length;
@@ -373,12 +374,12 @@ function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle
         <SourceArticle href={href} journal={item.journal} title={article?.title || item.title} action={item.sourceAction} />
         <CoverageLinks item={item} primaryUrl={href} />
         <div className="er-proof">
-          <FacePile article={article} count={sharedBy} />
+          {overlay && <FacePile article={article} count={sharedBy} />}
           <span className="er-evidence-kind">{item.evidence}</span>
-          <span className="er-proof-count">{shareCommentaryLabel(sharedBy, authoredCount, 2)}</span>
+          <span className="er-proof-count">{overlay ? shareCommentaryLabel(sharedBy, authoredCount, 2) : "Updating clinician evidence..."}</span>
         </div>
-        <SharerNames article={article} sharedBy={sharedBy} />
-        <PhysicianVoices article={article} accent="currentColor" sharedBy={sharedBy} />
+        {overlay && <SharerNames article={article} sharedBy={sharedBy} />}
+        {overlay && <PhysicianVoices article={article} accent="currentColor" sharedBy={sharedBy} />}
       </div>
     </article>
   );
@@ -549,11 +550,9 @@ export default function EditorialReadout() {
   }, [area, readoutWindow]);
 
   const currentWorth = useMemo(() => {
-    const todayDevelopments: EditorialDevelopment[] = [
-      ...WORTH_YOUR_TIME.slice(0, 4),
-      ...FEATURED_EPISODES,
-      ...WORTH_YOUR_TIME.slice(4),
-    ];
+    const todayDevelopments: EditorialDevelopment[] = area === "All"
+      ? WORTH_YOUR_TIME
+      : [...WORTH_YOUR_TIME, ...FEATURED_EPISODES];
     const regulatory = (windowPayload?.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area));
     if (readoutWindow === "7d") {
       const archived = (windowPayload?.cards ?? []).map(archivedEditorialArticle);
@@ -600,7 +599,7 @@ export default function EditorialReadout() {
   const activeEvidenceOverlays = useMemo(() => evidenceOverlayKey === evidenceRequestKey ? evidenceOverlays : new Map<string, BriefingEvidenceOverlayItem>(), [evidenceOverlayKey, evidenceOverlays, evidenceRequestKey]);
   const fallbackReady = !hasFallbackWindow || fallbackCandidates.every((item) => activeEvidenceOverlays.has(item.id));
   const fallbackWorth = fallbackReady
-    ? fallbackCandidates.filter((item) => (activeEvidenceOverlays.get(item.id)?.kolSharers ?? 0) > 0)
+    ? fallbackCandidates.filter((item) => (activeEvidenceOverlays.get(item.id)?.windowClinicianCount ?? 0) > 0)
     : [];
   const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
   const usingFallback = fallbackWorth.length > 0;
@@ -693,7 +692,8 @@ export default function EditorialReadout() {
             <div className="er-section-title"><h2>Also Relevant</h2></div>
           )}
           <div className="er-compact-list">{(alsoOpen || relevant.length === 1 ? relevant : relevant.slice(0, 1)).map((item) => {
-            const article = articleWithLiveEvidence(item, briefs, activeEvidenceOverlays.get(item.id));
+            const overlay = activeEvidenceOverlays.get(item.id);
+            const article = articleWithLiveEvidence(item, briefs, overlay);
             const sharedBy = article?.kolSharers ?? item.sharedBy;
             const authoredCount = usefulPosts(article).length;
             return (
@@ -706,11 +706,11 @@ export default function EditorialReadout() {
                 <SourceArticle href={article?.url || item.url} journal={item.journal} title={article?.title || item.title} compact />
                 <CoverageLinks item={item} primaryUrl={article?.url || item.url} />
                 <div className="er-compact-proof">
-                  <FacePile article={article} count={sharedBy} />
-                  <span>{shareCommentaryLabel(sharedBy, authoredCount, 1)}</span>
+                  {overlay && <FacePile article={article} count={sharedBy} />}
+                  <span>{overlay ? shareCommentaryLabel(sharedBy, authoredCount, 1) : "Updating clinician evidence..."}</span>
                 </div>
-                <SharerNames article={article} sharedBy={sharedBy} />
-                <CompactClinicianComment article={article} />
+                {overlay && <SharerNames article={article} sharedBy={sharedBy} />}
+                {overlay && <CompactClinicianComment article={article} />}
               </article>
             );
           })}</div>
