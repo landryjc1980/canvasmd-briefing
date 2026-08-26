@@ -180,3 +180,60 @@ function FacePile({ article, count }: { article: BriefingArticle | null; count: 
     </span>
   );
 }
+
+function articleFromEditorial(item: EditorialArticle): BriefingArticle {
+  return {
+    title: item.title,
+    url: item.url,
+    journal: item.journal,
+    domain: null,
+    abstract: item.finding,
+    description: null,
+    sharers: item.sharedBy,
+    kolSharers: item.sharedBy,
+    publishers: [],
+    faces: [],
+    topLikes: 0,
+    posts: [],
+  };
+}
+
+function applyEvidenceOverlay(article: BriefingArticle | null, overlay: BriefingEvidenceOverlayItem | undefined): BriefingArticle | null {
+  if (!article || !overlay) return article;
+  return {
+    ...article,
+    kolSharers: overlay.kolSharers,
+    faces: overlay.faces,
+    posts: overlay.posts,
+    sharerPeople: overlay.sharerPeople,
+    authoredClinicianCount: overlay.authoredClinicianCount ?? article.authoredClinicianCount,
+  };
+}
+
+function articleWithLiveEvidence(
+  item: EditorialArticle,
+  briefs: BriefingData[],
+  overlay: BriefingEvidenceOverlayItem | undefined,
+): BriefingArticle {
+  const base = overlay ? findArticle(item, briefs) ?? articleFromEditorial(item) : articleFromEditorial(item);
+  return applyEvidenceOverlay(base, overlay) ?? articleFromEditorial(item);
+}
+
+function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; sharedBy: number }) {
+  const sharers = clinicianSharers(article).slice(0, sharedBy);
+  if (!sharers.length && sharedBy <= 0) return null;
+  const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
+  const others = Math.max(0, sharedBy - named.length);
+  const surnames = named.map((sharer) => clinicianSurname(sharer.name));
+  return (
+    <div className="er-peers">
+      <FacePile article={article} count={sharedBy} />
+      {named.length > 0 && (
+        <p className="er-peers-who">
+          <b>{surnames.join(", ")}</b>
+          {others > 0 ? ` and ${others} other clinician${others === 1 ? "" : "s"}` : named.length === 1 ? "" : null}
+        </p>
+      )}
+    </div>
+  );
+}
