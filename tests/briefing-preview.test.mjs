@@ -232,8 +232,12 @@ test("regulatory developments keep the regulator primary and the trial explicitl
 });
 
 test("only the primary development stack is numbered as a finite edition", () => {
-  assert.match(preview, /worth\.map\(\(item, index\) => <Development[^>]*position=\{index \+ 1\}/);
-  assert.match(preview, /String\(position\)\.padStart\(2, "0"\)/);
+  assert.match(preview, /worth\.map\(\(item, index\) => <NumberedDevelopment[^>]*position=\{index \+ 1\}/);
+  assert.match(preview, /className="er-story-order">\{position\} <span>·<\/span> \{contentType\}/);
+  assert.match(preview, /<Development item=\{item\} briefs=\{briefs\} overlays=\{overlays\} numbered \/>/);
+  assert.match(preview, /\{item\.site\}\{numbered \? "" : ` · \$\{articleContentType\(item\)\}`\}/);
+  assert.doesNotMatch(previewCss, /\.er-numbered-development \{[^}]*border-top/);
+  assert.match(previewCss, /\.er-numbered-development > \.er-development \{[^}]*margin-top: 7px/);
   assert.doesNotMatch(preview, /<CompactDevelopment[^>]*position=/);
 });
 

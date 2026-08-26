@@ -55,6 +55,11 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 @media (prefers-reduced-motion: reduce) { .er-loading-card { animation: none; } }
 
 .er-worth { max-width: 720px; margin-inline: auto; padding-top: 26px; }
+.er-numbered-development { margin-top: 22px; }
+.er-numbered-development:first-of-type { margin-top: 14px; }
+.er-story-order { color: var(--er-muted); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; font-weight: 650; line-height: 1; letter-spacing: .08em; text-transform: uppercase; }
+.er-story-order span { margin-inline: 3px; color: var(--er-line-strong); }
+.er-numbered-development > .er-development { margin-top: 7px; }
 .er-development { margin-top: 14px; padding: 18px 20px 16px; border: 1px solid var(--er-line); border-radius: 4px; background: var(--er-surface); }
 .er-kicker { margin-bottom: 8px; color: var(--er-accent); font-size: 10.5px; line-height: 1; text-transform: uppercase; font-weight: 700; letter-spacing: .1em; }
 .er-kicker b { font: inherit; color: inherit; }
