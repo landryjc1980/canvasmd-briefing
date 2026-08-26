@@ -269,10 +269,11 @@ test("briefing cards use source identity as the headline and a warmer reading su
 });
 
 test("desktop reading columns are centered and the specialty menu aligns right", () => {
-  assert.match(preview, /className=\{`er-header \$\{area !== "All" \? "has-meta" : ""\}`\}/);
+  assert.match(preview, /<header className="er-header">/);
   assert.match(previewCss, /\.er-page \{[^}]*max-width: 720px;[^}]*margin: 0 auto;[^}]*padding: 0 0 56px/);
   assert.match(previewCss, /\.er-header \{[^}]*grid-template-columns: auto minmax\(0, 1fr\)/);
-  assert.match(previewCss, /\.er-header\.has-meta \{ grid-template-columns: auto minmax\(0, 1fr\) auto; \}/);
+  assert.doesNotMatch(preview, /er-edition-meta|Past 7 days|Last 24h/,
+    "the window picker is the single masthead signal for Today versus 7 days");
   assert.match(previewCss, /\.er-filters \{[^}]*justify-content: flex-end/);
   assert.match(previewCss, /\.er-worth \{[^}]*margin-inline: auto/);
   assert.match(previewCss, /\.er-relevant \{[^}]*margin: 16px auto 0/);
@@ -326,8 +327,8 @@ test("specialty filters are lenses on the same earned briefing", () => {
   }
   assert.match(edition, /area === "All" \? items : items\.filter/);
   assert.match(edition, /SPECIALTY_FALLBACKS/);
-  assert.match(preview, /usingFallback \? "Best of 72h" : "Last 24h"/);
   assert.match(preview, /No new development cleared the bar in 24 hours/);
+  assert.match(preview, /Showing the strongest qualifying development from the past 72 hours/);
 });
 
 test("All can carry oncology-wide developments without leaking them into specialty tabs", () => {

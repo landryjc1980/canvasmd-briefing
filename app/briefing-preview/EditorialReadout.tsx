@@ -704,7 +704,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
 
   return (
     <main className={`er-page er-area-${area.toLowerCase()}`}>
-      <header className={`er-header ${area !== "All" ? "has-meta" : ""}`}>
+      <header className="er-header">
         <div className="er-brand">
           <CanvasMdLogo />
         </div>
@@ -722,7 +722,6 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             </button>
           ))}
         </nav>
-        {area !== "All" && <div className="er-edition-meta"><strong>{AREA_LABELS[area]}</strong><span>{readoutWindow === "7d" ? "Past 7 days" : usingFallback ? "Best of 72h" : "Last 24h"}</span></div>}
       </header>
 
       <section className="er-section er-worth">

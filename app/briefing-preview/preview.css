@@ -20,16 +20,12 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-area-gyn { --area: #14796d; }
 
 .er-header { min-height: 64px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 28px; border-bottom: 1px solid var(--er-line); }
-.er-header.has-meta { grid-template-columns: auto minmax(0, 1fr) auto; }
 .er-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .er-logo { display: inline-flex; align-items: center; flex: 0 0 auto; color: var(--er-accent); }
 .er-logo-mark { width: 38px; height: 38px; flex: 0 0 auto; }
 .er-logo-word { margin-left: 4px; display: inline-flex; align-items: baseline; font-family: Georgia, "Times New Roman", serif; font-size: 20px; line-height: 1; font-weight: 600; color: var(--er-ink); letter-spacing: 0; }
 .er-logo-word b { color: var(--er-accent); font: inherit; }
 .er-eyebrow { display: block; color: var(--area); font-size: 10px; line-height: 1; font-weight: 800; letter-spacing: 1.6px; }
-.er-edition-meta { display: flex; align-items: center; gap: 9px; color: var(--er-muted); font-size: 12px; white-space: nowrap; }
-.er-edition-meta strong { color: var(--area); }
-.er-edition-meta span { padding: 5px 8px; border-radius: 4px; background: var(--er-soft); color: #59616a; font-weight: 650; }
 
 .er-filters { display: flex; justify-content: flex-end; gap: 18px; min-width: 0; min-height: 64px; align-items: center; overflow-x: auto; scrollbar-width: none; }
 .er-filters::-webkit-scrollbar { display: none; }
@@ -173,7 +169,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
   .er-logo-mark { width: 34px; height: 34px; }
   .er-logo-word { font-size: 18px; }
   .er-brand { gap: 11px; }
-  .er-edition-meta { gap: 8px; font-size: 12px; }
   .er-filters { grid-column: 1 / -1; justify-content: flex-start; margin: 0 -20px; padding: 0 20px; gap: 24px; min-height: 48px; border-top: 1px solid var(--er-line); }
   .er-filters button { height: 48px; font-size: 14px; }
   .er-worth { padding-top: 30px; }
@@ -202,6 +197,5 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
   .er-filters { margin-left: -15px; margin-right: -15px; padding-left: 15px; padding-right: 15px; }
   .er-logo-word { display: none; }
   .er-logo-mark { width: 32px; height: 32px; }
-  .er-edition-meta strong { display: none; }
   .er-source-title { font-size: 16px; overflow-wrap: anywhere; }
 }
