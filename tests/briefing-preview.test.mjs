@@ -83,7 +83,18 @@ test("the 7-day tab reads the promoted-card archive and never quota-fills", () =
   assert.match(preview, /mode: "readout-window"/);
   assert.match(preview, /days: readoutWindowDays\(readoutWindow\)/);
   assert.match(preview, /windowPayload\?\.cards/);
+  assert.match(preview, /windowPayload\?\.moreCards/);
   assert.match(preview, /map\(archivedEditorialArticle\)/);
+  assert.match(preview, /sevenDayDevelopments\.slice\(0, 5\)/,
+    "the initial seven-day scan remains capped at five");
+  assert.match(preview, /More from the last 7 days/);
+  assert.match(preview, /aria-expanded=\{moreOpen\}/);
+  assert.match(preview, /moreFromSevenDays\.map\(\(item\)/,
+    "every remaining qualifying card is available after expansion");
+  assert.doesNotMatch(preview, /moreFromSevenDays\.slice\(/,
+    "the expanded remainder is not given another arbitrary cap");
+  assert.match(preview, /const relevant = useMemo\(\(\) => readoutWindow === "7d" \? \[\]/,
+    "the static Today-only Also Relevant slate does not compete with the seven-day remainder");
   assert.match(readoutRequest, /window === "7d" \? 168 : fallbackIds\.has\(item\.id\) \? 72 : 24/);
   assert.match(preview, /setLoadingWindow\(true\)/);
   assert.match(preview, /<ReadoutLoading \/>/);

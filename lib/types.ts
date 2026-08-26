@@ -676,6 +676,8 @@ export type ReadoutArchivedCard = {
   lastSeen: string;
 };
 
+export type ReadoutArchivedCardSummary = Omit<ReadoutArchivedCard, "evidence">;
+
 export type ReadoutListenEpisode = {
   episodeId: string;
   title: string;
@@ -740,6 +742,7 @@ export type ReadoutWindowPayload = {
   windowDays: 1 | 7;
   area: string;
   cards: ReadoutArchivedCard[];
+  moreCards?: ReadoutArchivedCardSummary[];
   overlays: BriefingEvidenceOverlayItem[];
   episodes: ReadoutListenEpisode[];
   regulatoryCards: ReadoutRegulatoryCandidate[];

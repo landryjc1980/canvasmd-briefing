@@ -590,6 +590,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const [windowPayload, setWindowPayload] = useState<ReadoutWindowPayload | null>(initialPayload);
   const [loadingWindow, setLoadingWindow] = useState(false);
   const [alsoOpen, setAlsoOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const briefs = EMPTY_BRIEFS;
 
   useEffect(() => {
@@ -612,17 +613,22 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     return () => { cancelled = true; };
   }, [area, readoutWindow, windowPayload]);
 
+  const regulatoryDevelopments = useMemo(
+    () => (windowPayload?.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area)),
+    [area, windowPayload],
+  );
+  const sevenDayDevelopments = useMemo(() => {
+    if (readoutWindow !== "7d") return [];
+    const archived = [...(windowPayload?.cards ?? []), ...(windowPayload?.moreCards ?? [])]
+      .map(archivedEditorialArticle);
+    return [...regulatoryDevelopments, ...archived]
+      .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index);
+  }, [readoutWindow, regulatoryDevelopments, windowPayload]);
   const currentWorth = useMemo(() => {
     const todayDevelopments: EditorialDevelopment[] = area === "All"
       ? WORTH_YOUR_TIME
       : [...WORTH_YOUR_TIME, ...FEATURED_EPISODES];
-    const regulatory = (windowPayload?.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area));
-    if (readoutWindow === "7d") {
-      const archived = (windowPayload?.cards ?? []).map(archivedEditorialArticle);
-      return [...regulatory, ...archived]
-        .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
-        .slice(0, 5);
-    }
+    if (readoutWindow === "7d") return sevenDayDevelopments.slice(0, 5);
     const visible = visibleForArea(todayDevelopments, area);
     const supported = visible.map((item) => {
       if (isEpisodeDevelopment(item)) return item;
@@ -636,13 +642,16 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         relatedCoverage: supportLinks,
       };
     });
-    const developments = [...regulatory, ...supported];
+    const developments = [...regulatoryDevelopments, ...supported];
     return area === "All" ? developments.slice(0, 5) : developments;
-  }, [area, readoutWindow, windowPayload]);
+  }, [area, readoutWindow, regulatoryDevelopments, sevenDayDevelopments, windowPayload]);
   const fallbackCandidates = useMemo(() => area === "All" || readoutWindow === "7d" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length, readoutWindow]);
   const hasFallbackWindow = fallbackCandidates.length > 0;
   const evidenceWorth = useMemo(() => currentWorth.length > 0 ? currentWorth : fallbackCandidates, [currentWorth, fallbackCandidates]);
-  const relevant = useMemo(() => visibleForArea(ALSO_RELEVANT, area).map((item) => {
+  const moreFromSevenDays = useMemo(() => readoutWindow === "7d"
+    ? sevenDayDevelopments.filter((item) => !currentWorth.some((lead) => !isEpisodeDevelopment(lead) && sameEditorialArticle(item, lead)))
+    : [], [currentWorth, readoutWindow, sevenDayDevelopments]);
+  const relevant = useMemo(() => readoutWindow === "7d" ? [] : visibleForArea(ALSO_RELEVANT, area).map((item) => {
     const archived = findArchivedEditorialSource(item, windowPayload?.cards ?? []);
     if (!archived?.card.support?.links?.length) return item;
     const supportLinks = archived.card.support.links;
@@ -652,11 +661,12 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
       primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
       relatedCoverage: supportLinks,
     };
-  }).filter((item) => !evidenceWorth.some((lead) => !isEpisodeDevelopment(lead) && sameEditorialArticle(item, lead))), [area, evidenceWorth, windowPayload]);
+  }).filter((item) => !evidenceWorth.some((lead) => !isEpisodeDevelopment(lead) && sameEditorialArticle(item, lead))), [area, evidenceWorth, readoutWindow, windowPayload]);
   const evidenceTargets = useMemo(() => {
-    const articleItems = [...evidenceWorth, ...relevant].filter((item): item is EditorialArticle => !isEpisodeDevelopment(item));
+    const articleItems = [...evidenceWorth, ...moreFromSevenDays, ...relevant]
+      .filter((item): item is EditorialArticle => !isEpisodeDevelopment(item));
     return articleItems.map(evidenceTarget);
-  }, [evidenceWorth, relevant]);
+  }, [evidenceWorth, moreFromSevenDays, relevant]);
   const payloadEvidenceOverlays = useMemo(
     () => new Map((windowPayload?.overlays ?? []).map((overlay) => [overlay.id, overlay])),
     [windowPayload],
@@ -691,6 +701,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
               setWindowPayload(null);
               setArea(candidate);
               setAlsoOpen(false);
+              setMoreOpen(false);
             }}>
               {candidate}
             </button>
@@ -708,12 +719,14 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
               setLoadingWindow(true);
               setWindowPayload(null);
               setReadoutWindow("today");
+              setMoreOpen(false);
             }}>Today</button>
             <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => {
               if (readoutWindow === "7d") return;
               setLoadingWindow(true);
               setWindowPayload(null);
               setReadoutWindow("7d");
+              setMoreOpen(false);
             }}>7 days</button>
           </div>
         </div>
@@ -722,6 +735,17 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
       </section>
+
+      {pageReady && readoutWindow === "7d" && moreFromSevenDays.length > 0 && (
+        <section className="er-section er-relevant er-seven-day-more">
+          <button className="er-section-title er-section-button" type="button" onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen}>
+            <h2>More from the last 7 days</h2><span>{moreOpen ? "Show less \u2212" : `Show ${moreFromSevenDays.length} +`}</span>
+          </button>
+          {moreOpen && <div className="er-compact-list">{moreFromSevenDays.map((item) => (
+            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
+          ))}</div>}
+        </section>
+      )}
 
       {pageReady && relevant.length > 0 && (
         <section className="er-section er-relevant">

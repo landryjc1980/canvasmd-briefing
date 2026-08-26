@@ -1,4 +1,4 @@
-import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutRegulatoryCandidate } from "@/lib/types";
+import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutArchivedCardSummary, ReadoutRegulatoryCandidate } from "@/lib/types";
 
 export const EDITION_AREAS = ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"] as const;
 export type EditionArea = (typeof EDITION_AREAS)[number];
@@ -319,7 +319,7 @@ export function sameEditorialArticle(left: EditorialArticle, right: EditorialArt
 
 export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
 
-export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialArticle {
+export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArchivedCardSummary): EditorialArticle {
   const card = item.card;
   const clinicianRank = card.rankTrace?.find((entry) => entry.input === "clinicianSharers")?.value ?? 0;
   const supportLinks = card.support?.links ?? [];
@@ -349,7 +349,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard): EditorialAr
   };
 }
 
-export function findArchivedEditorialSource(item: EditorialArticle, cards: ReadoutArchivedCard[]): ReadoutArchivedCard | null {
+export function findArchivedEditorialSource(item: EditorialArticle, cards: Array<ReadoutArchivedCard | ReadoutArchivedCardSummary>): ReadoutArchivedCard | ReadoutArchivedCardSummary | null {
   const itemUrl = validHttpUrl(item.url)?.toLowerCase() ?? null;
   const needle = norm(item.match.titleIncludes || item.title);
   return cards.find(({ card }) => {
