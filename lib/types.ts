@@ -743,6 +743,8 @@ export type ReadoutWindowPayload = {
   area: string;
   cards: ReadoutArchivedCard[];
   moreCards?: ReadoutArchivedCardSummary[];
+  editionHistory?: unknown[];
+  historyDays?: number;
   overlays: BriefingEvidenceOverlayItem[];
   episodes: ReadoutListenEpisode[];
   regulatoryCards: ReadoutRegulatoryCandidate[];

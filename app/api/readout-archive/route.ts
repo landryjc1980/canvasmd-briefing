@@ -1,4 +1,4 @@
-// GET /api/readout-archive — Vercel cron. Keeps shared /r/<slug> links alive for 30 days.
+// GET /api/readout-archive — Vercel cron. Keeps shared links alive and freezes the 6am ET Readout edition.
 //
 // briefing_snapshots holds ONE row per area, so a hero card (and every link shared to it) dies the
 // moment a rebuild rotates it out. This sweep archives every card that is currently live, then
@@ -9,9 +9,13 @@
 // Auth: the CRON_SECRET bearer Vercel attaches (same contract as /api/daily-send).
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { archiveAllLive, pruneArchive, RETENTION_DAYS } from "@/app/heroPost";
+import { archiveCurrentReadoutEdition } from "@/lib/readoutEditionArchive";
+import { READOUT_WINDOW_CACHE_TAG, warmReadoutWindowCache } from "@/lib/readoutWindowServer";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -20,6 +24,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const archived = await archiveAllLive();
+  const edition = await archiveCurrentReadoutEdition();
+  let warmed: Awaited<ReturnType<typeof warmReadoutWindowCache>> = [];
+  if (edition.archived.length > 0) {
+    revalidateTag(READOUT_WINDOW_CACHE_TAG);
+    warmed = await warmReadoutWindowCache();
+  }
   const pruned = await pruneArchive();
-  return NextResponse.json({ ok: true, archived, pruned, retentionDays: RETENTION_DAYS });
+  return NextResponse.json({ ok: true, archived, edition, warmed, pruned, retentionDays: RETENTION_DAYS });
 }

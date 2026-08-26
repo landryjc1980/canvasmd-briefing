@@ -11,6 +11,9 @@ const briefingRoute = read("app/api/briefing/route.ts");
 const readoutRequest = read("app/briefing-preview/readoutRequest.ts");
 const readoutServer = read("lib/readoutWindowServer.ts");
 const readoutCacheRoute = read("app/api/readout-cache/route.ts");
+const readoutArchiveRoute = read("app/api/readout-archive/route.ts");
+const readoutEditionArchive = read("lib/readoutEditionArchive.ts");
+const editionSnapshot = read("app/briefing-preview/editionSnapshot.ts");
 const middleware = read("middleware.ts");
 const readoutNextPage = read("app/readout-next/page.tsx");
 const vercelConfig = read("vercel.json");
@@ -79,14 +82,16 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.match(briefingRoute, /JSON\.stringify\(upstreamBody\)/);
 });
 
-test("the 7-day tab reads the promoted-card archive and never quota-fills", () => {
+test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(preview, /mode: "readout-window"/);
   assert.match(preview, /days: readoutWindowDays\(readoutWindow\)/);
-  assert.match(preview, /windowPayload\?\.cards/);
-  assert.match(preview, /windowPayload\?\.moreCards/);
-  assert.match(preview, /map\(archivedEditorialArticle\)/);
-  assert.match(preview, /sevenDayDevelopments\.slice\(0, 5\)/,
+  assert.match(preview, /windowPayload\?\.editionHistory/);
+  assert.match(preview, /windowPayload\?\.historyDays/);
+  assert.match(preview, /sevenDayEditionDevelopments\(editionHistory\)/);
+  assert.match(preview, /sevenDayEdition\.developments\.slice\(0, 5\)/,
     "the initial seven-day scan remains capped at five");
+  assert.match(preview, /historyReady && <button[^>]*type="button"[^>]*role="tab"/,
+    "the public tab stays hidden until seven exact edition dates exist");
   assert.match(preview, /More from the last 7 days/);
   assert.match(preview, /aria-expanded=\{moreOpen\}/);
   assert.match(preview, /moreFromSevenDays\.map\(\(item\)/,
@@ -102,7 +107,41 @@ test("the 7-day tab reads the promoted-card archive and never quota-fills", () =
   assert.match(preview, /activeEvidenceOverlays\.get\(item\.id\)\?\.windowClinicianCount \?\? 0\) > 0/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/, "the visible Shared by count comes from lifetime overlay evidence");
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
+  assert.doesNotMatch(preview, /archivedEditorialArticle/,
+    "legacy shared-link archive cards no longer stand in for displayed morning editions");
+  assert.match(preview, /sevenDayEditionListen\(editionHistory, currentWorth\)/,
+    "Listen comes from the exact daily selections and retains featured episodes outside the top five");
   assert.match(briefingRoute, /"readout-window"/);
+});
+
+test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
+  assert.match(editionSnapshot, /snapshots = \[\.\.\.history\]\.sort/);
+  assert.match(editionSnapshot, /sameDevelopment\(existing\.development, entry\.development\)/);
+  assert.match(editionSnapshot, /sameEditorialArticle\(existing\.article, entry\.article\)/);
+  assert.match(editionSnapshot, /left\.position - right\.position \|\| right\.editionDate\.localeCompare\(left\.editionDate\)/,
+    "daily editorial position ranks first and the newer edition breaks ties");
+  assert.match(editionSnapshot, /entry\.episode/,
+    "archived featured episodes retain their exact playable audio metadata");
+  assert.match(editionSnapshot, /displayedIds\.has\(entry\.development\.id\)/,
+    "a podcast already displayed in the top five is not repeated in Listen");
+});
+
+test("the exact morning edition archive is DST-safe, idempotent, and service-only", () => {
+  assert.match(editionSnapshot, /timeZone: "America\/New_York"/);
+  assert.match(editionSnapshot, /hourCycle: "h23"/);
+  assert.match(editionSnapshot, /developments: developments\.map/);
+  assert.match(editionSnapshot, /relevant: relevant\.map/);
+  assert.match(editionSnapshot, /listenItems\.map/);
+  assert.match(readoutEditionArchive, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(readoutEditionArchive, /kind: "edition"/);
+  assert.match(readoutEditionArchive, /edition:\$\{snapshot\.editionDate\}:\$\{area\}/);
+  assert.match(readoutEditionArchive, /resolution=ignore-duplicates/);
+  assert.match(readoutEditionArchive, /etEditionHour\(now\) !== 6/);
+  assert.match(readoutArchiveRoute, /archiveCurrentReadoutEdition\(\)/);
+  assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
+  assert.match(readoutArchiveRoute, /warmReadoutWindowCache\(\)/);
+  assert.match(vercelConfig, /"5 10 \* \* \*"/);
+  assert.match(vercelConfig, /"5 11 \* \* \*"/);
 });
 
 test("the browser receives one server-cached payload and never refreshes evidence after paint", () => {

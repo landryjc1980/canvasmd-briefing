@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
+import { isReadoutEditionSnapshot, sevenDayEditionDevelopments, sevenDayEditionListen } from "./editionSnapshot";
 import AudioQuote from "@/components/AudioQuote";
 import {
   evidenceTarget,
@@ -15,7 +16,6 @@ import {
   NEW_TO_LISTEN,
   SPECIALTY_FALLBACKS,
   WORTH_YOUR_TIME,
-  archivedEditorialArticle,
   findArticle,
   findArchivedEditorialSource,
   findEpisode,
@@ -617,18 +617,20 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     () => (windowPayload?.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area)),
     [area, windowPayload],
   );
-  const sevenDayDevelopments = useMemo(() => {
-    if (readoutWindow !== "7d") return [];
-    const archived = [...(windowPayload?.cards ?? []), ...(windowPayload?.moreCards ?? [])]
-      .map(archivedEditorialArticle);
-    return [...regulatoryDevelopments, ...archived]
-      .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index);
-  }, [readoutWindow, regulatoryDevelopments, windowPayload]);
+  const editionHistory = useMemo(
+    () => (windowPayload?.editionHistory ?? []).filter(isReadoutEditionSnapshot),
+    [windowPayload],
+  );
+  const historyReady = (windowPayload?.historyDays ?? 0) >= 7;
+  const sevenDayEdition = useMemo(
+    () => readoutWindow === "7d" ? sevenDayEditionDevelopments(editionHistory) : { developments: [], relevant: [] },
+    [editionHistory, readoutWindow],
+  );
   const currentWorth = useMemo(() => {
     const todayDevelopments: EditorialDevelopment[] = area === "All"
       ? WORTH_YOUR_TIME
       : [...WORTH_YOUR_TIME, ...FEATURED_EPISODES];
-    if (readoutWindow === "7d") return sevenDayDevelopments.slice(0, 5);
+    if (readoutWindow === "7d") return sevenDayEdition.developments.slice(0, 5);
     const visible = visibleForArea(todayDevelopments, area);
     const supported = visible.map((item) => {
       if (isEpisodeDevelopment(item)) return item;
@@ -644,13 +646,14 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     });
     const developments = [...regulatoryDevelopments, ...supported];
     return area === "All" ? developments.slice(0, 5) : developments;
-  }, [area, readoutWindow, regulatoryDevelopments, sevenDayDevelopments, windowPayload]);
+  }, [area, readoutWindow, regulatoryDevelopments, sevenDayEdition, windowPayload]);
   const fallbackCandidates = useMemo(() => area === "All" || readoutWindow === "7d" || currentWorth.length > 0 ? [] : visibleForArea(SPECIALTY_FALLBACKS, area), [area, currentWorth.length, readoutWindow]);
   const hasFallbackWindow = fallbackCandidates.length > 0;
   const evidenceWorth = useMemo(() => currentWorth.length > 0 ? currentWorth : fallbackCandidates, [currentWorth, fallbackCandidates]);
   const moreFromSevenDays = useMemo(() => readoutWindow === "7d"
-    ? sevenDayDevelopments.filter((item) => !currentWorth.some((lead) => !isEpisodeDevelopment(lead) && sameEditorialArticle(item, lead)))
-    : [], [currentWorth, readoutWindow, sevenDayDevelopments]);
+    ? [...sevenDayEdition.developments.slice(5).filter((item): item is EditorialArticle => !isEpisodeDevelopment(item)), ...sevenDayEdition.relevant]
+      .filter((item, index, all) => all.findIndex((candidate) => sameEditorialArticle(candidate, item)) === index)
+    : [], [readoutWindow, sevenDayEdition]);
   const relevant = useMemo(() => readoutWindow === "7d" ? [] : visibleForArea(ALSO_RELEVANT, area).map((item) => {
     const archived = findArchivedEditorialSource(item, windowPayload?.cards ?? []);
     if (!archived?.card.support?.links?.length) return item;
@@ -686,6 +689,18 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const listen = useMemo(() => {
     return listenForArea(NEW_TO_LISTEN, listenBriefs, area, worth.filter(isEpisodeDevelopment));
   }, [area, listenBriefs, worth]);
+  const listenEntries = useMemo(() => readoutWindow === "7d"
+    ? sevenDayEditionListen(editionHistory, currentWorth)
+    : listen.map((item) => {
+      const matched = findEpisode(item, listenBriefs);
+      return {
+        item,
+        episode: matched?.episodeId
+          ? windowPayload?.episodes.find((episode) => episode.episodeId === matched.episodeId) ?? null
+          : null,
+      };
+    }),
+  [currentWorth, editionHistory, listen, listenBriefs, readoutWindow, windowPayload]);
 
   return (
     <main className={`er-page er-area-${area.toLowerCase()}`}>
@@ -721,13 +736,13 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
               setReadoutWindow("today");
               setMoreOpen(false);
             }}>Today</button>
-            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => {
+            {historyReady && <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => {
               if (readoutWindow === "7d") return;
               setLoadingWindow(true);
               setWindowPayload(null);
               setReadoutWindow("7d");
               setMoreOpen(false);
-            }}>7 days</button>
+            }}>7 days</button>}
           </div>
         </div>
         {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
@@ -762,12 +777,11 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         </section>
       )}
 
-      {pageReady && listen.length > 0 && (
+      {pageReady && listenEntries.length > 0 && (
         <section className="er-section er-listen">
           <div className="er-section-title"><h2>Listen</h2></div>
           <div className="er-listen-grid">
-            {listen.map((item) => {
-              const episode = findEpisode(item, listenBriefs);
+            {listenEntries.map(({ item, episode }) => {
               const sourceHref = episode?.sourceUrl || item.url;
               return (
                 <article key={item.id}>
