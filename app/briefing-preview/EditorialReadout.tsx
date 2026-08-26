@@ -16,6 +16,7 @@ import {
   NEW_TO_LISTEN,
   SPECIALTY_FALLBACKS,
   WORTH_YOUR_TIME,
+  cleanReadoutExcerpt,
   findArticle,
   findArchivedEditorialSource,
   findEpisode,
@@ -280,7 +281,7 @@ function DevelopmentFinding({ text, label, expanded = false }: { text: string; l
   const [collapsible, setCollapsible] = useState(false);
   const findingRef = useRef<HTMLParagraphElement>(null);
   const findingId = useId();
-  const finding = text.trim();
+  const finding = cleanReadoutExcerpt(text);
 
   useEffect(() => {
     const node = findingRef.current;

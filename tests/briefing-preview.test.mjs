@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, cleanReadoutExcerpt, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -286,6 +286,15 @@ test("archived cards do not render boilerplate as an editorial takeaway", () => 
   assert.match(preview, /No additional oncology approval, safety warning, or designation in this window\./);
   assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Clear"/);
   assert.match(preview, /if \(!finding\) return null/);
+});
+
+test("source excerpts drop PDF labels without adding editorial judgment", () => {
+  assert.equal(
+    cleanReadoutExcerpt("RISK STRATIFICATION: High risk. KEY FINDINGS: Median OS was 90 months. NCT03425643."),
+    "High risk. Median OS was 90 months.",
+  );
+  assert.doesNotMatch(edition, /It belongs in the briefing as context|not a practice-changing comparison/);
+  assert.match(preview, /cleanReadoutExcerpt\(text\)/);
 });
 
 test("the hidden production canary is gated, unlisted, and noindex", () => {

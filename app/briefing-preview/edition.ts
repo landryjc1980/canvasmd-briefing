@@ -200,7 +200,7 @@ export const ALSO_RELEVANT: EditorialArticle[] = [
     site: "Breast",
     nickname: "ELEVATE",
     takeaway: "An all-oral SERD combination produced an 8.3-month median PFS after CDK4/6 inhibition.",
-    finding: "Elacestrant plus everolimus showed similar activity in ESR1-mutant and wild-type tumors. This is a phase 2 signal, not a practice-changing comparison.",
+    finding: "Elacestrant plus everolimus showed similar activity in ESR1-mutant and wild-type tumors.",
     remember: "Treat this as a phase 2 combination signal, not a new standard.",
     journal: "Clinical Cancer Research",
     title: "Elacestrant in Combination with Everolimus for Estrogen Receptor-Positive, HER2-Negative Previously Treated Advanced Breast Cancer: Results from ELEVATE",
@@ -230,7 +230,7 @@ export const ALSO_RELEVANT: EditorialArticle[] = [
     site: "Bladder",
     nickname: "MIBC",
     takeaway: "A useful synthesis of newer perioperative strategies, not a new trial readout.",
-    finding: "The systematic review and meta-analysis compares novel approaches with gemcitabine-cisplatin in muscle-invasive bladder cancer. It belongs in the briefing as context, below new randomized evidence.",
+    finding: "The systematic review and meta-analysis compares novel approaches with gemcitabine-cisplatin in muscle-invasive bladder cancer.",
     remember: "Useful context, but not a new randomized result.",
     journal: "JCO Oncology Advances",
     title: "Defining the Optimal Therapeutic Approach in Muscle-Invasive Bladder Cancer",
@@ -318,6 +318,14 @@ export function sameEditorialArticle(left: EditorialArticle, right: EditorialArt
 }
 
 export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
+
+export function cleanReadoutExcerpt(value: string): string {
+  return value
+    .replace(/\b(?:RISK STRATIFICATION|KEY FINDINGS):\s*/gi, "")
+    .replace(/(^|[.!?]\s+)NCT\d{8}\.?(?=\s|$)/gi, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArchivedCardSummary): EditorialArticle {
   const card = item.card;
