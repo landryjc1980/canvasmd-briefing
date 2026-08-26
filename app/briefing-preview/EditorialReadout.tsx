@@ -285,18 +285,25 @@ function DevelopmentFinding({ text }: { text: string }) {
   );
 }
 
-function SourceArticle({ href, journal, title, action = "Read article", compact = false }: {
+function articleContentType(item: EditorialArticle): string {
+  return /approval|label|safety|regulatory|fast track|priority review|breakthrough/i.test(
+    `${item.evidence} ${item.sourceAction ?? ""}`,
+  ) ? "Regulatory update" : "Paper";
+}
+
+function SourceHeadline({ href, source, title, compact = false }: {
   href: string;
-  journal: string;
+  source: string;
   title: string;
-  action?: string;
   compact?: boolean;
 }) {
   return (
-    <a className={`er-citation ${compact ? "er-compact-citation" : ""}`} href={href} target="_blank" rel="noreferrer">
-      <span className="er-citation-topline"><b>{journal}</b><em>{action} ↗</em></span>
-      <strong>{title}</strong>
-    </a>
+    <div className={`er-source-headline ${compact ? "is-compact" : ""}`}>
+      <span className="er-source-name">{source}</span>
+      <h3 className="er-source-title">
+        <a href={href} target="_blank" rel="noreferrer">{title} <span aria-hidden="true">↗</span></a>
+      </h3>
+    </div>
   );
 }
 
@@ -358,11 +365,10 @@ function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle
   return (
     <article className="er-development">
       <div className="er-development-body">
-        <div className="er-kicker"><span>{item.site}</span>{item.nickname && <><i aria-hidden="true">·</i><b>{item.nickname}</b></>}</div>
-        <h3>{item.takeaway}</h3>
+        <div className="er-kicker"><span>{item.site}</span><i aria-hidden="true">·</i><b>{articleContentType(item)}</b></div>
+        <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} />
         <DevelopmentFinding text={item.finding} />
         {item.remember !== ARCHIVED_TAKEAWAY_FALLBACK && <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>}
-        <SourceArticle href={href} journal={item.journal} title={article?.title || item.title} action={item.sourceAction} />
         <CoverageLinks item={item} primaryUrl={href} />
         <div className="er-proof">
           {overlay && <FacePile article={article} count={sharedBy} />}
@@ -397,11 +403,10 @@ function EpisodeDevelopment({ item, briefs }: { item: EditorialEpisodeFeature; b
   return (
     <article className="er-development er-development-episode">
       <div className="er-development-body">
-        <div className="er-kicker"><span>{item.site}</span><i aria-hidden="true">·</i><b>{item.nickname}</b></div>
-        <h3>{item.hook}</h3>
+        <div className="er-kicker"><span>{item.site}</span><i aria-hidden="true">·</i><b>Podcast</b></div>
+        <SourceHeadline href={sourceHref} source={episode?.show || item.show} title={episode?.title || item.title} />
         <DevelopmentFinding text={item.finding} />
         <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>
-        <SourceArticle href={sourceHref} journal={episode?.show || item.show} title={episode?.title || item.title} action="Open episode" />
         <EpisodeAudio
           audioUrl={audioUrl}
           sourceHref={sourceHref}
@@ -669,11 +674,12 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             return (
               <article key={item.id}>
                 <div className="er-compact-topline">
-                  <div className="er-compact-label"><b>{item.site}</b>{item.nickname && <><i aria-hidden="true">·</i><span>{item.nickname}</span></>}</div>
+                  <div className="er-compact-label"><b>{item.site}</b><i aria-hidden="true">·</i><span>{articleContentType(item)}</span></div>
                   <small>{item.evidence}</small>
                 </div>
-                <h3>{item.takeaway}</h3>
-                <SourceArticle href={article?.url || item.url} journal={item.journal} title={article?.title || item.title} compact />
+                <SourceHeadline href={article?.url || item.url} source={item.journal} title={article?.title || item.title} compact />
+                <DevelopmentFinding text={item.finding} />
+                {item.remember !== ARCHIVED_TAKEAWAY_FALLBACK && <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>}
                 <CoverageLinks item={item} primaryUrl={article?.url || item.url} />
                 <div className="er-compact-proof">
                   {overlay && <FacePile article={article} count={sharedBy} />}

@@ -63,7 +63,10 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
 });
 
 test("live evidence overlay cannot rewrite frozen editorial prose", () => {
-  assert.match(preview, /<h3>\{item\.takeaway\}<\/h3>/);
+  assert.doesNotMatch(preview, /<h3>\{item\.takeaway\}<\/h3>/);
+  assert.doesNotMatch(preview, /<h3>\{item\.hook\}<\/h3>/);
+  assert.match(preview, /function SourceHeadline/);
+  assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{article\?\.title \|\| item\.title\} \/>/);
   assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} \/>/);
   assert.match(preview, /<strong>Key takeaway:<\/strong> \{item\.remember\}/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/);
@@ -194,15 +197,24 @@ test("cards keep long findings to four lines until expanded at any viewport", ()
   assert.match(preview, /node\.scrollHeight > node\.clientHeight \+ 1/);
   assert.match(preview, /new ResizeObserver\(measure\)/);
   assert.match(preview, /Show full result/);
-  assert.match(preview, /function SourceArticle/);
-  assert.match(preview, /Read article/);
-  assert.match(preview, /className="er-citation-topline"/);
+  assert.match(preview, /function SourceHeadline/);
+  assert.match(preview, /er-source-headline/);
+  assert.match(preview, /\{title\} <span aria-hidden="true">↗<\/span>/);
   assert.match(preview, /<span className="er-sharer-label">Including<\/span>/);
   assert.match(previewCss, /\.er-finding\.is-collapsed/);
   assert.match(previewCss, /-webkit-line-clamp: 4/);
+  assert.match(previewCss, /\.er-source-title/);
   assert.match(previewCss, /\.er-proof-count \{ white-space: normal/);
   assert.match(previewCss, /\.er-voice-secondary:not\(\.is-mobile-open\)/);
   assert.match(previewCss, /\.er-related-links:not\(\.is-open\)/);
+});
+
+test("briefing cards use source identity as the headline and a warmer reading surface", () => {
+  assert.match(preview, /function articleContentType/);
+  assert.match(preview, /<b>Podcast<\/b>/);
+  assert.match(preview, /<SourceHeadline href=\{sourceHref\} source=\{episode\?\.show \|\| item\.show\} title=\{episode\?\.title \|\| item\.title\} \/>/);
+  assert.match(previewCss, /--er-paper: #f2f1ec/);
+  assert.match(previewCss, /--er-soft: #fbfaf7/);
 });
 
 test("archived cards do not render boilerplate as an editorial takeaway", () => {
