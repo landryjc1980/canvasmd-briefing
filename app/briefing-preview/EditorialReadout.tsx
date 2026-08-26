@@ -327,13 +327,19 @@ function validSupportLinks(links: HeroSupportLink[] | undefined, primaryUrl: str
 function CoverageLinks({ item, primaryUrl }: { item: EditorialArticle; primaryUrl: string }) {
   const [coverageOpen, setCoverageOpen] = useState(false);
   const primarySources = validSupportLinks(item.primarySources, primaryUrl);
-  const related = relatedCoverageLinks(item.relatedCoverage, primaryUrl).slice(0, 2);
-  if (!primarySources.length && !related.length) return null;
+  const supportingEvidence = validSupportLinks(item.supportingEvidence, primaryUrl);
+  const related = relatedCoverageLinks(item.relatedCoverage, primaryUrl).slice(0, 4);
+  if (!primarySources.length && !supportingEvidence.length && !related.length) return null;
   return (
     <div className="er-support-links">
       <div className="er-primary-links">
         {primarySources.map((link) => (
           <p key={`primary-${link.id}`}><span>Primary source</span><i aria-hidden="true">·</i><a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a></p>
+        ))}
+      </div>
+      <div className="er-supporting-links">
+        {supportingEvidence.map((link) => (
+          <p key={`supporting-${link.id}`}><span>Supporting study</span><i aria-hidden="true">·</i><a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a></p>
         ))}
       </div>
       {related.length > 0 && (
@@ -364,7 +370,7 @@ function ArticleDevelopment({ item, briefs, overlays }: { item: EditorialArticle
         <h3>{item.takeaway}</h3>
         <DevelopmentFinding text={item.finding} />
         {item.remember !== ARCHIVED_TAKEAWAY_FALLBACK && <p className="er-remember"><strong>Key takeaway:</strong> {item.remember}</p>}
-        <SourceArticle href={href} journal={item.journal} title={article?.title || item.title} />
+        <SourceArticle href={href} journal={item.journal} title={article?.title || item.title} action={item.sourceAction} />
         <CoverageLinks item={item} primaryUrl={href} />
         <div className="er-proof">
           <FacePile article={article} count={sharedBy} />

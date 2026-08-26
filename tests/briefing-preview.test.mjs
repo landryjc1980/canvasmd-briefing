@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, listenForArea, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -103,6 +103,47 @@ test("attached related coverage is compact, validated, and deduped from the prim
   assert.match(preview, /Related coverage/);
   assert.match(preview, /er-related-toggle/);
   assert.match(preview, /<CoverageLinks item=\{item\}/);
+});
+
+test("regulatory developments keep the regulator primary and the trial explicitly supporting", () => {
+  const approval = regulatoryEditorialArticle({
+    id: "regulatory:fda-ziihera",
+    kind: "event",
+    regulatoryKind: "approval",
+    eligibleLabel: "FDA approval",
+    headline: "FDA approves Ziihera for first-line HER2-positive gastroesophageal cancer",
+    sourceLabel: "U.S. Food and Drug Administration",
+    url: "https://fda.gov/ziihera-approval",
+    occurredOn: "2026-08-25",
+    areas: ["GI"],
+    articleIds: ["fda", "nejm", "targeted"],
+    primaryStudy: {
+      id: "nejm",
+      title: "Zanidatamab with and without Tislelizumab in HER2-Positive Gastroesophageal Cancer",
+      url: "https://nejm.org/doi/full/10.1056/example",
+      sourceLabel: "New England Journal of Medicine",
+    },
+    relatedCoverage: [{
+      id: "targeted",
+      kind: "article",
+      title: "FDA Approves Zanidatamab Combinations",
+      url: "https://targetedonc.com/ziihera",
+      sourceLabel: "Targeted Oncology",
+      relationshipType: "related_coverage",
+      occurredAt: "2026-08-25T17:00:00Z",
+    }],
+    metrics: { clinicians: 2, cliniciansFeedEligible: 2, reposters: 5, totalSharers: 7, lastSharedAt: "2026-08-25T17:00:00Z" },
+  }, "All");
+
+  assert.equal(approval.url, "https://fda.gov/ziihera-approval");
+  assert.equal(approval.title, approval.takeaway);
+  assert.equal(approval.journal, "U.S. Food and Drug Administration");
+  assert.equal(approval.sourceAction, "View FDA source");
+  assert.deepEqual(approval.primarySources, []);
+  assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
+  assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
+  assert.match(preview, /Supporting study/);
+  assert.match(preview, /relatedCoverageLinks\(item\.relatedCoverage, primaryUrl\)\.slice\(0, 4\)/);
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {

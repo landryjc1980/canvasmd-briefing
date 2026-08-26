@@ -20,7 +20,9 @@ export type EditorialArticle = {
   sharedBy: number;
   match: { doi?: string; pmid?: string; titleIncludes?: string };
   articleIds?: string[];
+  sourceAction?: string;
   primarySources?: HeroSupportLink[];
+  supportingEvidence?: HeroSupportLink[];
   relatedCoverage?: HeroSupportLink[];
 };
 
@@ -370,16 +372,18 @@ export function findArchivedEditorialSource(item: EditorialArticle, cards: Reado
 
 export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate, area: EditionArea): EditorialArticle {
   const primaryStudy = candidate.primaryStudy;
-  const primaryUrl = primaryStudy?.url || candidate.url;
-  const noticeLink: HeroSupportLink = {
-    id: candidate.id,
-    kind: "article",
-    title: candidate.headline,
-    url: candidate.url,
-    sourceLabel: candidate.sourceLabel,
-    relationshipType: "primary_source",
-    occurredAt: candidate.metrics.lastSharedAt,
-  };
+  const studyUrl = validHttpUrl(primaryStudy?.url);
+  const supportingEvidence: HeroSupportLink[] = primaryStudy && studyUrl && studyUrl.toLowerCase() !== candidate.url.toLowerCase()
+    ? [{
+        id: primaryStudy.id,
+        kind: "paper",
+        title: primaryStudy.title,
+        url: studyUrl,
+        sourceLabel: primaryStudy.sourceLabel,
+        relationshipType: "supporting_evidence",
+        occurredAt: candidate.metrics.lastSharedAt,
+      }]
+    : [];
   const remember = candidate.regulatoryKind === "approval"
     ? "This is an FDA approval, not a designation."
     : candidate.regulatoryKind === "label"
@@ -393,14 +397,16 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     takeaway: candidate.headline,
     finding: candidate.finding || primaryStudy?.description || "The clinician-shared regulatory source is linked below.",
     remember,
-    journal: primaryStudy?.sourceLabel ?? candidate.sourceLabel,
-    title: primaryStudy?.title ?? candidate.headline,
-    url: primaryUrl,
+    journal: candidate.sourceLabel,
+    title: candidate.headline,
+    url: candidate.url,
     evidence: candidate.eligibleLabel,
     sharedBy: candidate.metrics.totalSharers,
     match: { titleIncludes: candidate.headline },
     articleIds: candidate.articleIds,
-    primarySources: primaryUrl === candidate.url ? [] : [noticeLink],
+    sourceAction: "View FDA source",
+    primarySources: [],
+    supportingEvidence,
     relatedCoverage: candidate.relatedCoverage ?? [],
   };
 }
