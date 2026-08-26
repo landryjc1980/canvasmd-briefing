@@ -679,7 +679,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
 
   return (
     <main className={`er-page er-area-${area.toLowerCase()}`}>
-      <header className="er-header">
+      <header className={`er-header ${area !== "All" ? "has-meta" : ""}`}>
         <div className="er-brand">
           <CanvasMdLogo />
         </div>

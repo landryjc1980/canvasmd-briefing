@@ -218,6 +218,17 @@ test("briefing cards use source identity as the headline and a warmer reading su
   assert.match(previewCss, /--er-soft: #fbfaf7/);
 });
 
+test("desktop reading columns are centered and the specialty menu aligns right", () => {
+  assert.match(preview, /className=\{`er-header \$\{area !== "All" \? "has-meta" : ""\}`\}/);
+  assert.match(previewCss, /\.er-page \{[^}]*max-width: 720px;[^}]*margin: 0 auto;[^}]*padding: 0 0 56px/);
+  assert.match(previewCss, /\.er-header \{[^}]*grid-template-columns: auto minmax\(0, 1fr\)/);
+  assert.match(previewCss, /\.er-header\.has-meta \{ grid-template-columns: auto minmax\(0, 1fr\) auto; \}/);
+  assert.match(previewCss, /\.er-filters \{[^}]*justify-content: flex-end/);
+  assert.match(previewCss, /\.er-worth \{[^}]*margin-inline: auto/);
+  assert.match(previewCss, /\.er-relevant \{[^}]*margin: 16px auto 0/);
+  assert.match(previewCss, /@media \(max-width: 800px\) \{[\s\S]*\.er-filters \{[^}]*justify-content: flex-start/);
+});
+
 test("archived cards do not render boilerplate as an editorial takeaway", () => {
   assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
