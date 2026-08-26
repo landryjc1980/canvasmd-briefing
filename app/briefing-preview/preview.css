@@ -87,6 +87,11 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-sources { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--er-line); }
 .er-source-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13.5px; }
 .er-role { flex: 0 0 auto; color: var(--er-muted); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.er-related-episode { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--er-line); }
+.er-related-episode-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12px; }
+.er-related-episode-heading span { color: var(--er-muted); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .04em; text-transform: uppercase; }
+.er-related-episode-heading a { color: var(--er-accent); font-weight: 650; text-decoration: none; }
+.er-related-episode > p { margin: 0; color: var(--er-ink); font-size: 13.5px; font-weight: 650; line-height: 1.35; }
 .er-source-row a { color: var(--er-accent); font-weight: 650; text-decoration: none; text-align: right; }
 .er-source-row a:hover { text-decoration: underline; }
 .er-related-toggle { display: none; }

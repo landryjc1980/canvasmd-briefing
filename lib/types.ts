@@ -1026,7 +1026,8 @@ export type HeroSupportPost = {
 };
 export type HeroSupportLink = {
   kind: "article" | "paper" | "episode"; id: string; title: string; url: string;
-  sourceLabel: string; description?: string | null; relationshipType: string; occurredAt: string | null;
+  sourceLabel: string; description?: string | null; audioUrl?: string | null; durationSeconds?: number | null;
+  relationshipType: string; occurredAt: string | null;
 };
 export type HeroSupportBundle = {
   clinicianPosts: HeroSupportPost[]; publisherPosts: HeroSupportPost[]; otherPosts?: HeroSupportPost[]; links: HeroSupportLink[];

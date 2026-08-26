@@ -352,8 +352,10 @@ function validSupportLinks(links: HeroSupportLink[] | undefined, primaryUrl: str
 function attachedSources(item: EditorialArticle, primaryUrl: string) {
   const primarySources = validSupportLinks(item.primarySources, primaryUrl);
   const supportingEvidence = validSupportLinks(item.supportingEvidence, primaryUrl);
-  const related = relatedCoverageLinks(item.relatedCoverage, primaryUrl, item.title).slice(0, 4);
-  return { primarySources, supportingEvidence, related };
+  const relatedLinks = relatedCoverageLinks(item.relatedCoverage, primaryUrl, item.title);
+  const relatedEpisodes = relatedLinks.filter((link) => link.kind === "episode").slice(0, 1);
+  const related = relatedLinks.filter((link) => link.kind !== "episode").slice(0, 4);
+  return { primarySources, supportingEvidence, related, relatedEpisodes };
 }
 
 function coverageSummary(item: EditorialArticle, primaryUrl: string): string {
@@ -388,6 +390,31 @@ function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle;
           <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a>
         </div>
       ))}
+    </div>
+  );
+}
+
+function RelatedEpisode({ item, primaryUrl }: { item: EditorialArticle; primaryUrl: string }) {
+  const link = attachedSources(item, primaryUrl).relatedEpisodes[0];
+  if (!link) return null;
+  return (
+    <div className="er-related-episode">
+      <div className="er-related-episode-heading">
+        <span>Related episode</span>
+        <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a>
+      </div>
+      <p>{link.title}</p>
+      {link.audioUrl && (
+        <AudioQuote
+          audioUrl={link.audioUrl}
+          startMs={0}
+          durationSeconds={link.durationSeconds}
+          label="Listen here"
+          eventId={link.id}
+          eventLabel={link.title}
+          accent="var(--area)"
+        />
+      )}
     </div>
   );
 }
@@ -438,6 +465,7 @@ function ArticleDevelopment({
       <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
       <DevelopmentFinding text={item.finding} label={excerptLabel(item)} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
+      <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
         ? <PeerRow article={article} sharedBy={sharedBy} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}

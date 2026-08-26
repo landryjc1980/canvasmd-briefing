@@ -177,6 +177,15 @@ test("attached related coverage is compact, validated, and deduped from the prim
   assert.match(preview, /<CoverageLinks item=\{item\}/);
 });
 
+test("an attached podcast episode plays on the development card without becoming coverage", () => {
+  assert.match(preview, /relatedEpisodes = relatedLinks\.filter\(\(link\) => link\.kind === "episode"\)\.slice\(0, 1\)/);
+  assert.match(preview, /related = relatedLinks\.filter\(\(link\) => link\.kind !== "episode"\)\.slice\(0, 4\)/);
+  assert.match(preview, /function RelatedEpisode/);
+  assert.match(preview, /audioUrl=\{link\.audioUrl\}/);
+  assert.match(preview, /<RelatedEpisode item=\{item\} primaryUrl=\{href\} \/>/);
+  assert.match(previewCss, /\.er-related-episode \{/);
+});
+
 test("regulatory developments keep the regulator primary and the trial explicitly supporting", () => {
   const approval = regulatoryEditorialArticle({
     id: "regulatory:fda-ziihera",
@@ -215,7 +224,8 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
   assert.match(preview, /Supporting study/);
-  assert.match(preview, /relatedCoverageLinks\(item\.relatedCoverage, primaryUrl, item\.title\)\.slice\(0, 4\)/);
+  assert.match(preview, /relatedLinks = relatedCoverageLinks\(item\.relatedCoverage, primaryUrl, item\.title\)/);
+  assert.match(preview, /related = relatedLinks\.filter\(\(link\) => link\.kind !== "episode"\)\.slice\(0, 4\)/);
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {
