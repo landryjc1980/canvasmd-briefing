@@ -21,13 +21,14 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /is-single/);
   assert.match(preview, /isTitleOnlyShare/);
   assert.match(preview, /posts\.slice\(0, 2\)/);
-  assert.match(preview, /Show \$\{visiblePosts\.length - 1\} more comment/);
-  assert.match(preview, /<blockquote>\{post\.text\}<\/blockquote>/);
+  assert.match(preview, /\$\{extraComments\} more comment/);
+  assert.match(preview, /\{post\.text\}/);
   assert.match(preview, /post\.tweetUrl/);
+  assert.match(preview, /article\?\.faces/);
+  assert.match(preview, /function xAvatars/);
   assert.doesNotMatch(preview, /Promise\.allSettled/);
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
-  assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount, 2\)/);
-  assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount, 1\)/);
+  assert.match(preview, /function shareCommentaryLabel/);
   assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
   assert.match(preview, /1 commentary/);
   assert.match(preview, /visible < authoredCount/);
@@ -38,15 +39,12 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /right\.score - left\.score/);
   assert.match(preview, /SHARER_PREVIEW_LIMIT = 3/);
   assert.match(preview, /SHARER_EXPANDED_LIMIT = 12/);
-  assert.match(preview, /function SharerNames/);
-  assert.match(preview, /<SharerNames article=\{article\} sharedBy=\{sharedBy\} \/>/);
+  assert.match(preview, /function PeerRow/);
+  assert.match(preview, /<PeerRow article=\{article\} sharedBy=\{sharedBy\} \/>/);
   assert.match(preview, /article\.sharerPeople/);
   assert.match(preview, /clinicianSharers\(article\)\.slice\(0, sharedBy\)/);
-  assert.match(preview, /\+\{expandableCount\} more/);
-  assert.match(preview, /\+\{hiddenCount\} others counted/);
+  assert.match(preview, /other clinician/);
   assert.match(preview, /function CompactClinicianComment/);
-  assert.match(preview, /<CompactClinicianComment article=\{article\} \/>/);
-  assert.match(preview, /className="er-compact-proof"/);
   assert.match(preview, /applyEvidenceOverlay/);
   assert.match(preview, /function articleWithLiveEvidence/);
   assert.match(preview, /const base = overlay \? findArticle\(item, briefs\) \?\? articleFromEditorial\(item\) : articleFromEditorial\(item\)/);
@@ -66,9 +64,9 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.doesNotMatch(preview, /<h3>\{item\.takeaway\}<\/h3>/);
   assert.doesNotMatch(preview, /<h3>\{item\.hook\}<\/h3>/);
   assert.match(preview, /function SourceHeadline/);
-  assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{article\?\.title \|\| item\.title\} \/>/);
-  assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} \/>/);
-  assert.match(preview, /<strong>Key takeaway:<\/strong> \{item\.remember\}/);
+  assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{article\?\.title \|\| item\.title\} compact=\{compact\} \/>/);
+  assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} label=\{excerptLabel\(item\)\} expanded=\{open\} \/>/);
+  assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/);
   assert.match(preview, /faces: overlay\.faces/);
   assert.match(preview, /posts: overlay\.posts/);
@@ -125,7 +123,7 @@ test("attached related coverage is compact, validated, and deduped from the prim
   ];
   assert.deepEqual(relatedCoverageLinks(links, "https://journal.example/paper", "Paper").map((link) => link.sourceLabel), ["OncLive"]);
   assert.match(preview, /Related coverage/);
-  assert.match(preview, /er-related-toggle/);
+  assert.match(preview, /er-related-links/);
   assert.match(preview, /<CoverageLinks item=\{item\}/);
 });
 
@@ -196,14 +194,17 @@ test("a development already leading a section is removed from Also Relevant by s
 test("cards keep long findings to four lines until expanded at any viewport", () => {
   assert.match(preview, /node\.scrollHeight > node\.clientHeight \+ 1/);
   assert.match(preview, /new ResizeObserver\(measure\)/);
-  assert.match(preview, /Show full result/);
+  assert.match(preview, /Full abstract/);
   assert.match(preview, /function SourceHeadline/);
   assert.match(preview, /er-source-headline/);
-  assert.match(preview, /\{title\} <span aria-hidden="true">↗<\/span>/);
-  assert.match(preview, /<span className="er-sharer-label">Including<\/span>/);
+  assert.match(preview, /\{title\} <span className="er-ext" aria-hidden="true">↗<\/span>/);
+  assert.match(preview, /From the paper/);
+  assert.match(preview, /er-peers-who/);
   assert.match(previewCss, /\.er-finding\.is-collapsed/);
-  assert.match(previewCss, /-webkit-line-clamp: 4/);
+  assert.match(previewCss, /-webkit-line-clamp: 3/);
+  assert.match(previewCss, /\.er-disclose/);
   assert.match(previewCss, /\.er-source-title/);
+  assert.match(previewCss, /\.er-compact-list \.er-source-title a \{ color: var\(--er-ink\)/);
   assert.match(previewCss, /\.er-proof-count \{ white-space: normal/);
   assert.match(previewCss, /\.er-voice-secondary:not\(\.is-mobile-open\)/);
   assert.match(previewCss, /\.er-related-links:not\(\.is-open\)/);
@@ -219,7 +220,7 @@ test("briefing cards use source identity as the headline and a warmer reading su
 
 test("archived cards do not render boilerplate as an editorial takeaway", () => {
   assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
-  assert.match(preview, /item\.remember !== ARCHIVED_TAKEAWAY_FALLBACK/);
+  assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /No additional oncology approval, safety warning, or designation in this window\./);
   assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Clear"/);
   assert.match(preview, /if \(!finding\) return null/);
@@ -251,9 +252,9 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.match(previewCss, /#C45B28/);
   assert.match(previewCss, /#1A1A2E/);
   assert.match(previewCss, /er-window-tabs/);
-  assert.match(previewCss, /er-compact-comment/);
+  assert.match(previewCss, /er-peers/);
   assert.match(edition, /remember: string/);
-  assert.match(preview, /<strong>Key takeaway:<\/strong>/);
+  assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.doesNotMatch(preview, /<strong>Remember:<\/strong>/);
   assert.match(preview, /relevant\.slice\(0, 1\)/);
 });
