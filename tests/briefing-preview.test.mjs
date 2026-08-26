@@ -169,6 +169,8 @@ test("attached related coverage is compact, validated, and deduped from the prim
     { id: "same-title", kind: "article", title: "Paper", url: "https://publisher.example/paper", sourceLabel: "Publisher", relationshipType: "coverage", occurredAt: null },
     { id: "coverage", kind: "article", title: "Coverage", url: "https://onclive.com/story", sourceLabel: "OncLive", relationshipType: "coverage", occurredAt: null },
     { id: "duplicate", kind: "article", title: "Coverage copy", url: "https://onclive.com/story", sourceLabel: "OncLive", relationshipType: "coverage", occurredAt: null },
+    { id: "short", kind: "article", title: "Wrapped coverage", url: "https://hubs.ly/Q04vpWcl0", sourceLabel: "hubs.ly", relationshipType: "coverage", occurredAt: null },
+    { id: "other-short", kind: "article", title: "Another wrapper", url: "https://ow.ly/TNK350ZFKxr", sourceLabel: "ow.ly", relationshipType: "coverage", occurredAt: null },
     { id: "bad", kind: "article", title: "Bad", url: "javascript:alert(1)", sourceLabel: "Bad", relationshipType: "coverage", occurredAt: null },
   ];
   assert.deepEqual(relatedCoverageLinks(links, "https://journal.example/paper", "Paper").map((link) => link.sourceLabel), ["OncLive"]);

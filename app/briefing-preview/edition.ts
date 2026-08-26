@@ -284,6 +284,26 @@ function validHttpUrl(value: string | null | undefined): string | null {
   }
 }
 
+// Related coverage must identify the publisher, not the transport wrapper a
+// clinician happened to share. The backend resolves these; this is the final
+// display guard if an unresolved short link ever reaches an older payload.
+const SHORT_URL_HOSTS = new Set([
+  "amzn.to", "apple.news", "authors.elsevier.com", "bcutd.org", "bit.ly", "brnw.ch",
+  "buff.ly", "divr.it", "dlvr.it", "doi.org", "dx.doi.org", "fw.to", "goo.gl",
+  "go.merck.com", "go.nih.gov", "hubs.la", "hubs.li", "hubs.ly", "ift.tt", "is.gd",
+  "ja.ma", "lnkd.in", "mayocl.in", "mdsc.pe", "nej.md", "ow.ly", "rb.gy", "rdcu.be",
+  "rebrand.ly", "shar.es", "shorturl.at", "spr.ly", "t.co", "t.ly", "tiny.cc",
+  "tinyurl.com", "tnyp.me", "trib.al", "wb.md", "youtu.be",
+]);
+
+function isShortUrl(value: string): boolean {
+  try {
+    return SHORT_URL_HOSTS.has(new URL(value).hostname.toLowerCase().replace(/^www\./, ""));
+  } catch {
+    return false;
+  }
+}
+
 export function relatedCoverageLinks(
   links: HeroSupportLink[] | null | undefined,
   primaryUrl: string | null | undefined,
@@ -296,7 +316,7 @@ export function relatedCoverageLinks(
     if (link.relationshipType === "primary_source") return false;
     const url = validHttpUrl(link.url);
     const key = url?.toLowerCase() ?? "";
-    if (!url || !key || key === primary || (primaryTitleKey && norm(link.title) === primaryTitleKey) || seen.has(key)) return false;
+    if (!url || isShortUrl(url) || !key || key === primary || (primaryTitleKey && norm(link.title) === primaryTitleKey) || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
