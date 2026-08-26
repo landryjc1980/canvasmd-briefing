@@ -370,6 +370,11 @@ export function findArchivedEditorialSource(item: EditorialArticle, cards: Array
 
 export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate, area: EditionArea): EditorialArticle {
   const primaryStudy = candidate.primaryStudy;
+  // Regulatory candidate groups can include the pivotal study and historical coverage so the
+  // card can explain the action. The live evidence overlay is narrower: it should count only
+  // people sharing/commenting on the regulator's notice, not every paper ever grouped to the
+  // same drug. The source article UUID is carried in the stable regulatory card id.
+  const sourceArticleId = candidate.id.match(/^regulatory:([0-9a-f-]{36})$/i)?.[1] ?? null;
   const studyUrl = validHttpUrl(primaryStudy?.url);
   const supportingEvidence: HeroSupportLink[] = primaryStudy && studyUrl && studyUrl.toLowerCase() !== candidate.url.toLowerCase()
     ? [{
@@ -401,7 +406,7 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     evidence: candidate.eligibleLabel,
     sharedBy: candidate.metrics.totalSharers,
     match: { titleIncludes: candidate.headline },
-    articleIds: candidate.articleIds,
+    articleIds: sourceArticleId ? [sourceArticleId] : candidate.articleIds,
     sourceAction: "View FDA source",
     primarySources: [],
     supportingEvidence,

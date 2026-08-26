@@ -187,8 +187,9 @@ test("an attached podcast episode plays on the development card without becoming
 });
 
 test("regulatory developments keep the regulator primary and the trial explicitly supporting", () => {
+  const regulatorArticleId = "48b0a024-3a16-4d37-aa1c-890ed726a0ef";
   const approval = regulatoryEditorialArticle({
-    id: "regulatory:fda-ziihera",
+    id: `regulatory:${regulatorArticleId}`,
     kind: "event",
     regulatoryKind: "approval",
     eligibleLabel: "FDA approval",
@@ -220,6 +221,7 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.equal(approval.title, approval.takeaway);
   assert.equal(approval.journal, "U.S. Food and Drug Administration");
   assert.equal(approval.sourceAction, "View FDA source");
+  assert.deepEqual(approval.articleIds, [regulatorArticleId]);
   assert.deepEqual(approval.primarySources, []);
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
