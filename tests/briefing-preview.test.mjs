@@ -107,8 +107,9 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
   assert.match(readoutCacheRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
   assert.match(readoutCacheRoute, /warmReadoutWindowCache\(\)/);
-  assert.match(vercelConfig, /"\/api\/readout-cache"/);
-  assert.match(vercelConfig, /"50 \* \* \* \*"/);
+  assert.match(readoutCacheRoute, /process\.env\.READOUT_CACHE_TOKEN/);
+  assert.match(readoutCacheRoute, /export const POST = refreshReadoutCache/);
+  assert.doesNotMatch(vercelConfig, /"\/api\/readout-cache"/);
 });
 
 test("attached related coverage is compact, validated, and deduped from the primary source", () => {

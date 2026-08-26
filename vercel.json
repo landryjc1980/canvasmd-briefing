@@ -1,6 +1,5 @@
 {
   "crons": [
-    { "path": "/api/readout-cache", "schedule": "50 * * * *" },
     { "path": "/api/readout-archive", "schedule": "40 13 * * *" }
   ]
 }
