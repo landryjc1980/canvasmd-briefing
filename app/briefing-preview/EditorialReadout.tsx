@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
+import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
+import {
+  evidenceTarget,
+  readoutWindowDays,
+  type ReadoutWindow,
+} from "./readoutRequest";
 import {
   ALSO_RELEVANT,
   ARCHIVED_TAKEAWAY_FALLBACK,
@@ -39,7 +44,7 @@ const AREA_LABELS: Record<EditionArea, string> = {
 
 const SHARER_PREVIEW_LIMIT = 3;
 const SHARER_EXPANDED_LIMIT = 12;
-const EVIDENCE_REFRESH_MS = 60 * 60_000;
+const EMPTY_BRIEFS: BriefingData[] = [];
 
 function CanvasMdLogo() {
   return (
@@ -79,8 +84,6 @@ type NamedSharer = {
   score: number;
   order: number;
 };
-
-type ReadoutWindow = "today" | "7d";
 
 function sharerKey(sharer: { name: string; handle: string | null }) {
   return sharer.handle?.replace(/^@/, "").toLowerCase() || sharer.name.trim().toLowerCase();
@@ -144,18 +147,6 @@ function FacePile({ article, count }: { article: BriefingArticle | null; count: 
       {faces.map((src, index) => <img src={src} alt="" key={`${src}-${index}`} />)}
     </span>
   );
-}
-
-function evidenceTarget(item: EditorialArticle) {
-  return {
-    id: item.id,
-    title: item.title,
-    url: item.url,
-    doi: item.match.doi ?? null,
-    pmid: item.match.pmid ?? null,
-    titleIncludes: item.match.titleIncludes ?? null,
-    articleIds: item.articleIds ?? [],
-  };
 }
 
 function articleFromEditorial(item: EditorialArticle): BriefingArticle {
@@ -506,48 +497,49 @@ function Development({ item, briefs, overlays }: { item: EditorialDevelopment; b
     : <ArticleDevelopment item={item} briefs={briefs} overlays={overlays} />;
 }
 
-export default function EditorialReadout() {
+function ReadoutLoading() {
+  return (
+    <div className="er-loading-stack" role="status" aria-label="Loading The Readout">
+      {[0, 1].map((index) => (
+        <div className="er-loading-card" aria-hidden="true" key={index}>
+          <span className="er-loading-kicker" />
+          <span className="er-loading-headline" />
+          <span className="er-loading-line" />
+          <span className="er-loading-line is-short" />
+          <span className="er-loading-source" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function EditorialReadout({ initialPayload }: { initialPayload: ReadoutWindowPayload }) {
   const [area, setArea] = useState<EditionArea>("All");
   const [readoutWindow, setReadoutWindow] = useState<ReadoutWindow>("today");
-  const [briefs, setBriefs] = useState<BriefingData[]>([]);
-  const [windowPayload, setWindowPayload] = useState<ReadoutWindowPayload | null>(null);
-  const [loadingWindow, setLoadingWindow] = useState(true);
-  const [evidenceOverlays, setEvidenceOverlays] = useState<Map<string, BriefingEvidenceOverlayItem>>(new Map());
-  const [evidenceOverlayKey, setEvidenceOverlayKey] = useState("");
-  const [loadingEvidence, setLoadingEvidence] = useState(true);
+  const [windowPayload, setWindowPayload] = useState<ReadoutWindowPayload | null>(initialPayload);
+  const [loadingWindow, setLoadingWindow] = useState(false);
   const [alsoOpen, setAlsoOpen] = useState(false);
+  const briefs = EMPTY_BRIEFS;
 
   useEffect(() => {
-    let cancelled = false;
-    Promise.allSettled(EDITION_AREAS.filter((candidate) => candidate !== "All").map(async (candidate) => {
-      const response = await fetch(`/api/briefing?area=${candidate}`, { cache: "no-store" });
-      if (!response.ok) return null;
-      const body = await response.json();
-      return body.briefing as BriefingData;
-    })).then((results) => {
-      const items = results.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
-      if (!cancelled) setBriefs(items.filter(Boolean) as BriefingData[]);
-    }).finally(() => {
-      if (!cancelled) setLoadingEvidence(false);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
+    if (windowPayload?.area === area && windowPayload.windowDays === readoutWindowDays(readoutWindow)) {
+      setLoadingWindow(false);
+      return;
+    }
     let cancelled = false;
     setWindowPayload(null);
     setLoadingWindow(true);
     fetch("/api/briefing", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ mode: "readout-window", area, days: readoutWindow === "7d" ? 7 : 1 }),
+      body: JSON.stringify({ mode: "readout-window", area, days: readoutWindowDays(readoutWindow) }),
       cache: "no-store",
     }).then(async (response) => response.ok ? response.json() as Promise<ReadoutWindowPayload> : null)
       .then((payload) => { if (!cancelled && payload) setWindowPayload(payload); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoadingWindow(false); });
     return () => { cancelled = true; };
-  }, [area, readoutWindow]);
+  }, [area, readoutWindow, windowPayload]);
 
   const currentWorth = useMemo(() => {
     const todayDevelopments: EditorialDevelopment[] = area === "All"
@@ -594,56 +586,22 @@ export default function EditorialReadout() {
     const articleItems = [...evidenceWorth, ...relevant].filter((item): item is EditorialArticle => !isEpisodeDevelopment(item));
     return articleItems.map(evidenceTarget);
   }, [evidenceWorth, relevant]);
-  const evidenceWindowHours = readoutWindow === "7d" ? 168 : hasFallbackWindow ? 72 : 24;
-  const evidenceRequestKey = useMemo(() => JSON.stringify({ evidenceWindowHours, evidenceTargets }), [evidenceTargets, evidenceWindowHours]);
-  const activeEvidenceOverlays = useMemo(() => evidenceOverlayKey === evidenceRequestKey ? evidenceOverlays : new Map<string, BriefingEvidenceOverlayItem>(), [evidenceOverlayKey, evidenceOverlays, evidenceRequestKey]);
+  const payloadEvidenceOverlays = useMemo(
+    () => new Map((windowPayload?.overlays ?? []).map((overlay) => [overlay.id, overlay])),
+    [windowPayload],
+  );
+  const activeEvidenceOverlays = payloadEvidenceOverlays;
   const fallbackReady = !hasFallbackWindow || fallbackCandidates.every((item) => activeEvidenceOverlays.has(item.id));
   const fallbackWorth = fallbackReady
     ? fallbackCandidates.filter((item) => (activeEvidenceOverlays.get(item.id)?.windowClinicianCount ?? 0) > 0)
     : [];
   const worth = currentWorth.length > 0 ? currentWorth : fallbackWorth;
   const usingFallback = fallbackWorth.length > 0;
-  const checkingFallback = hasFallbackWindow && !fallbackReady;
+  const pageReady = !loadingWindow && !!windowPayload && evidenceTargets.every((target) => activeEvidenceOverlays.has(target.id));
   const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
     !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
 
-  useEffect(() => {
-    if (!evidenceTargets.length) {
-      setEvidenceOverlays(new Map());
-      setEvidenceOverlayKey(evidenceRequestKey);
-      return;
-    }
-    let cancelled = false;
-    const refresh = async () => {
-      const response = await fetch("/api/briefing", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "evidence-overlay",
-          cards: evidenceTargets,
-          windowHours: evidenceWindowHours,
-        }),
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const body = await response.json() as BriefingEvidenceOverlay;
-      if (!cancelled) {
-        setEvidenceOverlays(new Map((body.overlays ?? []).map((overlay) => [overlay.id, overlay])));
-        setEvidenceOverlayKey(evidenceRequestKey);
-      }
-    };
-    refresh().catch(() => {});
-    const interval = window.setInterval(() => { refresh().catch(() => {}); }, EVIDENCE_REFRESH_MS);
-    const onFocus = () => { refresh().catch(() => {}); };
-    window.addEventListener("focus", onFocus);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [evidenceRequestKey, evidenceTargets, evidenceWindowHours]);
-
-  const listenBriefs = useMemo(() => [...liveListenBriefs(windowPayload), ...briefs], [briefs, windowPayload]);
+  const listenBriefs = useMemo(() => liveListenBriefs(windowPayload), [windowPayload]);
   const listen = useMemo(() => {
     return listenForArea(NEW_TO_LISTEN, listenBriefs, area, worth.filter(isEpisodeDevelopment));
   }, [area, listenBriefs, worth]);
@@ -656,7 +614,13 @@ export default function EditorialReadout() {
         </div>
         <nav className="er-filters" aria-label="Tumor area">
           {EDITION_AREAS.map((candidate) => (
-            <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => { setLoadingWindow(true); setWindowPayload(null); setArea(candidate); setAlsoOpen(false); }}>
+            <button key={candidate} type="button" className={candidate === area ? "active" : ""} onClick={() => {
+              if (candidate === area) return;
+              setLoadingWindow(true);
+              setWindowPayload(null);
+              setArea(candidate);
+              setAlsoOpen(false);
+            }}>
               {candidate}
             </button>
           ))}
@@ -668,21 +632,27 @@ export default function EditorialReadout() {
         <div className="er-section-title">
           <div>{area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}<h2>The Readout</h2></div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window">
-            <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => { setLoadingWindow(true); setWindowPayload(null); setReadoutWindow("today"); }}>Today</button>
-            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => { setLoadingWindow(true); setWindowPayload(null); setReadoutWindow("7d"); }}>7 days</button>
+            <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => {
+              if (readoutWindow === "today") return;
+              setLoadingWindow(true);
+              setWindowPayload(null);
+              setReadoutWindow("today");
+            }}>Today</button>
+            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => {
+              if (readoutWindow === "7d") return;
+              setLoadingWindow(true);
+              setWindowPayload(null);
+              setReadoutWindow("7d");
+            }}>7 days</button>
           </div>
         </div>
-        {usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
-        {readoutWindow === "7d" && loadingWindow ? (
-          <p className="er-window-loading" role="status">Loading the strongest developments from the past 7 days...</p>
-        ) : checkingFallback ? (
-          <p className="er-window-loading" role="status">Checking the strongest qualifying development from the past 72 hours...</p>
-        ) : worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={activeEvidenceOverlays} key={item.id} />) : (
+        {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
+        {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={activeEvidenceOverlays} key={item.id} />) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
       </section>
 
-      {relevant.length > 0 && (
+      {pageReady && relevant.length > 0 && (
         <section className="er-section er-relevant">
           {relevant.length > 1 ? (
             <button className="er-section-title er-section-button" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
@@ -717,7 +687,7 @@ export default function EditorialReadout() {
         </section>
       )}
 
-      {listen.length > 0 && (
+      {pageReady && listen.length > 0 && (
         <section className="er-section er-listen">
           <div className="er-section-title"><h2>Listen</h2></div>
           <div className="er-listen-grid">
@@ -751,7 +721,7 @@ export default function EditorialReadout() {
         </section>
       )}
 
-      <section className="er-section er-regulatory">
+      {pageReady && <section className="er-section er-regulatory">
         <div className="er-section-title">
           <h2>Regulatory Watch</h2>
           <span>{windowPayload?.designationCards.length
@@ -771,9 +741,9 @@ export default function EditorialReadout() {
         {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">{hasRegulatoryDevelopment
           ? "No additional oncology approval, safety warning, or designation in this window."
           : "No new oncology approval, safety warning, or designation in this window."}</p>}
-      </section>
+      </section>}
 
-      <footer className="er-footer"><span>{loadingEvidence ? "Connecting physician evidence..." : "Evidence connected to the live Readout."}</span><span>CanvasMD</span></footer>
+      <footer className="er-footer"><span>{pageReady ? "Evidence connected to the live Readout." : "Loading the live Readout..."}</span><span>CanvasMD</span></footer>
     </main>
   );
 }

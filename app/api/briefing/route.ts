@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentContactId } from "@/lib/gateServer";
+import { getCachedReadoutWindow } from "@/lib/readoutWindowServer";
+import type { EditionArea } from "@/app/briefing-preview/edition";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +16,8 @@ export const dynamic = "force-dynamic";
 
 const AREAS = new Set(["GU", "Breast", "Lung", "GI", "Heme", "Gyn", "Skin"]);
 
-// Every page load warms all six areas, for every reader, on every visit. Uncached that is six
-// edge invocations each (eighteen with retries) — and because the edge fn rebuilds on demand
-// whenever a snapshot ages out, a missed cron turned each arriving reader into six concurrent
-// full rebuilds, which is precisely the WORKER_RESOURCE_LIMIT condition. So: memoize per
-// instance, and single-flight so N readers asking for the same area at once cost ONE call.
+// The legacy area snapshot route keeps its short in-process memo and single-flight behavior.
+// Readout Next uses a separate shared hourly cache assembled by getCachedReadoutWindow below.
 //
 // Deliberately in-process, not a Cache-Control header: the route verifies the reader session,
 // and a shared/CDN cache could otherwise serve one reader's response outside that boundary.
@@ -126,11 +125,22 @@ export async function POST(req: NextRequest) {
   const mode = body.mode as "evidence-overlay" | "readout-window";
   const cards = mode === "evidence-overlay" && Array.isArray(body.cards) ? body.cards.slice(0, 12) : [];
   const windowHours = Number(body.windowHours) >= 168 ? 168 : Number(body.windowHours) >= 72 ? 72 : 24;
-  const area = AREAS.has(body.area) || body.area === "All" ? body.area : "All";
+  const area = (AREAS.has(body.area) || body.area === "All" ? body.area : "All") as EditionArea;
   const days = Number(body.days) >= 7 ? 7 : 1;
-  const upstreamBody = mode === "evidence-overlay"
-    ? { mode, cards, windowHours }
-    : { mode, area, days };
+
+  if (mode === "readout-window") {
+    try {
+      const payload = await getCachedReadoutWindow(area, days === 7 ? "7d" : "today");
+      return NextResponse.json(payload, { headers: { "x-readout-cache": "hourly" } });
+    } catch (err: any) {
+      return NextResponse.json(
+        { error: err?.message ?? "Failed to read the cached Readout window." },
+        { status: 502 },
+      );
+    }
+  }
+
+  const upstreamBody = { mode, cards, windowHours };
   const cacheKey = JSON.stringify(upstreamBody);
   const hit = overlayMemo.get(cacheKey);
   if (hit && Date.now() - hit.at < OVERLAY_TTL_MS) return NextResponse.json(hit.overlay);

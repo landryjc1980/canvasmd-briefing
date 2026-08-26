@@ -46,6 +46,16 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-window-tabs button.active { background: var(--er-ink); color: #fff; }
 .er-section-button { border: 0; background: none; width: 100%; padding: 0; color: inherit; cursor: pointer; }
 .er-window-note { margin: 16px 0 0; padding: 10px 12px; border-radius: 5px; background: var(--er-soft); color: var(--er-muted); font-size: 13px; }
+.er-loading-stack { display: grid; gap: 14px; margin-top: 14px; }
+.er-loading-card { min-height: 210px; padding: 24px 26px; box-sizing: border-box; border: 1px solid var(--er-line); border-left: 4px solid #c9d0d5; border-radius: 7px; background: var(--er-surface); animation: er-loading-pulse 1.2s ease-in-out infinite; }
+.er-loading-card span { display: block; border-radius: 3px; background: #e7ebed; }
+.er-loading-kicker { width: 120px; height: 10px; }
+.er-loading-headline { width: min(680px, 82%); height: 25px; margin-top: 17px; }
+.er-loading-line { width: min(820px, 94%); height: 13px; margin-top: 17px; }
+.er-loading-line.is-short { width: min(620px, 70%); margin-top: 9px; }
+.er-loading-source { width: min(440px, 55%); height: 14px; margin-top: 31px; }
+@keyframes er-loading-pulse { 50% { opacity: .62; } }
+@media (prefers-reduced-motion: reduce) { .er-loading-card { animation: none; } }
 
 .er-worth { padding-top: 26px; }
 .er-development { margin-top: 14px; padding: 24px 26px 26px; border: 1px solid var(--er-line); border-left: 4px solid var(--area); border-radius: 7px; background: var(--er-surface); box-shadow: 0 6px 22px rgba(33, 43, 54, .035); }
@@ -181,6 +191,7 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
   .er-worth > .er-section-title { align-items: flex-start; }
   .er-window-tabs { flex: 0 0 auto; }
   .er-development { margin-top: 12px; padding: 20px 18px 22px; }
+  .er-loading-card { min-height: 190px; padding: 20px 18px; }
   .er-development h3 { font-size: 22px; }
   .er-finding { font-size: 16px; }
   .er-finding-toggle { min-height: 44px; margin-bottom: 7px; }

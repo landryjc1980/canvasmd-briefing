@@ -8,8 +8,12 @@ const preview = read("app/briefing-preview/EditorialReadout.tsx");
 const edition = read("app/briefing-preview/edition.ts");
 const previewCss = read("app/briefing-preview/preview.css");
 const briefingRoute = read("app/api/briefing/route.ts");
+const readoutRequest = read("app/briefing-preview/readoutRequest.ts");
+const readoutServer = read("lib/readoutWindowServer.ts");
+const readoutCacheRoute = read("app/api/readout-cache/route.ts");
 const middleware = read("middleware.ts");
 const readoutNextPage = read("app/readout-next/page.tsx");
+const vercelConfig = read("vercel.json");
 
 test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /PhysicianVoices/);
@@ -20,7 +24,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /Show \$\{visiblePosts\.length - 1\} more comment/);
   assert.match(preview, /<blockquote>\{post\.text\}<\/blockquote>/);
   assert.match(preview, /post\.tweetUrl/);
-  assert.match(preview, /Promise\.allSettled/);
+  assert.doesNotMatch(preview, /Promise\.allSettled/);
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
   assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount, 2\)/);
   assert.match(preview, /shareCommentaryLabel\(sharedBy, authoredCount, 1\)/);
@@ -47,9 +51,9 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /function articleWithLiveEvidence/);
   assert.match(preview, /const base = overlay \? findArticle\(item, briefs\) \?\? articleFromEditorial\(item\) : articleFromEditorial\(item\)/);
   assert.doesNotMatch(preview, /applyEvidenceOverlay\(findArticle\(item, briefs\)/);
-  assert.match(preview, /EVIDENCE_REFRESH_MS = 60 \* 60_000/);
-  assert.match(preview, /mode: "evidence-overlay"/);
-  assert.match(preview, /window\.addEventListener\("focus", onFocus\)/);
+  assert.match(preview, /windowPayload\?\.overlays/);
+  assert.doesNotMatch(preview, /EVIDENCE_REFRESH_MS|mode: "evidence-overlay"/);
+  assert.doesNotMatch(preview, /window\.setInterval|window\.addEventListener\("focus"/);
   assert.match(edition, /articleEvidencePool/);
   assert.match(edition, /brief\.topStories/);
   assert.match(edition, /brief\.movers/);
@@ -76,20 +80,35 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
 
 test("the 7-day tab reads the promoted-card archive and never quota-fills", () => {
   assert.match(preview, /mode: "readout-window"/);
-  assert.match(preview, /days: readoutWindow === "7d" \? 7 : 1/);
+  assert.match(preview, /days: readoutWindowDays\(readoutWindow\)/);
   assert.match(preview, /windowPayload\?\.cards/);
   assert.match(preview, /map\(archivedEditorialArticle\)/);
-  assert.match(preview, /const evidenceWindowHours = readoutWindow === "7d" \? 168 : hasFallbackWindow \? 72 : 24/);
-  assert.match(preview, /windowHours: evidenceWindowHours/);
+  assert.match(readoutRequest, /window === "7d" \? 168 : fallbackIds\.has\(item\.id\) \? 72 : 24/);
   assert.match(preview, /setLoadingWindow\(true\)/);
-  assert.match(preview, /setWindowPayload\(null\); setReadoutWindow\("7d"\)/);
-  assert.match(preview, /readoutWindow === "7d" && loadingWindow/);
-  assert.match(preview, /role="status">Loading the strongest developments from the past 7 days/);
-  assert.match(preview, /Checking the strongest qualifying development from the past 72 hours/);
+  assert.match(preview, /<ReadoutLoading \/>/);
+  assert.match(preview, /const pageReady = !loadingWindow/);
   assert.match(preview, /activeEvidenceOverlays\.get\(item\.id\)\?\.windowClinicianCount \?\? 0\) > 0/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/, "the visible Shared by count comes from lifetime overlay evidence");
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.match(briefingRoute, /"readout-window"/);
+});
+
+test("the browser receives one server-cached payload and never refreshes evidence after paint", () => {
+  assert.match(readoutNextPage, /await getCachedReadoutWindow\("All", "today"\)/);
+  assert.doesNotMatch(readoutNextPage, /catch\(\(\) => null\)/);
+  assert.match(readoutNextPage, /initialPayload=\{initialPayload\}/);
+  assert.match(preview, /useState<ReadoutWindowPayload \| null>\(initialPayload\)/);
+  assert.match(preview, /body: JSON\.stringify\(\{ mode: "readout-window", area, days: readoutWindowDays\(readoutWindow\) \}\)/);
+  assert.doesNotMatch(preview, /cards: windowEvidenceTargets/);
+  assert.match(preview, /windowPayload\?\.area === area && windowPayload\.windowDays === readoutWindowDays\(readoutWindow\)/);
+  assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
+  assert.match(readoutServer, /unstable_cache/);
+  assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
+  assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
+  assert.match(readoutCacheRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
+  assert.match(readoutCacheRoute, /warmReadoutWindowCache\(\)/);
+  assert.match(vercelConfig, /"\/api\/readout-cache"/);
+  assert.match(vercelConfig, /"50 \* \* \* \*"/);
 });
 
 test("attached related coverage is compact, validated, and deduped from the primary source", () => {

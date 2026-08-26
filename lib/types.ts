@@ -740,6 +740,7 @@ export type ReadoutWindowPayload = {
   windowDays: 1 | 7;
   area: string;
   cards: ReadoutArchivedCard[];
+  overlays: BriefingEvidenceOverlayItem[];
   episodes: ReadoutListenEpisode[];
   regulatoryCards: ReadoutRegulatoryCandidate[];
   designationCards: ReadoutDesignationCandidate[];
