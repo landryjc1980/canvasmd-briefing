@@ -299,14 +299,19 @@ function validHttpUrl(value: string | null | undefined): string | null {
   }
 }
 
-export function relatedCoverageLinks(links: HeroSupportLink[] | null | undefined, primaryUrl: string | null | undefined): HeroSupportLink[] {
+export function relatedCoverageLinks(
+  links: HeroSupportLink[] | null | undefined,
+  primaryUrl: string | null | undefined,
+  primaryTitle?: string | null,
+): HeroSupportLink[] {
   const primary = validHttpUrl(primaryUrl)?.toLowerCase() ?? null;
+  const primaryTitleKey = norm(primaryTitle);
   const seen = new Set<string>();
   return (links ?? []).filter((link) => {
     if (link.relationshipType === "primary_source") return false;
     const url = validHttpUrl(link.url);
     const key = url?.toLowerCase() ?? "";
-    if (!url || !key || key === primary || seen.has(key)) return false;
+    if (!url || !key || key === primary || (primaryTitleKey && norm(link.title) === primaryTitleKey) || seen.has(key)) return false;
     seen.add(key);
     return true;
   });

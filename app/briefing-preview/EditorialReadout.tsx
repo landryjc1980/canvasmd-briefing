@@ -328,7 +328,7 @@ function CoverageLinks({ item, primaryUrl }: { item: EditorialArticle; primaryUr
   const [coverageOpen, setCoverageOpen] = useState(false);
   const primarySources = validSupportLinks(item.primarySources, primaryUrl);
   const supportingEvidence = validSupportLinks(item.supportingEvidence, primaryUrl);
-  const related = relatedCoverageLinks(item.relatedCoverage, primaryUrl).slice(0, 4);
+  const related = relatedCoverageLinks(item.relatedCoverage, primaryUrl, item.title).slice(0, 4);
   if (!primarySources.length && !supportingEvidence.length && !related.length) return null;
   return (
     <div className="er-support-links">

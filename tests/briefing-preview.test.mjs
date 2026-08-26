@@ -95,11 +95,12 @@ test("attached related coverage is compact, validated, and deduped from the prim
   const links = [
     { id: "primary", kind: "paper", title: "Paper", url: "https://journal.example/paper", sourceLabel: "Journal", relationshipType: "primary_source", occurredAt: null },
     { id: "same", kind: "article", title: "Same", url: "https://journal.example/paper", sourceLabel: "Journal", relationshipType: "coverage", occurredAt: null },
+    { id: "same-title", kind: "article", title: "Paper", url: "https://publisher.example/paper", sourceLabel: "Publisher", relationshipType: "coverage", occurredAt: null },
     { id: "coverage", kind: "article", title: "Coverage", url: "https://onclive.com/story", sourceLabel: "OncLive", relationshipType: "coverage", occurredAt: null },
     { id: "duplicate", kind: "article", title: "Coverage copy", url: "https://onclive.com/story", sourceLabel: "OncLive", relationshipType: "coverage", occurredAt: null },
     { id: "bad", kind: "article", title: "Bad", url: "javascript:alert(1)", sourceLabel: "Bad", relationshipType: "coverage", occurredAt: null },
   ];
-  assert.deepEqual(relatedCoverageLinks(links, "https://journal.example/paper").map((link) => link.sourceLabel), ["OncLive"]);
+  assert.deepEqual(relatedCoverageLinks(links, "https://journal.example/paper", "Paper").map((link) => link.sourceLabel), ["OncLive"]);
   assert.match(preview, /Related coverage/);
   assert.match(preview, /er-related-toggle/);
   assert.match(preview, /<CoverageLinks item=\{item\}/);
@@ -143,7 +144,7 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
   assert.match(preview, /Supporting study/);
-  assert.match(preview, /relatedCoverageLinks\(item\.relatedCoverage, primaryUrl\)\.slice\(0, 4\)/);
+  assert.match(preview, /relatedCoverageLinks\(item\.relatedCoverage, primaryUrl, item\.title\)\.slice\(0, 4\)/);
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {
