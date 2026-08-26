@@ -1,1 +1,1 @@
-PLACEHOLDER_TEST
+LOAD_FROM_/tmp/tests_briefing-preview.test.mjs.json

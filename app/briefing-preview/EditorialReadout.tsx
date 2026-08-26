@@ -1,1 +1,1 @@
-PLACEHOLDER_TSX
+LOAD_FROM_/tmp/app_briefing-preview_EditorialReadout.tsx.json
