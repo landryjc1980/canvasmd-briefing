@@ -36,7 +36,9 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-section { padding: 28px 0 16px; }
 .er-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 12px; }
 .er-section-title h2 { margin: 5px 0 0; font: 800 17px/1 inherit; letter-spacing: 0; }
+.er-worth > .er-section-title { align-items: flex-start; }
 .er-worth > .er-section-title h2 { font-size: 27px; }
+.er-readout-dek { max-width: 440px; margin: 8px 0 0; color: var(--er-muted); font-size: 13px; line-height: 1.4; }
 .er-section-title > span { color: var(--er-muted); font-size: 12px; font-weight: 650; }
 .er-window-tabs { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--er-line); border-radius: 7px; background: var(--er-surface); }
 .er-window-tabs button { min-height: 30px; padding: 0 11px; border: 0; border-radius: 5px; background: transparent; color: var(--er-muted); font: 730 12px/1 system-ui, sans-serif; cursor: pointer; }

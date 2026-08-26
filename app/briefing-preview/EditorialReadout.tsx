@@ -764,7 +764,11 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
 
       <section className="er-section er-worth">
         <div className="er-section-title">
-          <div>{area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}<h2>The Readout</h2></div>
+          <div>
+            {area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}
+            <h2>The Readout</h2>
+            <p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing.</p>
+          </div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window">
             <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => {
               if (readoutWindow === "today") return;

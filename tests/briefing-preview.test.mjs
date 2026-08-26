@@ -330,6 +330,8 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.match(preview, /CanvasMdLogo/);
   assert.match(preview, /aria-label="CanvasMD"/);
   assert.match(preview, /<h2>The Readout<\/h2>/);
+  assert.match(preview, /<p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing\.<\/p>/);
+  assert.match(previewCss, /\.er-readout-dek \{[^}]*font-size: 13px/);
   assert.match(preview, />Today<\/button>/);
   assert.match(preview, />7 days<\/button>/);
   assert.doesNotMatch(preview, /This week/);
