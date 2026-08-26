@@ -224,8 +224,17 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
   assert.match(preview, /Supporting study/);
+  assert.match(preview, /if \(!expanded\) return null/,
+    "supporting studies and related coverage stay in the footer and expanded source list");
+  assert.doesNotMatch(preview, /className="er-also"/);
   assert.match(preview, /relatedLinks = relatedCoverageLinks\(item\.relatedCoverage, primaryUrl, item\.title\)/);
   assert.match(preview, /related = relatedLinks\.filter\(\(link\) => link\.kind !== "episode"\)\.slice\(0, 4\)/);
+});
+
+test("only the primary development stack is numbered as a finite edition", () => {
+  assert.match(preview, /worth\.map\(\(item, index\) => <Development[^>]*position=\{index \+ 1\}/);
+  assert.match(preview, /String\(position\)\.padStart\(2, "0"\)/);
+  assert.doesNotMatch(preview, /<CompactDevelopment[^>]*position=/);
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {

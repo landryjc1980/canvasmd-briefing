@@ -373,10 +373,7 @@ function coverageSummary(item: EditorialArticle, primaryUrl: string): string {
 function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle; primaryUrl: string; expanded: boolean }) {
   const { primarySources, supportingEvidence, related } = attachedSources(item, primaryUrl);
   if (!primarySources.length && !supportingEvidence.length && !related.length) return null;
-  if (!expanded) {
-    const summary = coverageSummary(item, primaryUrl);
-    return summary ? <p className="er-also">{summary}</p> : null;
-  }
+  if (!expanded) return null;
   const rows = [
     ...primarySources.map((link) => ({ role: "Anchor", link })),
     ...supportingEvidence.map((link) => ({ role: "Supporting study", link })),
@@ -445,11 +442,13 @@ function ArticleDevelopment({
   briefs,
   overlays,
   compact = false,
+  position,
 }: {
   item: EditorialArticle;
   briefs: BriefingData[];
   overlays: Map<string, BriefingEvidenceOverlayItem>;
   compact?: boolean;
+  position?: number;
 }) {
   const [open, setOpen] = useState(false);
   const overlay = overlays.get(item.id);
@@ -461,7 +460,7 @@ function ArticleDevelopment({
   const canDisclose = Boolean(item.finding.trim()) || extraComments > 0 || Boolean(coverageSummary(item, href));
   return (
     <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{item.site} · {articleContentType(item)}</div>
+      <div className="er-kicker">{position ? `${String(position).padStart(2, "0")} · ` : ""}{item.site} · {articleContentType(item)}</div>
       <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
       <DevelopmentFinding text={item.finding} label={excerptLabel(item)} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
@@ -481,7 +480,7 @@ function CompactClinicianComment({ article }: { article: BriefingArticle | null 
   return <Voice post={post} />;
 }
 
-function EpisodeDevelopment({ item, briefs }: { item: EditorialEpisodeFeature; briefs: BriefingData[] }) {
+function EpisodeDevelopment({ item, briefs, position }: { item: EditorialEpisodeFeature; briefs: BriefingData[]; position?: number }) {
   const [open, setOpen] = useState(false);
   const episode = findEpisode(item, briefs);
   const sourceHref = episode?.sourceUrl || item.url;
@@ -489,7 +488,7 @@ function EpisodeDevelopment({ item, briefs }: { item: EditorialEpisodeFeature; b
   const canDisclose = Boolean(item.finding.trim());
   return (
     <article className={`er-development er-development-episode ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{item.site} · <b>Podcast</b></div>
+      <div className="er-kicker">{position ? `${String(position).padStart(2, "0")} · ` : ""}{item.site} · <b>Podcast</b></div>
       <SourceHeadline href={sourceHref} source={episode?.show || item.show} title={episode?.title || item.title} />
       <DevelopmentFinding text={item.finding} label="From the episode" expanded={open} />
       <EpisodeAudio
@@ -591,10 +590,10 @@ function liveListenBriefs(payload: ReadoutWindowPayload | null): BriefingData[] 
   return [...byArea].map(([briefArea, episodes]) => ({ area: briefArea, episodes } as BriefingData));
 }
 
-function Development({ item, briefs, overlays }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem> }) {
+function Development({ item, briefs, overlays, position }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem>; position: number }) {
   return isEpisodeDevelopment(item)
-    ? <EpisodeDevelopment item={item} briefs={briefs} />
-    : <ArticleDevelopment item={item} briefs={briefs} overlays={overlays} />;
+    ? <EpisodeDevelopment item={item} briefs={briefs} position={position} />
+    : <ArticleDevelopment item={item} briefs={briefs} overlays={overlays} position={position} />;
 }
 
 function ReadoutLoading() {
@@ -774,7 +773,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           </div>
         </div>
         {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
-        {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item) => <Development item={item} briefs={briefs} overlays={activeEvidenceOverlays} key={item.id} />) : (
+        {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <Development item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
       </section>

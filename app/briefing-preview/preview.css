@@ -77,7 +77,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-finding { margin: 0; }
 .er-finding.is-collapsed { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .er-finding-toggle { display: none; }
-.er-also { margin: 10px 0 0; color: #4a4a5e; font-size: 13px; line-height: 1.4; }
 .er-disclose { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-top: 16px; padding: 12px 0 0; border: 0; border-top: 1px solid var(--er-line); background: transparent; color: var(--er-accent); font: 650 13px/1.3 inherit; cursor: pointer; text-align: left; }
 .er-chevron { width: 18px; height: 18px; flex: 0 0 auto; transition: transform .18s ease; }
 .er-development.is-open .er-chevron { transform: rotate(180deg); }
