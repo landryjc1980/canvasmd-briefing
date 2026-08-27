@@ -156,8 +156,8 @@ function isTitleOnlyShare(text: string, title: string): boolean {
 
 function clinicianSurname(name: string): string {
   const cleaned = name
-    .replace(/,?\s+(?:MD|PhD|DO|MBBS|MBChB|MPH|MSc|MS|RN|FACP|FACS|FRCPC)\b.*$/i, "")
-    .replace(/,+$/, "")
+    .replace(/,?\s+(?:MD|PhD|DO|MBBS|MBChB|MPH|MSc|MS|MBA|RN|FACP|FACS|FRCPC|FASTRO)\b.*$/i, "")
+    .replace(/[.,;:]+$/, "")
     .trim();
   const parts = cleaned.split(/\s+/).filter(Boolean);
   return parts[parts.length - 1] || name;
@@ -241,7 +241,8 @@ function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; share
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
   const others = Math.max(0, sharedBy - named.length);
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
-  const proof = shareCommentaryLabel(sharedBy, article?.authoredClinicianCount ?? usefulPosts(article).length);
+  const availableComments = usefulPosts(article).length;
+  const proof = shareCommentaryLabel(sharedBy, article?.authoredClinicianCount ?? availableComments, availableComments);
   return (
     <div className="er-peers">
       <FacePile article={article} count={sharedBy} />
@@ -258,10 +259,13 @@ function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; share
   );
 }
 
-function shareCommentaryLabel(sharedBy: number, authoredCount: number): string {
+function shareCommentaryLabel(sharedBy: number, authoredCount: number, availableCount: number): string {
   const shared = `Shared by ${sharedBy} clinician${sharedBy === 1 ? "" : "s"}`;
-  if (authoredCount === 1) return `${shared} · 1 commentary`;
-  if (authoredCount > 1) return `${shared} · ${authoredCount} clinician comments`;
+  if (authoredCount > availableCount) {
+    if (availableCount <= 0) return `${shared} · ${authoredCount} commented · receipts unavailable`;
+    return `${shared} · ${authoredCount} commented · ${availableCount} comment${availableCount === 1 ? "" : "s"} available`;
+  }
+  if (availableCount > 0) return `${shared} · ${availableCount} clinician comment${availableCount === 1 ? "" : "s"} available`;
   return shared;
 }
 
@@ -287,6 +291,9 @@ function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean 
 function PhysicianVoices({ article, sharedBy, expanded }: { article: BriefingArticle | null; sharedBy: number; expanded: boolean }) {
   const posts = usefulPosts(article);
   if (!posts.length) {
+    if ((article?.authoredClinicianCount ?? 0) > 0) {
+      return <p className="er-no-commentary">Clinicians commented, but no comment receipts are available.</p>;
+    }
     return sharedBy > 0 ? <p className="er-no-commentary">Shared, no commentary yet.</p> : null;
   }
   const lead = posts[0];
@@ -448,7 +455,7 @@ function discloseLabel(item: EditorialArticle, primaryUrl: string, extraComments
   if (item.finding.trim()) parts.push(item.findingSource === "source" ? "Full source excerpt" : "Full summary");
   if (supportingEvidence.length) parts.push(supportingEvidence.map((link) => link.sourceLabel === "New England Journal of Medicine" ? "NEJM" : link.sourceLabel).join(", "));
   if (related.length) parts.push(`${related.length} related`);
-  if (extraComments > 0) parts.push(`${extraComments} more comment${extraComments === 1 ? "" : "s"}`);
+  if (extraComments > 0) parts.push(`${extraComments} more available comment${extraComments === 1 ? "" : "s"}`);
   return parts.join(" · ") || "Show more";
 }
 
@@ -481,13 +488,20 @@ function ArticleDevelopment({
   const article = articleWithLiveEvidence(item, briefs, overlay);
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
+  const contentType = articleContentType(item);
+  const actionDate = contentType === "Paper" ? null : editionDateLabel(item.occurredOn);
   const authoredCount = usefulPosts(article).length;
   const extraComments = Math.max(0, authoredCount - 1);
   const canDisclose = Boolean(item.finding.trim()) || extraComments > 0 || Boolean(coverageSummary(item, href));
   return (
     <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${articleContentType(item)}`}</div>
+      <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>
       <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
+      {contentType !== "Paper" && (
+        <p className="er-action-date">Action date: {actionDate
+          ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
+          : "Unavailable"}</p>
+      )}
       <DevelopmentFinding text={item.finding} label={excerptLabel(item)} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
@@ -884,6 +898,9 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             <span>{designation.label.replace(/^FDA\s+/i, "").toUpperCase()}</span>
             <div>
               <b>{designation.headline}</b>
+              <p className="er-regulatory-date">Action date: {editionDateLabel(designation.occurredOn)
+                ? <time dateTime={designation.occurredOn ?? undefined}>{editionDateLabel(designation.occurredOn)}</time>
+                : "Unavailable"}</p>
               <p>{designation.description ? `${designation.description} ` : ""}This is not an approval.</p>
               <a href={designation.url} target="_blank" rel="noreferrer">{designation.sourceLabel} ↗</a>
             </div>

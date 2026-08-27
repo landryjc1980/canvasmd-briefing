@@ -35,7 +35,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /expanded \? posts\.slice\(1\) : \[\]/,
     "the collapsed card keeps one preview while the expansion renders every remaining comment");
   assert.doesNotMatch(preview, /previewPosts|posts\.slice\(0, 2\)/);
-  assert.match(preview, /\$\{extraComments\} more comment\$\{extraComments === 1/);
+  assert.match(preview, /\$\{extraComments\} more available comment\$\{extraComments === 1/);
   assert.match(preview, /\{post\.text\}/);
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /article\?\.faces/);
@@ -43,16 +43,21 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.doesNotMatch(preview, /Promise\.allSettled/);
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
   assert.match(preview, /function shareCommentaryLabel/);
-  assert.match(preview, /article\?\.authoredClinicianCount \?\? usefulPosts\(article\)\.length/,
-    "the compact card reports the full authored-comment count");
+  assert.match(preview, /article\?\.authoredClinicianCount \?\? availableComments/,
+    "the compact card keeps the total commenter count separate from available receipts");
+  assert.match(preview, /\$\{authoredCount\} commented · \$\{availableCount\} comment/);
+  assert.match(preview, /receipts unavailable/);
   assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
-  assert.match(preview, /1 commentary/);
-  assert.match(preview, /clinician comments/);
+  assert.match(preview, /clinician comment\$\{availableCount === 1/);
   assert.match(preview, /function clinicianSharers/);
   assert.match(preview, /post\.repostedBy/);
   assert.match(preview, /engagementScore/);
   assert.match(preview, /right\.score - left\.score/);
   assert.match(preview, /SHARER_PREVIEW_LIMIT = 3/);
+  assert.match(preview, /FRCPC\|FASTRO/,
+    "fellowship credentials cannot become a displayed surname");
+  assert.match(preview, /replace\(\/\[\.,;:\]\+\$\//,
+    "display-name punctuation cannot become part of a surname label");
   assert.match(preview, /function PeerRow/);
   assert.match(preview, /<PeerRow article=\{article\} sharedBy=\{sharedBy\} \/>/);
   assert.match(preview, /article\.sharerPeople/);
@@ -267,7 +272,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v5"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v6"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
@@ -372,6 +377,12 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.deepEqual(approval.primarySources, []);
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
+  assert.equal(approval.occurredOn, "2026-08-25");
+  assert.match(preview, /Action date:/);
+  assert.match(preview, /<time dateTime=\{item\.occurredOn \?\? undefined\}>/);
+  assert.match(preview, /<time dateTime=\{designation\.occurredOn \?\? undefined\}>/);
+  assert.match(previewCss, /\.er-action-date/);
+  assert.match(previewCss, /\.er-regulatory-date/);
   assert.match(preview, /Supporting study/);
   assert.match(preview, /if \(!expanded\) return null/,
     "supporting studies and related coverage stay in the footer and expanded source list");
@@ -384,7 +395,7 @@ test("only the primary development stack is numbered as a finite edition", () =>
   assert.match(preview, /worth\.map\(\(item, index\) => <NumberedDevelopment[^>]*position=\{index \+ 1\}/);
   assert.match(preview, /className="er-story-order">\{position\} <span>·<\/span> \{contentType\}/);
   assert.match(preview, /<Development item=\{item\} briefs=\{briefs\} overlays=\{overlays\} numbered \/>/);
-  assert.match(preview, /\{editorialScopeLabel\(item\)\}\{numbered \? "" : ` · \$\{articleContentType\(item\)\}`\}/);
+  assert.match(preview, /\{editorialScopeLabel\(item\)\}\{numbered \? "" : ` · \$\{contentType\}`\}/);
   assert.doesNotMatch(previewCss, /\.er-numbered-development \{[^}]*border-top/);
   assert.match(previewCss, /\.er-numbered-development > \.er-development \{[^}]*margin-top: 7px/);
   assert.doesNotMatch(preview, /<CompactDevelopment[^>]*position=/);
