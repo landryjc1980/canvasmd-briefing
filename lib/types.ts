@@ -722,6 +722,25 @@ export type ReadoutRegulatoryCandidate = {
   };
 };
 
+export type ReadoutBreakingCandidate = {
+  id: string;
+  kind: "paper";
+  headline: string;
+  sourceLabel: string;
+  url: string;
+  doi: string | null;
+  pmid: string | null;
+  pubDate: string | null;
+  areas: string[];
+  articleIds: string[];
+  excerpt: string | null;
+  excerptSourceLabel: string;
+  metrics: ReadoutRegulatoryCandidate["metrics"] & {
+    recentClinicians: number;
+    previousClinicians: number;
+  };
+};
+
 export type ReadoutDesignationCandidate = {
   id: string;
   kind: "designation";
@@ -741,15 +760,19 @@ export type ReadoutWindowPayload = {
   generatedAt: string;
   windowDays: 1 | 7;
   area: string;
-  cards: ReadoutArchivedCard[];
+  cards: ReadoutArchivedCardSummary[];
   moreCards?: ReadoutArchivedCardSummary[];
+  currentEdition?: unknown;
   editionHistory?: unknown[];
   historyDays?: number;
+  fallbackWindowHours?: 72 | null;
   overlays: BriefingEvidenceOverlayItem[];
   episodes: ReadoutListenEpisode[];
   regulatoryCards: ReadoutRegulatoryCandidate[];
+  breakingCards?: ReadoutBreakingCandidate[];
   designationCards: ReadoutDesignationCandidate[];
   candidateGeneratedAt: string | null;
+  stale?: boolean;
 };
 // A clinical trial the field is TALKING ABOUT this week — matched by acronym against
 // podcast conversations, KOL tweets and shared-article title/abstracts (not the raw

@@ -1,4 +1,4 @@
-import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutArchivedCardSummary, ReadoutRegulatoryCandidate } from "@/lib/types";
+import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutArchivedCardSummary, ReadoutBreakingCandidate, ReadoutRegulatoryCandidate } from "@/lib/types";
 
 export const EDITION_AREAS = ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"] as const;
 export type EditionArea = (typeof EDITION_AREAS)[number];
@@ -12,6 +12,8 @@ export type EditorialArticle = {
   nickname: string;
   takeaway: string;
   finding: string;
+  findingSource?: "source" | "summary";
+  findingLabel?: string;
   remember: string;
   journal: string;
   title: string;
@@ -24,6 +26,7 @@ export type EditorialArticle = {
   primarySources?: HeroSupportLink[];
   supportingEvidence?: HeroSupportLink[];
   relatedCoverage?: HeroSupportLink[];
+  occurredOn?: string | null;
 };
 
 export type EditorialEpisode = {
@@ -317,6 +320,14 @@ export function sameEditorialArticle(left: EditorialArticle, right: EditorialArt
   return leftTitle.length >= 12 && leftTitle === rightTitle;
 }
 
+export function sameEditorialDevelopment(left: EditorialDevelopment, right: EditorialDevelopment): boolean {
+  if ("kind" in left || "kind" in right) {
+    return "kind" in left && "kind" in right &&
+      (left.id === right.id || norm(left.title) === norm(right.title));
+  }
+  return left.id === right.id || sameEditorialArticle(left, right);
+}
+
 export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
 
 export function cleanReadoutExcerpt(value: string): string {
@@ -335,7 +346,12 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     .filter((link) => link.kind === "article" || link.kind === "paper")
     .map((link) => link.id)
     .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
-  const primaryDescription = supportLinks.find((link) => link.relationshipType === "primary_source")?.description;
+  const primarySource = supportLinks.find((link) => link.relationshipType === "primary_source");
+  const primaryDescription = primarySource?.description;
+  const sourceFinding = card.excerptVerbatim === true ? card.excerpt : primaryDescription;
+  const sourceTitle = primarySource?.title || card.headline;
+  const sourceUrl = validHttpUrl(primarySource?.url) || validHttpUrl(card.url) || validHttpUrl(supportLinks[0]?.url) || "";
+  const sourceLabel = primarySource?.sourceLabel || card.sourceLabel;
   const site = item.area === "All" ? "Oncology" : item.area;
   return {
     id: `archive-${card.id}`,
@@ -343,17 +359,20 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     site,
     nickname: card.kind === "event" ? "REGULATORY" : "",
     takeaway: card.headline,
-    finding: card.excerpt || primaryDescription || card.why,
+    finding: sourceFinding ? cleanReadoutExcerpt(sourceFinding) : "",
+    findingSource: sourceFinding ? "source" : undefined,
+    findingLabel: sourceFinding ? "From the source" : undefined,
     remember: ARCHIVED_TAKEAWAY_FALLBACK,
-    journal: card.sourceLabel,
-    title: card.headline,
-    url: card.url ?? supportLinks[0]?.url ?? "",
+    journal: sourceLabel,
+    title: sourceTitle,
+    url: sourceUrl,
     evidence: card.kind === "event" ? "Regulatory action" : card.kind === "readout" ? "Trial readout" : "Published evidence",
     sharedBy: Math.max(card.conversation?.authoredClinicians ?? 0, clinicianRank),
-    match: { doi: card.doi ?? undefined, titleIncludes: card.headline },
+    match: { doi: card.doi ?? undefined, titleIncludes: sourceTitle },
     articleIds,
     primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
     relatedCoverage: supportLinks,
+    occurredOn: card.occurredOn ?? null,
   };
 }
 
@@ -393,7 +412,9 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     site: candidate.areas[0] ?? "Oncology",
     nickname: candidate.eligibleLabel,
     takeaway: candidate.headline,
-    finding: candidate.finding || primaryStudy?.description || "The clinician-shared regulatory source is linked below.",
+    finding: candidate.finding || primaryStudy?.description || "",
+    findingSource: candidate.finding || primaryStudy?.description ? "source" : undefined,
+    findingLabel: candidate.finding || primaryStudy?.description ? "From the supporting study" : undefined,
     remember,
     journal: candidate.sourceLabel,
     title: candidate.headline,
@@ -406,6 +427,28 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     primarySources: [],
     supportingEvidence,
     relatedCoverage: candidate.relatedCoverage ?? [],
+    occurredOn: candidate.occurredOn,
+  };
+}
+
+export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate, area: EditionArea): EditorialArticle {
+  return {
+    id: candidate.id,
+    area,
+    site: candidate.areas[0] ?? "Oncology",
+    nickname: "BREAKING",
+    takeaway: candidate.headline,
+    finding: candidate.excerpt ? cleanReadoutExcerpt(candidate.excerpt) : "",
+    findingSource: candidate.excerpt ? "source" : undefined,
+    findingLabel: candidate.excerpt ? `From ${candidate.excerptSourceLabel}` : undefined,
+    remember: "",
+    journal: candidate.sourceLabel,
+    title: candidate.headline,
+    url: candidate.url,
+    evidence: "Major paper",
+    sharedBy: candidate.metrics.totalSharers,
+    match: { doi: candidate.doi ?? undefined, pmid: candidate.pmid ?? undefined, titleIncludes: candidate.headline },
+    articleIds: candidate.articleIds,
   };
 }
 

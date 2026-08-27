@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { FEATURED_EPISODES, cleanReadoutExcerpt, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -23,6 +24,9 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /Shared, no commentary yet\./);
   assert.match(preview, /is-single/);
   assert.match(preview, /isTitleOnlyShare/);
+  assert.match(preview, /post\.thread \?\? \[\]/,
+    "an authored thread may supply the substantive verbatim comment when its root is title-only");
+  assert.match(preview, /isSubstantiveClinicianText/);
   assert.match(preview, /posts\.slice\(0, 2\)/);
   assert.match(preview, /\$\{extraComments\} more comment/);
   assert.match(preview, /\{post\.text\}/);
@@ -32,16 +36,16 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.doesNotMatch(preview, /Promise\.allSettled/);
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
   assert.match(preview, /function shareCommentaryLabel/);
+  assert.match(preview, /article\?\.authoredClinicianCount \?\? usefulPosts\(article\)\.length/,
+    "the compact card reports the full authored-comment count while rendering at most two receipts");
   assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
   assert.match(preview, /1 commentary/);
-  assert.match(preview, /visible < authoredCount/);
   assert.match(preview, /clinician comments/);
   assert.match(preview, /function clinicianSharers/);
   assert.match(preview, /post\.repostedBy/);
   assert.match(preview, /engagementScore/);
   assert.match(preview, /right\.score - left\.score/);
   assert.match(preview, /SHARER_PREVIEW_LIMIT = 3/);
-  assert.match(preview, /SHARER_EXPANDED_LIMIT = 12/);
   assert.match(preview, /function PeerRow/);
   assert.match(preview, /<PeerRow article=\{article\} sharedBy=\{sharedBy\} \/>/);
   assert.match(preview, /article\.sharerPeople/);
@@ -82,6 +86,20 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.match(briefingRoute, /JSON\.stringify\(upstreamBody\)/);
 });
 
+test("a midday insertion preserves every existing card while fresh evidence stays outside the edition", () => {
+  assert.match(editionSnapshot, /const existingDevelopments = snapshot\.developments\.map\(\(entry\) => entry\.development\)/);
+  assert.match(editionSnapshot, /const additions = liveInsertionDevelopments\(payload, snapshot\.area\)\.filter/);
+  assert.match(editionSnapshot, /!existingDevelopments\.some/,
+    "a candidate already frozen into the edition is never regenerated");
+  assert.match(editionSnapshot, /const combined = uniqueDevelopments\(\[\.\.\.additions, \.\.\.existingDevelopments\]\)/,
+    "new qualifying developments are inserted ahead of unchanged saved card objects");
+  assert.match(editionSnapshot, /snapshot\.developments\.find\(\(entry\) => sameEditorialDevelopment\(entry\.development, development\)\)\?\.episode \?\? null/);
+  assert.doesNotMatch(editionSnapshot, /overlay.*development|development.*overlay/i,
+    "live evidence is never copied into frozen editorial card content");
+  assert.match(readoutEditionArchive, /mergeReadoutEditionSnapshot\(snapshot, payload, now\)/);
+  assert.match(readoutEditionArchive, /updateEditionRow\(merged\)/);
+});
+
 test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(preview, /mode: "readout-window"/);
   assert.match(preview, /days: readoutWindowDays\(readoutWindow\)/);
@@ -98,13 +116,15 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
     "every remaining qualifying card is available after expansion");
   assert.doesNotMatch(preview, /moreFromSevenDays\.slice\(/,
     "the expanded remainder is not given another arbitrary cap");
-  assert.match(preview, /const relevant = useMemo\(\(\) => readoutWindow === "7d" \? \[\]/,
+  assert.match(preview, /const relevant = useMemo\(\(\) => readoutWindow === "7d"/,
     "the static Today-only Also Relevant slate does not compete with the seven-day remainder");
-  assert.match(readoutRequest, /window === "7d" \? 168 : fallbackIds\.has\(item\.id\) \? 72 : 24/);
+  assert.match(preview, /fallbackWindowHours/,
+    "the backend discloses the earned 72-hour specialty fallback without a client-side static slate");
   assert.match(preview, /setLoadingWindow\(true\)/);
   assert.match(preview, /<ReadoutLoading \/>/);
   assert.match(preview, /const pageReady = !loadingWindow/);
-  assert.match(preview, /activeEvidenceOverlays\.get\(item\.id\)\?\.windowClinicianCount \?\? 0\) > 0/);
+  assert.match(preview, /const pageReady = !loadingWindow && !!windowPayload/,
+    "one missing evidence overlay cannot blank the saved edition");
   assert.match(preview, /kolSharers: overlay\.kolSharers/, "the visible Shared by count comes from lifetime overlay evidence");
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.doesNotMatch(preview, /archivedEditorialArticle/,
@@ -116,7 +136,7 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
   assert.match(editionSnapshot, /snapshots = \[\.\.\.history\]\.sort/);
-  assert.match(editionSnapshot, /sameDevelopment\(existing\.development, entry\.development\)/);
+  assert.match(editionSnapshot, /sameEditorialDevelopment\(existing\.development, entry\.development\)/);
   assert.match(editionSnapshot, /sameEditorialArticle\(existing\.article, entry\.article\)/);
   assert.match(editionSnapshot, /left\.position - right\.position \|\| right\.editionDate\.localeCompare\(left\.editionDate\)/,
     "daily editorial position ranks first and the newer edition breaks ties");
@@ -127,14 +147,14 @@ test("seven-day edition history dedupes exact cards while preserving frozen dail
 });
 
 test("the exact morning edition archive is DST-safe, idempotent, and service-only", () => {
-  assert.match(editionSnapshot, /timeZone: "America\/New_York"/);
-  assert.match(editionSnapshot, /hourCycle: "h23"/);
+  assert.match(readoutRequest, /timeZone: "America\/New_York"/);
+  assert.match(readoutRequest, /hourCycle: "h23"/);
   assert.match(editionSnapshot, /developments: developments\.map/);
   assert.match(editionSnapshot, /relevant: relevant\.map/);
   assert.match(editionSnapshot, /listenItems\.map/);
   assert.match(readoutEditionArchive, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(readoutEditionArchive, /kind: "edition"/);
-  assert.match(readoutEditionArchive, /edition:\$\{snapshot\.editionDate\}:\$\{area\}/);
+  assert.match(readoutEditionArchive, /edition:v2:\$\{snapshot\.editionDate\}:\$\{area\}/);
   assert.match(readoutEditionArchive, /resolution=ignore-duplicates/);
   assert.match(readoutEditionArchive, /etEditionHour\(now\) !== 6/);
   assert.match(readoutArchiveRoute, /archiveCurrentReadoutEdition\(\)/);
@@ -142,6 +162,12 @@ test("the exact morning edition archive is DST-safe, idempotent, and service-onl
   assert.match(readoutArchiveRoute, /warmReadoutWindowCache\(\)/);
   assert.match(vercelConfig, /"5 10 \* \* \*"/);
   assert.match(vercelConfig, /"5 11 \* \* \*"/);
+  assert.equal(activeReadoutEditionDate(new Date("2026-08-27T09:59:00Z")), "2026-08-26");
+  assert.equal(activeReadoutEditionDate(new Date("2026-08-27T10:00:00Z")), "2026-08-27");
+  assert.equal(activeReadoutEditionDate(new Date("2026-12-15T10:59:00Z")), "2026-12-14");
+  assert.equal(activeReadoutEditionDate(new Date("2026-12-15T11:00:00Z")), "2026-12-15");
+  assert.match(readoutEditionArchive, /const editionDate = activeReadoutEditionDate\(now\)/,
+    "the hourly merge keeps updating yesterday's frozen edition until the 6am replacement exists");
 });
 
 test("the browser receives one server-cached payload and never refreshes evidence after paint", () => {
@@ -151,13 +177,35 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(preview, /useState<ReadoutWindowPayload \| null>\(initialPayload\)/);
   assert.match(preview, /body: JSON\.stringify\(\{ mode: "readout-window", area, days: readoutWindowDays\(readoutWindow\) \}\)/);
   assert.doesNotMatch(preview, /cards: windowEvidenceTargets/);
-  assert.match(preview, /windowPayload\?\.area === area && windowPayload\.windowDays === readoutWindowDays\(readoutWindow\)/);
+  assert.match(preview, /payloadCache\.current\.get\(key\)/,
+    "already visited tabs reuse their server-cached payload instead of flashing another skeleton");
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v2"/);
+  assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
+    "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
+  assert.match(readoutServer, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(readoutServer, /SUPABASE_ANON_KEY/);
+  assert.doesNotMatch(readoutServer, /readoutWindowEvidenceTargets/,
+    "the live candidate payload does not fetch evidence for the retired static slate");
+  assert.match(readoutServer, /persistLastGoodWindow/);
+  assert.match(readoutServer, /cache write failed; serving fresh payload/,
+    "a successful source read is not replaced by an older payload when persistence fails");
+  assert.match(readoutServer, /readLastGoodWindow/);
+  assert.match(readoutServer, /return \{ \.\.\.fallback, stale: true \}/);
+  assert.match(readoutServer, /try \{[\s\S]*?getCachedReadoutWindow\(area, window\)[\s\S]*?catch \(error\)/,
+    "one failed area is recorded without aborting the remaining cache warm");
+  const postRoute = briefingRoute.slice(briefingRoute.indexOf("export async function POST"));
+  assert.match(postRoute, /const key = process\.env\.SUPABASE_SERVICE_ROLE_KEY/,
+    "server-only Readout modes authenticate to the edge function with the service credential");
+  assert.doesNotMatch(postRoute, /SUPABASE_ANON_KEY/);
   assert.match(readoutCacheRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
   assert.match(readoutCacheRoute, /warmReadoutWindowCache\(\)/);
+  assert.match(readoutCacheRoute, /mergeCurrentReadoutEditionInsertions\(\)/);
+  assert.match(readoutCacheRoute, /if \(edition\.changed\)/,
+    "an inserted midday card is included in the recached payload served to the next reader");
   assert.match(vercelConfig, /"\/api\/readout-cache"/);
   assert.match(vercelConfig, /"50 \* \* \* \*"/);
 });
@@ -261,20 +309,20 @@ test("a development already leading a section is removed from Also Relevant by s
     article("lead", "10.1158/1078-0432.CCR-26-1816", "https://aacrjournals.org/article"),
     article("relevant", "10.1158/1078-0432.ccr-26-1816", "https://doi.org/10.1158/1078-0432.ccr-26-1816"),
   ), true);
-  assert.match(preview, /sameEditorialArticle\(item, lead\)/);
+  assert.match(editionSnapshot, /sameArticleDevelopment\(item, lead\)/);
 });
 
 test("cards keep long findings to four lines until expanded at any viewport", () => {
   assert.match(preview, /node\.scrollHeight > node\.clientHeight \+ 1/);
   assert.match(preview, /new ResizeObserver\(measure\)/);
-  assert.match(preview, /Full abstract/);
+  assert.match(preview, /Full source excerpt/);
   assert.match(preview, /function SourceHeadline/);
   assert.match(preview, /er-source-headline/);
   assert.match(preview, /\{title\} <span className="er-ext" aria-hidden="true">↗<\/span>/);
-  assert.match(preview, /From the paper/);
+  assert.match(preview, /From the source/);
   assert.match(preview, /er-peers-who/);
   assert.match(previewCss, /\.er-finding\.is-collapsed/);
-  assert.match(previewCss, /-webkit-line-clamp: 3/);
+  assert.match(previewCss, /\.er-finding\.is-collapsed[^}]*-webkit-line-clamp: 4/);
   assert.match(previewCss, /\.er-disclose/);
   assert.match(previewCss, /\.er-source-title/);
   assert.match(previewCss, /\.er-compact-list \.er-source-title a \{ color: var\(--er-ink\)/);
@@ -301,12 +349,16 @@ test("desktop reading columns are centered and the specialty menu aligns right",
   assert.match(previewCss, /\.er-worth \{[^}]*margin-inline: auto/);
   assert.match(previewCss, /\.er-relevant \{[^}]*margin: 16px auto 0/);
   assert.match(previewCss, /@media \(max-width: 800px\) \{[\s\S]*\.er-filters \{[^}]*justify-content: flex-start/);
+  assert.match(previewCss, /@media \(max-width: 800px\) \{[\s\S]*\.er-filters \{[^}]*gap: 14px/,
+    "all eight specialty filters fit the 390px mobile header");
+  assert.match(previewCss, /@media \(max-width: 360px\) \{[\s\S]*\.er-filters \{[^}]*gap: 10px/,
+    "the full specialty row remains visible at 320px");
 });
 
 test("archived cards do not render boilerplate as an editorial takeaway", () => {
   assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
-  assert.match(preview, /No additional oncology approval, safety warning, or designation in this window\./);
+  assert.match(preview, /No additional \$\{area === "All" \? "oncology" : AREA_LABELS\[area\]\.toLowerCase\(\)\} approval/);
   assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Clear"/);
   assert.match(preview, /if \(!finding\) return null/);
 });

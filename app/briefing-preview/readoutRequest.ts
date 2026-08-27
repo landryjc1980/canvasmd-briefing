@@ -1,60 +1,25 @@
-import {
-  ALSO_RELEVANT,
-  FEATURED_EPISODES,
-  SPECIALTY_FALLBACKS,
-  WORTH_YOUR_TIME,
-  visibleForArea,
-  type EditorialArticle,
-  type EditorialDevelopment,
-  type EditionArea,
-} from "./edition";
-
 export type ReadoutWindow = "today" | "7d";
 
-export type ReadoutEvidenceTarget = {
-  id: string;
-  title: string;
-  url: string;
-  doi: string | null;
-  pmid: string | null;
-  titleIncludes: string | null;
-  articleIds: string[];
-  windowHours: 24 | 72 | 168;
-};
-
-export function isEpisodeDevelopment(item: EditorialDevelopment): boolean {
-  return "kind" in item && item.kind === "episode";
+export function etEditionDate(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
-export function evidenceTarget(item: EditorialArticle) {
-  return {
-    id: item.id,
-    title: item.title,
-    url: item.url,
-    doi: item.match.doi ?? null,
-    pmid: item.match.pmid ?? null,
-    titleIncludes: item.match.titleIncludes ?? null,
-    articleIds: item.articleIds ?? [],
-  };
+export function etEditionHour(now = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(now));
 }
 
-export function readoutWindowEvidenceTargets(area: EditionArea, window: ReadoutWindow): ReadoutEvidenceTarget[] {
-  const todayDevelopments: EditorialDevelopment[] = area === "All"
-    ? WORTH_YOUR_TIME
-    : [...WORTH_YOUR_TIME, ...FEATURED_EPISODES];
-  const leadArticles = visibleForArea(todayDevelopments, area)
-    .filter((item): item is EditorialArticle => !isEpisodeDevelopment(item));
-  const fallbackArticles = area === "All" ? [] : visibleForArea(SPECIALTY_FALLBACKS, area);
-  const items = [...leadArticles, ...fallbackArticles, ...visibleForArea(ALSO_RELEVANT, area)];
-  const fallbackIds = new Set(SPECIALTY_FALLBACKS.map((item) => item.id));
-
-  return items
-    .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
-    .slice(0, 12)
-    .map((item) => ({
-      ...evidenceTarget(item),
-      windowHours: window === "7d" ? 168 : fallbackIds.has(item.id) ? 72 : 24,
-    }));
+export function activeReadoutEditionDate(now = new Date()): string {
+  if (etEditionHour(now) >= 6) return etEditionDate(now);
+  return etEditionDate(new Date(now.getTime() - 12 * 60 * 60 * 1000));
 }
 
 export function readoutWindowDays(window: ReadoutWindow): 1 | 7 {

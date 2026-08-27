@@ -109,10 +109,10 @@ export async function POST(req: NextRequest) {
     }
   }
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     return NextResponse.json(
-      { error: "Missing SUPABASE_URL / SUPABASE_ANON_KEY env vars." },
+      { error: "Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY env vars." },
       { status: 500 }
     );
   }

@@ -1,22 +1,20 @@
 import type { BriefingData, BriefingEpisode, ReadoutListenEpisode, ReadoutWindowPayload } from "@/lib/types";
 import {
-  ALSO_RELEVANT,
-  FEATURED_EPISODES,
   NEW_TO_LISTEN,
-  SPECIALTY_FALLBACKS,
-  WORTH_YOUR_TIME,
-  findArchivedEditorialSource,
+  archivedEditorialArticle,
+  breakingEditorialArticle,
   findEpisode,
   listenForArea,
   regulatoryEditorialArticle,
   sameEditorialArticle,
-  visibleForArea,
+  sameEditorialDevelopment,
   type EditorialArticle,
   type EditorialDevelopment,
   type EditorialEpisode,
   type EditorialEpisodeFeature,
   type EditionArea,
 } from "./edition";
+import { activeReadoutEditionDate } from "./readoutRequest";
 
 export type ReadoutEditionDevelopment = {
   development: EditorialDevelopment;
@@ -26,7 +24,7 @@ export type ReadoutEditionDevelopment = {
 export type ReadoutEditionArticle = { article: EditorialArticle; position: number };
 export type ReadoutEditionListen = { item: EditorialEpisode; episode: ReadoutListenEpisode | null };
 export type ReadoutEditionSnapshot = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   editionDate: string;
   generatedAt: string;
   area: EditionArea;
@@ -35,30 +33,16 @@ export type ReadoutEditionSnapshot = {
   listen: ReadoutEditionListen[];
   regulatoryCards: ReadoutWindowPayload["regulatoryCards"];
   designationCards: ReadoutWindowPayload["designationCards"];
+  updatedAt?: string;
+  middayInsertions?: string[];
+  fallbackWindowHours?: number | null;
 };
-
-export function etEditionDate(now = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
-
-export function etEditionHour(now = new Date()): number {
-  return Number(new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).format(now));
-}
 
 function isEpisodeDevelopment(item: EditorialDevelopment): item is EditorialEpisodeFeature {
   return "kind" in item && item.kind === "episode";
 }
 
-function liveListenBriefs(payload: ReadoutWindowPayload): BriefingData[] {
+export function liveListenBriefs(payload: ReadoutWindowPayload): BriefingData[] {
   const byArea = new Map<string, BriefingEpisode[]>();
   for (const episode of payload.episodes ?? []) {
     const item: BriefingEpisode = {
@@ -78,18 +62,6 @@ function liveListenBriefs(payload: ReadoutWindowPayload): BriefingData[] {
   return [...byArea].map(([area, episodes]) => ({ area, episodes } as BriefingData));
 }
 
-function withSupport(item: EditorialArticle, payload: ReadoutWindowPayload): EditorialArticle {
-  const archived = findArchivedEditorialSource(item, payload.cards ?? []);
-  if (!archived?.card.support?.links?.length) return item;
-  const links = archived.card.support.links;
-  return {
-    ...item,
-    articleIds: links.map((link) => link.id).filter((id) => /^[0-9a-f-]{36}$/i.test(id)),
-    primarySources: links.filter((link) => link.relationshipType === "primary_source"),
-    relatedCoverage: links,
-  };
-}
-
 function matchedEpisode(
   item: EditorialEpisode,
   briefs: BriefingData[],
@@ -101,28 +73,59 @@ function matchedEpisode(
     : null;
 }
 
+function supportingSourceMatches(left: EditorialArticle, right: EditorialArticle): boolean {
+  const rightUrl = right.url.toLowerCase();
+  const rightTitle = right.title.toLowerCase();
+  return (left.supportingEvidence ?? []).some((link) =>
+    link.url.toLowerCase() === rightUrl || link.title.toLowerCase() === rightTitle);
+}
+
+function sameArticleDevelopment(left: EditorialArticle, right: EditorialArticle): boolean {
+  return sameEditorialArticle(left, right) || supportingSourceMatches(left, right) || supportingSourceMatches(right, left);
+}
+
+function uniqueDevelopments(items: EditorialDevelopment[]): EditorialDevelopment[] {
+  return items.filter((item, index, all) => !all.slice(0, index).some((existing) => {
+    if ("kind" in item || "kind" in existing) return sameEditorialDevelopment(item, existing);
+    return sameArticleDevelopment(item, existing);
+  }));
+}
+
+function renderableArticle(item: EditorialArticle): boolean {
+  return /^https?:\/\//i.test(item.url) && item.title.trim().length > 0;
+}
+
+export function liveInsertionDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
+  return uniqueDevelopments([
+    ...(payload.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area)),
+    ...(payload.breakingCards ?? []).map((candidate) => breakingEditorialArticle(candidate, area)),
+  ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item));
+}
+
+function liveRankedDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
+  return uniqueDevelopments([
+    ...liveInsertionDevelopments(payload, area),
+    ...(payload.cards ?? []).map(archivedEditorialArticle),
+  ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item));
+}
+
+function uniqueRelevant(items: EditorialArticle[], developments: EditorialDevelopment[]): EditorialArticle[] {
+  return items.filter((item, index, all) =>
+    !developments.some((lead) => !("kind" in lead) && sameArticleDevelopment(item, lead)) &&
+    !all.slice(0, index).some((existing) => sameArticleDevelopment(item, existing)));
+}
+
 export function buildReadoutEditionSnapshot(
   area: EditionArea,
   payload: ReadoutWindowPayload,
   now = new Date(),
 ): ReadoutEditionSnapshot {
-  const regulatory = payload.regulatoryCards.map((candidate) => regulatoryEditorialArticle(candidate, area));
-  const staticDevelopments: EditorialDevelopment[] = area === "All"
-    ? WORTH_YOUR_TIME
-    : [...WORTH_YOUR_TIME, ...FEATURED_EPISODES];
-  const supported = visibleForArea(staticDevelopments, area).map((item) =>
-    isEpisodeDevelopment(item) ? item : withSupport(item, payload));
-  let developments = [...regulatory, ...supported];
-  if (area === "All") developments = developments.slice(0, 5);
-  if (area !== "All" && developments.length === 0) {
-    developments = visibleForArea(SPECIALTY_FALLBACKS, area)
-      .filter((item) => (payload.overlays.find((overlay) => overlay.id === item.id)?.windowClinicianCount ?? 0) > 0)
-      .map((item) => withSupport(item, payload));
-  }
-
-  const relevant = visibleForArea(ALSO_RELEVANT, area)
-    .map((item) => withSupport(item, payload))
-    .filter((item) => !developments.some((lead) => !isEpisodeDevelopment(lead) && sameEditorialArticle(item, lead)));
+  const ranked = liveRankedDevelopments(payload, area);
+  const developments: EditorialDevelopment[] = ranked.slice(0, 5);
+  const relevant = uniqueRelevant([
+    ...ranked.slice(5),
+    ...(payload.moreCards ?? []).map(archivedEditorialArticle).filter(renderableArticle),
+  ], developments);
 
   const briefs = liveListenBriefs(payload);
   const featured = developments.filter(isEpisodeDevelopment);
@@ -130,8 +133,8 @@ export function buildReadoutEditionSnapshot(
   const listen = listenItems.map((item) => ({ item, episode: matchedEpisode(item, briefs, payload) }));
 
   return {
-    schemaVersion: 1,
-    editionDate: etEditionDate(now),
+    schemaVersion: 2,
+    editionDate: activeReadoutEditionDate(now),
     generatedAt: now.toISOString(),
     area,
     developments: developments.map((development, position) => ({
@@ -143,24 +146,60 @@ export function buildReadoutEditionSnapshot(
     listen,
     regulatoryCards: payload.regulatoryCards,
     designationCards: payload.designationCards,
+    fallbackWindowHours: payload.fallbackWindowHours ?? null,
+  };
+}
+
+export function mergeReadoutEditionSnapshot(
+  snapshot: ReadoutEditionSnapshot,
+  payload: ReadoutWindowPayload,
+  now = new Date(),
+): ReadoutEditionSnapshot {
+  const existingDevelopments = snapshot.developments.map((entry) => entry.development);
+  const existingRelevant = snapshot.relevant.map((entry) => entry.article);
+  const additions = liveInsertionDevelopments(payload, snapshot.area).filter((candidate) =>
+    !existingDevelopments.some((existing) => !("kind" in existing) && sameArticleDevelopment(candidate, existing)) &&
+    !existingRelevant.some((existing) => sameArticleDevelopment(candidate, existing)));
+  const newDesignations = (payload.designationCards ?? []).filter((candidate) =>
+    !snapshot.designationCards.some((existing) => existing.id === candidate.id));
+  const briefs = liveListenBriefs(payload);
+  const featured = existingDevelopments.filter(isEpisodeDevelopment);
+  const currentListen = listenForArea(NEW_TO_LISTEN, briefs, snapshot.area, featured, now)
+    .map((item) => ({ item, episode: matchedEpisode(item, briefs, payload) }));
+  const existingListenKeys = new Set(snapshot.listen.map((entry) => entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
+  const newListen = currentListen.filter((entry) =>
+    !existingListenKeys.has(entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
+  if (!additions.length && !newDesignations.length && !newListen.length) return snapshot;
+
+  const combined = uniqueDevelopments([...additions, ...existingDevelopments]);
+  const lead = combined.slice(0, 5);
+  const displaced = combined.slice(5).filter((item): item is EditorialArticle => !("kind" in item));
+  const relevant = uniqueRelevant([...displaced, ...existingRelevant], lead);
+  const insertedIds = additions.map((item) => item.id);
+  return {
+    ...snapshot,
+    updatedAt: now.toISOString(),
+    middayInsertions: [...new Set([...(snapshot.middayInsertions ?? []), ...insertedIds])],
+    developments: lead.map((development, position) => ({
+      development,
+      episode: snapshot.developments.find((entry) => sameEditorialDevelopment(entry.development, development))?.episode ?? null,
+      position,
+    })),
+    relevant: relevant.map((article, position) => ({ article, position })),
+    regulatoryCards: [
+      ...snapshot.regulatoryCards,
+      ...(payload.regulatoryCards ?? []).filter((candidate) => !snapshot.regulatoryCards.some((existing) => existing.id === candidate.id)),
+    ],
+    designationCards: [...snapshot.designationCards, ...newDesignations],
+    listen: [...newListen, ...snapshot.listen].slice(0, snapshot.area === "All" ? 3 : 2),
   };
 }
 
 export function isReadoutEditionSnapshot(value: unknown): value is ReadoutEditionSnapshot {
   const item = value as Partial<ReadoutEditionSnapshot> | null;
-  return !!item && item.schemaVersion === 1 && typeof item.editionDate === "string" &&
+  return !!item && item.schemaVersion === 2 && typeof item.editionDate === "string" &&
     typeof item.area === "string" && Array.isArray(item.developments) &&
     Array.isArray(item.relevant) && Array.isArray(item.listen);
-}
-
-function sameDevelopment(left: EditorialDevelopment, right: EditorialDevelopment): boolean {
-  const leftEpisode = isEpisodeDevelopment(left);
-  const rightEpisode = isEpisodeDevelopment(right);
-  if (leftEpisode || rightEpisode) {
-    return leftEpisode && rightEpisode &&
-      (left.id === right.id || left.title.toLowerCase() === right.title.toLowerCase());
-  }
-  return sameEditorialArticle(left, right);
 }
 
 export function sevenDayEditionDevelopments(history: ReadoutEditionSnapshot[]) {
@@ -169,7 +208,7 @@ export function sevenDayEditionDevelopments(history: ReadoutEditionSnapshot[]) {
   const relevant: Array<ReadoutEditionArticle & { editionDate: string }> = [];
   for (const snapshot of snapshots) {
     for (const entry of snapshot.developments) {
-      if (developments.some((existing) => sameDevelopment(existing.development, entry.development))) continue;
+      if (developments.some((existing) => sameEditorialDevelopment(existing.development, entry.development))) continue;
       developments.push({ ...entry, editionDate: snapshot.editionDate });
     }
     for (const entry of snapshot.relevant) {
