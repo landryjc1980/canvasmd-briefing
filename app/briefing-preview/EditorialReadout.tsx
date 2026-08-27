@@ -796,7 +796,12 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} archived morning edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
-        {loadError ? <div className="er-load-error" role="alert"><p>The Readout could not load this view.</p><button type="button" onClick={retryLoad}>Try again</button></div> : !pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : (
+        {loadError ? <div className="er-load-error" role="alert"><p>The Readout could not load this view.</p><button type="button" onClick={retryLoad}>Try again</button></div> : !pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
+          <div className="er-empty">
+            <p>Nothing new cleared the bar in {AREA_LABELS[area]} today.</p>
+            <button className="er-empty-history" type="button" onClick={() => chooseWindow("7d")}>See the last 7 days <span aria-hidden="true">&rarr;</span></button>
+          </div>
+        ) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
       </section>

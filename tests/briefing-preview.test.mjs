@@ -422,6 +422,10 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.match(preview, />Listen</);
   assert.match(preview, /Regulatory Watch/);
   assert.match(preview, /No development cleared the bar/);
+  assert.match(preview, /readoutWindow === "today" && area !== "All"/);
+  assert.match(preview, /Nothing new cleared the bar in \{AREA_LABELS\[area\]\} today\./);
+  assert.match(preview, /onClick=\{\(\) => chooseWindow\("7d"\)\}>See the last 7 days/);
+  assert.match(previewCss, /\.er-empty-history \{[^}]*min-height: 44px/);
   assert.doesNotMatch(preview, />Papers<|>Trials<|>People<|>Drugs</);
   assert.doesNotMatch(preview, /CANVASMD/);
   assert.match(previewCss, /#C45B28/);
