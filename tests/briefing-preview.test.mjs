@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, cleanReadoutExcerpt, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   readoutEditionHistoryIncludingCurrent,
   readoutEditionPreferNonEmpty,
@@ -382,10 +382,30 @@ test("only the primary development stack is numbered as a finite edition", () =>
   assert.match(preview, /worth\.map\(\(item, index\) => <NumberedDevelopment[^>]*position=\{index \+ 1\}/);
   assert.match(preview, /className="er-story-order">\{position\} <span>·<\/span> \{contentType\}/);
   assert.match(preview, /<Development item=\{item\} briefs=\{briefs\} overlays=\{overlays\} numbered \/>/);
-  assert.match(preview, /\{item\.site\}\{numbered \? "" : ` · \$\{articleContentType\(item\)\}`\}/);
+  assert.match(preview, /\{editorialScopeLabel\(item\)\}\{numbered \? "" : ` · \$\{articleContentType\(item\)\}`\}/);
   assert.doesNotMatch(previewCss, /\.er-numbered-development \{[^}]*border-top/);
   assert.match(previewCss, /\.er-numbered-development > \.er-development \{[^}]*margin-top: 7px/);
   assert.doesNotMatch(preview, /<CompactDevelopment[^>]*position=/);
+});
+
+test("card kickers pair specialty with one reliable tumor focus", () => {
+  assert.equal(readoutFocusLabel(["kidney"]), "Kidney");
+  assert.equal(readoutFocusLabel(["myeloma"]), "Myeloma");
+  assert.equal(readoutFocusLabel(["leukemia"]), "Leukemia");
+  assert.equal(readoutFocusLabel(["melanoma"]), "Melanoma");
+  assert.equal(readoutFocusLabel(["nsclc"]), "NSCLC");
+  assert.equal(readoutFocusLabel(["kidney", "bladder"]), null,
+    "a multi-focus story keeps the broader specialty label");
+  assert.equal(editorialScopeLabel({ area: "GU", site: "Kidney" }), "GU · Kidney");
+  assert.equal(editorialScopeLabel({
+    area: "GU",
+    site: "GU",
+    title: "Panitumumab-Based EGFR Blockade in SMARCB1-Deficient Renal Medullary Carcinoma",
+  }), "GU · Kidney", "a current frozen card can recover its focus from the same deterministic taxonomy");
+  assert.equal(editorialScopeLabel({ area: "Heme", site: "Myeloma" }), "Heme · Myeloma");
+  assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Adjuvant nivolumab in melanoma" }), "Skin · Melanoma");
+  assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Non-melanoma skin cancer incidence" }), "Skin");
+  assert.equal(editorialScopeLabel({ area: "All", site: "GI" }), "GI");
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {

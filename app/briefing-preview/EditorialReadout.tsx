@@ -22,6 +22,7 @@ import {
   EDITION_AREAS,
   NEW_TO_LISTEN,
   cleanReadoutExcerpt,
+  editorialScopeLabel,
   findArticle,
   findEpisode,
   listenForArea,
@@ -486,7 +487,7 @@ function ArticleDevelopment({
   const canDisclose = Boolean(item.finding.trim()) || extraComments > 0 || Boolean(coverageSummary(item, href));
   return (
     <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{item.site}{numbered ? "" : ` · ${articleContentType(item)}`}</div>
+      <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${articleContentType(item)}`}</div>
       <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
       <DevelopmentFinding text={item.finding} label={excerptLabel(item)} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
@@ -514,7 +515,7 @@ function EpisodeDevelopment({ item, briefs, numbered = false }: { item: Editoria
   const canDisclose = Boolean(item.finding.trim());
   return (
     <article className={`er-development er-development-episode ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{item.site}{!numbered && <> · <b>Podcast</b></>}</div>
+      <div className="er-kicker">{editorialScopeLabel(item)}{!numbered && <> · <b>Podcast</b></>}</div>
       <SourceHeadline href={sourceHref} source={episode?.show || item.show} title={episode?.title || item.title} />
       <DevelopmentFinding text={item.finding} label="From the episode" expanded={open} />
       <EpisodeAudio

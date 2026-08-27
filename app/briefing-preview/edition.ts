@@ -50,6 +50,106 @@ export type EditorialEpisodeFeature = EditorialEpisode & {
 
 export type EditorialDevelopment = EditorialArticle | EditorialEpisodeFeature;
 
+const READOUT_FOCUS_LABELS: Record<string, string> = {
+  bladder: "Bladder",
+  kidney: "Kidney",
+  prostate: "Prostate",
+  testicular: "Testicular",
+  endometrial: "Endometrial",
+  ovarian: "Ovarian",
+  cervical: "Cervical",
+  vulvar: "Vulvar/vaginal",
+  myeloma: "Myeloma",
+  lymphoma: "Lymphoma",
+  leukemia: "Leukemia",
+  mds: "MDS",
+  mpn: "MPN",
+  bpdcn: "BPDCN",
+  clonal_hematopoiesis: "Clonal hematopoiesis",
+  colorectal: "Colorectal",
+  gastric: "Gastric/GEJ",
+  pancreatic: "Pancreatic",
+  biliary: "Biliary",
+  hcc: "Liver (HCC)",
+  esophageal: "Esophageal",
+  net: "NET/GIST",
+  nsclc: "NSCLC",
+  sclc: "SCLC",
+  pulmonary_net: "Pulmonary NETs",
+  melanoma: "Melanoma",
+  cscc: "cSCC",
+  bcc: "Basal cell",
+  merkel: "Merkel cell",
+};
+
+const READOUT_FOCUS_PATTERNS: Partial<Record<EditorialArea, Record<string, RegExp>>> = {
+  GU: {
+    bladder: /\b(bladder|urotheli\w*|MIBC|NMIBC|UTUC)\b/i,
+    kidney: /(renal (?:cell|medullary)|RCC\b|kidney|clear[- ]cell renal|papillary renal|belzutifan|LITESPARK)/i,
+    prostate: /\b(prostat\w*|m?CRPC|m?HSPC|m?CSPC|castration[- ](?:resistant|sensitive)|PSA)\b/i,
+    testicular: /\b(testicular|germ[- ]cell|seminoma)\b/i,
+  },
+  Gyn: {
+    endometrial: /\b(endometri\w*|uterine)\b/i,
+    ovarian: /\b(ovarian|fallopian|primary peritoneal)\b/i,
+    cervical: /\bcervic\w*\b/i,
+    vulvar: /\b(vulvar|vaginal)\b/i,
+  },
+  Heme: {
+    myeloma: /\b(myeloma|plasma[- ]cell|MGUS|smoldering|amyloidosis|AL amyloid)\b/i,
+    lymphoma: /\b(lymphoma|DLBCL|follicular|Hodgkin|mantle[- ]cell|marginal[- ]zone|Burkitt|Waldenstr\w*)\b/i,
+    leukemia: /\b(leukemi\w*|AML|CLL|CML|acute myeloid|chronic lymphocytic|acute lymphoblastic|hairy[- ]cell)\b/i,
+    mds: /\b(MDS|myelodysplas\w*)\b/i,
+    mpn: /\b(myelofibrosis|MPN|polycythemia|essential thrombocythemia|myeloproliferative)\b/i,
+    bpdcn: /\b(BPDCN|blastic plasmacytoid)\b/i,
+    clonal_hematopoiesis: /\b(clonal h(?:a)?ematopoiesis|CHIP|CCUS)\b/i,
+  },
+  GI: {
+    colorectal: /\b(colorectal|m?CRC|colon cancer|rectal)\b/i,
+    gastric: /\b(gastric|GEJ|stomach|gastroesophageal)\b/i,
+    pancreatic: /\b(pancrea\w*|PDAC)\b/i,
+    biliary: /\b(biliary|cholangio\w*|BTC|gallbladder|bile[- ]duct)\b/i,
+    hcc: /\b(hepatocellular|HCC|liver cancer)\b/i,
+    esophageal: /\b(esophag\w*|oesophag\w*)\b/i,
+    net: /\b(neuroendocrine|NET|GIST)\b/i,
+  },
+  Skin: {
+    melanoma: /(?<!non[-\u2013\u2014 ])\bmelanoma\b|\b(melanocytic|lentigo maligna|uveal melanoma)\b/i,
+    cscc: /\b(cutaneous squamous cell|cSCC|squamous cell carcinoma of the skin|keratinocyte carcinoma)\b/i,
+    bcc: /\b(basal cell carcinoma|BCC|vismodegib|sonidegib|hedgehog inhibitor)\b/i,
+    merkel: /\b(merkel|MCC)\b/i,
+  },
+  Lung: {
+    nsclc: /\b(NSCLC|non[-\u2013\u2014 ]small[-\u2013\u2014 ]cell(?: lung)?)\b/i,
+    sclc: /\bSCLC\b|(?<!non[-\u2013\u2014 ])\bsmall[-\u2013\u2014 ]cell lung\b/i,
+    pulmonary_net: /\b(pulmonary carcinoid|bronchial carcinoid|lung neuroendocrine|thoracic neuroendocrine|LCNEC)\b/i,
+  },
+};
+
+export function readoutFocusLabel(subAreas: string[] | null | undefined): string | null {
+  const labels = [...new Set((subAreas ?? []).map((key) => READOUT_FOCUS_LABELS[key]).filter(Boolean))];
+  return labels.length === 1 ? labels[0] : null;
+}
+
+function inferredReadoutFocus(area: EditorialArea, text: string): string | null {
+  const patterns = READOUT_FOCUS_PATTERNS[area];
+  if (!patterns || !text) return null;
+  const labels = Object.entries(patterns)
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([key]) => READOUT_FOCUS_LABELS[key]);
+  return labels.length === 1 ? labels[0] : null;
+}
+
+export function editorialScopeLabel(item: { area: EditorialArea; site: string; title?: string; finding?: string }): string {
+  let site = item.site.trim();
+  if (item.area === "All") return site || "Oncology";
+  if (!site || site === item.area || site === "Oncology") {
+    site = inferredReadoutFocus(item.area, [item.title, item.finding].filter(Boolean).join(" ")) ?? site;
+  }
+  if (!site || site === item.area || site === "Oncology") return item.area;
+  return site.startsWith(`${item.area} · `) ? site : `${item.area} · ${site}`;
+}
+
 const LISTEN_HOLD_HOURS = 72;
 const SPECIALTY_HELD_EPISODE_CAP = 2;
 const ALL_LISTEN_CAP = 3;
@@ -357,7 +457,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   const sourceTitle = primarySource?.title || card.headline;
   const sourceUrl = validHttpUrl(primarySource?.url) || validHttpUrl(card.url) || validHttpUrl(supportLinks[0]?.url) || "";
   const sourceLabel = primarySource?.sourceLabel || card.sourceLabel;
-  const site = item.area === "All" ? "Oncology" : item.area;
+  const site = readoutFocusLabel(card.subAreas) ?? (item.area === "All" ? "Oncology" : item.area);
   return {
     id: `archive-${card.id}`,
     area: item.area as EditorialArea,
