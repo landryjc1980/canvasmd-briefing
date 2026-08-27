@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { FEATURED_EPISODES, cleanReadoutExcerpt, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { readoutEditionHistoryIncludingCurrent } from "../app/briefing-preview/editionHistory.ts";
 import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -133,6 +134,43 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(preview, /sevenDayEditionListen\(editionHistory, currentWorth\)/,
     "Listen comes from the exact daily selections and retains featured episodes outside the top five");
   assert.match(briefingRoute, /"readout-window"/);
+  assert.match(readoutServer, /resolveReadoutTodayEdition\(area, today\)/);
+  assert.match(readoutServer, /readoutEditionHistoryIncludingCurrent/);
+  assert.match(preview, /payloadCache\.current\.get\(payloadKey\(area, "today"\)\)/,
+    "the seven-day view includes the exact Today edition the reader just saw");
+});
+
+test("seven days starts with Today and replaces a stale copy of the same edition", () => {
+  const snapshot = (editionDate, title) => ({
+    schemaVersion: 2,
+    editionDate,
+    generatedAt: `${editionDate}T10:05:00.000Z`,
+    area: "GU",
+    developments: title ? [{ development: { id: title, title }, episode: null, position: 0 }] : [],
+    relevant: [],
+    listen: [],
+    regulatoryCards: [],
+    designationCards: [],
+  });
+  const current = snapshot("2026-08-27", "Current GU paper");
+  const history = [
+    snapshot("2026-08-27", null),
+    ...[26, 25, 24, 23, 22, 21, 20].map((day) => snapshot(`2026-08-${day}`, `Paper ${day}`)),
+  ];
+  const merged = readoutEditionHistoryIncludingCurrent(current, history);
+
+  assert.equal(merged.length, 7);
+  assert.equal(merged[0], current);
+  assert.equal(merged[0].developments[0].development.title, "Current GU paper");
+  assert.deepEqual(merged.map((edition) => edition.editionDate), [
+    "2026-08-27", "2026-08-26", "2026-08-25", "2026-08-24", "2026-08-23", "2026-08-22", "2026-08-21",
+  ]);
+  assert.deepEqual(
+    readoutEditionHistoryIncludingCurrent(current, [snapshot("2026-08-25", "Paper 25"), snapshot("2026-08-20", "Paper 20")])
+      .map((edition) => edition.editionDate),
+    ["2026-08-27", "2026-08-25"],
+    "a missing archive date stays missing instead of pulling in an eighth calendar day",
+  );
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {

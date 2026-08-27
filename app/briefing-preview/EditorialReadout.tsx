@@ -3,15 +3,15 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import {
-  buildReadoutEditionSnapshot,
   isReadoutEditionSnapshot,
   liveListenBriefs,
+  resolveReadoutTodayEdition,
   sevenDayEditionDevelopments,
   sevenDayEditionListen,
 } from "./editionSnapshot";
+import { readoutEditionHistoryIncludingCurrent } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import {
-  activeReadoutEditionDate,
   readoutWindowDays,
   type ReadoutWindow,
 } from "./readoutRequest";
@@ -674,24 +674,23 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     return () => { cancelled = true; };
   }, [area, readoutWindow, retryVersion]);
 
-  const editionHistory = useMemo(
-    () => (windowPayload?.editionHistory ?? []).filter(isReadoutEditionSnapshot),
-    [windowPayload],
-  );
-  const historyDays = windowPayload?.historyDays ?? 0;
+  const editionHistory = useMemo(() => {
+    const history = (windowPayload?.editionHistory ?? []).filter(isReadoutEditionSnapshot);
+    if (readoutWindow !== "7d") return history;
+    const todayPayload = payloadCache.current.get(payloadKey(area, "today"));
+    const current = todayPayload ? resolveReadoutTodayEdition(area, todayPayload) : windowPayload?.currentEdition;
+    return readoutEditionHistoryIncludingCurrent(current, history);
+  }, [area, readoutWindow, windowPayload]);
+  const historyDays = readoutWindow === "7d"
+    ? new Set(editionHistory.map((snapshot) => snapshot.editionDate)).size
+    : windowPayload?.historyDays ?? 0;
   const sevenDayEdition = useMemo(
     () => readoutWindow === "7d" ? sevenDayEditionDevelopments(editionHistory) : { developments: [], relevant: [] },
     [editionHistory, readoutWindow],
   );
   const todayEdition = useMemo(() => {
     if (!windowPayload || readoutWindow !== "today") return null;
-    const generatedAt = new Date(windowPayload.generatedAt);
-    const currentDate = activeReadoutEditionDate(Number.isFinite(generatedAt.getTime()) ? generatedAt : new Date());
-    const saved = isReadoutEditionSnapshot(windowPayload.currentEdition) &&
-      windowPayload.currentEdition.area === area && windowPayload.currentEdition.editionDate === currentDate
-      ? windowPayload.currentEdition
-      : null;
-    return saved ?? buildReadoutEditionSnapshot(area, windowPayload, Number.isFinite(generatedAt.getTime()) ? generatedAt : new Date());
+    return resolveReadoutTodayEdition(area, windowPayload);
   }, [area, readoutWindow, windowPayload]);
   const currentWorth = useMemo(() => {
     if (readoutWindow === "7d") return sevenDayEdition.developments.slice(0, 5);

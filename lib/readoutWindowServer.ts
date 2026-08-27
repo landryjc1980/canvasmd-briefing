@@ -7,6 +7,8 @@ import {
   type ReadoutWindow,
 } from "@/app/briefing-preview/readoutRequest";
 import { EDITION_AREAS, type EditionArea } from "@/app/briefing-preview/edition";
+import { resolveReadoutTodayEdition } from "@/app/briefing-preview/editionSnapshot";
+import { readoutEditionHistoryIncludingCurrent } from "@/app/briefing-preview/editionHistory";
 
 export const READOUT_WINDOW_CACHE_TAG = "readout-window-v4";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
@@ -104,11 +106,34 @@ const fetchReadoutWindow = unstable_cache(
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
-export function getCachedReadoutWindow(
+function mergeEvidenceOverlays(today: ReadoutWindowPayload, history: ReadoutWindowPayload) {
+  return [...new Map([
+    ...(today.overlays ?? []).map((overlay) => [overlay.id, overlay] as const),
+    ...(history.overlays ?? []).map((overlay) => [overlay.id, overlay] as const),
+  ]).values()];
+}
+
+export async function getCachedReadoutWindow(
   area: EditionArea,
   window: ReadoutWindow,
 ): Promise<ReadoutWindowPayload> {
-  return fetchReadoutWindow(area, window, "[]");
+  const payload = await fetchReadoutWindow(area, window, "[]");
+  if (window === "today") return payload;
+
+  const today = await fetchReadoutWindow(area, "today", "[]");
+  const currentEdition = resolveReadoutTodayEdition(area, today);
+  const editionHistory = readoutEditionHistoryIncludingCurrent(
+    currentEdition,
+    payload.editionHistory ?? [],
+  );
+  return {
+    ...payload,
+    currentEdition,
+    editionHistory,
+    historyDays: new Set(editionHistory.map((snapshot) => snapshot.editionDate)).size,
+    overlays: mergeEvidenceOverlays(today, payload),
+    stale: payload.stale === true || today.stale === true,
+  };
 }
 
 export async function warmReadoutWindowCache() {

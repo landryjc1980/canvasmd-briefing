@@ -163,6 +163,20 @@ export function buildReadoutEditionSnapshot(
   };
 }
 
+export function resolveReadoutTodayEdition(
+  area: EditionArea,
+  payload: ReadoutWindowPayload,
+): ReadoutEditionSnapshot {
+  const generatedAt = new Date(payload.generatedAt);
+  const now = Number.isFinite(generatedAt.getTime()) ? generatedAt : new Date();
+  const editionDate = activeReadoutEditionDate(now);
+  const saved = isReadoutEditionSnapshot(payload.currentEdition) &&
+      payload.currentEdition.area === area && payload.currentEdition.editionDate === editionDate
+    ? payload.currentEdition
+    : null;
+  return saved ?? buildReadoutEditionSnapshot(area, payload, now);
+}
+
 export function mergeReadoutEditionSnapshot(
   snapshot: ReadoutEditionSnapshot,
   payload: ReadoutWindowPayload,
