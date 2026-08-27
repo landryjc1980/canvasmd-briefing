@@ -750,6 +750,7 @@ export type ReadoutDesignationCandidate = {
   sourceLabel: string;
   url: string;
   occurredOn: string | null;
+  dateLabel?: "Published" | "First shared";
   areas: string[];
   articleIds: string[];
   description?: string | null;

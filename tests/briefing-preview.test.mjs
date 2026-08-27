@@ -147,7 +147,7 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(briefingRoute, /"readout-window"/);
   assert.match(readoutServer, /resolveReadoutTodayEdition\(area, today\)/);
   assert.match(readoutServer, /resolveReadoutTodayEdition\("All", allToday\)/,
-    "an empty specialty edition projects matching cards from the same frozen All edition");
+    "a specialty edition projects matching cards from the same frozen All edition");
   assert.match(readoutServer, /readoutEditionHistoryIncludingCurrent/);
   assert.match(preview, /payloadCache\.current\.get\(payloadKey\(area, "today"\)\)/,
     "the seven-day view includes the exact Today edition the reader just saw");
@@ -188,13 +188,13 @@ test("seven days starts with Today and replaces a stale copy of the same edition
 
 test("an empty specialty slate inherits its cards from the same frozen All edition", () => {
   const paper = { id: "gu-paper", area: "GU", title: "Current GU paper" };
-  const snapshot = (area, developments = []) => ({
+  const snapshot = (area, developments = [], relevant = []) => ({
     schemaVersion: 2,
     editionDate: "2026-08-27",
     generatedAt: "2026-08-27T10:05:00.000Z",
     area,
     developments: developments.map((development, position) => ({ development, episode: null, position })),
-    relevant: [],
+    relevant: relevant.map((article, position) => ({ article, position })),
     listen: [],
     regulatoryCards: [],
     designationCards: [],
@@ -212,6 +212,13 @@ test("an empty specialty slate inherits its cards from the same frozen All editi
     "Current GU paper",
     "a cached empty Today payload cannot hide the populated Today carried by seven days",
   );
+
+  const existing = snapshot("GU", [{ id: "existing-gu", area: "GU", title: "Existing GU paper" }]);
+  const allRelevant = { id: "another-gu-paper", area: "GU", title: "Another GU paper" };
+  const merged = readoutSpecialtyEditionFromAll(existing, snapshot("All", [], [allRelevant]));
+  assert.deepEqual(merged.developments.map((entry) => entry.development.id), ["existing-gu"]);
+  assert.deepEqual(merged.relevant.map((entry) => entry.article.id), ["another-gu-paper"],
+    "a non-empty specialty still receives its labeled cards from All in the same section");
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
@@ -272,7 +279,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v6"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v7"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
@@ -378,9 +385,12 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
   assert.equal(approval.occurredOn, "2026-08-25");
-  assert.match(preview, /Action date:/);
+  assert.match(preview, /Action date:/,
+    "approval developments retain the regulator's action date");
   assert.match(preview, /<time dateTime=\{item\.occurredOn \?\? undefined\}>/);
   assert.match(preview, /<time dateTime=\{designation\.occurredOn \?\? undefined\}>/);
+  assert.match(preview, /designation\.dateLabel \?\? "First shared"/,
+    "designation coverage never presents an X discovery date as an FDA action date");
   assert.match(previewCss, /\.er-action-date/);
   assert.match(previewCss, /\.er-regulatory-date/);
   assert.match(preview, /Supporting study/);
