@@ -348,7 +348,12 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
   const primarySource = supportLinks.find((link) => link.relationshipType === "primary_source");
   const primaryDescription = primarySource?.description;
-  const sourceFinding = card.excerptVerbatim === true ? card.excerpt : primaryDescription;
+  const sourceFinding = primaryDescription || card.excerpt || "";
+  const findingLabel = primaryDescription
+    ? "From the source"
+    : card.kind === "paper" || card.kind === "readout"
+      ? "From the abstract"
+      : "From the source";
   const sourceTitle = primarySource?.title || card.headline;
   const sourceUrl = validHttpUrl(primarySource?.url) || validHttpUrl(card.url) || validHttpUrl(supportLinks[0]?.url) || "";
   const sourceLabel = primarySource?.sourceLabel || card.sourceLabel;
@@ -361,7 +366,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     takeaway: card.headline,
     finding: sourceFinding ? cleanReadoutExcerpt(sourceFinding) : "",
     findingSource: sourceFinding ? "source" : undefined,
-    findingLabel: sourceFinding ? "From the source" : undefined,
+    findingLabel: sourceFinding ? findingLabel : undefined,
     remember: ARCHIVED_TAKEAWAY_FALLBACK,
     journal: sourceLabel,
     title: sourceTitle,

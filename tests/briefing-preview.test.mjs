@@ -108,8 +108,9 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(preview, /sevenDayEditionDevelopments\(editionHistory\)/);
   assert.match(preview, /sevenDayEdition\.developments\.slice\(0, 5\)/,
     "the initial seven-day scan remains capped at five");
-  assert.match(preview, /historyReady && <button[^>]*type="button"[^>]*role="tab"/,
-    "the public tab stays hidden until seven exact edition dates exist");
+  assert.match(preview, /<button type="button" role="tab"[^>]*onClick=\{\(\) => chooseWindow\("7d"\)\}>7 days<\/button>/,
+    "the archive remains reachable while its first seven morning editions accumulate");
+  assert.match(preview, /Showing \{historyDays\} archived morning edition/);
   assert.match(preview, /More from the last 7 days/);
   assert.match(preview, /aria-expanded=\{moreOpen\}/);
   assert.match(preview, /moreFromSevenDays\.map\(\(item\)/,
@@ -146,6 +147,14 @@ test("seven-day edition history dedupes exact cards while preserving frozen dail
     "a podcast already displayed in the top five is not repeated in Listen");
 });
 
+test("a morning story does not repeat, while a prior midday insertion gets one next-day pass", () => {
+  assert.match(editionSnapshot, /function appearedInMorningEdition/);
+  assert.match(editionSnapshot, /const middayIds = new Set\(snapshot\.middayInsertions \?\? \[\]\)/);
+  assert.match(editionSnapshot, /!middayIds\.has\(entry\.development\.id\)/);
+  assert.match(editionSnapshot, /snapshot\.relevant\.some/);
+  assert.match(editionSnapshot, /filter\(\(item\) => !appearedInMorningEdition\(item, previousEditions\)\)/);
+});
+
 test("the exact morning edition archive is DST-safe, idempotent, and service-only", () => {
   assert.match(readoutRequest, /timeZone: "America\/New_York"/);
   assert.match(readoutRequest, /hourCycle: "h23"/);
@@ -158,6 +167,8 @@ test("the exact morning edition archive is DST-safe, idempotent, and service-onl
   assert.match(readoutEditionArchive, /resolution=ignore-duplicates/);
   assert.match(readoutEditionArchive, /etEditionHour\(now\) !== 6/);
   assert.match(readoutArchiveRoute, /archiveCurrentReadoutEdition\(\)/);
+  assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)[\s\S]*?warmReadoutWindowCache\(\)[\s\S]*?archiveCurrentReadoutEdition\(\)/,
+    "the 6am job refreshes the candidate payload before freezing the dated edition");
   assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
   assert.match(readoutArchiveRoute, /warmReadoutWindowCache\(\)/);
   assert.match(vercelConfig, /"5 10 \* \* \*"/);
@@ -182,12 +193,15 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v2"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v3"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
   assert.match(readoutServer, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(readoutServer, /SUPABASE_ANON_KEY/);
+  assert.match(readoutServer, /key\.startsWith\("sb_"\)/);
+  assert.match(readoutServer, /\? \{ apikey: key \}/,
+    "opaque Supabase keys are sent only as API keys, never as bearer JWTs");
   assert.doesNotMatch(readoutServer, /readoutWindowEvidenceTargets/,
     "the live candidate payload does not fetch evidence for the retired static slate");
   assert.match(readoutServer, /persistLastGoodWindow/);
@@ -223,6 +237,19 @@ test("attached related coverage is compact, validated, and deduped from the prim
   assert.match(preview, /Related coverage/);
   assert.match(preview, /er-related-links/);
   assert.match(preview, /<CoverageLinks item=\{item\}/);
+});
+
+test("cards use source-backed excerpts and visually separate the source from the title", () => {
+  assert.match(edition, /const sourceFinding = primaryDescription \|\| card\.excerpt \|\| ""/);
+  assert.match(edition, /"From the abstract"/);
+  assert.match(previewCss, /\.er-source \{[^}]*color: var\(--er-muted\)[^}]*font-family: inherit[^}]*font-weight: 450/);
+});
+
+test("Listen cards render show art and pin equal-height players to the card bottom", () => {
+  assert.match(preview, /episode\?\.showArt && <img className="er-listen-art"/);
+  assert.match(preview, /className="er-listen-card"/);
+  assert.match(previewCss, /\.er-listen-card \{ display: flex; flex-direction: column; \}/);
+  assert.match(previewCss, /\.er-listen-audio \{ margin-top: auto; padding-top: 14px; \}/);
 });
 
 test("an attached podcast episode plays on the development card without becoming coverage", () => {

@@ -72,7 +72,7 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-kicker { margin-bottom: 8px; color: var(--er-accent); font-size: 10.5px; line-height: 1; text-transform: uppercase; font-weight: 700; letter-spacing: .1em; }
 .er-kicker b { font: inherit; color: inherit; }
 .er-source-headline { margin: 0; }
-.er-source { display: block; color: var(--er-ink); font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif; font-size: 15px; font-weight: 600; }
+.er-source { display: block; color: var(--er-muted); font-family: inherit; font-size: 12.5px; font-weight: 450; line-height: 1.35; }
 .er-source-title { margin: 8px 0 0; color: var(--er-ink); font-size: 17px; font-weight: 650; line-height: 1.32; letter-spacing: 0; }
 .er-source-title a { color: inherit; text-decoration: none; }
 .er-source-title a:hover { color: var(--er-accent); }
@@ -147,13 +147,16 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 
 .er-listen-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .er-listen-grid article { min-width: 0; padding: 18px; border: 1px solid var(--er-line); border-radius: 7px; background: var(--er-surface); }
+.er-listen-card { display: flex; flex-direction: column; }
+.er-listen-art { width: 64px; height: 64px; margin-bottom: 14px; border-radius: 4px; object-fit: cover; background: #eef0f2; }
+.er-listen-copy { flex: 1; }
 .er-listen-grid article + article { padding-left: 18px; }
 .er-listen-grid article:last-child { border-right: 1px solid var(--er-line); }
 .er-listen-grid b { font: 700 18px/1.35 system-ui, sans-serif; }
 .er-listen-grid p { margin: 7px 0 4px; color: var(--er-muted); font-size: 13px; }
 .er-listen-grid a.er-listen-title { color: var(--er-ink); font-size: inherit; text-decoration: none; }
 .er-listen-grid a.er-listen-title:hover { color: var(--er-accent); }
-.er-listen-audio { margin-top: 12px; }
+.er-listen-audio { margin-top: auto; padding-top: 14px; }
 
 .er-page .aq { --aq-accent: var(--area); --aq-track: rgba(26, 26, 46, .12); min-width: 0; max-width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 8px 11px 8px 8px; border: 1px solid var(--er-line); border-radius: 8px; background: #fff; }
 .er-page .aq-btn { flex: 0 0 auto; position: relative; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--aq-accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }

@@ -8,8 +8,14 @@ import {
 } from "@/app/briefing-preview/readoutRequest";
 import { EDITION_AREAS, type EditionArea } from "@/app/briefing-preview/edition";
 
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v2";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v3";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
+
+export function supabaseApiKeyHeaders(key: string): Record<string, string> {
+  return key.startsWith("sb_")
+    ? { apikey: key }
+    : { apikey: key, authorization: `Bearer ${key}` };
+}
 
 function supabaseServiceEnvironment() {
   const url = process.env.SUPABASE_URL;
@@ -27,8 +33,7 @@ async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, p
   const response = await fetch(`${url}/rest/v1/readout_posts?on_conflict=tok`, {
     method: "POST",
     headers: {
-      apikey: key,
-      authorization: `Bearer ${key}`,
+      ...supabaseApiKeyHeaders(key),
       "content-type": "application/json",
       prefer: "resolution=merge-duplicates,return=minimal",
     },
@@ -50,7 +55,7 @@ async function readLastGoodWindow(area: EditionArea, window: ReadoutWindow): Pro
   const { url, key } = supabaseServiceEnvironment();
   const tok = encodeURIComponent(windowCacheToken(area, window));
   const response = await fetch(`${url}/rest/v1/readout_posts?select=card&tok=eq.${tok}&limit=1`, {
-    headers: { apikey: key, authorization: `Bearer ${key}` },
+    headers: supabaseApiKeyHeaders(key),
     cache: "no-store",
   });
   if (!response.ok) return null;
@@ -68,8 +73,7 @@ const fetchReadoutWindow = unstable_cache(
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${key}`,
-          apikey: key,
+          ...supabaseApiKeyHeaders(key),
         },
         body: JSON.stringify({
           mode: "readout-window",

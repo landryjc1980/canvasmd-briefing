@@ -15,6 +15,7 @@
 import type { BriefingData, HeroCard } from "@/lib/types";
 import { heroTok } from "@/lib/postId";
 import { sliceBriefForCard, type CardBrief } from "@/app/heroEvidence";
+import { supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
 
 const URL_ = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,7 +56,7 @@ async function latestSnapshots(): Promise<SnapRow[]> {
       try {
         const res = await fetch(
           `${URL_}/rest/v1/briefing_active?select=area,data,generated_at`,
-          { headers: { apikey: SERVICE_KEY!, authorization: `Bearer ${SERVICE_KEY}` }, cache: "no-store" },
+          { headers: supabaseApiKeyHeaders(SERVICE_KEY!), cache: "no-store" },
         );
         if (res.ok) rows = (await res.json()) as SnapRow[];
       } catch {
@@ -80,7 +81,7 @@ async function rest(path: string, init?: RequestInit): Promise<Response | null> 
   try {
     return await fetch(`${URL_}/rest/v1/${path}`, {
       ...init,
-      headers: { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+      headers: { ...supabaseApiKeyHeaders(SERVICE_KEY), "content-type": "application/json", ...(init?.headers ?? {}) },
       cache: "no-store",
     });
   } catch {

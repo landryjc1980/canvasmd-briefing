@@ -678,7 +678,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     () => (windowPayload?.editionHistory ?? []).filter(isReadoutEditionSnapshot),
     [windowPayload],
   );
-  const historyReady = (windowPayload?.historyDays ?? 0) >= 7;
+  const historyDays = windowPayload?.historyDays ?? 0;
   const sevenDayEdition = useMemo(
     () => readoutWindow === "7d" ? sevenDayEditionDevelopments(editionHistory) : { developments: [], relevant: [] },
     [editionHistory, readoutWindow],
@@ -790,10 +790,11 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           </div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window">
             <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => chooseWindow("today")}>Today</button>
-            {historyReady && <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => chooseWindow("7d")}>7 days</button>}
+            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => chooseWindow("7d")}>7 days</button>
           </div>
         </div>
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
+        {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} archived morning edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
         {loadError ? <div className="er-load-error" role="alert"><p>The Readout could not load this view.</p><button type="button" onClick={retryLoad}>Try again</button></div> : !pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
@@ -833,26 +834,27 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             {listenEntries.map(({ item, episode }) => {
               const sourceHref = episode?.sourceUrl || item.url;
               return (
-                <article key={item.id}>
-                  <div>
+                <article className="er-listen-card" key={item.id}>
+                  {episode?.showArt && <img className="er-listen-art" src={episode.showArt} alt="" loading="lazy" decoding="async" />}
+                  <div className="er-listen-copy">
                     <a className="er-listen-title" href={sourceHref} target="_blank" rel="noreferrer">
                       <b>{episode?.title || item.hook}</b>
                     </a>
                     <p>{episode?.show || item.show}</p>
-                    {episode?.audioUrl && (
-                      <div className="er-listen-audio">
-                        <AudioQuote
-                          audioUrl={episode.audioUrl}
-                          startMs={0}
-                          durationSeconds={episode.durationSeconds}
-                          label="Listen here"
-                          eventId={episode.episodeId ?? item.id}
-                          eventLabel={episode.title}
-                          accent="var(--area)"
-                        />
-                      </div>
-                    )}
                   </div>
+                  {episode?.audioUrl && (
+                    <div className="er-listen-audio">
+                      <AudioQuote
+                        audioUrl={episode.audioUrl}
+                        startMs={0}
+                        durationSeconds={episode.durationSeconds}
+                        label="Listen here"
+                        eventId={episode.episodeId ?? item.id}
+                        eventLabel={episode.title}
+                        accent="var(--area)"
+                      />
+                    </div>
+                  )}
                 </article>
               );
             })}

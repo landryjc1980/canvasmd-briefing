@@ -13,6 +13,7 @@ import { revalidateTag } from "next/cache";
 import { archiveAllLive, pruneArchive, RETENTION_DAYS } from "@/app/heroPost";
 import { archiveCurrentReadoutEdition } from "@/lib/readoutEditionArchive";
 import { READOUT_WINDOW_CACHE_TAG, warmReadoutWindowCache } from "@/lib/readoutWindowServer";
+import { etEditionHour } from "@/app/briefing-preview/readoutRequest";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -24,8 +25,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const archived = await archiveAllLive();
-  const edition = await archiveCurrentReadoutEdition();
   let warmed: Awaited<ReturnType<typeof warmReadoutWindowCache>> = [];
+  if (etEditionHour(new Date()) === 6) {
+    revalidateTag(READOUT_WINDOW_CACHE_TAG);
+    warmed = await warmReadoutWindowCache();
+  }
+  const edition = await archiveCurrentReadoutEdition();
   if (edition.archived.length > 0) {
     revalidateTag(READOUT_WINDOW_CACHE_TAG);
     warmed = await warmReadoutWindowCache();

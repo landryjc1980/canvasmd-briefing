@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentContactId } from "@/lib/gateServer";
-import { getCachedReadoutWindow } from "@/lib/readoutWindowServer";
+import { getCachedReadoutWindow, supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
 import type { EditionArea } from "@/app/briefing-preview/edition";
 
 export const dynamic = "force-dynamic";
@@ -65,8 +65,7 @@ export async function GET(req: NextRequest) {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${key}`,
-          apikey: key,
+          ...supabaseApiKeyHeaders(key),
         },
         body: JSON.stringify({ area, ...(congressPreview ? { congressPreview } : {}) }),
         cache: "no-store",
@@ -150,8 +149,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${key}`,
-        apikey: key,
+        ...supabaseApiKeyHeaders(key),
       },
       body: JSON.stringify(upstreamBody),
       cache: "no-store",

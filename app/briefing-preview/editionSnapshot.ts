@@ -115,12 +115,25 @@ function uniqueRelevant(items: EditorialArticle[], developments: EditorialDevelo
     !all.slice(0, index).some((existing) => sameArticleDevelopment(item, existing)));
 }
 
+function appearedInMorningEdition(item: EditorialArticle, history: ReadoutEditionSnapshot[]): boolean {
+  return history.some((snapshot) => {
+    const middayIds = new Set(snapshot.middayInsertions ?? []);
+    return snapshot.developments.some((entry) =>
+      !middayIds.has(entry.development.id) &&
+      !isEpisodeDevelopment(entry.development) &&
+      sameArticleDevelopment(item, entry.development)) ||
+      snapshot.relevant.some((entry) => sameArticleDevelopment(item, entry.article));
+  });
+}
+
 export function buildReadoutEditionSnapshot(
   area: EditionArea,
   payload: ReadoutWindowPayload,
   now = new Date(),
+  previousEditions: ReadoutEditionSnapshot[] = [],
 ): ReadoutEditionSnapshot {
-  const ranked = liveRankedDevelopments(payload, area);
+  const ranked = liveRankedDevelopments(payload, area)
+    .filter((item) => !appearedInMorningEdition(item, previousEditions));
   const developments: EditorialDevelopment[] = ranked.slice(0, 5);
   const relevant = uniqueRelevant([
     ...ranked.slice(5),
