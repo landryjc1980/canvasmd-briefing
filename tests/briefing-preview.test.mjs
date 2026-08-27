@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { FEATURED_EPISODES, cleanReadoutExcerpt, listenForArea, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
-import { readoutEditionHistoryIncludingCurrent } from "../app/briefing-preview/editionHistory.ts";
+import {
+  readoutEditionHistoryIncludingCurrent,
+  readoutEditionPreferNonEmpty,
+  readoutSpecialtyEditionFromAll,
+} from "../app/briefing-preview/editionHistory.ts";
 import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -135,6 +139,8 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
     "Listen comes from the exact daily selections and retains featured episodes outside the top five");
   assert.match(briefingRoute, /"readout-window"/);
   assert.match(readoutServer, /resolveReadoutTodayEdition\(area, today\)/);
+  assert.match(readoutServer, /resolveReadoutTodayEdition\("All", allToday\)/,
+    "an empty specialty edition projects matching cards from the same frozen All edition");
   assert.match(readoutServer, /readoutEditionHistoryIncludingCurrent/);
   assert.match(preview, /payloadCache\.current\.get\(payloadKey\(area, "today"\)\)/,
     "the seven-day view includes the exact Today edition the reader just saw");
@@ -170,6 +176,34 @@ test("seven days starts with Today and replaces a stale copy of the same edition
       .map((edition) => edition.editionDate),
     ["2026-08-27", "2026-08-25"],
     "a missing archive date stays missing instead of pulling in an eighth calendar day",
+  );
+});
+
+test("an empty specialty slate inherits its cards from the same frozen All edition", () => {
+  const paper = { id: "gu-paper", area: "GU", title: "Current GU paper" };
+  const snapshot = (area, developments = []) => ({
+    schemaVersion: 2,
+    editionDate: "2026-08-27",
+    generatedAt: "2026-08-27T10:05:00.000Z",
+    area,
+    developments: developments.map((development, position) => ({ development, episode: null, position })),
+    relevant: [],
+    listen: [],
+    regulatoryCards: [],
+    designationCards: [],
+  });
+  const emptyGu = snapshot("GU");
+  const projected = readoutSpecialtyEditionFromAll(
+    emptyGu,
+    snapshot("All", [paper, { id: "lung-paper", area: "Lung", title: "Lung paper" }]),
+  );
+
+  assert.equal(projected.area, "GU");
+  assert.deepEqual(projected.developments.map((entry) => entry.development), [paper]);
+  assert.equal(
+    readoutEditionPreferNonEmpty(emptyGu, projected).developments[0].development.title,
+    "Current GU paper",
+    "a cached empty Today payload cannot hide the populated Today carried by seven days",
   );
 });
 

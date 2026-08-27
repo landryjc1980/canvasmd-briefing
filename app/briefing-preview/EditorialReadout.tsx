@@ -9,7 +9,10 @@ import {
   sevenDayEditionDevelopments,
   sevenDayEditionListen,
 } from "./editionSnapshot";
-import { readoutEditionHistoryIncludingCurrent } from "./editionHistory";
+import {
+  readoutEditionHistoryIncludingCurrent,
+  readoutEditionPreferNonEmpty,
+} from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import {
   readoutWindowDays,
@@ -678,7 +681,10 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     const history = (windowPayload?.editionHistory ?? []).filter(isReadoutEditionSnapshot);
     if (readoutWindow !== "7d") return history;
     const todayPayload = payloadCache.current.get(payloadKey(area, "today"));
-    const current = todayPayload ? resolveReadoutTodayEdition(area, todayPayload) : windowPayload?.currentEdition;
+    const current = readoutEditionPreferNonEmpty(
+      todayPayload ? resolveReadoutTodayEdition(area, todayPayload) : null,
+      windowPayload?.currentEdition,
+    );
     return readoutEditionHistoryIncludingCurrent(current, history);
   }, [area, readoutWindow, windowPayload]);
   const historyDays = readoutWindow === "7d"

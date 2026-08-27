@@ -9,6 +9,50 @@ function editionSnapshot(value: unknown): ReadoutEditionSnapshot | null {
     : null;
 }
 
+function hasEditorialCards(snapshot: ReadoutEditionSnapshot): boolean {
+  return snapshot.developments.length > 0 || snapshot.relevant.length > 0;
+}
+
+export function readoutSpecialtyEditionFromAll(
+  currentValue: unknown,
+  allValue: unknown,
+): ReadoutEditionSnapshot | null {
+  const current = editionSnapshot(currentValue);
+  const all = editionSnapshot(allValue);
+  if (!current || current.area === "All" || hasEditorialCards(current) || !all ||
+      all.area !== "All" || all.editionDate !== current.editionDate) return current;
+
+  const developments = all.developments
+    .filter((entry) => entry.development.area === current.area)
+    .map((entry, position) => ({ ...entry, position }));
+  const relevant = all.relevant
+    .filter((entry) => entry.article.area === current.area)
+    .map((entry, position) => ({ ...entry, position }));
+  if (!developments.length && !relevant.length) return current;
+
+  const developmentIds = new Set(developments.map((entry) => entry.development.id));
+  return {
+    ...current,
+    developments,
+    relevant,
+    listen: current.listen.length
+      ? current.listen
+      : all.listen.filter((entry) => entry.item.area === current.area),
+    middayInsertions: (all.middayInsertions ?? []).filter((id) => developmentIds.has(id)),
+  };
+}
+
+export function readoutEditionPreferNonEmpty(
+  preferredValue: unknown,
+  fallbackValue: unknown,
+): ReadoutEditionSnapshot | null {
+  const preferred = editionSnapshot(preferredValue);
+  const fallback = editionSnapshot(fallbackValue);
+  if (!preferred) return fallback;
+  if (!fallback || preferred.editionDate !== fallback.editionDate || hasEditorialCards(preferred)) return preferred;
+  return hasEditorialCards(fallback) ? fallback : preferred;
+}
+
 export function readoutEditionHistoryIncludingCurrent(
   currentValue: unknown,
   historyValues: unknown[] = [],
