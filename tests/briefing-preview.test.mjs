@@ -406,6 +406,7 @@ test("card kickers pair specialty with one reliable tumor focus", () => {
   assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Adjuvant nivolumab in melanoma" }), "Skin · Melanoma");
   assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Non-melanoma skin cancer incidence" }), "Skin");
   assert.equal(editorialScopeLabel({ area: "All", site: "GI" }), "GI");
+  assert.equal(editorialScopeLabel({ area: "All", site: "GI", title: "Metastatic pancreatic cancer" }), "GI · Pancreatic");
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {

@@ -142,9 +142,13 @@ function inferredReadoutFocus(area: EditorialArea, text: string): string | null 
 
 export function editorialScopeLabel(item: { area: EditorialArea; site: string; title?: string; finding?: string }): string {
   let site = item.site.trim();
-  if (item.area === "All") return site || "Oncology";
+  const text = [item.title, item.finding].filter(Boolean).join(" ");
+  if (item.area === "All") {
+    const focus = inferredReadoutFocus(site as EditorialArea, text);
+    return focus ? `${site} · ${focus}` : site || "Oncology";
+  }
   if (!site || site === item.area || site === "Oncology") {
-    site = inferredReadoutFocus(item.area, [item.title, item.finding].filter(Boolean).join(" ")) ?? site;
+    site = inferredReadoutFocus(item.area, text) ?? site;
   }
   if (!site || site === item.area || site === "Oncology") return item.area;
   return site.startsWith(`${item.area} · `) ? site : `${item.area} · ${site}`;
