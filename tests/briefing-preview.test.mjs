@@ -219,6 +219,15 @@ test("an empty specialty slate inherits its cards from the same frozen All editi
   assert.deepEqual(merged.developments.map((entry) => entry.development.id), ["existing-gu"]);
   assert.deepEqual(merged.relevant.map((entry) => entry.article.id), ["another-gu-paper"],
     "a non-empty specialty still receives its labeled cards from All in the same section");
+
+  const hemePaper = { id: "heme-paper", area: "Heme", title: "Current Heme paper" };
+  const promoted = readoutSpecialtyEditionFromAll(
+    snapshot("Heme"),
+    snapshot("All", [], [hemePaper]),
+  );
+  assert.deepEqual(promoted.developments.map((entry) => entry.development.id), ["heme-paper"],
+    "a specialty with no main developments promotes its first relevant story");
+  assert.deepEqual(promoted.relevant, []);
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
@@ -227,6 +236,10 @@ test("seven-day edition history dedupes exact cards while preserving frozen dail
   assert.match(editionSnapshot, /sameEditorialArticle\(existing\.article, entry\.article\)/);
   assert.match(editionSnapshot, /left\.position - right\.position \|\| right\.editionDate\.localeCompare\(left\.editionDate\)/,
     "daily editorial position ranks first and the newer edition breaks ties");
+  assert.match(editionSnapshot, /snapshots\[0\]\?\.area !== "All" && developments\.length === 0 && relevant\.length > 0/,
+    "an archived specialty with no main story promotes its best qualifying relevant story");
+  assert.match(editionSnapshot, /const \[lead\] = relevant\.splice\(0, 1\)/);
+  assert.match(editionSnapshot, /development: lead\.article/);
   assert.match(editionSnapshot, /entry\.episode/,
     "archived featured episodes retain their exact playable audio metadata");
   assert.match(editionSnapshot, /displayedIds\.has\(entry\.development\.id\)/,
@@ -279,7 +292,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v8"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v9"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);

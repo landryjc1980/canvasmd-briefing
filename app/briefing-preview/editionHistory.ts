@@ -55,7 +55,15 @@ export function readoutSpecialtyEditionFromAll(
       relevant.push(entry);
     }
   }
-  if (developments.length === current.developments.length && relevant.length === current.relevant.length) return current;
+
+  let promotedRelevant = false;
+  if (developments.length === 0 && relevant.length > 0) {
+    const [lead] = relevant.splice(0, 1);
+    developments.push({ development: lead.article, episode: null, position: 0 });
+    promotedRelevant = true;
+  }
+  if (!promotedRelevant && developments.length === current.developments.length &&
+      relevant.length === current.relevant.length) return current;
 
   const positionedDevelopments = developments.map((entry, position) => ({ ...entry, position }));
   const positionedRelevant = relevant.map((entry, position) => ({ ...entry, position }));

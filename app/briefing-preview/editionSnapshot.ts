@@ -245,6 +245,16 @@ export function sevenDayEditionDevelopments(history: ReadoutEditionSnapshot[]) {
     }
   }
   developments.sort((left, right) => left.position - right.position || right.editionDate.localeCompare(left.editionDate));
+
+  if (snapshots[0]?.area !== "All" && developments.length === 0 && relevant.length > 0) {
+    const [lead] = relevant.splice(0, 1);
+    developments.push({
+      development: lead.article,
+      episode: null,
+      position: 0,
+      editionDate: lead.editionDate,
+    });
+  }
   return { developments: developments.map((entry) => entry.development), relevant: relevant.map((entry) => entry.article) };
 }
 
