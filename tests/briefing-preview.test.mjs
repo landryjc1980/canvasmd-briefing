@@ -32,8 +32,10 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /post\.thread \?\? \[\]/,
     "an authored thread may supply the substantive verbatim comment when its root is title-only");
   assert.match(preview, /isSubstantiveClinicianText/);
-  assert.match(preview, /posts\.slice\(0, 2\)/);
-  assert.match(preview, /\$\{extraComments\} more comment/);
+  assert.match(preview, /expanded \? posts\.slice\(1\) : \[\]/,
+    "the collapsed card keeps one preview while the expansion renders every remaining comment");
+  assert.doesNotMatch(preview, /previewPosts|posts\.slice\(0, 2\)/);
+  assert.match(preview, /\$\{extraComments\} more comment\$\{extraComments === 1/);
   assert.match(preview, /\{post\.text\}/);
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /article\?\.faces/);
@@ -42,7 +44,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
   assert.match(preview, /function shareCommentaryLabel/);
   assert.match(preview, /article\?\.authoredClinicianCount \?\? usefulPosts\(article\)\.length/,
-    "the compact card reports the full authored-comment count while rendering at most two receipts");
+    "the compact card reports the full authored-comment count");
   assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
   assert.match(preview, /1 commentary/);
   assert.match(preview, /clinician comments/);
@@ -265,7 +267,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v4"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v5"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);

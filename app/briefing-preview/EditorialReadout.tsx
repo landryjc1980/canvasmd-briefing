@@ -289,11 +289,10 @@ function PhysicianVoices({ article, sharedBy, expanded }: { article: BriefingArt
   if (!posts.length) {
     return sharedBy > 0 ? <p className="er-no-commentary">Shared, no commentary yet.</p> : null;
   }
-  const previewPosts = posts.slice(0, 2);
-  const lead = previewPosts[0];
-  const rest = expanded ? previewPosts.slice(1) : [];
+  const lead = posts[0];
+  const rest = expanded ? posts.slice(1) : [];
   return (
-    <div className={`er-convo ${previewPosts.length === 1 ? "is-single" : ""}`}>
+    <div className={`er-convo ${posts.length === 1 ? "is-single" : ""}`}>
       <p className="er-voices-label">What clinicians are saying</p>
       <Voice post={lead} />
       {rest.map((post, index) => (
@@ -449,7 +448,7 @@ function discloseLabel(item: EditorialArticle, primaryUrl: string, extraComments
   if (item.finding.trim()) parts.push(item.findingSource === "source" ? "Full source excerpt" : "Full summary");
   if (supportingEvidence.length) parts.push(supportingEvidence.map((link) => link.sourceLabel === "New England Journal of Medicine" ? "NEJM" : link.sourceLabel).join(", "));
   if (related.length) parts.push(`${related.length} related`);
-  if (extraComments > 0) parts.push(`${extraComments} more comment`);
+  if (extraComments > 0) parts.push(`${extraComments} more comment${extraComments === 1 ? "" : "s"}`);
   return parts.join(" · ") || "Show more";
 }
 
@@ -483,7 +482,7 @@ function ArticleDevelopment({
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const authoredCount = usefulPosts(article).length;
-  const extraComments = Math.max(0, Math.min(authoredCount, 2) - 1);
+  const extraComments = Math.max(0, authoredCount - 1);
   const canDisclose = Boolean(item.finding.trim()) || extraComments > 0 || Boolean(coverageSummary(item, href));
   return (
     <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
