@@ -165,8 +165,11 @@ export async function mergeCurrentReadoutEditionInsertions(now = new Date()) {
       await writeEditionRow(area, created);
       return { area, inserted: [] as string[], skipped: null, bootstrapped: true };
     }
-    const payload = await getCachedReadoutWindow(area, "today");
-    const merged = mergeReadoutEditionSnapshot(snapshot, payload, now);
+    const [payload, previousEditions] = await Promise.all([
+      getCachedReadoutWindow(area, "today"),
+      priorEditions(area, editionDate, []),
+    ]);
+    const merged = mergeReadoutEditionSnapshot(snapshot, payload, now, previousEditions);
     const inserted = (merged.middayInsertions ?? []).filter((id) => !(snapshot.middayInsertions ?? []).includes(id));
     const designationChanged = merged.designationCards.length !== snapshot.designationCards.length;
     const listenChanged = merged.listen.some((entry, index) =>

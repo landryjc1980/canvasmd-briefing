@@ -84,6 +84,10 @@ function sameArticleDevelopment(left: EditorialArticle, right: EditorialArticle)
   return sameEditorialArticle(left, right) || supportingSourceMatches(left, right) || supportingSourceMatches(right, left);
 }
 
+function sameMorningStory(left: EditorialArticle, right: EditorialArticle): boolean {
+  return left.id === right.id || sameEditorialArticle(left, right);
+}
+
 function uniqueDevelopments(items: EditorialDevelopment[]): EditorialDevelopment[] {
   return items.filter((item, index, all) => !all.slice(0, index).some((existing) => {
     if ("kind" in item || "kind" in existing) return sameEditorialDevelopment(item, existing);
@@ -116,15 +120,35 @@ function uniqueRelevant(items: EditorialArticle[], developments: EditorialDevelo
 }
 
 function appearedInMorningEdition(item: EditorialArticle, history: ReadoutEditionSnapshot[]): boolean {
-  return history.some((snapshot) => {
+  const priorEditionDate = history.reduce(
+    (latest, snapshot) => snapshot.editionDate > latest ? snapshot.editionDate : latest,
+    "",
+  );
+  for (const snapshot of history) {
     const middayIds = new Set(snapshot.middayInsertions ?? []);
-    return snapshot.developments.some((entry) =>
-      !middayIds.has(entry.development.id) &&
-      !isEpisodeDevelopment(entry.development) &&
-      sameArticleDevelopment(item, entry.development)) ||
-      snapshot.relevant.some((entry) =>
-        !middayIds.has(entry.article.id) && sameArticleDevelopment(item, entry.article));
-  });
+    const matches = [
+      ...snapshot.developments.flatMap((entry) =>
+        !isEpisodeDevelopment(entry.development) && sameMorningStory(item, entry.development)
+          ? [{ id: entry.development.id }]
+          : []),
+      ...snapshot.relevant.flatMap((entry) =>
+        sameMorningStory(item, entry.article) ? [{ id: entry.article.id }] : []),
+    ];
+    for (const match of matches) {
+      if (snapshot.editionDate === priorEditionDate && middayIds.has(match.id)) {
+        continue;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+function appearedInAnyEarlierEdition(item: EditorialArticle, history: ReadoutEditionSnapshot[]): boolean {
+  return history.some((snapshot) =>
+    snapshot.developments.some((entry) =>
+      !isEpisodeDevelopment(entry.development) && sameMorningStory(item, entry.development)) ||
+    snapshot.relevant.some((entry) => sameMorningStory(item, entry.article)));
 }
 
 export function buildReadoutEditionSnapshot(
@@ -185,10 +209,12 @@ export function mergeReadoutEditionSnapshot(
   snapshot: ReadoutEditionSnapshot,
   payload: ReadoutWindowPayload,
   now = new Date(),
+  previousEditions: ReadoutEditionSnapshot[] = [],
 ): ReadoutEditionSnapshot {
   const existingDevelopments = snapshot.developments.map((entry) => entry.development);
   const existingRelevant = snapshot.relevant.map((entry) => entry.article);
   const additions = liveInsertionDevelopments(payload, snapshot.area).filter((candidate) =>
+    !appearedInAnyEarlierEdition(candidate, previousEditions) &&
     !existingDevelopments.some((existing) => !("kind" in existing) && sameArticleDevelopment(candidate, existing)) &&
     !existingRelevant.some((existing) => sameArticleDevelopment(candidate, existing)));
   const newDesignations = (payload.designationCards ?? []).filter((candidate) =>

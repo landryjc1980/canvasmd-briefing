@@ -109,7 +109,10 @@ test("a midday insertion preserves every existing card while fresh evidence stay
   assert.match(editionSnapshot, /snapshot\.developments\.find\(\(entry\) => sameEditorialDevelopment\(entry\.development, development\)\)\?\.episode \?\? null/);
   assert.doesNotMatch(editionSnapshot, /overlay.*development|development.*overlay/i,
     "live evidence is never copied into frozen editorial card content");
-  assert.match(readoutEditionArchive, /mergeReadoutEditionSnapshot\(snapshot, payload, now\)/);
+  assert.match(editionSnapshot, /!appearedInAnyEarlierEdition\(candidate, previousEditions\)/,
+    "the hourly breaking merge cannot reinsert a story from an earlier edition");
+  assert.match(readoutEditionArchive, /priorEditions\(area, editionDate, \[\]\)/);
+  assert.match(readoutEditionArchive, /mergeReadoutEditionSnapshot\(snapshot, payload, now, previousEditions\)/);
   assert.match(readoutEditionArchive, /updateEditionRow\(merged\)/);
 });
 
@@ -249,10 +252,12 @@ test("seven-day edition history dedupes exact cards while preserving frozen dail
 
 test("a morning story does not repeat, while a prior midday insertion gets one next-day pass", () => {
   assert.match(editionSnapshot, /function appearedInMorningEdition/);
+  assert.match(editionSnapshot, /const priorEditionDate = history\.reduce/);
   assert.match(editionSnapshot, /const middayIds = new Set\(snapshot\.middayInsertions \?\? \[\]\)/);
-  assert.match(editionSnapshot, /!middayIds\.has\(entry\.development\.id\)/);
-  assert.match(editionSnapshot, /!middayIds\.has\(entry\.article\.id\)/,
-    "a breaking insertion displaced into Also Relevant still receives its one next-morning pass");
+  assert.match(editionSnapshot, /snapshot\.editionDate === priorEditionDate && middayIds\.has\(match\.id\)/,
+    "only an insertion from the immediately prior edition receives the one-morning exception");
+  assert.match(editionSnapshot, /function appearedInAnyEarlierEdition/,
+    "the hourly merge uses a stricter no-exception history gate");
   assert.match(editionSnapshot, /snapshot\.relevant\.some/);
   assert.ok((editionSnapshot.match(/filter\(\(item\) => !appearedInMorningEdition\(item, previousEditions\)\)/g) ?? []).length >= 2,
     "the no-repeat gate applies to both main stories and Also Relevant");
@@ -296,7 +301,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v11"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v12"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
