@@ -56,6 +56,17 @@ async function readEditionRow(area: EditionArea, editionDate: string): Promise<R
   return isReadoutEditionSnapshot(rows[0]?.card) ? rows[0].card : null;
 }
 
+async function readEditionRows(area: EditionArea): Promise<ReadoutEditionSnapshot[]> {
+  const { url, key } = supabaseServiceEnvironment();
+  const response = await fetch(
+    `${url}/rest/v1/readout_posts?select=card&kind=eq.edition&area=eq.${encodeURIComponent(area)}&order=last_seen.desc`,
+    { headers: supabaseApiKeyHeaders(key), cache: "no-store" },
+  );
+  if (!response.ok) throw new Error(`Edition history lookup returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  const rows = await response.json() as Array<{ card?: unknown }>;
+  return rows.map((row) => row.card).filter(isReadoutEditionSnapshot);
+}
+
 async function updateEditionRow(snapshot: ReadoutEditionSnapshot) {
   const { url, key } = supabaseServiceEnvironment();
   const tok = encodeURIComponent(`edition:v2:${snapshot.editionDate}:${snapshot.area}`);
@@ -72,24 +83,22 @@ async function updateEditionRow(snapshot: ReadoutEditionSnapshot) {
   if (!response.ok) throw new Error(`Edition update returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
 }
 
-function priorEditionDate(editionDate: string): string {
-  const date = new Date(`${editionDate}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-}
-
 async function priorEditions(
   area: EditionArea,
   editionDate: string,
   history: unknown[],
 ): Promise<ReadoutEditionSnapshot[]> {
-  const cached = history
+  const stored = await readEditionRows(area);
+  const candidates = [...stored, ...history.filter(isReadoutEditionSnapshot)]
     .filter(isReadoutEditionSnapshot)
     .filter((snapshot) => snapshot.editionDate < editionDate);
-  const previous = await readEditionRow(area, priorEditionDate(editionDate));
-  return previous && !cached.some((snapshot) => snapshot.editionDate === previous.editionDate)
-    ? [previous, ...cached]
-    : cached;
+  const seen = new Set<string>();
+  return candidates.filter((snapshot) => {
+    const key = `${snapshot.editionDate}:${snapshot.generatedAt}:${snapshot.area}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** Explicit, service-authenticated repair for a bad saved morning payload. */

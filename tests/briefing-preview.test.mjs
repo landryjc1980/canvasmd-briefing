@@ -251,8 +251,11 @@ test("a morning story does not repeat, while a prior midday insertion gets one n
   assert.match(editionSnapshot, /function appearedInMorningEdition/);
   assert.match(editionSnapshot, /const middayIds = new Set\(snapshot\.middayInsertions \?\? \[\]\)/);
   assert.match(editionSnapshot, /!middayIds\.has\(entry\.development\.id\)/);
+  assert.match(editionSnapshot, /!middayIds\.has\(entry\.article\.id\)/,
+    "a breaking insertion displaced into Also Relevant still receives its one next-morning pass");
   assert.match(editionSnapshot, /snapshot\.relevant\.some/);
-  assert.match(editionSnapshot, /filter\(\(item\) => !appearedInMorningEdition\(item, previousEditions\)\)/);
+  assert.ok((editionSnapshot.match(/filter\(\(item\) => !appearedInMorningEdition\(item, previousEditions\)\)/g) ?? []).length >= 2,
+    "the no-repeat gate applies to both main stories and Also Relevant");
 });
 
 test("the exact morning edition archive is DST-safe, idempotent, and service-only", () => {
@@ -330,8 +333,9 @@ test("the live archive includes independently identified top articles, not compa
   assert.match(heroPost, /archiveCardForArticle\(article\)/);
 });
 
-test("the morning archive reads yesterday's exact edition before deduplicating", () => {
-  assert.match(readoutEditionArchive, /readEditionRow\(area, priorEditionDate\(editionDate\)\)/);
+test("the morning archive reads every prior exact edition before deduplicating", () => {
+  assert.match(readoutEditionArchive, /readEditionRows\(area\)/);
+  assert.match(readoutEditionArchive, /snapshot\.editionDate < editionDate/);
   assert.match(readoutEditionArchive, /buildReadoutEditionSnapshot\([\s\S]*?previousEditions/);
 });
 

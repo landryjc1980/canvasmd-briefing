@@ -122,7 +122,8 @@ function appearedInMorningEdition(item: EditorialArticle, history: ReadoutEditio
       !middayIds.has(entry.development.id) &&
       !isEpisodeDevelopment(entry.development) &&
       sameArticleDevelopment(item, entry.development)) ||
-      snapshot.relevant.some((entry) => sameArticleDevelopment(item, entry.article));
+      snapshot.relevant.some((entry) =>
+        !middayIds.has(entry.article.id) && sameArticleDevelopment(item, entry.article));
   });
 }
 
@@ -137,7 +138,10 @@ export function buildReadoutEditionSnapshot(
   const developments: EditorialDevelopment[] = ranked.slice(0, 5);
   const relevant = uniqueRelevant([
     ...ranked.slice(5),
-    ...(payload.moreCards ?? []).map(archivedEditorialArticle).filter(renderableArticle),
+    ...(payload.moreCards ?? [])
+      .map(archivedEditorialArticle)
+      .filter(renderableArticle)
+      .filter((item) => !appearedInMorningEdition(item, previousEditions)),
   ], developments);
 
   const briefs = liveListenBriefs(payload);
