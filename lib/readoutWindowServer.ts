@@ -13,7 +13,7 @@ import {
   readoutSpecialtyEditionFromAll,
 } from "@/app/briefing-preview/editionHistory";
 
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v9";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v10";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {

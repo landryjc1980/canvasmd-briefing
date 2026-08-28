@@ -72,10 +72,29 @@ async function updateEditionRow(snapshot: ReadoutEditionSnapshot) {
   if (!response.ok) throw new Error(`Edition update returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
 }
 
-export async function archiveCurrentReadoutEdition(now = new Date()) {
-  const editionDate = etEditionDate(now);
-  if (etEditionHour(now) !== 6) return { editionDate, archived: [], skipped: "outside-6am-et" };
+function priorEditionDate(editionDate: string): string {
+  const date = new Date(`${editionDate}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
 
+async function priorEditions(
+  area: EditionArea,
+  editionDate: string,
+  history: unknown[],
+): Promise<ReadoutEditionSnapshot[]> {
+  const cached = history
+    .filter(isReadoutEditionSnapshot)
+    .filter((snapshot) => snapshot.editionDate < editionDate);
+  const previous = await readEditionRow(area, priorEditionDate(editionDate));
+  return previous && !cached.some((snapshot) => snapshot.editionDate === previous.editionDate)
+    ? [previous, ...cached]
+    : cached;
+}
+
+/** Explicit, service-authenticated repair for a bad saved morning payload. */
+export async function rebuildCurrentReadoutEdition(now = new Date()) {
+  const editionDate = activeReadoutEditionDate(now);
   const snapshots = await Promise.all(EDITION_AREAS.map(async (area) => {
     const [today, history] = await Promise.all([
       getCachedReadoutWindow(area, "today"),
@@ -85,7 +104,32 @@ export async function archiveCurrentReadoutEdition(now = new Date()) {
       area,
       today,
       now,
-      (history.editionHistory ?? []).filter(isReadoutEditionSnapshot),
+      await priorEditions(area, editionDate, history.editionHistory ?? []),
+    );
+  }));
+  await Promise.all(snapshots.map(async (snapshot) => {
+    const existing = await readEditionRow(snapshot.area, editionDate);
+    if (existing) await updateEditionRow(snapshot);
+    else await writeEditionRow(snapshot.area, snapshot);
+  }));
+  return { editionDate, rebuilt: snapshots.map((snapshot) => snapshot.area) };
+}
+
+export async function archiveCurrentReadoutEdition(now = new Date()) {
+  const editionDate = etEditionDate(now);
+  if (etEditionHour(now) !== 6) return { editionDate, archived: [], skipped: "outside-6am-et" };
+
+  const snapshots = await Promise.all(EDITION_AREAS.map(async (area) => {
+    const [today, history] = await Promise.all([
+      getCachedReadoutWindow(area, "today"),
+      getCachedReadoutWindow(area, "7d"),
+    ]);
+    const previousEditions = await priorEditions(area, editionDate, history.editionHistory ?? []);
+    return buildReadoutEditionSnapshot(
+      area,
+      today,
+      now,
+      previousEditions,
     );
   }));
   await Promise.all(snapshots.map((snapshot) => writeEditionRow(snapshot.area, snapshot)));
@@ -102,11 +146,12 @@ export async function mergeCurrentReadoutEditionInsertions(now = new Date()) {
         getCachedReadoutWindow(area, "today"),
         getCachedReadoutWindow(area, "7d"),
       ]);
+      const previousEditions = await priorEditions(area, editionDate, history.editionHistory ?? []);
       const created = buildReadoutEditionSnapshot(
         area,
         payload,
         now,
-        (history.editionHistory ?? []).filter(isReadoutEditionSnapshot),
+        previousEditions,
       );
       await writeEditionRow(area, created);
       return { area, inserted: [] as string[], skipped: null, bootstrapped: true };

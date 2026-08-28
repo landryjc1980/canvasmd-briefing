@@ -19,6 +19,7 @@ const readoutServer = read("lib/readoutWindowServer.ts");
 const readoutCacheRoute = read("app/api/readout-cache/route.ts");
 const readoutArchiveRoute = read("app/api/readout-archive/route.ts");
 const readoutEditionArchive = read("lib/readoutEditionArchive.ts");
+const heroPost = read("app/heroPost.ts");
 const editionSnapshot = read("app/briefing-preview/editionSnapshot.ts");
 const middleware = read("middleware.ts");
 const readoutNextPage = read("app/readout-next/page.tsx");
@@ -292,7 +293,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v9"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v10"/);
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
@@ -321,6 +322,23 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "an inserted midday card is included in the recached payload served to the next reader");
   assert.match(vercelConfig, /"\/api\/readout-cache"/);
   assert.match(vercelConfig, /"50 \* \* \* \*"/);
+});
+
+test("the live archive includes independently identified top articles, not company releases", () => {
+  assert.match(heroPost, /for \(const article of r\.data\?\.topArticles \?\? \[\]\)/);
+  assert.match(heroPost, /article\.peerReviewed !== true && !article\.doi && !article\.pmid/);
+  assert.match(heroPost, /archiveCardForArticle\(article\)/);
+});
+
+test("the morning archive reads yesterday's exact edition before deduplicating", () => {
+  assert.match(readoutEditionArchive, /readEditionRow\(area, priorEditionDate\(editionDate\)\)/);
+  assert.match(readoutEditionArchive, /buildReadoutEditionSnapshot\([\s\S]*?previousEditions/);
+});
+
+test("an authenticated repair can deterministically replace a bad saved morning edition", () => {
+  assert.match(readoutArchiveRoute, /req\.nextUrl\.searchParams\.get\("repair"\) === "1"/);
+  assert.match(readoutArchiveRoute, /rebuildCurrentReadoutEdition\(\)/);
+  assert.match(readoutEditionArchive, /export async function rebuildCurrentReadoutEdition/);
 });
 
 test("attached related coverage is compact, validated, and deduped from the primary source", () => {

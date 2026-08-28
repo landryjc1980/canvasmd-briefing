@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { archiveAllLive, pruneArchive, RETENTION_DAYS } from "@/app/heroPost";
-import { archiveCurrentReadoutEdition } from "@/lib/readoutEditionArchive";
+import { archiveCurrentReadoutEdition, rebuildCurrentReadoutEdition } from "@/lib/readoutEditionArchive";
 import { READOUT_WINDOW_CACHE_TAG, warmReadoutWindowCache } from "@/lib/readoutWindowServer";
 import { etEditionHour } from "@/app/briefing-preview/readoutRequest";
 
@@ -26,12 +26,15 @@ export async function GET(req: NextRequest) {
   }
   const archived = await archiveAllLive();
   let warmed: Awaited<ReturnType<typeof warmReadoutWindowCache>> = [];
-  if (etEditionHour(new Date()) === 6) {
+  const repair = req.nextUrl.searchParams.get("repair") === "1";
+  if (repair || etEditionHour(new Date()) === 6) {
     revalidateTag(READOUT_WINDOW_CACHE_TAG);
     warmed = await warmReadoutWindowCache();
   }
-  const edition = await archiveCurrentReadoutEdition();
-  if (edition.archived.length > 0) {
+  const edition = repair
+    ? await rebuildCurrentReadoutEdition()
+    : await archiveCurrentReadoutEdition();
+  if (("archived" in edition && edition.archived.length > 0) || ("rebuilt" in edition && edition.rebuilt.length > 0)) {
     revalidateTag(READOUT_WINDOW_CACHE_TAG);
     warmed = await warmReadoutWindowCache();
   }
