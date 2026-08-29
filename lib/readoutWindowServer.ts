@@ -33,6 +33,20 @@ function windowCacheToken(area: EditionArea, window: ReadoutWindow) {
   return `readout-window:v2:${area}:${window}`;
 }
 
+function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
+  return `readout-window:finished:v1:${area}:${window}`;
+}
+
+function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
+  return {
+    ...payload,
+    overlays: (payload.overlays ?? []).map((overlay) => ({
+      ...overlay,
+      posts: overlay.posts.slice(0, 1),
+    })),
+  };
+}
+
 async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
   const { url, key } = supabaseServiceEnvironment();
   const response = await fetch(`${url}/rest/v1/readout_posts?on_conflict=tok`, {
@@ -59,6 +73,42 @@ async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, p
 async function readLastGoodWindow(area: EditionArea, window: ReadoutWindow): Promise<ReadoutWindowPayload | null> {
   const { url, key } = supabaseServiceEnvironment();
   const tok = encodeURIComponent(windowCacheToken(area, window));
+  const response = await fetch(`${url}/rest/v1/readout_posts?select=card&tok=eq.${tok}&limit=1`, {
+    headers: supabaseApiKeyHeaders(key),
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const rows = await response.json() as Array<{ card?: ReadoutWindowPayload }>;
+  const payload = rows[0]?.card;
+  return payload?.area === area && payload.windowDays === readoutWindowDays(window) ? payload : null;
+}
+
+async function persistFinishedWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
+  const { url, key } = supabaseServiceEnvironment();
+  const response = await fetch(`${url}/rest/v1/readout_posts?on_conflict=tok`, {
+    method: "POST",
+    headers: {
+      ...supabaseApiKeyHeaders(key),
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify([{
+      tok: finishedWindowCacheToken(area, window),
+      area,
+      kind: "window-cache",
+      headline: `Finished Readout window ${area} ${window}`,
+      card: payload,
+      evidence: {},
+      last_seen: payload.generatedAt,
+    }]),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Finished Readout cache write returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+}
+
+async function readFinishedWindow(area: EditionArea, window: ReadoutWindow): Promise<ReadoutWindowPayload | null> {
+  const { url, key } = supabaseServiceEnvironment();
+  const tok = encodeURIComponent(finishedWindowCacheToken(area, window));
   const response = await fetch(`${url}/rest/v1/readout_posts?select=card&tok=eq.${tok}&limit=1`, {
     headers: supabaseApiKeyHeaders(key),
     cache: "no-store",
@@ -116,7 +166,7 @@ function mergeEvidenceOverlays(today: ReadoutWindowPayload, history: ReadoutWind
   ]).values()];
 }
 
-export async function getCachedReadoutWindow(
+async function buildFinishedReadoutWindow(
   area: EditionArea,
   window: ReadoutWindow,
 ): Promise<ReadoutWindowPayload> {
@@ -127,24 +177,42 @@ export async function getCachedReadoutWindow(
     resolveReadoutTodayEdition(area, today),
     resolveReadoutTodayEdition("All", allToday),
   );
-  if (window === "today") return {
+  if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,
     stale: payload.stale === true || allToday.stale === true,
-  };
+  });
 
   const editionHistory = readoutEditionHistoryIncludingCurrent(
     currentEdition,
     payload.editionHistory ?? [],
   );
-  return {
+  return compactWindowPayload({
     ...payload,
     currentEdition,
     editionHistory,
     historyDays: new Set(editionHistory.map((snapshot) => snapshot.editionDate)).size,
     overlays: mergeEvidenceOverlays(today, payload),
     stale: payload.stale === true || today.stale === true || allToday.stale === true,
-  };
+  });
+}
+
+const fetchFinishedReadoutWindow = unstable_cache(
+  async (area: EditionArea, window: ReadoutWindow) => readFinishedWindow(area, window),
+  ["readout-window-finished-v1"],
+  { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
+);
+
+export async function getCachedReadoutWindow(
+  area: EditionArea,
+  window: ReadoutWindow,
+): Promise<ReadoutWindowPayload> {
+  const finished = await fetchFinishedReadoutWindow(area, window);
+  if (finished) return finished;
+
+  const rebuilt = await buildFinishedReadoutWindow(area, window);
+  await persistFinishedWindow(area, window, rebuilt);
+  return rebuilt;
 }
 
 export async function warmReadoutWindowCache() {
@@ -155,7 +223,8 @@ export async function warmReadoutWindowCache() {
     const batch = requests.slice(index, index + 4);
     const results = await Promise.all(batch.map(async ({ area, window }) => {
       try {
-        const payload = await getCachedReadoutWindow(area, window);
+        const payload = await buildFinishedReadoutWindow(area, window);
+        await persistFinishedWindow(area, window, payload);
         return { area, window, generatedAt: payload.generatedAt, stale: payload.stale === true };
       } catch (error) {
         return { area, window, generatedAt: null, stale: true, error: error instanceof Error ? error.message : "Unknown refresh error" };

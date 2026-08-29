@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { BriefingArticle, BriefingData, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
+import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import {
   isReadoutEditionSnapshot,
   liveListenBriefs,
@@ -47,6 +47,42 @@ const AREA_LABELS: Record<EditionArea, string> = {
 
 const SHARER_PREVIEW_LIMIT = 3;
 const EMPTY_BRIEFS: BriefingData[] = [];
+const fullOverlayCache = new Map<string, Promise<BriefingEvidenceOverlayItem | null>>();
+
+function loadFullEvidenceOverlay(item: EditorialArticle): Promise<BriefingEvidenceOverlayItem | null> {
+  const cached = fullOverlayCache.get(item.id);
+  if (cached) return cached;
+  const request = fetch("/api/briefing", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      mode: "evidence-overlay",
+      windowHours: 168,
+      cards: [{
+        id: item.id,
+        title: item.title,
+        url: item.url,
+        doi: item.match.doi,
+        pmid: item.match.pmid,
+        titleIncludes: item.match.titleIncludes,
+        articleIds: item.articleIds ?? [],
+      }],
+    }),
+    cache: "no-store",
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Evidence details returned ${response.status}.`);
+    const payload = await response.json() as BriefingEvidenceOverlay;
+    return payload.overlays.find((overlay) => overlay.id === item.id) ?? null;
+  }).then((overlay) => {
+    if (!overlay) fullOverlayCache.delete(item.id);
+    return overlay;
+  }).catch(() => {
+    fullOverlayCache.delete(item.id);
+    return null;
+  });
+  fullOverlayCache.set(item.id, request);
+  return request;
+}
 
 function CanvasMdLogo() {
   return (
@@ -241,7 +277,8 @@ function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; share
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
   const others = Math.max(0, sharedBy - named.length);
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
-  const availableComments = usefulPosts(article).length;
+  const loadedComments = usefulPosts(article).length;
+  const availableComments = Math.max(loadedComments, article?.authoredClinicianCount ?? 0);
   const proof = shareCommentaryLabel(sharedBy, article?.authoredClinicianCount ?? availableComments, availableComments);
   return (
     <div className="er-peers">
@@ -288,7 +325,19 @@ function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean 
   );
 }
 
-function PhysicianVoices({ article, sharedBy, expanded }: { article: BriefingArticle | null; sharedBy: number; expanded: boolean }) {
+function PhysicianVoices({
+  article,
+  sharedBy,
+  expanded,
+  loadingMore = false,
+  loadFailed = false,
+}: {
+  article: BriefingArticle | null;
+  sharedBy: number;
+  expanded: boolean;
+  loadingMore?: boolean;
+  loadFailed?: boolean;
+}) {
   const posts = usefulPosts(article);
   if (!posts.length) {
     if ((article?.authoredClinicianCount ?? 0) > 0) {
@@ -305,6 +354,8 @@ function PhysicianVoices({ article, sharedBy, expanded }: { article: BriefingArt
       {rest.map((post, index) => (
         <Voice post={post} extra key={`${post.handle ?? post.name}-${index}`} />
       ))}
+      {expanded && loadingMore && <p className="er-no-commentary" role="status">Loading remaining comments...</p>}
+      {expanded && loadFailed && <p className="er-no-commentary">The remaining comments could not be loaded.</p>}
     </div>
   );
 }
@@ -484,15 +535,30 @@ function ArticleDevelopment({
   numbered?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const overlay = overlays.get(item.id);
+  const [detailOverlay, setDetailOverlay] = useState<BriefingEvidenceOverlayItem | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailLoadFailed, setDetailLoadFailed] = useState(false);
+  const overlay = detailOverlay ?? overlays.get(item.id);
   const article = articleWithLiveEvidence(item, briefs, overlay);
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
   const actionDate = contentType === "Paper" ? null : editionDateLabel(item.occurredOn);
   const authoredCount = usefulPosts(article).length;
-  const extraComments = Math.max(0, authoredCount - 1);
+  const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
+  const extraComments = Math.max(0, availableComments - 1);
   const canDisclose = Boolean(item.finding.trim()) || extraComments > 0 || Boolean(coverageSummary(item, href));
+  const toggleDisclosure = () => {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (!nextOpen || detailOverlay || loadingDetails || authoredCount >= availableComments) return;
+    setLoadingDetails(true);
+    setDetailLoadFailed(false);
+    loadFullEvidenceOverlay(item).then((details) => {
+      if (details) setDetailOverlay(details);
+      else setDetailLoadFailed(true);
+    }).finally(() => setLoadingDetails(false));
+  };
   return (
     <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
       <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>
@@ -508,8 +574,8 @@ function ArticleDevelopment({
       {overlay
         ? <PeerRow article={article} sharedBy={sharedBy} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
-      {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} />}
-      {canDisclose && <Disclose open={open} label={discloseLabel(item, href, extraComments)} onToggle={() => setOpen((value) => !value)} />}
+      {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
+      {canDisclose && <Disclose open={open} label={discloseLabel(item, href, extraComments)} onToggle={toggleDisclosure} />}
     </article>
   );
 }
@@ -636,6 +702,26 @@ function payloadKey(area: EditionArea, window: ReadoutWindow) {
   return `${area}:${readoutWindowDays(window)}`;
 }
 
+const readoutPayloadInflight = new Map<string, Promise<ReadoutWindowPayload>>();
+
+function fetchReadoutPayload(area: EditionArea, window: ReadoutWindow): Promise<ReadoutWindowPayload> {
+  const key = payloadKey(area, window);
+  const existing = readoutPayloadInflight.get(key);
+  if (existing) return existing;
+  const request = fetch("/api/briefing", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "readout-window", area, days: readoutWindowDays(window) }),
+    cache: "no-store",
+  }).then(async (response) => {
+    if (response.ok) return response.json() as Promise<ReadoutWindowPayload>;
+    const detail = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(detail?.error || `The Readout returned ${response.status}.`);
+  }).finally(() => readoutPayloadInflight.delete(key));
+  readoutPayloadInflight.set(key, request);
+  return request;
+}
+
 function editionDateLabel(value: string | null | undefined) {
   if (!value) return null;
   const parsed = new Date(`${value}T12:00:00-04:00`);
@@ -651,6 +737,8 @@ function editionDateLabel(value: string | null | undefined) {
 export default function EditorialReadout({ initialPayload }: { initialPayload: ReadoutWindowPayload }) {
   const [area, setArea] = useState<EditionArea>("All");
   const [readoutWindow, setReadoutWindow] = useState<ReadoutWindow>("today");
+  const [requestedArea, setRequestedArea] = useState<EditionArea>("All");
+  const [requestedWindow, setRequestedWindow] = useState<ReadoutWindow>("today");
   const [windowPayload, setWindowPayload] = useState<ReadoutWindowPayload | null>(initialPayload);
   const [loadingWindow, setLoadingWindow] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -660,36 +748,71 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const payloadCache = useRef(new Map<string, ReadoutWindowPayload>([[payloadKey("All", "today"), initialPayload]]));
 
   useEffect(() => {
-    const key = payloadKey(area, readoutWindow);
+    const key = payloadKey(requestedArea, requestedWindow);
     const cached = payloadCache.current.get(key);
     if (cached) {
+      setArea(requestedArea);
+      setReadoutWindow(requestedWindow);
       setWindowPayload(cached);
       setLoadingWindow(false);
       setLoadError(null);
       return;
     }
     let cancelled = false;
-    setWindowPayload(null);
     setLoadingWindow(true);
     setLoadError(null);
-    fetch("/api/briefing", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ mode: "readout-window", area, days: readoutWindowDays(readoutWindow) }),
-      cache: "no-store",
-    }).then(async (response) => {
-      if (response.ok) return response.json() as Promise<ReadoutWindowPayload>;
-      const detail = await response.json().catch(() => null) as { error?: string } | null;
-      throw new Error(detail?.error || `The Readout returned ${response.status}.`);
-    }).then((payload) => {
+    fetchReadoutPayload(requestedArea, requestedWindow).then((payload) => {
       if (cancelled) return;
       payloadCache.current.set(key, payload);
+      setArea(requestedArea);
+      setReadoutWindow(requestedWindow);
       setWindowPayload(payload);
     })
       .catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : "The Readout could not be loaded."); })
       .finally(() => { if (!cancelled) setLoadingWindow(false); });
     return () => { cancelled = true; };
-  }, [area, readoutWindow, retryVersion]);
+  }, [requestedArea, requestedWindow, retryVersion]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const queue: Array<[EditionArea, ReadoutWindow]> = [
+          ["All", "7d"],
+          ...EDITION_AREAS.filter((candidate) => candidate !== "All")
+            .map((candidate): [EditionArea, ReadoutWindow] => [candidate, "today"]),
+        ];
+        for (const [candidateArea, candidateWindow] of queue) {
+          if (cancelled) return;
+          const key = payloadKey(candidateArea, candidateWindow);
+          if (payloadCache.current.has(key)) continue;
+          try {
+            const payload = await fetchReadoutPayload(candidateArea, candidateWindow);
+            if (!cancelled) payloadCache.current.set(key, payload);
+          } catch {
+            // A speculative fetch never changes the visible page or its retry state.
+          }
+        }
+      })();
+    }, 600);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (area === "All") return;
+    const otherWindow: ReadoutWindow = readoutWindow === "today" ? "7d" : "today";
+    const key = payloadKey(area, otherWindow);
+    if (payloadCache.current.has(key)) return;
+    const timer = window.setTimeout(() => {
+      void fetchReadoutPayload(area, otherWindow)
+        .then((payload) => payloadCache.current.set(key, payload))
+        .catch(() => {});
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [area, readoutWindow]);
 
   const editionHistory = useMemo(() => {
     const history = (windowPayload?.editionHistory ?? []).filter(isReadoutEditionSnapshot);
@@ -730,7 +853,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const activeEvidenceOverlays = payloadEvidenceOverlays;
   const worth = currentWorth;
   const usingFallback = readoutWindow === "today" && (todayEdition?.fallbackWindowHours ?? windowPayload?.fallbackWindowHours) === 72;
-  const pageReady = !loadingWindow && !!windowPayload;
+  const pageReady = !!windowPayload;
   const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
     !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
 
@@ -756,29 +879,22 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     : null;
 
   const chooseArea = (candidate: EditionArea) => {
-    if (candidate === area) return;
-    const cached = payloadCache.current.get(payloadKey(candidate, readoutWindow)) ?? null;
-    setArea(candidate);
-    setWindowPayload(cached);
-    setLoadingWindow(!cached);
+    if (candidate === requestedArea) return;
+    setRequestedArea(candidate);
     setLoadError(null);
     setAlsoOpen(false);
     setMoreOpen(false);
   };
 
   const chooseWindow = (candidate: ReadoutWindow) => {
-    if (candidate === readoutWindow) return;
-    const cached = payloadCache.current.get(payloadKey(area, candidate)) ?? null;
-    setReadoutWindow(candidate);
-    setWindowPayload(cached);
-    setLoadingWindow(!cached);
+    if (candidate === requestedWindow) return;
+    setRequestedWindow(candidate);
     setLoadError(null);
     setMoreOpen(false);
   };
 
   const retryLoad = () => {
-    payloadCache.current.delete(payloadKey(area, readoutWindow));
-    setWindowPayload(null);
+    payloadCache.current.delete(payloadKey(requestedArea, requestedWindow));
     setLoadingWindow(true);
     setLoadError(null);
     setRetryVersion((value) => value + 1);
@@ -792,7 +908,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         </div>
         <nav className="er-filters" aria-label="Tumor area">
           {EDITION_AREAS.map((candidate) => (
-            <button key={candidate} type="button" aria-pressed={candidate === area} className={candidate === area ? "active" : ""} onClick={() => chooseArea(candidate)}>
+            <button key={candidate} type="button" aria-pressed={candidate === requestedArea} className={candidate === requestedArea ? "active" : ""} onClick={() => chooseArea(candidate)}>
               {candidate}
             </button>
           ))}
@@ -807,15 +923,17 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             <p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing.</p>
             {displayedEditionDate && <p className="er-edition-date">Edition: {displayedEditionDate}</p>}
           </div>
-          <div className="er-window-tabs" role="tablist" aria-label="Readout window">
-            <button type="button" role="tab" aria-selected={readoutWindow === "today"} className={readoutWindow === "today" ? "active" : ""} onClick={() => chooseWindow("today")}>Today</button>
-            <button type="button" role="tab" aria-selected={readoutWindow === "7d"} className={readoutWindow === "7d" ? "active" : ""} onClick={() => chooseWindow("7d")}>7 days</button>
+          <div className="er-window-tabs" role="tablist" aria-label="Readout window" aria-busy={loadingWindow}>
+            <button type="button" role="tab" aria-selected={requestedWindow === "today"} className={requestedWindow === "today" ? "active" : ""} onClick={() => chooseWindow("today")}>Today</button>
+            <button type="button" role="tab" aria-selected={requestedWindow === "7d"} className={requestedWindow === "7d" ? "active" : ""} onClick={() => chooseWindow("7d")}>7 days</button>
           </div>
         </div>
+        {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} archived morning edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
-        {loadError ? <div className="er-load-error" role="alert"><p>The Readout could not load this view.</p><button type="button" onClick={retryLoad}>Try again</button></div> : !pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
+        {loadError && <div className="er-load-error" role="alert"><p>The selected view could not load.</p><button type="button" onClick={retryLoad}>Try again</button></div>}
+        {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">
             <p>Nothing new cleared the bar in {AREA_LABELS[area]} today.</p>
             <button className="er-empty-history" type="button" onClick={() => chooseWindow("7d")}>See the last 7 days <span aria-hidden="true">&rarr;</span></button>

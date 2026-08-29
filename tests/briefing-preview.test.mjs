@@ -70,7 +70,11 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /const base = overlay \? findArticle\(item, briefs\) \?\? articleFromEditorial\(item\) : articleFromEditorial\(item\)/);
   assert.doesNotMatch(preview, /applyEvidenceOverlay\(findArticle\(item, briefs\)/);
   assert.match(preview, /windowPayload\?\.overlays/);
-  assert.doesNotMatch(preview, /EVIDENCE_REFRESH_MS|mode: "evidence-overlay"/);
+  assert.doesNotMatch(preview, /EVIDENCE_REFRESH_MS/);
+  assert.match(preview, /function loadFullEvidenceOverlay/);
+  assert.match(preview, /mode: "evidence-overlay"/);
+  assert.match(preview, /if \(!nextOpen \|\| detailOverlay \|\| loadingDetails \|\| authoredCount >= availableComments\) return/,
+    "full comment bodies load only when the reader expands a card that has more comments");
   assert.doesNotMatch(preview, /window\.setInterval|window\.addEventListener\("focus"/);
   assert.match(edition, /articleEvidencePool/);
   assert.match(edition, /brief\.topStories/);
@@ -118,7 +122,7 @@ test("a midday insertion preserves every existing card while fresh evidence stay
 
 test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(preview, /mode: "readout-window"/);
-  assert.match(preview, /days: readoutWindowDays\(readoutWindow\)/);
+  assert.match(preview, /days: readoutWindowDays\(window\)/);
   assert.match(preview, /windowPayload\?\.editionHistory/);
   assert.match(preview, /windowPayload\?\.historyDays/);
   assert.match(preview, /sevenDayEditionDevelopments\(editionHistory\)/);
@@ -139,9 +143,9 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
     "the backend discloses the earned 72-hour specialty fallback without a client-side static slate");
   assert.match(preview, /setLoadingWindow\(true\)/);
   assert.match(preview, /<ReadoutLoading \/>/);
-  assert.match(preview, /const pageReady = !loadingWindow/);
-  assert.match(preview, /const pageReady = !loadingWindow && !!windowPayload/,
-    "one missing evidence overlay cannot blank the saved edition");
+  assert.match(preview, /const pageReady = !!windowPayload/);
+  assert.doesNotMatch(preview, /setWindowPayload\(null\)/,
+    "the current edition remains visible while another view loads");
   assert.match(preview, /kolSharers: overlay\.kolSharers/, "the visible Shared by count comes from lifetime overlay evidence");
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.doesNotMatch(preview, /archivedEditorialArticle/,
@@ -294,14 +298,25 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(readoutNextPage, /catch\(\(\) => null\)/);
   assert.match(readoutNextPage, /initialPayload=\{initialPayload\}/);
   assert.match(preview, /useState<ReadoutWindowPayload \| null>\(initialPayload\)/);
-  assert.match(preview, /body: JSON\.stringify\(\{ mode: "readout-window", area, days: readoutWindowDays\(readoutWindow\) \}\)/);
+  assert.match(preview, /body: JSON\.stringify\(\{ mode: "readout-window", area, days: readoutWindowDays\(window\) \}\)/);
   assert.doesNotMatch(preview, /cards: windowEvidenceTargets/);
   assert.match(preview, /payloadCache\.current\.get\(key\)/,
     "already visited tabs reuse their server-cached payload instead of flashing another skeleton");
+  assert.match(preview, /\["All", "7d"\]/,
+    "the most likely next view is prefetched after the initial paint");
+  assert.match(preview, /EDITION_AREAS\.filter/,
+    "specialty Today views prefetch in the background");
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
   assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v12"/);
+  assert.match(readoutServer, /readout-window:finished:v1:\$\{area\}:\$\{window\}/,
+    "each reader selection resolves to one finished prebuilt payload");
+  assert.match(readoutServer, /const finished = await fetchFinishedReadoutWindow\(area, window\)/);
+  assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload\)/,
+    "the scheduled warmer writes all finished views before readers request them");
+  assert.match(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
+    "finished views carry the featured comment while expanded comments load on demand");
   assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
@@ -317,7 +332,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "a successful source read is not replaced by an older payload when persistence fails");
   assert.match(readoutServer, /readLastGoodWindow/);
   assert.match(readoutServer, /return \{ \.\.\.fallback, stale: true \}/);
-  assert.match(readoutServer, /try \{[\s\S]*?getCachedReadoutWindow\(area, window\)[\s\S]*?catch \(error\)/,
+  assert.match(readoutServer, /try \{[\s\S]*?buildFinishedReadoutWindow\(area, window\)[\s\S]*?persistFinishedWindow\(area, window, payload\)[\s\S]*?catch \(error\)/,
     "one failed area is recorded without aborting the remaining cache warm");
   const postRoute = briefingRoute.slice(briefingRoute.indexOf("export async function POST"));
   assert.match(postRoute, /const key = process\.env\.SUPABASE_SERVICE_ROLE_KEY/,
