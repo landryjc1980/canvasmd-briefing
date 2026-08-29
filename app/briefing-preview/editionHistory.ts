@@ -3,6 +3,10 @@ import type { ReadoutEditionSnapshot } from "./editionSnapshot";
 type SnapshotDevelopment = ReadoutEditionSnapshot["developments"][number]["development"];
 type SnapshotArticle = ReadoutEditionSnapshot["relevant"][number]["article"];
 
+function isSnapshotArticle(value: SnapshotDevelopment): value is SnapshotArticle {
+  return !("kind" in value);
+}
+
 const snapshotTextKey = (value: string | null | undefined): string =>
   String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -32,61 +36,102 @@ function hasEditorialCards(snapshot: ReadoutEditionSnapshot): boolean {
   return snapshot.developments.length > 0 || snapshot.relevant.length > 0;
 }
 
-export function readoutSpecialtyEditionFromAll(
-  currentValue: unknown,
+function candidateAreas(value: unknown): string[] {
+  const areas = (value as { areas?: unknown } | null)?.areas;
+  return Array.isArray(areas) ? areas.filter((area): area is string => typeof area === "string") : [];
+}
+
+/**
+ * A specialty is a lens over the one canonical All edition. It never owns a
+ * second archive. Matching canonical cards are promoted into the specialty's
+ * lead section first, with the remainder preserved as Also Relevant.
+ */
+export function readoutEditionForArea(
   allValue: unknown,
+  area: ReadoutEditionSnapshot["area"],
 ): ReadoutEditionSnapshot | null {
-  const current = editionSnapshot(currentValue);
   const all = editionSnapshot(allValue);
-  if (!current || current.area === "All" || !all ||
-      all.area !== "All" || all.editionDate !== current.editionDate) return current;
+  if (!all || all.area !== "All") return null;
+  if (area === "All") return all;
 
-  const developments = [...current.developments];
-  for (const entry of all.developments.filter((candidate) => candidate.development.area === current.area)) {
-    if (!developments.some((existing) => sameSnapshotDevelopment(existing.development, entry.development))) {
-      developments.push(entry);
-    }
-  }
-  const relevant = [...current.relevant];
-  for (const entry of all.relevant.filter((candidate) => candidate.article.area === current.area)) {
-    if (!developments.some((existing) => !("kind" in existing.development) &&
-        sameSnapshotArticle(existing.development, entry.article)) &&
-        !relevant.some((existing) => sameSnapshotArticle(existing.article, entry.article))) {
-      relevant.push(entry);
-    }
-  }
+  const matchingDevelopments = all.developments
+    .filter((entry) => entry.development.area === area);
+  const matchingRelevant = all.relevant
+    .filter((entry) => entry.article.area === area)
+    .filter((entry) => !matchingDevelopments.some((existing) =>
+      !("kind" in existing.development) && sameSnapshotArticle(existing.development, entry.article)));
+  const allMatching = [
+    ...matchingDevelopments,
+    ...matchingRelevant.map((entry) => ({ development: entry.article, episode: null, position: entry.position })),
+  ].filter((entry, index, entries) => !entries.slice(0, index).some((existing) =>
+    sameSnapshotDevelopment(existing.development, entry.development)));
+  const developments = allMatching.slice(0, 5)
+    .map((entry, position) => ({ ...entry, position }));
+  const relevant = allMatching.slice(5)
+    .flatMap((entry) => "kind" in entry.development ? [] : [{ article: entry.development, position: 0 }])
+    .map((entry, position) => ({ ...entry, position }));
+  const includedIds = new Set(developments.map((entry) => entry.development.id));
 
-  let promotedRelevant = false;
-  if (developments.length === 0 && relevant.length > 0) {
-    const [lead] = relevant.splice(0, 1);
-    developments.push({ development: lead.article, episode: null, position: 0 });
-    promotedRelevant = true;
-  }
-  if (!promotedRelevant && developments.length === current.developments.length &&
-      relevant.length === current.relevant.length) return current;
-
-  const positionedDevelopments = developments.map((entry, position) => ({ ...entry, position }));
-  const positionedRelevant = relevant.map((entry, position) => ({ ...entry, position }));
-
-  const developmentIds = new Set(positionedDevelopments.map((entry) => entry.development.id));
-  const listen = [...current.listen];
-  const listenKeys = new Set(listen.map((entry) => entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
-  for (const entry of all.listen.filter((candidate) => candidate.item.area === current.area)) {
-    const key = entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase();
-    if (!listenKeys.has(key)) {
-      listenKeys.add(key);
-      listen.push(entry);
-    }
-  }
   return {
-    ...current,
-    developments: positionedDevelopments,
-    relevant: positionedRelevant,
+    ...all,
+    area,
+    developments,
+    relevant,
+    listen: all.listen.filter((entry) => entry.item.area === area),
+    regulatoryCards: all.regulatoryCards.filter((candidate) => candidateAreas(candidate).includes(area)),
+    designationCards: all.designationCards.filter((candidate) => candidateAreas(candidate).includes(area)),
+    middayInsertions: (all.middayInsertions ?? []).filter((id) => includedIds.has(id)),
+  };
+}
+
+/** Merge the exact per-area copies created by the old implementation into one
+ * canonical daily edition. The All ordering remains authoritative; specialty
+ * cards that were absent from All are appended to its complete remainder. */
+export function canonicalReadoutEditionSnapshot(
+  values: unknown[],
+): ReadoutEditionSnapshot | null {
+  const snapshots = values.map(editionSnapshot).filter((value): value is ReadoutEditionSnapshot => !!value);
+  const all = snapshots.find((snapshot) => snapshot.area === "All");
+  if (!all) return null;
+
+  const developments = [...all.developments];
+  const relevant = [...all.relevant];
+  for (const snapshot of snapshots.filter((candidate) => candidate.area !== "All")) {
+    for (const entry of snapshot.developments) {
+      const article = entry.development;
+      if (!isSnapshotArticle(article)) continue;
+      if (developments.some((existing) => sameSnapshotDevelopment(existing.development, article)) ||
+          relevant.some((existing) => sameSnapshotArticle(existing.article, article))) continue;
+      relevant.push({ article, position: relevant.length });
+    }
+    for (const entry of snapshot.relevant) {
+      if (developments.some((existing) => !("kind" in existing.development) &&
+          sameSnapshotArticle(existing.development, entry.article)) ||
+          relevant.some((existing) => sameSnapshotArticle(existing.article, entry.article))) continue;
+      relevant.push({ article: entry.article, position: relevant.length });
+    }
+  }
+
+  const listen = [...all.listen];
+  const listenKeys = new Set(listen.map((entry) => entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
+  for (const entry of snapshots.filter((candidate) => candidate.area !== "All").flatMap((snapshot) => snapshot.listen)) {
+    const key = entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase();
+    if (listenKeys.has(key)) continue;
+    listenKeys.add(key);
+    listen.push(entry);
+  }
+  const byId = <T extends { id: string }>(items: T[]): T[] =>
+    items.filter((item, index) => items.findIndex((candidate) => candidate.id === item.id) === index);
+
+  return {
+    ...all,
+    developments: developments.map((entry, position) => ({ ...entry, position })),
+    relevant: relevant.map((entry, position) => ({ ...entry, position })),
     listen,
-    middayInsertions: [...new Set([
-      ...(current.middayInsertions ?? []),
-      ...(all.middayInsertions ?? []).filter((id) => developmentIds.has(id)),
-    ])],
+    regulatoryCards: byId(snapshots.flatMap((snapshot) => snapshot.regulatoryCards)),
+    designationCards: byId(snapshots.flatMap((snapshot) => snapshot.designationCards)),
+    middayInsertions: [...new Set(snapshots.flatMap((snapshot) => snapshot.middayInsertions ?? []))],
+    updatedAt: snapshots.map((snapshot) => snapshot.updatedAt ?? snapshot.generatedAt).sort().at(-1),
   };
 }
 

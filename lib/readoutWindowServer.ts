@@ -9,11 +9,11 @@ import {
 import { EDITION_AREAS, type EditionArea } from "@/app/briefing-preview/edition";
 import { resolveReadoutTodayEdition } from "@/app/briefing-preview/editionSnapshot";
 import {
+  readoutEditionForArea,
   readoutEditionHistoryIncludingCurrent,
-  readoutSpecialtyEditionFromAll,
 } from "@/app/briefing-preview/editionHistory";
 
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v12";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v13";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -159,11 +159,9 @@ const fetchReadoutWindow = unstable_cache(
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
-function mergeEvidenceOverlays(today: ReadoutWindowPayload, history: ReadoutWindowPayload) {
-  return [...new Map([
-    ...(today.overlays ?? []).map((overlay) => [overlay.id, overlay] as const),
-    ...(history.overlays ?? []).map((overlay) => [overlay.id, overlay] as const),
-  ]).values()];
+function mergeEvidenceOverlays(...payloads: ReadoutWindowPayload[]) {
+  return [...new Map(payloads.flatMap((payload) =>
+    (payload.overlays ?? []).map((overlay) => [overlay.id, overlay] as const))).values()];
 }
 
 async function buildFinishedReadoutWindow(
@@ -173,27 +171,29 @@ async function buildFinishedReadoutWindow(
   const payload = await fetchReadoutWindow(area, window, "[]");
   const today = window === "today" ? payload : await fetchReadoutWindow(area, "today", "[]");
   const allToday = area === "All" ? today : await fetchReadoutWindow("All", "today", "[]");
-  const currentEdition = readoutSpecialtyEditionFromAll(
-    resolveReadoutTodayEdition(area, today),
-    resolveReadoutTodayEdition("All", allToday),
-  );
+  const canonicalCurrent = resolveReadoutTodayEdition("All", allToday);
+  const currentEdition = readoutEditionForArea(canonicalCurrent, area);
   if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,
     stale: payload.stale === true || allToday.stale === true,
   });
 
-  const editionHistory = readoutEditionHistoryIncludingCurrent(
-    currentEdition,
-    payload.editionHistory ?? [],
+  const allHistory = area === "All" ? payload : await fetchReadoutWindow("All", "7d", "[]");
+  const canonicalHistory = readoutEditionHistoryIncludingCurrent(
+    canonicalCurrent,
+    allHistory.editionHistory ?? [],
   );
+  const editionHistory = canonicalHistory
+    .map((snapshot) => readoutEditionForArea(snapshot, area))
+    .filter((snapshot): snapshot is NonNullable<typeof snapshot> => !!snapshot);
   return compactWindowPayload({
     ...payload,
     currentEdition,
     editionHistory,
     historyDays: new Set(editionHistory.map((snapshot) => snapshot.editionDate)).size,
-    overlays: mergeEvidenceOverlays(today, payload),
-    stale: payload.stale === true || today.stale === true || allToday.stale === true,
+    overlays: mergeEvidenceOverlays(today, payload, allHistory),
+    stale: payload.stale === true || today.stale === true || allToday.stale === true || allHistory.stale === true,
   });
 }
 

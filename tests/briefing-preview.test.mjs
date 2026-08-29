@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { FEATURED_EPISODES, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
+  canonicalReadoutEditionSnapshot,
+  readoutEditionForArea,
   readoutEditionHistoryIncludingCurrent,
-  readoutEditionPreferNonEmpty,
-  readoutSpecialtyEditionFromAll,
 } from "../app/briefing-preview/editionHistory.ts";
 import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest.ts";
 
@@ -115,12 +115,13 @@ test("a midday insertion preserves every existing card while fresh evidence stay
     "live evidence is never copied into frozen editorial card content");
   assert.match(editionSnapshot, /!appearedInAnyEarlierEdition\(candidate, previousEditions\)/,
     "the hourly breaking merge cannot reinsert a story from an earlier edition");
-  assert.match(readoutEditionArchive, /priorEditions\(area, editionDate, \[\]\)/);
-  assert.match(readoutEditionArchive, /mergeReadoutEditionSnapshot\(snapshot, payload, now, previousEditions\)/);
+  assert.match(readoutEditionArchive, /priorEditions\(editionDate, \[\]\)/);
+  assert.match(readoutEditionArchive, /mergeReadoutEditionSnapshot\(currentForArea, payload, now, previousForArea\)/);
+  assert.match(readoutEditionArchive, /canonicalReadoutEditionSnapshot\(mergedByArea\)/);
   assert.match(readoutEditionArchive, /updateEditionRow\(merged\)/);
 });
 
-test("the 7-day tab reads exact morning editions and never quota-fills", () => {
+test("the 7-day tab reads exact daily editions and never quota-fills", () => {
   assert.match(preview, /mode: "readout-window"/);
   assert.match(preview, /days: readoutWindowDays\(window\)/);
   assert.match(preview, /windowPayload\?\.editionHistory/);
@@ -130,7 +131,7 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
     "the initial seven-day scan remains capped at five");
   assert.match(preview, /<button type="button" role="tab"[^>]*onClick=\{\(\) => chooseWindow\("7d"\)\}>7 days<\/button>/,
     "the archive remains reachable while its first seven morning editions accumulate");
-  assert.match(preview, /Showing \{historyDays\} archived morning edition/);
+  assert.match(preview, /Showing \{historyDays\} daily edition/);
   assert.match(preview, /More from the last 7 days/);
   assert.match(preview, /aria-expanded=\{moreOpen\}/);
   assert.match(preview, /moreFromSevenDays\.map\(\(item\)/,
@@ -153,9 +154,12 @@ test("the 7-day tab reads exact morning editions and never quota-fills", () => {
   assert.match(preview, /sevenDayEditionListen\(editionHistory, currentWorth\)/,
     "Listen comes from the exact daily selections and retains featured episodes outside the top five");
   assert.match(briefingRoute, /"readout-window"/);
-  assert.match(readoutServer, /resolveReadoutTodayEdition\(area, today\)/);
   assert.match(readoutServer, /resolveReadoutTodayEdition\("All", allToday\)/,
-    "a specialty edition projects matching cards from the same frozen All edition");
+    "the one canonical daily edition is the source for every lens");
+  assert.match(readoutServer, /readoutEditionForArea\(canonicalCurrent, area\)/,
+    "Today is a specialty filter over the canonical edition");
+  assert.match(readoutServer, /readoutEditionForArea\(snapshot, area\)/,
+    "each archived day is filtered through the same specialty lens");
   assert.match(readoutServer, /readoutEditionHistoryIncludingCurrent/);
   assert.match(preview, /payloadCache\.current\.get\(payloadKey\(area, "today"\)\)/,
     "the seven-day view includes the exact Today edition the reader just saw");
@@ -194,48 +198,34 @@ test("seven days starts with Today and replaces a stale copy of the same edition
   );
 });
 
-test("an empty specialty slate inherits its cards from the same frozen All edition", () => {
-  const paper = { id: "gu-paper", area: "GU", title: "Current GU paper" };
+test("one canonical daily edition supplies every specialty lens", () => {
+  const article = (id, area) => ({ id, area, title: `${area} ${id}`, url: `https://example.com/${id}` });
   const snapshot = (area, developments = [], relevant = []) => ({
     schemaVersion: 2,
-    editionDate: "2026-08-27",
-    generatedAt: "2026-08-27T10:05:00.000Z",
+    editionDate: "2026-08-29",
+    generatedAt: "2026-08-29T10:05:00.000Z",
     area,
     developments: developments.map((development, position) => ({ development, episode: null, position })),
-    relevant: relevant.map((article, position) => ({ article, position })),
+    relevant: relevant.map((item, position) => ({ article: item, position })),
     listen: [],
     regulatoryCards: [],
     designationCards: [],
   });
-  const emptyGu = snapshot("GU");
-  const projected = readoutSpecialtyEditionFromAll(
-    emptyGu,
-    snapshot("All", [paper, { id: "lung-paper", area: "Lung", title: "Lung paper" }]),
-  );
+  const guStories = [1, 2, 3, 4].map((id) => article(`gu-${id}`, "GU"));
+  const canonical = canonicalReadoutEditionSnapshot([
+    snapshot("All", [article("gi-lead", "GI")]),
+    snapshot("GU", guStories),
+  ]);
+  assert.ok(canonical);
+  assert.equal(canonical.area, "All");
+  assert.deepEqual(canonical.relevant.map((entry) => entry.article.id), guStories.map((item) => item.id));
 
-  assert.equal(projected.area, "GU");
-  assert.deepEqual(projected.developments.map((entry) => entry.development), [paper]);
-  assert.equal(
-    readoutEditionPreferNonEmpty(emptyGu, projected).developments[0].development.title,
-    "Current GU paper",
-    "a cached empty Today payload cannot hide the populated Today carried by seven days",
-  );
-
-  const existing = snapshot("GU", [{ id: "existing-gu", area: "GU", title: "Existing GU paper" }]);
-  const allRelevant = { id: "another-gu-paper", area: "GU", title: "Another GU paper" };
-  const merged = readoutSpecialtyEditionFromAll(existing, snapshot("All", [], [allRelevant]));
-  assert.deepEqual(merged.developments.map((entry) => entry.development.id), ["existing-gu"]);
-  assert.deepEqual(merged.relevant.map((entry) => entry.article.id), ["another-gu-paper"],
-    "a non-empty specialty still receives its labeled cards from All in the same section");
-
-  const hemePaper = { id: "heme-paper", area: "Heme", title: "Current Heme paper" };
-  const promoted = readoutSpecialtyEditionFromAll(
-    snapshot("Heme"),
-    snapshot("All", [], [hemePaper]),
-  );
-  assert.deepEqual(promoted.developments.map((entry) => entry.development.id), ["heme-paper"],
-    "a specialty with no main developments promotes its first relevant story");
-  assert.deepEqual(promoted.relevant, []);
+  const gu = readoutEditionForArea(canonical, "GU");
+  assert.ok(gu);
+  assert.deepEqual(gu.developments.map((entry) => entry.development.id), guStories.map((item) => item.id),
+    "the GU lens shows all four GU stories saved in the canonical daily edition");
+  assert.deepEqual(gu.relevant, []);
+  assert.deepEqual(readoutEditionForArea(canonical, "GI").developments.map((entry) => entry.development.id), ["gi-lead"]);
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
@@ -267,7 +257,7 @@ test("a morning story does not repeat, while a prior midday insertion gets one n
     "the no-repeat gate applies to both main stories and Also Relevant");
 });
 
-test("the exact morning edition archive is DST-safe, idempotent, and service-only", () => {
+test("the canonical daily edition is DST-safe, idempotent, and service-only", () => {
   assert.match(readoutRequest, /timeZone: "America\/New_York"/);
   assert.match(readoutRequest, /hourCycle: "h23"/);
   assert.match(editionSnapshot, /developments: developments\.map/);
@@ -275,7 +265,9 @@ test("the exact morning edition archive is DST-safe, idempotent, and service-onl
   assert.match(editionSnapshot, /listenItems\.map/);
   assert.match(readoutEditionArchive, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(readoutEditionArchive, /kind: "edition"/);
-  assert.match(readoutEditionArchive, /edition:v2:\$\{snapshot\.editionDate\}:\$\{area\}/);
+  assert.match(readoutEditionArchive, /edition:v2:\$\{snapshot\.editionDate\}:All/);
+  assert.match(readoutEditionArchive, /canonicalReadoutEditionSnapshot\(snapshots\)/,
+    "the saved edition consolidates every specialty into one canonical day");
   assert.match(readoutEditionArchive, /resolution=ignore-duplicates/);
   assert.match(readoutEditionArchive, /etEditionHour\(now\) !== 6/);
   assert.match(readoutArchiveRoute, /archiveCurrentReadoutEdition\(\)/);
@@ -309,7 +301,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v12"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v13"/);
   assert.match(readoutServer, /readout-window:finished:v1:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
   assert.match(readoutServer, /const finished = await fetchFinishedReadoutWindow\(area, window\)/);
@@ -353,10 +345,10 @@ test("the live archive includes independently identified top articles, not compa
   assert.match(heroPost, /archiveCardForArticle\(article\)/);
 });
 
-test("the morning archive reads every prior exact edition before deduplicating", () => {
-  assert.match(readoutEditionArchive, /readEditionRows\(area\)/);
+test("the daily archive reads every prior canonical edition before deduplicating", () => {
+  assert.match(readoutEditionArchive, /readEditionRows\(\)/);
   assert.match(readoutEditionArchive, /snapshot\.editionDate < editionDate/);
-  assert.match(readoutEditionArchive, /buildReadoutEditionSnapshot\([\s\S]*?previousEditions/);
+  assert.match(readoutEditionArchive, /buildReadoutEditionSnapshot\([\s\S]*?previousForArea/);
 });
 
 test("an authenticated repair can deterministically replace a bad saved morning edition", () => {
