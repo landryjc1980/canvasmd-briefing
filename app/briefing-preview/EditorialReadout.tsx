@@ -544,6 +544,7 @@ function ArticleDevelopment({
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
   const actionDate = contentType === "Paper" ? null : editionDateLabel(item.occurredOn);
+  const publishedDate = contentType === "Paper" ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
   const extraComments = Math.max(0, availableComments - 1);
@@ -567,6 +568,13 @@ function ArticleDevelopment({
         <p className="er-action-date">Action date: {actionDate
           ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
           : "Unavailable"}</p>
+      )}
+      {/* "Today" means shared-today, not published-today — a paper can re-enter on renewed
+          clinician attention days after it appeared. The publication date keeps that honest.
+          Papers show a date ONLY when the source carries one (no "Unavailable" filler): an
+          action date is a claim regulators answer for, a missing journal date is just missing. */}
+      {contentType === "Paper" && publishedDate && (
+        <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       )}
       <DevelopmentFinding text={item.finding} label={excerptLabel(item)} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
@@ -852,7 +860,6 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   );
   const activeEvidenceOverlays = payloadEvidenceOverlays;
   const worth = currentWorth;
-  const usingFallback = readoutWindow === "today" && (todayEdition?.fallbackWindowHours ?? windowPayload?.fallbackWindowHours) === 72;
   const pageReady = !!windowPayload;
   const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
     !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
@@ -931,7 +938,12 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
-        {pageReady && usingFallback && <p className="er-window-note">No new development cleared the bar in 24 hours. Showing the strongest qualifying development from the past 72 hours.</p>}
+        {/* LEGACY DISCLOSURE ONLY. The 72-hour specialty rescue is removed (the edge fn now
+            always returns fallbackWindowHours: null), but a morning edition FROZEN before the
+            cutover can still carry a rescued story for up to a day — and it must stay labeled
+            for as long as it renders. This line dies naturally with the last pre-cutover
+            edition; new editions can never re-arm it. */}
+        {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">This edition was assembled before today&rsquo;s cutoff change and may include a development from the past 72 hours.</p>}
         {loadError && <div className="er-load-error" role="alert"><p>The selected view could not load.</p><button type="button" onClick={retryLoad}>Try again</button></div>}
         {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">

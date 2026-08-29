@@ -434,6 +434,42 @@ export function sameEditorialDevelopment(left: EditorialDevelopment, right: Edit
 
 export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
 
+// Structured abstracts lead with BACKGROUND — the one section that tells a clinician nothing.
+// Prefer what the study FOUND: the RESULTS/FINDINGS section, with CONCLUSIONS/INTERPRETATION
+// appended while it fits. Unstructured text passes through untouched, so this is a no-op for
+// prose descriptions. Mirrors the edge fn's regulatoryResultsExcerpt (readoutWindow.ts), which
+// already does this for regulatory cards — papers were the surface still leading with throat-
+// clearing (Fable review + Codex concurrence, 2026-08-29).
+const ABSTRACT_SECTION = /(?:^|\n|(?<=[.?!])\s)([A-Z][A-Z /&-]{3,40})\s*:\s*/g;
+const EXCERPT_BOUND = 1100;
+
+function boundExcerpt(text: string): string {
+  if (text.length <= EXCERPT_BOUND) return text;
+  const bounded = text.slice(0, EXCERPT_BOUND);
+  const sentenceEnd = Math.max(bounded.lastIndexOf(". "), bounded.lastIndexOf("? "), bounded.lastIndexOf("! "));
+  return (sentenceEnd >= 300 ? bounded.slice(0, sentenceEnd + 1) : bounded).trim();
+}
+
+export function readoutFindingExcerpt(value: string): string {
+  const text = cleanReadoutExcerpt(value);
+  const sections: Array<{ name: string; body: string }> = [];
+  const matches = [...text.matchAll(ABSTRACT_SECTION)];
+  for (const [index, match] of matches.entries()) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = index + 1 < matches.length ? matches[index + 1].index ?? text.length : text.length;
+    const body = text.slice(start, end).replace(/\s+/g, " ").trim();
+    if (body) sections.push({ name: match[1].trim().toUpperCase(), body });
+  }
+  if (!sections.length) return boundExcerpt(text);
+  const named = (names: string[]) => sections.find((section) => names.some((name) => section.name === name || section.name.startsWith(`${name} `)))?.body ?? null;
+  const results = named(["RESULTS", "FINDINGS"]);
+  const conclusion = named(["CONCLUSIONS", "CONCLUSION", "INTERPRETATION"]);
+  const picked = [results, conclusion].filter((section): section is string => !!section).join(" ");
+  // A structured abstract with neither section (all BACKGROUND/METHODS) keeps its full text —
+  // an empty finding would be worse than a weak one.
+  return boundExcerpt(picked || text);
+}
+
 export function cleanReadoutExcerpt(value: string): string {
   return value
     .replace(/\b(?:RISK STRATIFICATION|KEY FINDINGS):\s*/gi, "")
@@ -468,7 +504,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     site,
     nickname: card.kind === "event" ? "REGULATORY" : "",
     takeaway: card.headline,
-    finding: sourceFinding ? cleanReadoutExcerpt(sourceFinding) : "",
+    finding: sourceFinding ? readoutFindingExcerpt(sourceFinding) : "",
     findingSource: sourceFinding ? "source" : undefined,
     findingLabel: sourceFinding ? findingLabel : undefined,
     remember: ARCHIVED_TAKEAWAY_FALLBACK,
@@ -481,7 +517,10 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     articleIds,
     primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
     relatedCoverage: supportLinks,
-    occurredOn: card.occurredOn ?? null,
+    // Papers carry their date on the primary-source link (archiveCardForArticle stamps
+    // occurredAt = publishedAt); events carry it on the card. Either way it is a REAL source
+    // date or null — never derived, so the UI can promise "only show a date we actually have".
+    occurredOn: card.occurredOn ?? primarySource?.occurredAt ?? null,
   };
 }
 
@@ -547,7 +586,7 @@ export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate, ar
     site: candidate.areas[0] ?? "Oncology",
     nickname: "BREAKING",
     takeaway: candidate.headline,
-    finding: candidate.excerpt ? cleanReadoutExcerpt(candidate.excerpt) : "",
+    finding: candidate.excerpt ? readoutFindingExcerpt(candidate.excerpt) : "",
     findingSource: candidate.excerpt ? "source" : undefined,
     findingLabel: candidate.excerpt ? `From ${candidate.excerptSourceLabel}` : undefined,
     remember: "",

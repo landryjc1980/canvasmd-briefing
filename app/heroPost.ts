@@ -167,8 +167,17 @@ export function archiveCardForArticle(article: BriefingArticle): RankedHeroCard 
       firstTouchAt: null,
       lastTouchAt: null,
     },
-    rankTotal: article.kolSharers,
-    rankTrace: [{ input: "clinicianSharers", value: article.kolSharers, weight: 1, contribution: article.kolSharers }],
+    // ⚠️ MIRROR: weight 10 is RANK_WEIGHTS.clinicianSharers from the engine
+    // (canvasmd supabase/functions/_shared/heroCards.ts — SIGNED CONSTANTS, John+Codex
+    // 2026-08-08). Archived topArticles cards share one ranking pool with engine hero cards
+    // (readoutWindow.ts sorts and dedupes on rankTotal), so they must score on the SAME scale.
+    // Stamping the raw sharer count here (weight 1) under-ranked these cards ~10× — a paper
+    // 20 clinicians shared lost to a hero card with 4 sharers and a few likes. Only the
+    // clinician channel is mirrored, deliberately: the minor channels (publishers, likes,
+    // verified author) would drift, and their omission errs LOW — an archive-sourced card can
+    // rank slightly under, never over, its engine-scored equivalent.
+    rankTotal: article.kolSharers * 10,
+    rankTrace: [{ input: "clinicianSharers", value: article.kolSharers, weight: 10, contribution: article.kolSharers * 10 }],
   };
 }
 

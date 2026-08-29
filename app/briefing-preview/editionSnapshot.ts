@@ -35,6 +35,7 @@ export type ReadoutEditionSnapshot = {
   designationCards: ReadoutWindowPayload["designationCards"];
   updatedAt?: string;
   middayInsertions?: string[];
+  // retained on the TYPE only: frozen editions archived before 2026-08-29 carry it
   fallbackWindowHours?: number | null;
 };
 
@@ -187,7 +188,6 @@ export function buildReadoutEditionSnapshot(
     listen,
     regulatoryCards: payload.regulatoryCards,
     designationCards: payload.designationCards,
-    fallbackWindowHours: payload.fallbackWindowHours ?? null,
   };
 }
 

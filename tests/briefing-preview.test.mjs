@@ -140,8 +140,10 @@ test("the 7-day tab reads exact daily editions and never quota-fills", () => {
     "the expanded remainder is not given another arbitrary cap");
   assert.match(preview, /const relevant = useMemo\(\(\) => readoutWindow === "7d"/,
     "the static Today-only Also Relevant slate does not compete with the seven-day remainder");
-  assert.match(preview, /fallbackWindowHours/,
-    "the backend discloses the earned 72-hour specialty fallback without a client-side static slate");
+  assert.doesNotMatch(preview, /windowPayload\?\.fallbackWindowHours/,
+    "no live payload can arm the 72-hour rescue note — the backend always returns null now");
+  assert.match(preview, /todayEdition\?\.fallbackWindowHours === 72/,
+    "a morning edition FROZEN before the cutover stays labeled for as long as it renders");
   assert.match(preview, /setLoadingWindow\(true\)/);
   assert.match(preview, /<ReadoutLoading \/>/);
   assert.match(preview, /const pageReady = !!windowPayload/);
@@ -607,8 +609,11 @@ test("specialty filters are lenses on the same earned briefing", () => {
   }
   assert.match(edition, /area === "All" \? items : items\.filter/);
   assert.match(edition, /SPECIALTY_FALLBACKS/);
-  assert.match(preview, /No new development cleared the bar in 24 hours/);
-  assert.match(preview, /Showing the strongest qualifying development from the past 72 hours/);
+  // A quiet specialty day stays quiet (72h rescue removed 2026-08-29): the honest empty
+  // state names the area and routes to the 7-day view rather than widening the window.
+  assert.doesNotMatch(preview, /Showing the strongest qualifying development from the past 72 hours/);
+  assert.match(preview, /Nothing new cleared the bar in \{AREA_LABELS\[area\]\} today\./);
+  assert.match(preview, /See the last 7 days/);
 });
 
 test("All can carry oncology-wide developments without leaking them into specialty tabs", () => {
