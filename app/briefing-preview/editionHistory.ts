@@ -131,6 +131,10 @@ export function canonicalReadoutEditionSnapshot(
     regulatoryCards: byId(snapshots.flatMap((snapshot) => snapshot.regulatoryCards)),
     designationCards: byId(snapshots.flatMap((snapshot) => snapshot.designationCards)),
     middayInsertions: [...new Set(snapshots.flatMap((snapshot) => snapshot.middayInsertions ?? []))],
+    // Old specialty snapshots can truthfully disclose the retired 72-hour rescue even when the
+    // contemporaneous All snapshot did not use it. Preserve that fact through consolidation and
+    // every specialty projection; new backend snapshots always carry null.
+    fallbackWindowHours: snapshots.some((snapshot) => snapshot.fallbackWindowHours === 72) ? 72 : null,
     updatedAt: snapshots.map((snapshot) => snapshot.updatedAt ?? snapshot.generatedAt).sort().at(-1),
   };
 }

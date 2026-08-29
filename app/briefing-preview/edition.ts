@@ -73,6 +73,11 @@ const READOUT_FOCUS_LABELS: Record<string, string> = {
   hcc: "Liver (HCC)",
   esophageal: "Esophageal",
   net: "NET/GIST",
+  cns: "CNS",
+  sarcoma: "Sarcoma",
+  pediatric: "Pediatric oncology",
+  head_neck: "Head & neck",
+  thyroid: "Thyroid",
   nsclc: "NSCLC",
   sclc: "SCLC",
   pulmonary_net: "Pulmonary NETs",
@@ -597,6 +602,7 @@ export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate, ar
     sharedBy: candidate.metrics.totalSharers,
     match: { doi: candidate.doi ?? undefined, pmid: candidate.pmid ?? undefined, titleIncludes: candidate.headline },
     articleIds: candidate.articleIds,
+    occurredOn: candidate.pubDate,
   };
 }
 

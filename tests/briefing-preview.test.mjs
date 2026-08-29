@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
   readoutEditionHistoryIncludingCurrent,
 } from "../app/briefing-preview/editionHistory.ts";
+import { archiveCardForArticle } from "../app/archiveCard.ts";
 import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -20,6 +21,7 @@ const readoutCacheRoute = read("app/api/readout-cache/route.ts");
 const readoutArchiveRoute = read("app/api/readout-archive/route.ts");
 const readoutEditionArchive = read("lib/readoutEditionArchive.ts");
 const heroPost = read("app/heroPost.ts");
+const archiveCard = read("app/archiveCard.ts");
 const editionSnapshot = read("app/briefing-preview/editionSnapshot.ts");
 const middleware = read("middleware.ts");
 const readoutNextPage = read("app/readout-next/page.tsx");
@@ -200,7 +202,7 @@ test("seven days starts with Today and replaces a stale copy of the same edition
   );
 });
 
-test("one canonical daily edition supplies every specialty lens", () => {
+test("one complete canonical daily edition supplies every specialty lens without an admission cap", () => {
   const article = (id, area) => ({ id, area, title: `${area} ${id}`, url: `https://example.com/${id}` });
   const snapshot = (area, developments = [], relevant = []) => ({
     schemaVersion: 2,
@@ -213,21 +215,116 @@ test("one canonical daily edition supplies every specialty lens", () => {
     regulatoryCards: [],
     designationCards: [],
   });
-  const guStories = [1, 2, 3, 4].map((id) => article(`gu-${id}`, "GU"));
+  const allLeads = ["GI", "Lung", "Breast", "Heme", "Gyn"].map((area, index) => article(`lead-${index + 1}`, area));
+  const guStories = [1, 2, 3, 4, 5, 6, 7].map((id) => article(`gu-${id}`, "GU"));
+  const cnsStory = { ...article("cns-1", "All"), site: "CNS" };
   const canonical = canonicalReadoutEditionSnapshot([
-    snapshot("All", [article("gi-lead", "GI")]),
+    snapshot("All", allLeads, [cnsStory]),
     snapshot("GU", guStories),
   ]);
   assert.ok(canonical);
   assert.equal(canonical.area, "All");
-  assert.deepEqual(canonical.relevant.map((entry) => entry.article.id), guStories.map((item) => item.id));
+  assert.deepEqual(canonical.developments.map((entry) => entry.development.id), allLeads.map((item) => item.id));
+  assert.deepEqual(canonical.relevant.map((entry) => entry.article.id), [cnsStory.id, ...guStories.map((item) => item.id)],
+    "five higher-ranked All stories do not delete the displaced GU supply or the unsupported-area paper");
 
   const gu = readoutEditionForArea(canonical, "GU");
   assert.ok(gu);
-  assert.deepEqual(gu.developments.map((entry) => entry.development.id), guStories.map((item) => item.id),
-    "the GU lens shows all four GU stories saved in the canonical daily edition");
-  assert.deepEqual(gu.relevant, []);
-  assert.deepEqual(readoutEditionForArea(canonical, "GI").developments.map((entry) => entry.development.id), ["gi-lead"]);
+  assert.deepEqual(gu.developments.map((entry) => entry.development.id), guStories.slice(0, 5).map((item) => item.id));
+  assert.deepEqual(gu.relevant.map((entry) => entry.article.id), guStories.slice(5).map((item) => item.id),
+    "all seven GU papers survive the specialty lens as five leads plus two under More");
+  assert.equal(readoutEditionForArea(canonical, "GI").developments.some((entry) => entry.development.id === cnsStory.id), false);
+  assert.equal(readoutEditionForArea(canonical, "Heme").developments.some((entry) => entry.development.id === cnsStory.id), false,
+    "an unsupported-area paper does not leak into an unrelated specialty");
+  const [sevenDayGu] = readoutEditionHistoryIncludingCurrent(gu, []);
+  assert.deepEqual(
+    [
+      ...sevenDayGu.developments.map((entry) => entry.development),
+      ...sevenDayGu.relevant.map((entry) => entry.article),
+    ].map((item) => item.id),
+    guStories.map((item) => item.id),
+    "the exact daily archive and seven-day union retain every displaced specialty story",
+  );
+});
+
+test("legacy fallback disclosure survives canonical consolidation and specialty projection", () => {
+  const snapshot = (area, fallbackWindowHours) => ({
+    schemaVersion: 2,
+    editionDate: "2026-08-28",
+    generatedAt: "2026-08-28T10:05:00.000Z",
+    area,
+    developments: [],
+    relevant: [],
+    listen: [],
+    regulatoryCards: [],
+    designationCards: [],
+    fallbackWindowHours,
+  });
+  const canonical = canonicalReadoutEditionSnapshot([snapshot("All", null), snapshot("GU", 72)]);
+  assert.equal(canonical?.fallbackWindowHours, 72);
+  assert.equal(readoutEditionForArea(canonical, "GU")?.fallbackWindowHours, 72);
+});
+
+test("paper archive ranking uses the signed clinician weight", () => {
+  const card = archiveCardForArticle({
+    title: "Practice-changing paper",
+    url: "https://doi.org/10.1000/readout",
+    journal: "Journal of Oncology",
+    domain: "example.org",
+    doi: "10.1000/readout",
+    pmid: null,
+    peerReviewed: true,
+    kolSharers: 4,
+    publishedAt: "2026-08-28",
+  });
+  assert.ok(card);
+  assert.equal(card.rankTotal, 40);
+  assert.deepEqual(card.rankTrace.find((entry) => entry.input === "clinicianSharers"), {
+    input: "clinicianSharers", value: 4, weight: 10, contribution: 40,
+  });
+});
+
+test("Readout finding excerpts select results sections without inventing findings", () => {
+  assert.equal(
+    readoutFindingExcerpt("BACKGROUND: Context. RESULTS: OS improved. CONCLUSIONS: Benefit confirmed."),
+    "OS improved. Benefit confirmed.",
+  );
+  assert.equal(
+    readoutFindingExcerpt("BACKGROUND: Context. FINDINGS: Responses deepened. INTERPRETATION: Activity was durable. FUNDING: Sponsor."),
+    "Responses deepened. Activity was durable.",
+  );
+  assert.equal(readoutFindingExcerpt("Unstructured source prose stays intact."), "Unstructured source prose stays intact.");
+  assert.equal(
+    readoutFindingExcerpt("BACKGROUND: Context only. METHODS: Patients were enrolled."),
+    "BACKGROUND: Context only. METHODS: Patients were enrolled.",
+  );
+});
+
+test("archived and breaking papers retain reliable publication dates", () => {
+  const archived = archivedEditorialArticle({
+    area: "GU",
+    card: {
+      id: "paper:dated", kind: "paper", anchorId: "dated", headline: "Dated paper", why: "",
+      sourceLabel: "Journal", url: "https://example.com/dated", excerpt: "RESULTS: Benefit.", excerptVerbatim: false,
+      drugTags: [], nct: null, doi: null, eventId: null, siblings: [], rankTrace: [], rankTotal: 30, counts: {},
+      support: { clinicianPosts: [], publisherPosts: [], otherPosts: [], links: [{
+        id: "11111111-1111-1111-1111-111111111111", kind: "paper", title: "Dated paper",
+        url: "https://example.com/dated", sourceLabel: "Journal", relationshipType: "primary_source",
+        occurredAt: "2026-08-27",
+      }] },
+    },
+    evidence: {}, firstSeen: "2026-08-28T12:00:00Z", lastSeen: "2026-08-28T12:00:00Z",
+  });
+  assert.equal(archived.occurredOn, "2026-08-27");
+
+  const breaking = breakingEditorialArticle({
+    id: "breaking:dated", kind: "paper", headline: "Breaking paper", sourceLabel: "Journal",
+    url: "https://example.com/breaking", doi: null, pmid: "123", pubDate: "2026-08-29",
+    areas: ["GU"], articleIds: ["22222222-2222-2222-2222-222222222222"], excerpt: null,
+    excerptSourceLabel: "Journal", metrics: { clinicians: 3, cliniciansFeedEligible: 1, reposters: 0,
+      totalSharers: 6, lastSharedAt: "2026-08-29T15:00:00Z", recentClinicians: 6, previousClinicians: 0 },
+  }, "GU");
+  assert.equal(breaking.occurredOn, "2026-08-29");
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
@@ -343,7 +440,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
 
 test("the live archive includes independently identified top articles, not company releases", () => {
   assert.match(heroPost, /for \(const article of r\.data\?\.topArticles \?\? \[\]\)/);
-  assert.match(heroPost, /article\.peerReviewed !== true && !article\.doi && !article\.pmid/);
+  assert.match(archiveCard, /article\.peerReviewed !== true && !article\.doi && !article\.pmid/);
   assert.match(heroPost, /archiveCardForArticle\(article\)/);
 });
 

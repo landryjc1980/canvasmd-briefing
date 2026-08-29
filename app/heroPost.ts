@@ -12,10 +12,13 @@
 // shared /r link is live for ~2 weeks, then resolves to null (graceful "moved on" page, never a
 // 500). A durable per-card index is the Phase-2 upgrade if links need to outlive the window.
 
-import type { BriefingArticle, BriefingData, BriefingSharer, HeroCard, HeroSupportPost } from "@/lib/types";
+import type { BriefingData, HeroCard } from "@/lib/types";
 import { heroTok } from "@/lib/postId";
 import { sliceBriefForCard, type CardBrief } from "@/app/heroEvidence";
 import { supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
+import { archiveCardForArticle } from "./archiveCard";
+
+export { archiveCardForArticle } from "./archiveCard";
 
 const URL_ = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -101,84 +104,6 @@ export async function archiveCard(area: string, card: HeroCard, brief: CardBrief
     headers: { prefer: "resolution=merge-duplicates,return=minimal" },
     body: JSON.stringify([row]),
   });
-}
-
-type RankedHeroCard = HeroCard & {
-  rankTotal: number;
-  rankTrace: { input: string; value: number; weight: number; contribution: number }[];
-};
-
-function supportPost(post: BriefingSharer, sourceLane: "clinician" | "publisher" | "other"): HeroSupportPost {
-  return {
-    name: post.name,
-    handle: post.handle,
-    avatar: post.avatar,
-    tweetUrl: post.tweetUrl,
-    text: post.text,
-    likes: post.likes,
-    retweets: post.retweets,
-    quotes: post.quotes ?? 0,
-    views: post.views,
-    repostedBy: post.repostedBy,
-    sourceLane,
-  };
-}
-
-/** Turn independently identified journal evidence into the same durable card shape as a hero. */
-export function archiveCardForArticle(article: BriefingArticle): RankedHeroCard | null {
-  if (!/^https?:\/\//i.test(article.url) || !article.title.trim() || article.kolSharers < 1) return null;
-  if (article.peerReviewed !== true && !article.doi && !article.pmid) return null;
-  const anchor = article.doi || article.pmid || article.url;
-  const sourceLabel = article.journal || article.domain || "Primary source";
-  const excerpt = article.abstract || article.description || null;
-  const clinicianPosts = (article.posts ?? []).map((post) => supportPost(post, "clinician"));
-  const publisherPosts = (article.publisherPosts ?? []).map((post) => supportPost(post, "publisher"));
-  const otherPosts = (article.otherPosts ?? []).map((post) => supportPost(post, "other"));
-  return {
-    id: `paper:${anchor}`,
-    kind: "paper",
-    anchorId: anchor,
-    headline: article.title,
-    why: `Shared by ${article.kolSharers} clinicians`,
-    sourceLabel,
-    url: article.url,
-    excerpt,
-    excerptVerbatim: !!article.abstract,
-    doi: article.doi ?? null,
-    subAreas: article.subAreas ?? [],
-    support: {
-      clinicianPosts,
-      publisherPosts,
-      otherPosts,
-      links: [{
-        kind: "paper",
-        id: `paper:${anchor}`,
-        title: article.title,
-        url: article.url,
-        sourceLabel,
-        description: excerpt,
-        relationshipType: "primary_source",
-        occurredAt: article.publishedAt ?? null,
-      }],
-    },
-    conversation: {
-      authoredClinicians: article.authoredClinicianCount ?? clinicianPosts.length,
-      spanDays: 0,
-      firstTouchAt: null,
-      lastTouchAt: null,
-    },
-    // ⚠️ MIRROR: weight 10 is RANK_WEIGHTS.clinicianSharers from the engine
-    // (canvasmd supabase/functions/_shared/heroCards.ts — SIGNED CONSTANTS, John+Codex
-    // 2026-08-08). Archived topArticles cards share one ranking pool with engine hero cards
-    // (readoutWindow.ts sorts and dedupes on rankTotal), so they must score on the SAME scale.
-    // Stamping the raw sharer count here (weight 1) under-ranked these cards ~10× — a paper
-    // 20 clinicians shared lost to a hero card with 4 sharers and a few likes. Only the
-    // clinician channel is mirrored, deliberately: the minor channels (publishers, likes,
-    // verified author) would drift, and their omission errs LOW — an archive-sourced card can
-    // rank slightly under, never over, its engine-scored equivalent.
-    rankTotal: article.kolSharers * 10,
-    rankTrace: [{ input: "clinicianSharers", value: article.kolSharers, weight: 10, contribution: article.kolSharers * 10 }],
-  };
 }
 
 async function fromArchive(tok: string): Promise<HeroPost | null> {
