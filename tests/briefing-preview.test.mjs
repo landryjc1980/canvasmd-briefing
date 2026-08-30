@@ -24,6 +24,8 @@ const heroPost = read("app/heroPost.ts");
 const archiveCard = read("app/archiveCard.ts");
 const editionSnapshot = read("app/briefing-preview/editionSnapshot.ts");
 const middleware = read("middleware.ts");
+const rootPage = read("app/page.tsx");
+const legacyPage = read("app/LegacyBriefingPage.tsx");
 const readoutNextPage = read("app/readout-next/page.tsx");
 const vercelConfig = read("vercel.json");
 
@@ -385,9 +387,9 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
 });
 
 test("the browser receives one server-cached payload and never refreshes evidence after paint", () => {
-  assert.match(readoutNextPage, /await getCachedReadoutWindow\("All", "today"\)/);
-  assert.doesNotMatch(readoutNextPage, /catch\(\(\) => null\)/);
-  assert.match(readoutNextPage, /initialPayload=\{initialPayload\}/);
+  assert.match(rootPage, /await getCachedReadoutWindow\("All", "today"\)/);
+  assert.doesNotMatch(rootPage, /catch\(\(\) => null\)/);
+  assert.match(rootPage, /initialPayload=\{initialPayload\}/);
   assert.match(preview, /useState<ReadoutWindowPayload \| null>\(initialPayload\)/);
   assert.match(preview, /body: JSON\.stringify\(\{ mode: "readout-window", area, days: readoutWindowDays\(window\) \}\)/);
   assert.doesNotMatch(preview, /cards: windowEvidenceTargets/);
@@ -661,9 +663,16 @@ test("source excerpts drop PDF labels without adding editorial judgment", () => 
   assert.match(preview, /cleanReadoutExcerpt\(text\)/);
 });
 
-test("the hidden production canary is gated, unlisted, and noindex", () => {
-  assert.match(readoutNextPage, /EditorialReadout/);
-  assert.match(readoutNextPage, /robots: \{ index: false, follow: false \}/);
+test("the canonical Readout owns the root while the retired canary redirects", () => {
+  assert.match(rootPage, /EditorialReadout/);
+  assert.match(rootPage, /getCachedReadoutWindow\("All", "today"\)/);
+  assert.match(rootPage, /canonical: "https:\/\/briefing\.canvasmd\.io\/"/);
+  assert.match(rootPage, /robots: \{ index: true, follow: true \}/);
+  assert.match(readoutNextPage, /permanentRedirect\("\/"\)/);
+  assert.doesNotMatch(readoutNextPage, /EditorialReadout|getCachedReadoutWindow/);
+  assert.match(legacyPage, /export default function LegacyBriefingPage/);
+  assert.match(legacyPage, /ReaderView/);
+  assert.doesNotMatch(rootPage, /LegacyBriefingPage|ReaderView/);
   assert.doesNotMatch(middleware, /readout-next/);
 });
 

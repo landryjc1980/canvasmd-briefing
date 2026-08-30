@@ -1,42 +1,52 @@
-# CanvasMD — Weekly Briefing (public web)
+# CanvasMD — The Readout (web)
 
-A public, **ungated** web rendering of the CanvasMD Weekly Briefing — "what moved
-this week in {tumor area}" across all seven areas (GU, Breast, Lung, GI, Heme, Gyn, Skin).
+The reader-facing web edition of CanvasMD's Readout across All Oncology and seven
+specialty lenses (GU, Breast, Lung, GI, Heme, Gyn, and Skin).
 
 ## Why this exists / architecture
 
-The Briefing's **intelligence is authored once**, in the Supabase `briefing` edge
-function (in the `canvasmd` app repo). It fuses podcast discussion + verified-clinician
-X takes + shared journal papers into one ranked drug spine per area, caches the result
-in `briefing_snapshots`, and returns `BriefingData` JSON.
+The Readout's evidence is assembled once by the Supabase `briefing` edge function in
+the paired `canvasmd` app repo. This Next.js app owns the gated reader experience and
+serves the same canonical edition through every specialty lens.
 
-- The **native app** reads that edge function and renders it.
-- **This web app** reads the *same* edge function (via a thin `/api/briefing` proxy)
-  and renders it with the polished web views ported from the pharma dashboard.
+- `/` is the canonical production Readout.
+- `/readout-next` permanently redirects to `/`; it is retained only as an old-link shim.
+- `app/LegacyBriefingPage.tsx` preserves the retired client-rendered weekly reader as
+  non-routable rollback source. It is not imported into the production page bundle.
+- The root server render starts with the finished `All / Today` payload from
+  `getCachedReadoutWindow`, then the client switches specialty and Today/7 days views
+  through the authenticated `/api/briefing` proxy.
+- Vercel warms all finished Readout windows hourly. The 6 a.m. ET archive freezes the
+  dated canonical edition used by Today and the exact seven-day history.
+- Finished and last-good windows are stored service-side in Supabase `readout_posts`;
+  a cache miss rebuilds through the `briefing` edge function.
 
-So there is exactly one place that computes the briefing. This app never recomputes —
-it is a thin renderer. Tune the ranking in the edge function and both surfaces update.
+Ranking and evidence eligibility stay in the edge function. This repo owns presentation,
+edition projection/history, server caching, and the reader gate.
 
-## Safe to be public
+## Access model
 
-It shows only already-public material: clinicians' own X posts (with links back to X),
-AI glosses of published-podcast moments, journal articles, and FDA/regulatory events.
-It uses **only the publishable (anon) Supabase key** — no service-role key, and none
-of the pharma dashboard's private, voiceprint-derived stance intelligence.
+The main Readout is protected by the brief session middleware. Share pages under `/r/`
+remain public teasers and enforce their own member-evidence boundary. Supabase service
+credentials are server-only and must never use a `NEXT_PUBLIC_` prefix.
 
 ## Local dev
 
 ```
-cp .env.local.example .env.local   # fill in SUPABASE_ANON_KEY
+cp .env.local.example .env.local
 npm install
 npm run dev
 ```
 
 ## Deploy (Vercel)
 
-Import this repo in Vercel (auto-detects Next.js). Set two env vars:
+Import this repo in Vercel (auto-detects Next.js). The Readout data path requires:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server only)
+- `CRON_SECRET`
+- `BRIEF_SIGNING_SECRET`
 
-No gate needed. Optionally point a subdomain (e.g. `briefing.canvasmd.io`) at it.
+`BRIEFING_FUNCTION_URL` is optional and overrides the default Supabase function URL.
+Production is served at `briefing.canvasmd.io`.

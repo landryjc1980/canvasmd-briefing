@@ -4,8 +4,8 @@ import fs from "node:fs";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("a successful empty account preference clears stale browser-only area state", () => {
-  const source = read("app/page.tsx");
+test("the retained legacy reader still clears stale browser-only area state", () => {
+  const source = read("app/LegacyBriefingPage.tsx");
   assert.match(source, /else if \(!urlArea\) \{[\s\S]*localStorage\.removeItem\("readout_area"\)[\s\S]*setArea\("GU"\)/);
 });
 

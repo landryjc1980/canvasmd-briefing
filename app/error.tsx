@@ -1,6 +1,6 @@
 "use client";
 
-export default function ReadoutNextError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ReadoutError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <main className="er-page">
       <section className="er-section er-worth">

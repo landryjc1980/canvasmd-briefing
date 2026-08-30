@@ -1,0 +1,285 @@
+"use client";
+
+// Retained as a non-route component for rollback after the canonical Readout
+// replaced this client-rendered weekly briefing at `/`.
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BriefingData } from "@/lib/types";
+import { AREAS } from "./ui";
+import BroadsheetView from "./BroadsheetView";
+import BriefView from "./BriefView";
+import ReaderView from "./ReaderView";
+import ReaderViewFlat from "./ReaderViewFlat";
+import AllView from "./AllView";
+import { palOf } from "./briefVM";
+import { logSignal } from "./gateClient";
+import "./briefing.css";
+import "./brief.css";
+
+// "All oncology" is a valid area value with no brief of its own — it's assembled
+// client-side from the six area briefs the app already caches. Offered in the menu
+// and eligible as a saved primary.
+const AREAS_ALL = ["All", ...AREAS];
+const isValidArea = (a: string | null | undefined) => a === "All" || AREAS.includes(a ?? "");
+
+// Weekly Briefing — "what moved this week in {area}", one tumor area at a time.
+// DEFAULT experience = the responsive reader (dark, one color per area), with the
+// 2026-07-21 depth/two-column treatment. Fallbacks kept, not deleted:
+//   ?design=flat    → the pre-2026-07-21 single-column reader (ReaderViewFlat)
+//   ?design=classic → the original Brief/Broadsheet renderings
+
+type ViewMode = "broadsheet" | "brief";
+type Design = "default" | "flat" | "classic";
+const READER_PAPER = "#f4f4f1";
+const READER_MUTED = "#696c71";
+
+// The briefing edge fn can return a transient 546 (WORKER_RESOURCE_LIMIT) when a
+// page load coincides with the twice-daily snapshot rebuild (03:15/15:15 UTC)
+// saturating the function worker. It clears within seconds, so retry a few times
+// with backoff before surfacing the dead-end error instead of failing on the blip.
+// A successful load never carries `.error`; on a permanent error we still return
+// after the attempts and the page shows it (only ~4s later, only when truly broken).
+async function fetchBriefingWithRetry(url: string, attempts = 3): Promise<any> {
+  const delays = [1200, 2600];
+  let last: any = { error: "Failed to reach the briefing service." };
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      const j = await r.json();
+      if (r.ok && !j?.error) return j; // success
+      last = j?.error ? j : { error: `Briefing service returned ${r.status}` };
+    } catch (e: any) {
+      last = { error: e?.message ?? "Failed to reach the briefing service." };
+    }
+    if (i < attempts - 1) await new Promise((res) => setTimeout(res, delays[i] ?? 2600));
+  }
+  return last; // attempts exhausted → surface the last error
+}
+
+export default function LegacyBriefingPage() {
+  const [area, setArea] = useState<string | undefined>(undefined);
+  const [primary, setPrimary] = useState<string | null>(null); // the reader's saved default specialty
+  const [view, setView] = useState<ViewMode>("brief");
+  const [design, setDesign] = useState<Design>("default");
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  const [data, setData] = useState<BriefingData | null>(null);
+  const [seen, setSeen] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [, bump] = useState(0); // re-render when a brief lands in cache (the All view reads the cache directly)
+  const [areaErr, setAreaErr] = useState<Record<string, string>>({}); // per-area fetch failures — the All page degrades instead of hanging
+
+  // Client-side cache: keep every area we've already fetched in memory so switching
+  // tumor tabs is INSTANT (no blank flash, no round-trip). The server snapshot cache
+  // makes each area ~160ms, but without this the browser re-fetched on every switch.
+  // Alongside the payload we fetch the reader's per-area SEEN map once per session —
+  // captured at load and held stable, so the deck never re-shuffles mid-visit (this
+  // visit's views only affect the NEXT visit).
+  const cacheRef = useRef<Record<string, { briefing: BriefingData; seen: Record<string, string>; fetchedAt: number }>>({});
+  const inflightRef = useRef<Record<string, Promise<void> | undefined>>({});
+  const load = useCallback((a: string, force = false): Promise<void> => {
+    if (a === "All") return Promise.resolve(); // no brief of its own — assembled from the six
+    if (cacheRef.current[a] && !force) return Promise.resolve();
+    const pending = inflightRef.current[a];
+    if (pending) return pending;
+    // Congress rehearsal: a `?congressPreview=<series_key>` on the page URL is forwarded so the
+    // edge fn force-builds Congress Mode (it never persists a preview). Constant per page load, so
+    // caching by area alone stays correct.
+    const preview = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("congressPreview") : null;
+    const p = Promise.all([
+      fetchBriefingWithRetry(`/api/briefing?area=${a}${preview ? `&congressPreview=${encodeURIComponent(preview)}` : ""}`),
+      fetch(`/api/brief-seen?area=${a}`).then((r) => r.json()).catch(() => ({ seen: {} })),
+    ])
+      .then(([j, s]) => { if (j.error) throw new Error(j.error); cacheRef.current[a] = { briefing: j.briefing, seen: s?.seen ?? {}, fetchedAt: Date.now() }; bump((t) => t + 1); })
+      .finally(() => { delete inflightRef.current[a]; });
+    inflightRef.current[a] = p;
+    return p;
+  }, []);
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setView(q.get("view") === "broadsheet" ? "broadsheet" : "brief");
+    const d = q.get("design");
+    setDesign(d === "classic" ? "classic" : d === "flat" ? "flat" : "default");
+    // Landing-area precedence: an explicit ?area= (a shared/deep link) wins for THIS visit but is
+    // never saved; else the reader's saved primary specialty; else GU. The primary is stored on the
+    // CONTACT (server) so it follows them across devices — localStorage is just an instant-paint
+    // cache so a returning device doesn't wait on the round-trip.
+    const urlArea = isValidArea(q.get("area")) ? (q.get("area") as string) : null;
+    let saved: string | null = null;
+    try { const s = localStorage.getItem("readout_area"); if (isValidArea(s)) saved = s; } catch { /* private mode */ }
+    setPrimary(saved);
+    if (urlArea ?? saved) setArea(urlArea ?? (saved as string)); // paint immediately when we have a hint
+    // Authoritative primary from the account. Adopt it unless the visit is pinned by ?area=.
+    fetch("/api/brief-prefs")
+      .then((r) => r.json())
+      .then((j) => {
+        const server = isValidArea(j?.defaultArea) ? (j.defaultArea as string) : null;
+        if (server) {
+          setPrimary(server);
+          try { localStorage.setItem("readout_area", server); } catch { /* private mode */ }
+          if (!urlArea) setArea(server); // the account default is authoritative — follows across devices
+        } else if (!urlArea) {
+          // A successful account lookup is authoritative even when the account has no primary.
+          // Do not let an old browser-only `All` choice become a permanent implicit default.
+          setPrimary(null);
+          try { localStorage.removeItem("readout_area"); } catch { /* private mode */ }
+          setArea("GU");
+        }
+      })
+      .catch(() => { if (!urlArea && !saved) setArea((cur) => cur ?? "GU"); });
+  }, []);
+
+  // responsive: pick story (mobile) vs reader (desktop) by viewport width
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 899px)");
+    const set = () => setIsMobile(mq.matches);
+    set();
+    mq.addEventListener("change", set);
+    return () => mq.removeEventListener("change", set);
+  }, []);
+
+  useEffect(() => {
+    if (!area) return;
+    if (area === "All") { setLoading(false); setError(null); return; } // assembled from the six in render
+    const cached = cacheRef.current[area];
+    if (cached) { setData(cached.briefing); setSeen(cached.seen); setError(null); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true); setError(null); setData(null);
+    load(area)
+      .then(() => { if (!cancelled) { const c = cacheRef.current[area]; setData(c.briefing); setSeen(c.seen); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(String(e?.message ?? e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [area, load]);
+
+  // Warm the other areas in the background once we know the current one, so the first
+  // visit to each tab is already cached and switches feel instant.
+  useEffect(() => {
+    if (!area) return;
+    for (const a of AREAS) if (a !== area) load(a).catch((e) => setAreaErr((m) => ({ ...m, [a]: String(e?.message ?? e) })));
+  }, [area, load]);
+
+  // A browser tab can stay open across a weekly promotion. Keep instant tab
+  // switching, but refresh the active edition after fifteen minutes on focus.
+  useEffect(() => {
+    const refreshWeeklyIfStale = () => {
+      if (document.visibilityState !== "visible" || !area) return;
+      const targets = area === "All" ? AREAS : [area];
+      for (const target of targets) {
+        const cached = cacheRef.current[target];
+        if (cached && Date.now() - cached.fetchedAt <= 15 * 60_000) continue;
+        void load(target, true).then(() => {
+          if (target === area) {
+            const fresh = cacheRef.current[target];
+            if (fresh) { setData(fresh.briefing); setSeen(fresh.seen); }
+          }
+        }).catch(() => { /* retain the last good weekly edition */ });
+      }
+    };
+    refreshWeeklyIfStale();
+    document.addEventListener("visibilitychange", refreshWeeklyIfStale);
+    window.addEventListener("focus", refreshWeeklyIfStale);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWeeklyIfStale);
+      window.removeEventListener("focus", refreshWeeklyIfStale);
+    };
+  }, [area, load]);
+
+  const retryArea = useCallback((a?: string) => {
+    const targets = a ? [a] : Object.keys(areaErr);
+    setAreaErr((m) => { const n = { ...m }; for (const t of targets) delete n[t]; return n; });
+    for (const t of targets) load(t).catch((e) => setAreaErr((m) => ({ ...m, [t]: String(e?.message ?? e) })));
+  }, [areaErr, load]);
+
+  // Signal: log a view per area shown (no-ops server-side if the reader isn't identified).
+  useEffect(() => { if (area) logSignal("view", area); }, [area]);
+
+  const sync = (next: Record<string, string>) => {
+    const u = new URL(window.location.href);
+    for (const [k, v] of Object.entries(next)) u.searchParams.set(k, v);
+    window.history.replaceState({}, "", u);
+  };
+  // Switching areas just BROWSES — it never changes your saved default (a GU onc glancing at Breast
+  // shouldn't get moved to Breast). Setting a default is a separate, deliberate action (savePrimary),
+  // surfaced as "Make X my default" in the area menu.
+  const pickArea = (a: string) => { setArea(a); sync({ area: a }); };
+  const savePrimary = (a: string) => {
+    setPrimary(a);
+    try { localStorage.setItem("readout_area", a); } catch { /* private mode */ } // instant cache on this device
+    // Persist to the contact record so it follows the reader to every device they sign into.
+    fetch("/api/brief-prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ area: a }) }).catch(() => {});
+  };
+  const pickView = (v: ViewMode) => { setView(v); sync({ view: v }); };
+
+  // ---- CLASSIC fallback (the original Brief/Broadsheet toggle) ----
+  // "All" has no classic rendering — it is assembled client-side and BriefView/BroadsheetView are
+  // per-area. Falling into this branch with area="All" meant data stayed null, loading was already
+  // false and error was null, so every guard below failed and the reader got a bare switch bar over
+  // an empty page — with no "All" button in it to escape by. The All branch wins.
+  // Hero mode retires the duplicate legacy renderers (Codex cutover review #3): flat still
+  // renders stance and classic renders the generated recap — content the source-anchored
+  // Brief no longer stands behind. One rule, one renderer.
+  const heroActive = data?.mode === "hero";
+  if (design === "classic" && area !== "All" && !heroActive) {
+    return (
+      <div className={`bfroot ${view}`}>
+        <div className="switchbar">
+          <div className="sb-areas">
+            {AREAS.map((a) => <button key={a} className={a === area ? "on" : ""} onClick={() => pickArea(a)}>{a}</button>)}
+          </div>
+          <div className="sb-view" role="tablist" aria-label="View">
+            <button className={view === "brief" ? "on" : ""} onClick={() => pickView("brief")}>Brief</button>
+            <button className={view === "broadsheet" ? "on" : ""} onClick={() => pickView("broadsheet")}>Broadsheet</button>
+          </div>
+        </div>
+        {error && <div className="bf-banner">Couldn’t load the briefing: {error}</div>}
+        {loading && !data && <div className="bf-state">Loading {area}…</div>}
+        {data && area && (view === "brief" ? <BriefView data={data} area={area} /> : <BroadsheetView data={data} area={area} />)}
+      </div>
+    );
+  }
+
+  // ---- ALL ONCOLOGY: the cross-area front page, assembled from the six cached briefs ----
+  if (area === "All") {
+    // Paint as soon as ANY area has landed. Requiring all six meant one failed fetch — which
+    // nothing retried and nothing surfaced — left a spinner running forever; the areas still in
+    // flight (or broken) say so in their own group slot instead.
+    const landed = AREAS.filter((a) => cacheRef.current[a]?.briefing);
+    const settled = AREAS.every((a) => cacheRef.current[a]?.briefing || areaErr[a]);
+    if (isMobile === null || (!landed.length && !settled)) {
+      return (
+        <div style={{ position: "fixed", inset: 0, background: READER_PAPER, display: "flex", alignItems: "center", justifyContent: "center", color: READER_MUTED, font: "500 14px system-ui" }}>
+          Loading all oncology…
+        </div>
+      );
+    }
+    if (!landed.length) {
+      return (
+        <div style={{ position: "fixed", inset: 0, background: READER_PAPER, display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", color: READER_MUTED, font: "500 14px system-ui", padding: 24, textAlign: "center" }}>
+          <div>Couldn’t load the briefing: {Object.values(areaErr)[0] ?? "unknown error"}</div>
+          <button onClick={() => retryArea()} style={{ background: "none", border: "1px solid #cfd0cb", borderRadius: 6, padding: "8px 16px", cursor: "pointer", font: "600 13px system-ui", color: "#17181a" }}>Try again</button>
+        </div>
+      );
+    }
+    const briefsByArea = Object.fromEntries(AREAS.map((a) => [a, cacheRef.current[a]?.briefing]));
+    return <AllView briefsByArea={briefsByArea} areas={AREAS_ALL} onArea={pickArea} compact={isMobile} primary={primary} onSetPrimary={savePrimary} failed={areaErr} onRetry={retryArea} />;
+  }
+
+  // ---- DEFAULT: responsive story / reader ----
+  // Loading field matches the design about to mount: paper for the current reader,
+  // the area jewel tone only for the frozen ?design=flat fallback.
+  const bg = design === "flat" ? palOf(area ?? "GU").bg : READER_PAPER;
+  if (!data || !area || isMobile === null) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center", color: design === "flat" ? "rgba(255,255,255,.6)" : READER_MUTED, font: "500 14px system-ui" }}>
+        {error ? `Couldn’t load the briefing: ${error}` : `Loading ${area ?? ""}…`}
+      </div>
+    );
+  }
+  // One scroll model on both platforms (retires the swipe deck — swipe/tap-to-advance wasn't
+  // discoverable). `compact` gives mobile the front-page treatment: lead with the top story
+  // (no AI cover line) + horizontally-scrolling section pills.
+  if (design === "flat" && !heroActive) return <ReaderViewFlat data={data} area={area} areas={AREAS} onArea={pickArea} seen={seen} compact={isMobile} />;
+  return <ReaderView data={data} area={area} areas={AREAS_ALL} onArea={pickArea} seen={seen} compact={isMobile} primary={primary} onSetPrimary={savePrimary} />;
+}

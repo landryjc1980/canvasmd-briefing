@@ -33,9 +33,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Deliberately minimal: no cross-page nav. This is a single, public, ungated
-// surface — the Weekly Briefing only. It renders the SAME snapshot the native
-// app shows (computed by the `briefing` edge function); see app/api/briefing.
+// Deliberately minimal: no cross-page nav. The root is the gated canonical Readout;
+// specialty/window changes reuse the briefing pipeline through app/api/briefing.
 export default function RootLayout({
   children,
 }: {

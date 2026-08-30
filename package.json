@@ -2,7 +2,7 @@
   "name": "canvasmd-briefing",
   "version": "0.1.0",
   "private": true,
-  "description": "Public, ungated web version of the CanvasMD Weekly Briefing. Renders the SAME snapshot the native app shows — data is computed once by the `briefing` Supabase edge function; this app is a thin renderer.",
+  "description": "Gated web edition of the CanvasMD Readout, backed by canonical cached editions from the briefing pipeline.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
