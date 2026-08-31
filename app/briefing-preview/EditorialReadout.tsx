@@ -987,24 +987,29 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           <div className="er-listen-grid">
             {listenEntries.map(({ item, episode }) => {
               const sourceHref = episode?.sourceUrl || item.url;
+              const curated = NEW_TO_LISTEN.find((candidate) => candidate.id === item.id);
+              const showArt = episode?.showArt ?? item.showArt ?? curated?.showArt;
+              const audioUrl = episode?.audioUrl ?? item.audioUrl ?? curated?.audioUrl;
+              const durationSeconds = episode?.durationSeconds ?? item.durationSeconds ?? curated?.durationSeconds;
+              const episodeId = episode?.episodeId ?? item.episodeId ?? curated?.episodeId ?? item.id;
               return (
                 <article className="er-listen-card" key={item.id}>
-                  {episode?.showArt && <img className="er-listen-art" src={episode.showArt} alt="" loading="lazy" decoding="async" />}
+                  {showArt && <img className="er-listen-art" src={showArt} alt="" loading="lazy" decoding="async" />}
                   <div className="er-listen-copy">
                     <a className="er-listen-title" href={sourceHref} target="_blank" rel="noreferrer">
                       <b>{episode?.title || item.hook}</b>
                     </a>
                     <p>{episode?.show || item.show}</p>
                   </div>
-                  {episode?.audioUrl && (
+                  {audioUrl && (
                     <div className="er-listen-audio">
                       <AudioQuote
-                        audioUrl={episode.audioUrl}
+                        audioUrl={audioUrl}
                         startMs={0}
-                        durationSeconds={episode.durationSeconds}
+                        durationSeconds={durationSeconds}
                         label="Listen here"
-                        eventId={episode.episodeId ?? item.id}
-                        eventLabel={episode.title}
+                        eventId={episodeId}
+                        eventLabel={episode?.title || item.title}
                         accent="var(--area)"
                       />
                     </div>

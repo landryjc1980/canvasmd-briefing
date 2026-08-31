@@ -37,6 +37,10 @@ export type EditorialEpisode = {
   title: string;
   url: string;
   match: string;
+  episodeId?: string;
+  showArt?: string;
+  audioUrl?: string;
+  durationSeconds?: number;
 };
 
 export type EditorialEpisodeFeature = EditorialEpisode & {
@@ -362,6 +366,10 @@ export const NEW_TO_LISTEN: EditorialEpisode[] = [
     title: "Tumour-infiltrating lymphocytes in breast cancer with Professor Sherene Loi",
     url: "https://lancetonc.podbean.com/e/tumour-infiltrating-lymphocytes-in-breast-cancer-with-professor-sherene-loi/",
     match: "Tumour-infiltrating lymphocytes in breast cancer",
+    episodeId: "2f4ded3e-e791-442d-b124-8731ca1cd5e1",
+    showArt: "https://pbcdn1.podbean.com/imglogo/image-logo/22224347/2qje4mhmh5n25g8ju03wk4f4l9t4.jpg",
+    audioUrl: "https://mcdn.podbean.com/mf/web/x96fj5w3gbyfkgt3/Tumour-infiltrating-lymphocytes-in-breast-cancer.mp3",
+    durationSeconds: 1069,
   },
   {
     id: "ovarian-guideline",
@@ -371,6 +379,10 @@ export const NEW_TO_LISTEN: EditorialEpisode[] = [
     title: "Systemic Treatment of Ovarian Cancer Recurrence: ASCO Living Guideline 2026.1.0",
     url: "https://guideline.libsyn.com/systemic-treatment-of-ovarian-cancer-recurrence-asco-living-guideline-202610",
     match: "Systemic Treatment of Ovarian Cancer Recurrence",
+    episodeId: "9963c767-f500-47f7-9440-da1b116e079e",
+    showArt: "https://static.libsyn.com/p/assets/a/5/b/c/a5bc9eddb869a37616c3140a3186d450/ASCO_Guidelines-Podcast-Icon26_1.png",
+    audioUrl: "https://dts.podtrac.com/redirect.mp3/traffic.libsyn.com/secure/guideline/GDL_26E11.mp3?dest-id=654501",
+    durationSeconds: 1286,
   },
   {
     id: "myeloma-rapid-fire",
@@ -380,6 +392,10 @@ export const NEW_TO_LISTEN: EditorialEpisode[] = [
     title: "Rapid Fire Rounds - Multiple Myeloma Management with Dr. Joseph Mikhael",
     url: "https://infoaj7.podbean.com/e/myeloma-rapid-fire-rounds-v4/",
     match: "Rapid Fire Rounds",
+    episodeId: "2604ee10-7b58-42eb-9dd9-9fb69c4a678e",
+    showArt: "https://pbcdn1.podbean.com/imglogo/ep-logo/pbblog15389956/Pastel_Blue_Pastel_Pink_Soft_Gradients_Gloss_Self-help_Podcast_Cover_41_795ea.jpg",
+    audioUrl: "https://mcdn.podbean.com/mf/web/336kdp828mnf2nma/Myeloma_Rapid_Fire_Rounds_V49ncll.mp4",
+    durationSeconds: 1540,
   },
 ];
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, NEW_TO_LISTEN, archivedEditorialArticle, breakingEditorialArticle, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
@@ -480,7 +480,7 @@ test("cards use source-backed excerpts and visually separate the source from the
 });
 
 test("Listen cards render show art and pin equal-height players to the card bottom", () => {
-  assert.match(preview, /episode\?\.showArt && <img className="er-listen-art"/);
+  assert.match(preview, /showArt && <img className="er-listen-art" src=\{showArt\}/);
   assert.match(preview, /className="er-listen-card"/);
   assert.match(previewCss, /\.er-listen-card \{ display: flex; flex-direction: column; \}/);
   assert.match(previewCss, /\.er-listen-audio \{ margin-top: auto; padding-top: 14px; \}/);
@@ -739,7 +739,7 @@ test("a transcript-supported episode can lead a specialty without duplicating Li
   assert.match(preview, /EpisodeDevelopment/);
   assert.match(preview, /AudioQuote/);
   assert.match(preview, /audioUrl=\{audioUrl\}/);
-  assert.match(preview, /audioUrl=\{episode\.audioUrl\}/);
+  assert.match(preview, /eventLabel=\{episode\?\.title \|\| item\.title\}/);
   assert.match(preview, /Episode page ↗/);
   assert.match(preview, /Listen here/);
   assert.match(preview, /listenForArea/);
@@ -757,6 +757,18 @@ test("podcast Listen holds use exact show titles and preserve episode metadata",
   assert.equal(listen[0].title, "Episode 516: The Influence of Hypoxia on Response and Resistance in RCC");
   assert.equal(listen[0].hook, listen[0].title);
   assert.equal(listen[0].url, "https://uromigos.example/516");
+});
+
+test("curated Listen cards keep their artwork and player after leaving the live window", () => {
+  for (const item of NEW_TO_LISTEN) {
+    assert.ok(item.episodeId);
+    assert.ok(item.showArt);
+    assert.ok(item.audioUrl);
+    assert.ok(item.durationSeconds);
+  }
+  assert.match(preview, /episode\?\.showArt \?\? item\.showArt \?\? curated\?\.showArt/);
+  assert.match(preview, /episode\?\.audioUrl \?\? item\.audioUrl \?\? curated\?\.audioUrl/);
+  assert.match(preview, /audioUrl=\{audioUrl\}/);
 });
 
 test("cross-specialty podcast holds route by episode area only", () => {
