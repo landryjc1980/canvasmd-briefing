@@ -19,9 +19,18 @@ const PUBLIC_PREFIXES = ["/api", "/welcome", "/i/", "/admin", "/_next", "/favico
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isSharePage = pathname === "/r" || pathname.startsWith("/r/");
+  // Rounds Lab's static draft reader bypasses the production contact store.
+  // The reviewer owns its production 404 at the page boundary, before any
+  // local transcript assets can load.
+  if (pathname === "/rounds-lab" || pathname.startsWith("/rounds-lab/")) {
+    return NextResponse.next();
+  }
   if (
     process.env.NODE_ENV !== "production" &&
-    (pathname.startsWith("/design-lab") || pathname.startsWith("/briefing-preview"))
+    (
+      pathname.startsWith("/design-lab") ||
+      pathname.startsWith("/briefing-preview")
+    )
   ) {
     return NextResponse.next();
   }
