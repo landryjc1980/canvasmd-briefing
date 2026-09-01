@@ -368,7 +368,7 @@ function PhysicianVoices({
   );
 }
 
-function DevelopmentFinding({ text, label, expanded = false }: { text: string; label: string; expanded?: boolean }) {
+function DevelopmentFinding({ text, expanded = false }: { text: string; expanded?: boolean }) {
   const [collapsible, setCollapsible] = useState(false);
   const findingRef = useRef<HTMLParagraphElement>(null);
   const findingId = useId();
@@ -388,7 +388,6 @@ function DevelopmentFinding({ text, label, expanded = false }: { text: string; l
   if (!finding) return null;
   return (
     <div className="er-excerpt">
-      <span className="er-provenance">{label}</span>
       <p ref={findingRef} id={findingId} className={`er-finding ${!expanded ? "is-collapsed" : ""}`}>
         {finding}
       </p>
@@ -402,12 +401,6 @@ function articleContentType(item: EditorialArticle): string {
   if (/safety|warning/i.test(hay)) return "FDA safety";
   if (/label|regulatory|fast track|priority review|breakthrough/i.test(hay)) return "Regulatory";
   return "Paper";
-}
-
-function excerptLabel(item: EditorialArticle): string {
-  if (item.findingLabel) return item.findingLabel;
-  if (item.findingSource === "source") return "From the source";
-  return "CanvasMD summary";
 }
 
 function SourceHeadline({ href, source, title, compact = false }: {
@@ -584,7 +577,7 @@ function ArticleDevelopment({
       {contentType === "Paper" && publishedDate && (
         <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       )}
-      <DevelopmentFinding text={item.finding} label={excerptLabel(item)} expanded={open} />
+      <DevelopmentFinding text={item.finding} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
@@ -659,7 +652,7 @@ function EpisodeDevelopment({
     <article className={`er-development er-development-episode ${open ? "is-open" : ""}`}>
       <div className="er-kicker">{editorialScopeLabel(item)}{!numbered && <> · <b>Podcast</b></>}</div>
       <SourceHeadline href={sourceHref} source={episode?.show || item.show} title={episode?.title || item.title} />
-      <DevelopmentFinding text={item.finding} label="From the episode" expanded={open} />
+      <DevelopmentFinding text={item.finding} expanded={open} />
       {overlay
         ? <PeerRow article={article} sharedBy={sharedBy} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}

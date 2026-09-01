@@ -93,7 +93,7 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.doesNotMatch(preview, /<h3>\{item\.hook\}<\/h3>/);
   assert.match(preview, /function SourceHeadline/);
   assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{article\?\.title \|\| item\.title\} compact=\{compact\} \/>/);
-  assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} label=\{excerptLabel\(item\)\} expanded=\{open\} \/>/);
+  assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} expanded=\{open\} \/>/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/);
   assert.match(preview, /faces: overlay\.faces/);
@@ -614,7 +614,8 @@ test("cards keep long findings to four lines until expanded at any viewport", ()
   assert.match(preview, /function SourceHeadline/);
   assert.match(preview, /er-source-headline/);
   assert.match(preview, /\{title\} <span className="er-ext" aria-hidden="true">↗<\/span>/);
-  assert.match(preview, /From the source/);
+  assert.doesNotMatch(preview, /er-provenance|From the source/);
+  assert.doesNotMatch(previewCss, /\.er-provenance/);
   assert.match(preview, /er-peers-who/);
   assert.match(previewCss, /\.er-finding\.is-collapsed/);
   assert.match(previewCss, /\.er-finding\.is-collapsed[^}]*-webkit-line-clamp: 4/);

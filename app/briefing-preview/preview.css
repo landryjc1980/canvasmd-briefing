@@ -87,7 +87,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 }
 .er-source-headline.is-compact .er-source-title { font-size: 16px; }
 .er-excerpt { margin: 12px 0 0; color: #4a4a5e; font-size: 14px; font-weight: 400; line-height: 1.5; }
-.er-provenance { display: block; margin-bottom: 6px; color: var(--er-faint); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
 .er-finding { margin: 0; }
 .er-finding.is-collapsed { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .er-finding-toggle { display: none; }
