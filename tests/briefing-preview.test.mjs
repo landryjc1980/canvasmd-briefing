@@ -402,16 +402,20 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v13"/);
-  assert.match(readoutServer, /readout-window:finished:v1:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v14"/);
+  assert.match(readoutServer, /readout-window:finished:v2:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
+  assert.match(readoutServer, /\["readout-window-finished-v2"\]/,
+    "the framework data cache cannot retain a finished v1 payload after deploy");
   assert.match(readoutServer, /const finished = await fetchFinishedReadoutWindow\(area, window\)/);
   assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload\)/,
     "the scheduled warmer writes all finished views before readers request them");
   assert.match(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
     "finished views carry the featured comment while expanded comments load on demand");
-  assert.match(readoutServer, /readout-window:v2:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /readout-window:v3:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
+  assert.match(readoutServer, /readoutEditionPreferNonEmpty\([\s\S]*?resolveReadoutTodayEdition\(area, today\),[\s\S]*?readoutEditionForArea\(canonicalCurrent, area\),[\s\S]*?\)/,
+    "an exact non-empty specialty edition must survive the canonical All projection");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
   assert.match(readoutServer, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(readoutServer, /SUPABASE_ANON_KEY/);
@@ -744,6 +748,10 @@ test("a transcript-supported episode can lead a specialty without duplicating Li
   assert.match(preview, /Listen here/);
   assert.match(preview, /listenForArea/);
   assert.match(preview, /filter\(isEpisodeDevelopment\)/);
+  assert.match(preview, /episode\?\.audioUrl \?\? item\.audioUrl \?\? null/,
+    "a promoted episode keeps its player after the backend removes it from Listen");
+  assert.match(preview, /episode\?\.episodeId \?\? item\.episodeId \?\? item\.id/);
+  assert.match(preview, /Specialty lead selected from the 72-hour Listen window\./);
 });
 
 test("podcast Listen holds use exact show titles and preserve episode metadata", () => {

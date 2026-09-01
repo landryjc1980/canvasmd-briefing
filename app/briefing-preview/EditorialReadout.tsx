@@ -598,7 +598,7 @@ function EpisodeDevelopment({ item, briefs, numbered = false }: { item: Editoria
   const [open, setOpen] = useState(false);
   const episode = findEpisode(item, briefs);
   const sourceHref = episode?.sourceUrl || item.url;
-  const audioUrl = episode?.audioUrl ?? null;
+  const audioUrl = episode?.audioUrl ?? item.audioUrl ?? null;
   const canDisclose = Boolean(item.finding.trim());
   return (
     <article className={`er-development er-development-episode ${open ? "is-open" : ""}`}>
@@ -609,8 +609,8 @@ function EpisodeDevelopment({ item, briefs, numbered = false }: { item: Editoria
         audioUrl={audioUrl}
         sourceHref={sourceHref}
         title={episode?.title || item.title}
-        durationSeconds={episode?.durationSeconds}
-        episodeId={episode?.episodeId ?? item.id}
+        durationSeconds={episode?.durationSeconds ?? item.durationSeconds}
+        episodeId={episode?.episodeId ?? item.episodeId ?? item.id}
         evidence={item.evidence}
       />
       {canDisclose && <Disclose open={open} label="Full description" onToggle={() => setOpen((value) => !value)} />}
@@ -938,12 +938,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
-        {/* LEGACY DISCLOSURE ONLY. The 72-hour specialty rescue is removed (the edge fn now
-            always returns fallbackWindowHours: null), but a morning edition FROZEN before the
-            cutover can still carry a rescued story for up to a day — and it must stay labeled
-            for as long as it renders. This line dies naturally with the last pre-cutover
-            edition; new editions can never re-arm it. */}
-        {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">This edition was assembled before today&rsquo;s cutoff change and may include a development from the past 72 hours.</p>}
+        {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">Specialty lead selected from the 72-hour Listen window.</p>}
         {loadError && <div className="er-load-error" role="alert"><p>The selected view could not load.</p><button type="button" onClick={retryLoad}>Try again</button></div>}
         {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">

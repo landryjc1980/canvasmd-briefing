@@ -11,9 +11,10 @@ import { resolveReadoutTodayEdition } from "@/app/briefing-preview/editionSnapsh
 import {
   readoutEditionForArea,
   readoutEditionHistoryIncludingCurrent,
+  readoutEditionPreferNonEmpty,
 } from "@/app/briefing-preview/editionHistory";
 
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v13";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v14";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -30,11 +31,11 @@ function supabaseServiceEnvironment() {
 }
 
 function windowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:v2:${area}:${window}`;
+  return `readout-window:v3:${area}:${window}`;
 }
 
 function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:finished:v1:${area}:${window}`;
+  return `readout-window:finished:v2:${area}:${window}`;
 }
 
 function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
@@ -172,7 +173,13 @@ async function buildFinishedReadoutWindow(
   const today = window === "today" ? payload : await fetchReadoutWindow(area, "today", "[]");
   const allToday = area === "All" ? today : await fetchReadoutWindow("All", "today", "[]");
   const canonicalCurrent = resolveReadoutTodayEdition("All", allToday);
-  const currentEdition = readoutEditionForArea(canonicalCurrent, area);
+  // The All edition remains the canonical source for papers, approvals, and guidelines.
+  // An otherwise-empty specialty can additionally receive a transcript-supported podcast
+  // lead from its own payload, so prefer that exact specialty edition when it is non-empty.
+  const currentEdition = readoutEditionPreferNonEmpty(
+    resolveReadoutTodayEdition(area, today),
+    readoutEditionForArea(canonicalCurrent, area),
+  );
   if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,
@@ -199,7 +206,7 @@ async function buildFinishedReadoutWindow(
 
 const fetchFinishedReadoutWindow = unstable_cache(
   async (area: EditionArea, window: ReadoutWindow) => readFinishedWindow(area, window),
-  ["readout-window-finished-v1"],
+  ["readout-window-finished-v2"],
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
