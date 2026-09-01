@@ -1,5 +1,5 @@
 :root {
-  --er-paper: #f2f1ec;
+  --er-paper: #F7F6F2;
   --er-surface: #ffffff;
   --er-ink: #1A1A2E;
   --er-muted: #626871;
@@ -187,7 +187,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-empty-history:hover { text-decoration: underline; text-underline-offset: 3px; }
 .er-empty-history:focus-visible { outline: 2px solid var(--area); outline-offset: 4px; border-radius: 2px; }
 .er-window-loading { margin: 18px 0 0; min-height: 120px; }
-.er-footer { display: flex; justify-content: space-between; gap: 24px; border-top: 1px solid var(--er-line); margin-top: 42px; padding-top: 18px; color: var(--er-faint); font-size: 12px; }
 
 @media (max-width: 800px) {
   .er-page { padding: 0 20px 44px; }
@@ -215,7 +214,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
   .er-listen-grid { grid-template-columns: 1fr; }
   .er-listen-grid article, .er-listen-grid article + article { padding: 17px; border-right: 1px solid var(--er-line); }
   .er-regulatory article { grid-template-columns: 1fr; gap: 14px; }
-  .er-footer { flex-direction: column; }
 }
 
 @media (max-width: 360px) {

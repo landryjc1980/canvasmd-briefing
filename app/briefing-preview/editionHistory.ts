@@ -8,10 +8,46 @@ function isSnapshotArticle(value: SnapshotDevelopment): value is SnapshotArticle
 }
 
 const snapshotTextKey = (value: string | null | undefined): string =>
-  String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  String(value ?? "").normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+function snapshotCanonicalUrl(value: string | null | undefined): string | null {
+  try {
+    const url = new URL(String(value ?? ""));
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    for (const key of [...url.searchParams.keys()]) {
+      if (key.toLowerCase().startsWith("utm_") || ["fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src", "s", "source"].includes(key.toLowerCase())) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.searchParams.sort();
+    url.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/$/, "") || "/";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function snapshotEpisodeIdentityKeys(entry: ReadoutEditionSnapshot["listen"][number]): string[] {
+  const title = snapshotTextKey(entry.episode?.title ?? entry.item.title);
+  const show = snapshotTextKey(entry.episode?.show ?? entry.item.show);
+  const audio = snapshotCanonicalUrl(entry.episode?.audioUrl ?? entry.item.audioUrl);
+  const source = snapshotCanonicalUrl(entry.episode?.sourceUrl ?? entry.item.url);
+  return [
+    entry.item.id ? `episode:id:${entry.item.id}` : null,
+    entry.item.episodeId ? `episode:id:${entry.item.episodeId}` : null,
+    entry.episode?.episodeId ? `episode:id:${entry.episode.episodeId}` : null,
+    audio ? `episode:audio:${audio}` : null,
+    source ? `episode:url:${source}` : null,
+    title.length >= 12 ? `episode:title:${show}:${title}` : null,
+  ].filter((key): key is string => Boolean(key));
+}
 
 function sameSnapshotArticle(left: SnapshotArticle, right: SnapshotArticle): boolean {
-  return left.id === right.id || (!!left.url && left.url === right.url) ||
+  const leftUrl = snapshotCanonicalUrl(left.url);
+  const rightUrl = snapshotCanonicalUrl(right.url);
+  return left.id === right.id || (!!leftUrl && leftUrl === rightUrl) ||
     (snapshotTextKey(left.title).length >= 12 && snapshotTextKey(left.title) === snapshotTextKey(right.title));
 }
 
@@ -113,11 +149,11 @@ export function canonicalReadoutEditionSnapshot(
   }
 
   const listen = [...all.listen];
-  const listenKeys = new Set(listen.map((entry) => entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
+  const listenKeys = new Set(listen.flatMap(snapshotEpisodeIdentityKeys));
   for (const entry of snapshots.filter((candidate) => candidate.area !== "All").flatMap((snapshot) => snapshot.listen)) {
-    const key = entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase();
-    if (listenKeys.has(key)) continue;
-    listenKeys.add(key);
+    const keys = snapshotEpisodeIdentityKeys(entry);
+    if (keys.some((key) => listenKeys.has(key))) continue;
+    keys.forEach((key) => listenKeys.add(key));
     listen.push(entry);
   }
   const byId = <T extends { id: string }>(items: T[]): T[] =>

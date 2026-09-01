@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, NEW_TO_LISTEN, archivedEditorialArticle, breakingEditorialArticle, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { FEATURED_EPISODES, NEW_TO_LISTEN, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
@@ -31,12 +31,14 @@ const vercelConfig = read("vercel.json");
 
 test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /PhysicianVoices/);
-  assert.match(preview, /Shared, no commentary yet\./);
+  assert.doesNotMatch(preview, /Shared, no commentary yet\./);
+  assert.doesNotMatch(preview, /comment receipts are available|receipts unavailable/);
   assert.match(preview, /is-single/);
   assert.match(preview, /isTitleOnlyShare/);
   assert.match(preview, /post\.thread \?\? \[\]/,
     "an authored thread may supply the substantive verbatim comment when its root is title-only");
   assert.match(preview, /isSubstantiveClinicianText/);
+  assert.match(preview, /cleanClinicianText/);
   assert.match(preview, /expanded \? posts\.slice\(1\) : \[\]/,
     "the collapsed card keeps one preview while the expansion renders every remaining comment");
   assert.doesNotMatch(preview, /previewPosts|posts\.slice\(0, 2\)/);
@@ -50,10 +52,8 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /function shareCommentaryLabel/);
   assert.match(preview, /article\?\.authoredClinicianCount \?\? availableComments/,
     "the compact card keeps the total commenter count separate from available receipts");
-  assert.match(preview, /\$\{authoredCount\} commented · \$\{availableCount\} comment/);
-  assert.match(preview, /receipts unavailable/);
+  assert.match(preview, /\$\{shared\} · \$\{commented\} commented/);
   assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
-  assert.match(preview, /clinician comment\$\{availableCount === 1/);
   assert.match(preview, /function clinicianSharers/);
   assert.match(preview, /post\.repostedBy/);
   assert.match(preview, /engagementScore/);
@@ -86,6 +86,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(edition, /brief\.trials/);
   assert.doesNotMatch(preview, /er-conversation-toggle/);
   assert.doesNotMatch(preview, /summari[sz]e.*post|synthetic.*quote/i);
+  assert.doesNotMatch(preview, /er-footer|Evidence connected to the live Readout/);
 });
 
 test("live evidence overlay cannot rewrite frozen editorial prose", () => {
@@ -341,8 +342,10 @@ test("seven-day edition history dedupes exact cards while preserving frozen dail
   assert.match(editionSnapshot, /development: lead\.article/);
   assert.match(editionSnapshot, /entry\.episode/,
     "archived featured episodes retain their exact playable audio metadata");
-  assert.match(editionSnapshot, /displayedIds\.has\(entry\.development\.id\)/,
-    "a podcast already displayed in the top five is not repeated in Listen");
+  assert.match(editionSnapshot, /const displayedKeys = new Set/);
+  assert.match(editionSnapshot, /editorialEpisodeIdentityKeys\(entry\.item, entry\.episode\)/);
+  assert.match(editionSnapshot, /displayedKeys\.has\(key\) \|\| seen\.has\(key\)/,
+    "a podcast already displayed in the top five is not repeated in Listen, even through an alternate URL");
 });
 
 test("a morning story does not repeat, while a prior midday insertion gets one next-day pass", () => {
@@ -631,7 +634,7 @@ test("briefing cards use source identity as the headline and a warmer reading su
   assert.match(preview, /function articleContentType/);
   assert.match(preview, /<b>Podcast<\/b>/);
   assert.match(preview, /<SourceHeadline href=\{sourceHref\} source=\{episode\?\.show \|\| item\.show\} title=\{episode\?\.title \|\| item\.title\} \/>/);
-  assert.match(previewCss, /--er-paper: #f2f1ec/);
+  assert.match(previewCss, /--er-paper: #F7F6F2/);
   assert.match(previewCss, /--er-soft: #fbfaf7/);
 });
 
@@ -655,7 +658,7 @@ test("archived cards do not render boilerplate as an editorial takeaway", () => 
   assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /No additional \$\{area === "All" \? "oncology" : AREA_LABELS\[area\]\.toLowerCase\(\)\} approval/);
-  assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Clear"/);
+  assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Nothing new"/);
   assert.match(preview, /if \(!finding\) return null/);
 });
 
@@ -666,6 +669,46 @@ test("source excerpts drop PDF labels without adding editorial judgment", () => 
   );
   assert.doesNotMatch(edition, /It belongs in the briefing as context|not a practice-changing comparison/);
   assert.match(preview, /cleanReadoutExcerpt\(text\)/);
+});
+
+test("web Readout uses the native-parity clinician cleaner", () => {
+  assert.equal(
+    cleanClinicianText("RT @drenriquegrande: ⚡ IBCG changes practice https://t.co/example\n@EuropeanUrology #BladderCancer"),
+    "⚡ IBCG changes practice",
+  );
+  assert.equal(cleanClinicianText("Benefit seen in HER2 disease #BreastCancer"), "Benefit seen in HER2 disease #BreastCancer");
+});
+
+test("web Readout canonical identity removes tracking and joins episode aliases", () => {
+  assert.equal(
+    canonicalEditorialUrl("https://www.example.com/paper/?utm_source=x&ref=home#results"),
+    "https://example.com/paper",
+  );
+  const article = (url, title) => ({ id: url, url, title, match: {}, area: "GU" });
+  assert.equal(
+    sameEditorialArticle(
+      article("https://example.com/paper?utm_source=x", "A study of PSMA-617"),
+      article("https://www.example.com/paper?ref=feed", "A study of PSMA 617"),
+    ),
+    true,
+  );
+  const episode = (id, audioUrl, title = "Casdatifan Clinical Data in RCC") => ({
+    id,
+    kind: "episode",
+    area: "GU",
+    title,
+    hook: title,
+    show: "The Uromigos",
+    url: `https://example.com/${id}`,
+    audioUrl,
+  });
+  assert.equal(
+    sameEditorialDevelopment(
+      episode("episode-517", "https://cdn.example.com/517.mp3?utm_source=rss"),
+      episode("rss-copy", "https://cdn.example.com/517.mp3"),
+    ),
+    true,
+  );
 });
 
 test("the canonical Readout owns the root while the retired canary redirects", () => {

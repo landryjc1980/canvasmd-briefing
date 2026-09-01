@@ -403,6 +403,27 @@ function norm(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").trim();
 }
 
+const TRACKING_QUERY_KEYS = new Set([
+  "fbclid",
+  "gclid",
+  "mc_cid",
+  "mc_eid",
+  "ref",
+  "ref_src",
+  "s",
+  "source",
+]);
+
+function identityTitle(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function validHttpUrl(value: string | null | undefined): string | null {
   try {
     const url = new URL(value ?? "");
@@ -410,6 +431,66 @@ function validHttpUrl(value: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+export function canonicalEditorialUrl(value: string | null | undefined): string | null {
+  const valid = validHttpUrl(value);
+  if (!valid) return null;
+  const url = new URL(valid);
+  url.hash = "";
+  url.hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+  for (const key of [...url.searchParams.keys()]) {
+    if (key.toLowerCase().startsWith("utm_") || TRACKING_QUERY_KEYS.has(key.toLowerCase())) {
+      url.searchParams.delete(key);
+    }
+  }
+  url.searchParams.sort();
+  url.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/$/, "") || "/";
+  return url.toString().replace(/\/$/, "");
+}
+
+type ResolvedEpisodeIdentity = {
+  episodeId?: string | null;
+  title?: string | null;
+  show?: string | null;
+  audioUrl?: string | null;
+  sourceUrl?: string | null;
+};
+
+export function editorialEpisodeIdentityKeys(
+  item: EditorialEpisode,
+  resolved?: ResolvedEpisodeIdentity | null,
+): string[] {
+  const title = identityTitle(resolved?.title ?? item.title);
+  const show = identityTitle(resolved?.show ?? item.show);
+  const audio = canonicalEditorialUrl(resolved?.audioUrl ?? item.audioUrl);
+  const source = canonicalEditorialUrl(resolved?.sourceUrl ?? item.url);
+  return [
+    item.id ? `episode:id:${item.id}` : null,
+    item.episodeId ? `episode:id:${item.episodeId}` : null,
+    resolved?.episodeId ? `episode:id:${resolved.episodeId}` : null,
+    audio ? `episode:audio:${audio}` : null,
+    source ? `episode:url:${source}` : null,
+    title.length >= 12 ? `episode:title:${show}:${title}` : null,
+  ].filter((key): key is string => Boolean(key));
+}
+
+export function cleanClinicianText(value: string | null | undefined): string {
+  if (!value) return "";
+  return value
+    .replace(/^\s*RT @[A-Za-z0-9_]+:\s*/, "")
+    .replace(/https?:\/\/t\.co\/\S+/g, "")
+    .replace(/^[ \t]*(?:Article|Paper|Link):[ \t]*$/gim, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([.,;:!?])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n(?:\s*[@#][\p{L}\p{N}_-]+\s*)+$/u, "")
+    .trim();
 }
 
 export function relatedCoverageLinks(
@@ -437,18 +518,19 @@ export function sameEditorialArticle(left: EditorialArticle, right: EditorialArt
   const leftPmid = norm(left.match.pmid);
   const rightPmid = norm(right.match.pmid);
   if (leftPmid && rightPmid && leftPmid === rightPmid) return true;
-  const leftUrl = validHttpUrl(left.url)?.toLowerCase();
-  const rightUrl = validHttpUrl(right.url)?.toLowerCase();
+  const leftUrl = canonicalEditorialUrl(left.url);
+  const rightUrl = canonicalEditorialUrl(right.url);
   if (leftUrl && rightUrl && leftUrl === rightUrl) return true;
-  const leftTitle = norm(left.title);
-  const rightTitle = norm(right.title);
+  const leftTitle = identityTitle(left.title);
+  const rightTitle = identityTitle(right.title);
   return leftTitle.length >= 12 && leftTitle === rightTitle;
 }
 
 export function sameEditorialDevelopment(left: EditorialDevelopment, right: EditorialDevelopment): boolean {
   if ("kind" in left || "kind" in right) {
-    return "kind" in left && "kind" in right &&
-      (left.id === right.id || norm(left.title) === norm(right.title));
+    if (!("kind" in left && "kind" in right)) return false;
+    const leftKeys = new Set(editorialEpisodeIdentityKeys(left));
+    return editorialEpisodeIdentityKeys(right).some((key) => leftKeys.has(key));
   }
   return left.id === right.id || sameEditorialArticle(left, right);
 }

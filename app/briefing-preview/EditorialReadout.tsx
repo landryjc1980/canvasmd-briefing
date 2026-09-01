@@ -21,6 +21,7 @@ import {
 import {
   EDITION_AREAS,
   NEW_TO_LISTEN,
+  cleanClinicianText,
   cleanReadoutExcerpt,
   editorialScopeLabel,
   findArticle,
@@ -119,10 +120,12 @@ function usefulPosts(article: BriefingArticle | null): BriefingSharer[] {
     const receipt = [
       { text: post.text, tweetUrl: post.tweetUrl },
       ...(post.thread ?? []),
-    ].find(({ text }) => isSubstantiveClinicianText(text, sourceTitle));
+    ]
+      .map((candidate) => ({ ...candidate, text: cleanClinicianText(candidate.text) }))
+      .find(({ text }) => isSubstantiveClinicianText(text, sourceTitle));
     if (!receipt?.text) return [];
     seen.add(key);
-    return [{ ...post, text: receipt.text.trim(), tweetUrl: receipt.tweetUrl ?? post.tweetUrl }];
+    return [{ ...post, text: receipt.text, tweetUrl: receipt.tweetUrl ?? post.tweetUrl }];
   });
 }
 
@@ -131,7 +134,6 @@ function isSubstantiveClinicianText(text: string | null | undefined, sourceTitle
   return Boolean(
     value
     && words(value).length >= 3
-    && !/^rt\s+@/i.test(value)
     && !isTitleOnlyShare(value, sourceTitle),
   );
 }
@@ -306,12 +308,8 @@ function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; share
 
 function shareCommentaryLabel(sharedBy: number, authoredCount: number, availableCount: number): string {
   const shared = `Shared by ${sharedBy} clinician${sharedBy === 1 ? "" : "s"}`;
-  if (authoredCount > availableCount) {
-    if (availableCount <= 0) return `${shared} · ${authoredCount} commented · receipts unavailable`;
-    return `${shared} · ${authoredCount} commented · ${availableCount} comment${availableCount === 1 ? "" : "s"} available`;
-  }
-  if (availableCount > 0) return `${shared} · ${availableCount} clinician comment${availableCount === 1 ? "" : "s"} available`;
-  return shared;
+  const commented = Math.max(authoredCount, availableCount);
+  return commented > 0 ? `${shared} · ${commented} commented` : shared;
 }
 
 function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean }) {
@@ -347,12 +345,7 @@ function PhysicianVoices({
   loadFailed?: boolean;
 }) {
   const posts = usefulPosts(article);
-  if (!posts.length) {
-    if ((article?.authoredClinicianCount ?? 0) > 0) {
-      return <p className="er-no-commentary">Clinicians commented, but no comment receipts are available.</p>;
-    }
-    return sharedBy > 0 ? <p className="er-no-commentary">Shared, no commentary yet.</p> : null;
-  }
+  if (!posts.length) return null;
   const lead = posts[0];
   const rest = expanded ? posts.slice(1) : [];
   return (
@@ -1073,7 +1066,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           <h2>Regulatory Watch</h2>
           <span>{windowPayload?.designationCards.length
             ? `${windowPayload.designationCards.length} designation${windowPayload.designationCards.length === 1 ? "" : "s"}`
-            : hasRegulatoryDevelopment ? "Covered above" : "Clear"}</span>
+            : hasRegulatoryDevelopment ? "Covered above" : "Nothing new"}</span>
         </div>
         {(windowPayload?.designationCards ?? []).map((designation) => (
           <article key={designation.id}>
@@ -1092,8 +1085,6 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           ? `No additional ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`
           : `No new ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`}</p>}
       </section>}
-
-      <footer className="er-footer"><span>{pageReady ? "Evidence connected to the live Readout." : "Loading the live Readout..."}</span><span>CanvasMD</span></footer>
     </main>
   );
 }

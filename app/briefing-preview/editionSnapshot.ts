@@ -3,6 +3,7 @@ import {
   NEW_TO_LISTEN,
   archivedEditorialArticle,
   breakingEditorialArticle,
+  editorialEpisodeIdentityKeys,
   findEpisode,
   listenForArea,
   regulatoryEditorialArticle,
@@ -223,9 +224,15 @@ export function mergeReadoutEditionSnapshot(
   const featured = existingDevelopments.filter(isEpisodeDevelopment);
   const currentListen = listenForArea(NEW_TO_LISTEN, briefs, snapshot.area, featured, now)
     .map((item) => ({ item, episode: matchedEpisode(item, briefs, payload) }));
-  const existingListenKeys = new Set(snapshot.listen.map((entry) => entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
-  const newListen = currentListen.filter((entry) =>
-    !existingListenKeys.has(entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase()));
+  const existingListenKeys = new Set(
+    snapshot.listen.flatMap((entry) => editorialEpisodeIdentityKeys(entry.item, entry.episode)),
+  );
+  const newListen = currentListen.filter((entry) => {
+    const keys = editorialEpisodeIdentityKeys(entry.item, entry.episode);
+    if (keys.some((key) => existingListenKeys.has(key))) return false;
+    keys.forEach((key) => existingListenKeys.add(key));
+    return true;
+  });
   if (!additions.length && !newDesignations.length && !newListen.length) return snapshot;
 
   const combined = uniqueDevelopments([...additions, ...existingDevelopments]);
@@ -292,20 +299,24 @@ export function sevenDayEditionListen(
   history: ReadoutEditionSnapshot[],
   displayedDevelopments: EditorialDevelopment[] = [],
 ): ReadoutEditionListen[] {
-  const displayedIds = new Set(displayedDevelopments.filter(isEpisodeDevelopment).map((item) => item.id));
+  const displayedKeys = new Set(
+    displayedDevelopments
+      .filter(isEpisodeDevelopment)
+      .flatMap((item) => editorialEpisodeIdentityKeys(item)),
+  );
   const seen = new Set<string>();
   return [...history]
     .sort((left, right) => right.editionDate.localeCompare(left.editionDate))
     .flatMap((snapshot) => [
       ...snapshot.developments
-        .filter((entry) => isEpisodeDevelopment(entry.development) && !displayedIds.has(entry.development.id))
+        .filter((entry) => isEpisodeDevelopment(entry.development))
         .map((entry) => ({ item: entry.development as EditorialEpisodeFeature, episode: entry.episode })),
       ...snapshot.listen,
     ])
     .filter((entry) => {
-      const key = entry.episode?.episodeId || entry.item.url || entry.item.title.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const keys = editorialEpisodeIdentityKeys(entry.item, entry.episode);
+      if (keys.some((key) => displayedKeys.has(key) || seen.has(key))) return false;
+      keys.forEach((key) => seen.add(key));
       return true;
     });
 }
