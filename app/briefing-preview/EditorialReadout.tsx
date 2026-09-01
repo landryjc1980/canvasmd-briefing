@@ -49,16 +49,17 @@ const SHARER_PREVIEW_LIMIT = 3;
 const EMPTY_BRIEFS: BriefingData[] = [];
 const fullOverlayCache = new Map<string, Promise<BriefingEvidenceOverlayItem | null>>();
 
-function loadFullEvidenceOverlay(item: EditorialArticle): Promise<BriefingEvidenceOverlayItem | null> {
+function loadFullEvidenceOverlay(item: EditorialDevelopment): Promise<BriefingEvidenceOverlayItem | null> {
   const cached = fullOverlayCache.get(item.id);
   if (cached) return cached;
-  const request = fetch("/api/briefing", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      mode: "evidence-overlay",
-      windowHours: 168,
-      cards: [{
+  const card = isEpisodeDevelopment(item)
+    ? {
+        id: item.id,
+        episodeId: item.episodeId,
+        title: item.title,
+        url: item.url,
+      }
+    : {
         id: item.id,
         title: item.title,
         url: item.url,
@@ -66,7 +67,14 @@ function loadFullEvidenceOverlay(item: EditorialArticle): Promise<BriefingEviden
         pmid: item.match.pmid,
         titleIncludes: item.match.titleIncludes,
         articleIds: item.articleIds ?? [],
-      }],
+      };
+  const request = fetch("/api/briefing", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      mode: "evidence-overlay",
+      windowHours: 168,
+      cards: [card],
     }),
     cache: "no-store",
   }).then(async (response) => {
@@ -594,17 +602,68 @@ function CompactClinicianComment({ article }: { article: BriefingArticle | null 
   return <Voice post={post} />;
 }
 
-function EpisodeDevelopment({ item, briefs, numbered = false }: { item: EditorialEpisodeFeature; briefs: BriefingData[]; numbered?: boolean }) {
+function EpisodeDevelopment({
+  item,
+  briefs,
+  overlays,
+  numbered = false,
+}: {
+  item: EditorialEpisodeFeature;
+  briefs: BriefingData[];
+  overlays: Map<string, BriefingEvidenceOverlayItem>;
+  numbered?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const [detailOverlay, setDetailOverlay] = useState<BriefingEvidenceOverlayItem | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailLoadFailed, setDetailLoadFailed] = useState(false);
   const episode = findEpisode(item, briefs);
+  const overlay = detailOverlay ?? overlays.get(item.id);
   const sourceHref = episode?.sourceUrl || item.url;
   const audioUrl = episode?.audioUrl ?? item.audioUrl ?? null;
-  const canDisclose = Boolean(item.finding.trim());
+  const article = applyEvidenceOverlay({
+    title: episode?.title || item.title,
+    url: sourceHref,
+    journal: episode?.show || item.show,
+    domain: null,
+    abstract: item.finding,
+    description: null,
+    sharers: overlay?.kolSharers ?? 0,
+    kolSharers: overlay?.kolSharers ?? 0,
+    publishers: [],
+    faces: [],
+    topLikes: 0,
+    posts: [],
+  }, overlay);
+  const sharedBy = article?.kolSharers ?? 0;
+  const authoredCount = usefulPosts(article).length;
+  const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
+  const extraComments = Math.max(0, availableComments - 1);
+  const canDisclose = Boolean(item.finding.trim()) || extraComments > 0;
+  const disclose = [
+    item.finding.trim() ? "Full description" : null,
+    extraComments > 0 ? `${extraComments} more available comment${extraComments === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" · ");
+  const toggleDisclosure = () => {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (!nextOpen || detailOverlay || loadingDetails || authoredCount >= availableComments) return;
+    setLoadingDetails(true);
+    setDetailLoadFailed(false);
+    loadFullEvidenceOverlay(item).then((details) => {
+      if (details) setDetailOverlay(details);
+      else setDetailLoadFailed(true);
+    }).finally(() => setLoadingDetails(false));
+  };
   return (
     <article className={`er-development er-development-episode ${open ? "is-open" : ""}`}>
       <div className="er-kicker">{editorialScopeLabel(item)}{!numbered && <> · <b>Podcast</b></>}</div>
       <SourceHeadline href={sourceHref} source={episode?.show || item.show} title={episode?.title || item.title} />
       <DevelopmentFinding text={item.finding} label="From the episode" expanded={open} />
+      {overlay
+        ? <PeerRow article={article} sharedBy={sharedBy} />
+        : <p className="er-peers-pending">Updating clinician evidence...</p>}
+      {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
       <EpisodeAudio
         audioUrl={audioUrl}
         sourceHref={sourceHref}
@@ -613,7 +672,7 @@ function EpisodeDevelopment({ item, briefs, numbered = false }: { item: Editoria
         episodeId={episode?.episodeId ?? item.episodeId ?? item.id}
         evidence={item.evidence}
       />
-      {canDisclose && <Disclose open={open} label="Full description" onToggle={() => setOpen((value) => !value)} />}
+      {canDisclose && <Disclose open={open} label={disclose || "Show more"} onToggle={toggleDisclosure} />}
     </article>
   );
 }
@@ -676,7 +735,7 @@ function CompactDevelopment({
 
 function Development({ item, briefs, overlays, numbered = false }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem>; numbered?: boolean }) {
   return isEpisodeDevelopment(item)
-    ? <EpisodeDevelopment item={item} briefs={briefs} numbered={numbered} />
+    ? <EpisodeDevelopment item={item} briefs={briefs} overlays={overlays} numbered={numbered} />
     : <ArticleDevelopment item={item} briefs={briefs} overlays={overlays} numbered={numbered} />;
 }
 

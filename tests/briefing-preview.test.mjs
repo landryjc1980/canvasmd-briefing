@@ -402,17 +402,17 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v14"/);
-  assert.match(readoutServer, /readout-window:finished:v2:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v15"/);
+  assert.match(readoutServer, /readout-window:finished:v3:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
-  assert.match(readoutServer, /\["readout-window-finished-v2"\]/,
+  assert.match(readoutServer, /\["readout-window-finished-v3"\]/,
     "the framework data cache cannot retain a finished v1 payload after deploy");
   assert.match(readoutServer, /const finished = await fetchFinishedReadoutWindow\(area, window\)/);
   assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload\)/,
     "the scheduled warmer writes all finished views before readers request them");
   assert.match(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
     "finished views carry the featured comment while expanded comments load on demand");
-  assert.match(readoutServer, /readout-window:v3:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /readout-window:v4:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /readoutEditionPreferNonEmpty\([\s\S]*?resolveReadoutTodayEdition\(area, today\),[\s\S]*?readoutEditionForArea\(canonicalCurrent, area\),[\s\S]*?\)/,
     "an exact non-empty specialty edition must survive the canonical All projection");
@@ -741,6 +741,14 @@ test("a transcript-supported episode can lead a specialty without duplicating Li
   assert.match(edition, /FEATURED_EPISODES/);
   assert.match(edition, /Systemic Treatment of Ovarian Cancer Recurrence/);
   assert.match(preview, /EpisodeDevelopment/);
+  assert.match(preview, /<EpisodeDevelopment item=\{item\} briefs=\{briefs\} overlays=\{overlays\}/,
+    "promoted podcasts receive the same evidence overlay map as article leads");
+  assert.match(preview, /episodeId: item\.episodeId/,
+    "expanded podcast evidence is requested by the stable episode id");
+  assert.match(preview, /<PeerRow article=\{article\} sharedBy=\{sharedBy\}/,
+    "promoted podcasts show clinician avatars, counts, and names");
+  assert.match(preview, /<PhysicianVoices article=\{article\} sharedBy=\{sharedBy\}/,
+    "promoted podcasts use the article commentary receipt treatment");
   assert.match(preview, /AudioQuote/);
   assert.match(preview, /audioUrl=\{audioUrl\}/);
   assert.match(preview, /eventLabel=\{episode\?\.title \|\| item\.title\}/);
