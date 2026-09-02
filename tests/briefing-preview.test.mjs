@@ -486,11 +486,14 @@ test("cards use source-backed excerpts and visually separate the source from the
   assert.match(previewCss, /\.er-source \{[^}]*color: var\(--er-muted\)[^}]*font-family: inherit[^}]*font-weight: 450/);
 });
 
-test("Listen cards render show art and pin equal-height players to the card bottom", () => {
-  assert.match(preview, /showArt && <img className="er-listen-art" src=\{showArt\}/);
-  assert.match(preview, /className="er-listen-card"/);
-  assert.match(previewCss, /\.er-listen-card \{ display: flex; flex-direction: column; \}/);
-  assert.match(previewCss, /\.er-listen-audio \{ margin-top: auto; padding-top: 14px; \}/);
+test("Listen cards use framed artwork and a full-width editorial audio row", () => {
+  assert.match(preview, /<img className="er-listen-art" src=\{showArt\}/);
+  assert.match(preview, /`er-listen-card\$\{showArt/);
+  assert.match(preview, /className="er-listen-art-frame"/);
+  assert.match(preview, /className="er-listen-show"/);
+  assert.match(previewCss, /\.er-listen-card \{ display: grid; grid-template-columns: 104px minmax\(0, 1fr\); grid-template-areas: "art copy" "art audio"/);
+  assert.match(previewCss, /\.er-listen-art-frame \{[^}]*border: 1px solid var\(--er-line\)[^}]*background: #f1efe9/);
+  assert.match(previewCss, /\.er-listen-audio \{ grid-area: audio; min-width: 0; \}/);
 });
 
 test("an attached podcast episode plays on the development card without becoming coverage", () => {
@@ -795,7 +798,7 @@ test("a transcript-supported episode can lead a specialty without duplicating Li
     "promoted podcasts use the article commentary receipt treatment");
   assert.match(preview, /AudioQuote/);
   assert.match(preview, /audioUrl=\{audioUrl\}/);
-  assert.match(preview, /eventLabel=\{episode\?\.title \|\| item\.title\}/);
+  assert.match(preview, /eventLabel=\{title\}/);
   assert.match(preview, /Episode page ↗/);
   assert.match(preview, /Listen here/);
   assert.match(preview, /listenForArea/);

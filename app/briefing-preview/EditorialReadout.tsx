@@ -1032,14 +1032,20 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
               const audioUrl = episode?.audioUrl ?? item.audioUrl ?? curated?.audioUrl;
               const durationSeconds = episode?.durationSeconds ?? item.durationSeconds ?? curated?.durationSeconds;
               const episodeId = episode?.episodeId ?? item.episodeId ?? curated?.episodeId ?? item.id;
+              const show = episode?.show || item.show;
+              const title = episode?.title || item.hook;
               return (
-                <article className="er-listen-card" key={item.id}>
-                  {showArt && <img className="er-listen-art" src={showArt} alt="" loading="lazy" decoding="async" />}
+                <article className={`er-listen-card${showArt ? "" : " no-art"}`} key={item.id}>
+                  {showArt && (
+                    <div className="er-listen-art-frame">
+                      <img className="er-listen-art" src={showArt} alt="" loading="lazy" decoding="async" />
+                    </div>
+                  )}
                   <div className="er-listen-copy">
+                    <p className="er-listen-show">{show}</p>
                     <a className="er-listen-title" href={sourceHref} target="_blank" rel="noreferrer">
-                      <b>{episode?.title || item.hook}</b>
+                      <b>{title}</b>
                     </a>
-                    <p>{episode?.show || item.show}</p>
                   </div>
                   {audioUrl && (
                     <div className="er-listen-audio">
@@ -1049,7 +1055,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
                         durationSeconds={durationSeconds}
                         label="Listen here"
                         eventId={episodeId}
-                        eventLabel={episode?.title || item.title}
+                        eventLabel={title}
                         accent="var(--area)"
                       />
                     </div>
