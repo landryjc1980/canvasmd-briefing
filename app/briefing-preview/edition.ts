@@ -31,7 +31,7 @@ export type EditorialArticle = {
 
 export type EditorialEpisode = {
   id: string;
-  area: SpecialtyArea;
+  area: EditorialArea;
   hook: string;
   show: string;
   title: string;
@@ -794,12 +794,12 @@ function heldEpisodesForArea(
   featured: Set<string>,
   now: Date,
 ): EditorialEpisode[] {
-  const heldByArea = new Map<SpecialtyArea, EditorialEpisode[]>();
+  const heldByArea = new Map<EditorialArea, EditorialEpisode[]>();
   for (const brief of briefs) {
     const briefArea = asEditionArea(brief.area);
     if (!briefArea || (area !== "All" && area !== briefArea)) continue;
     const episodes = (brief.episodes ?? [])
-      .filter((episode) => isListenHoldEpisode(episode, briefArea, now))
+      .filter((episode) => isListenHoldEpisode(episode, briefArea, area, now))
       .map((episode) => heldEpisodeFromBriefEpisode(episode, briefArea))
       .filter((episode) => !hasAnyKey(episode, featured))
       .sort((left, right) => publishedTime(findEpisode(right, briefs)) - publishedTime(findEpisode(left, briefs)));
@@ -816,7 +816,7 @@ function heldEpisodesForArea(
   return held.sort((left, right) => publishedTime(findEpisode(right, briefs)) - publishedTime(findEpisode(left, briefs)));
 }
 
-function heldEpisodeFromBriefEpisode(episode: BriefingEpisode, area: SpecialtyArea): EditorialEpisode {
+function heldEpisodeFromBriefEpisode(episode: BriefingEpisode, area: EditorialArea): EditorialEpisode {
   return {
     id: episode.episodeId ?? `held-${slug([area, episode.show, episode.title].filter(Boolean).join("-"))}`,
     area,
@@ -828,14 +828,22 @@ function heldEpisodeFromBriefEpisode(episode: BriefingEpisode, area: SpecialtyAr
   };
 }
 
-function isListenHoldEpisode(episode: BriefingEpisode, area: SpecialtyArea, now: Date): boolean {
+function isListenHoldEpisode(
+  episode: BriefingEpisode,
+  episodeArea: EditorialArea,
+  requestedArea: EditionArea,
+  now: Date,
+): boolean {
   const show = episode.show ?? "";
   if (!show || EXCLUDED_LISTEN_HOLD_SHOWS.some((excluded) => sameText(show, excluded))) return false;
   if (!withinHours(episode.publishedAt, now, LISTEN_HOLD_HOURS)) return false;
-  if (CORE_LISTEN_HOLD_SHOWS[area].some((candidate) => sameText(show, candidate))) return true;
+  if (sameText(show, CONDITIONAL_HEALTHCARE_UNFILTERED_SHOW)) {
+    return requestedArea === "All" || episodeArea === requestedArea;
+  }
+  if (episodeArea === "All") return false;
+  if (CORE_LISTEN_HOLD_SHOWS[episodeArea].some((candidate) => sameText(show, candidate))) return true;
   if (CROSS_SPECIALTY_LISTEN_HOLD_SHOWS.some((candidate) => sameText(show, candidate))) return true;
-  if (sameText(show, CONDITIONAL_GU_SHOW)) return area === "GU" && hasSpecialtyCue(area, episode);
-  if (sameText(show, CONDITIONAL_HEALTHCARE_UNFILTERED_SHOW)) return hasSpecialtyCue(area, episode);
+  if (sameText(show, CONDITIONAL_GU_SHOW)) return episodeArea === "GU" && hasSpecialtyCue(episodeArea, episode);
   return false;
 }
 
@@ -856,8 +864,8 @@ function publishedTime(episode: BriefingEpisode | null): number {
   return episode ? Date.parse(episode.publishedAt) || 0 : 0;
 }
 
-function asEditionArea(value: string | null | undefined): SpecialtyArea | null {
-  return EDITION_AREAS.includes(value as EditionArea) && value !== "All" ? value as SpecialtyArea : null;
+function asEditionArea(value: string | null | undefined): EditorialArea | null {
+  return EDITION_AREAS.includes(value as EditionArea) ? value as EditorialArea : null;
 }
 
 function episodeKeys(item: Pick<EditorialEpisode, "id" | "show" | "title" | "match">): string[] {

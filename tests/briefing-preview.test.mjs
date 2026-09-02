@@ -841,6 +841,28 @@ test("cross-specialty podcast holds route by episode area only", () => {
   assert.equal(listenForArea([], [breast], "All", [], now).length, 1);
 });
 
+test("Healthcare Unfiltered is held on All and only on an explicitly assigned specialty", () => {
+  const now = new Date("2026-09-02T12:00:00Z");
+  const general = brief("All", [
+    episode("Healthcare Unfiltered", "How AI Helps Logistics in Oncology", "2026-09-01T12:00:00Z"),
+  ]);
+  assert.deepEqual(listenForArea([], [general], "All", [], now).map((item) => item.title), [
+    "How AI Helps Logistics in Oncology",
+  ]);
+  assert.deepEqual(listenForArea([], [general], "GU", [], now), []);
+
+  const heme = brief("Heme", [
+    episode("Healthcare Unfiltered", "Cell therapy logistics", "2026-09-01T13:00:00Z"),
+  ]);
+  assert.deepEqual(listenForArea([], [heme], "Heme", [], now).map((item) => item.title), [
+    "Cell therapy logistics",
+  ]);
+  assert.deepEqual(listenForArea([], [heme], "GU", [], now), []);
+  assert.deepEqual(listenForArea([], [heme], "All", [], now).map((item) => item.title), [
+    "Cell therapy logistics",
+  ]);
+});
+
 test("podcast Listen holds expire after 72 hours", () => {
   const now = new Date("2026-08-25T16:00:00Z");
   const heme = brief("Heme", [
