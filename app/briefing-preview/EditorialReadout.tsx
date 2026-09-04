@@ -313,7 +313,6 @@ function shareCommentaryLabel(sharedBy: number, authoredCount: number, available
 }
 
 function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean }) {
-  const handle = post.handle ? `@${post.handle.replace(/^@/, "")}` : null;
   return (
     <div className={`er-voice ${extra ? "er-voice-more" : ""}`}>
       <div className="er-who">
@@ -322,7 +321,6 @@ function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean 
           : <span className="er-av" aria-hidden="true">{clinicianInitials(post.name)}</span>}
         <div>
           <b>{post.name}</b>
-          {handle && <span className="er-handle">{handle}</span>}
         </div>
       </div>
       <p className="er-quote">{post.text}</p>

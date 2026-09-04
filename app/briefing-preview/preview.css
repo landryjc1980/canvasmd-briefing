@@ -127,7 +127,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-who { display: flex; align-items: center; gap: 9px; }
 .er-who img, .er-who .er-av { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
 .er-who b { color: var(--er-ink); font-size: 13.5px; font-weight: 650; }
-.er-handle { margin-left: 6px; color: var(--er-link); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
 .er-quote { margin: 8px 0 0; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #4a4a5e; font-size: 14px; font-weight: 400; line-height: 1.45; }
 .er-development.is-open .er-quote { -webkit-line-clamp: unset; overflow: visible; }
 .er-xlink { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 650; text-decoration: none; }

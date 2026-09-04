@@ -12,6 +12,11 @@ import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
+
+test("clinician commentary cards show names without redundant X handles", () => {
+  assert.doesNotMatch(preview, /post\.handle\.replace/);
+  assert.doesNotMatch(preview, /er-handle/);
+});
 const edition = read("app/briefing-preview/edition.ts");
 const previewCss = read("app/briefing-preview/preview.css");
 const briefingRoute = read("app/api/briefing/route.ts");
