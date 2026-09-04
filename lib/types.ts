@@ -1063,6 +1063,8 @@ export type HeroConversationSpan = {
   lastTouchAt: string | null;
 };
 export type HeroCard = {
+  publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
+  sourceExcerpt?: string | null;
   id: string; // anchor-derived, stable across builds
   kind: "paper" | "episode" | "event" | "thread" | "readout" | "development" | "trial_milestone";
   anchorId: string;

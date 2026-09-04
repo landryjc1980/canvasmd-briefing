@@ -1,4 +1,5 @@
 "use client";
+import { activeReadoutEditionDate } from "./readoutRequest";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
@@ -395,6 +396,7 @@ function DevelopmentFinding({
 }
 
 function articleContentType(item: EditorialArticle): string {
+  if (item.publicationClass && item.publicationClass !== "research") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline", unknown: "Unclassified source" }[item.publicationClass];
   const hay = `${item.evidence} ${item.sourceAction ?? ""} ${item.journal}`;
   if (/approval/i.test(hay)) return "FDA approval";
   if (/safety|warning/i.test(hay)) return "FDA safety";
@@ -807,6 +809,24 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const [alsoOpen, setAlsoOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const payloadCache = useRef(new Map<string, ReadoutWindowPayload>([[payloadKey("All", "today"), initialPayload]]));
+
+  useEffect(() => {
+    let refreshedAt = Date.now();
+    let editionDate = activeReadoutEditionDate();
+    const refreshIfNeeded = () => {
+      if (document.visibilityState === "hidden") return;
+      const date = activeReadoutEditionDate();
+      if (Date.now() - refreshedAt < 5 * 60_000 && date === editionDate) return;
+      refreshedAt = Date.now();
+      editionDate = date;
+      payloadCache.current.clear();
+      setRetryVersion((version) => version + 1);
+    };
+    const timer = window.setInterval(refreshIfNeeded, 60_000);
+    window.addEventListener("focus", refreshIfNeeded);
+    document.addEventListener("visibilitychange", refreshIfNeeded);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refreshIfNeeded); document.removeEventListener("visibilitychange", refreshIfNeeded); };
+  }, []);
 
   useEffect(() => {
     const key = payloadKey(requestedArea, requestedWindow);

@@ -6,6 +6,7 @@ export type SpecialtyArea = Exclude<EditionArea, "All">;
 export type EditorialArea = SpecialtyArea | "All";
 
 export type EditorialArticle = {
+  publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
   id: string;
   area: EditorialArea;
   site: string;
@@ -592,7 +593,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
   const primarySource = supportLinks.find((link) => link.relationshipType === "primary_source");
   const primaryDescription = primarySource?.description;
-  const sourceFinding = primaryDescription || card.excerpt || "";
+  const sourceFinding = card.sourceExcerpt || primaryDescription || card.excerpt || "";
   const findingLabel = primaryDescription
     ? "From the source"
     : card.kind === "paper" || card.kind === "readout"
@@ -604,6 +605,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   const site = readoutFocusLabel(card.subAreas) ?? (item.area === "All" ? "Oncology" : item.area);
   return {
     id: `archive-${card.id}`,
+    publicationClass: card.publicationClass,
     area: item.area as EditorialArea,
     site,
     nickname: card.kind === "event" ? "REGULATORY" : "",

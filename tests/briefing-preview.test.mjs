@@ -84,7 +84,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /mode: "evidence-overlay"/);
   assert.match(preview, /if \(!nextOpen \|\| detailOverlay \|\| loadingDetails \|\| authoredCount >= availableComments\) return/,
     "full comment bodies load only when the reader expands a card that has more comments");
-  assert.doesNotMatch(preview, /window\.setInterval|window\.addEventListener\("focus"/);
+  assert.match(preview, /payloadCache\.current\.clear\(\)/);
   assert.match(edition, /articleEvidencePool/);
   assert.match(edition, /brief\.topStories/);
   assert.match(edition, /brief\.movers/);
@@ -407,19 +407,20 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "the most likely next view is prefetched after the initial paint");
   assert.match(preview, /EDITION_AREAS\.filter/,
     "specialty Today views prefetch in the background");
-  assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
+  assert.match(preview, /5 \* 60_000/);
+  assert.match(preview, /visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v17"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v18"/);
   assert.match(readoutServer, /readout-window:finished:v3:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
-  assert.match(readoutServer, /\["readout-window-finished-v4"\]/,
+  assert.match(readoutServer, /\["readout-window-finished-v5"\]/,
     "the framework data cache cannot retain a finished v1 payload after deploy");
   assert.match(readoutServer, /const finished = await fetchFinishedReadoutWindow\(area, window\)/);
   assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload\)/,
     "the scheduled warmer writes all finished views before readers request them");
-  assert.match(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
-    "finished views carry the featured comment while expanded comments load on demand");
+  assert.doesNotMatch(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
+    "published comments remain available to guests in the bounded saved edition");
   assert.match(readoutServer, /readout-window:v4:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /readoutEditionPreferNonEmpty\([\s\S]*?resolveReadoutTodayEdition\(area, today\),[\s\S]*?readoutEditionForArea\(canonicalCurrent, area\),[\s\S]*?\)/,
@@ -467,8 +468,8 @@ test("the daily archive reads every prior canonical edition before deduplicating
 test("preprints remain discoverable but cannot occupy lead-paper slots", () => {
   assert.match(editionSnapshot, /export function isPreprintEditorialArticle/);
   assert.match(editionSnapshot, /biorxiv\|medrxiv/);
-  assert.match(editionSnapshot, /const leadRanked = ranked\.filter\(\(item\) => !isPreprintEditorialArticle\(item\)\)/);
-  assert.match(editionSnapshot, /const preprints = ranked\.filter\(isPreprintEditorialArticle\)/);
+  assert.match(editionSnapshot, /const leadRanked = ranked\.filter\(\(item\) => !isPreprintEditorialArticle\(item\) &&/);
+  assert.match(editionSnapshot, /const preprints = ranked\.filter\(\(item\) => !leadRanked\.includes\(item\)\)/);
   assert.match(editionSnapshot, /\.\.\.preprints,/,
     "preprints are demoted to Also Relevant rather than silently discarded");
 });
@@ -495,7 +496,7 @@ test("attached related coverage is compact, validated, and deduped from the prim
 });
 
 test("cards use source-backed excerpts and visually separate the source from the title", () => {
-  assert.match(edition, /const sourceFinding = primaryDescription \|\| card\.excerpt \|\| ""/);
+  assert.match(edition, /const sourceFinding = card\.sourceExcerpt \|\| primaryDescription \|\| card\.excerpt \|\| ""/);
   assert.match(edition, /"From the abstract"/);
   assert.match(previewCss, /\.er-source \{[^}]*color: var\(--er-muted\)[^}]*font-family: inherit[^}]*font-weight: 450/);
 });

@@ -103,6 +103,7 @@ function renderableArticle(item: EditorialArticle): boolean {
 
 /** Preprints stay discoverable in Also Relevant, but cannot occupy a lead-paper slot. */
 export function isPreprintEditorialArticle(item: EditorialArticle): boolean {
+  if (item.publicationClass === "preprint") return true;
   const source = `${item.journal ?? ""} ${item.url ?? ""}`.toLowerCase();
   return /\b(?:biorxiv|medrxiv)\b/.test(source) ||
     /(?:researchsquare\.com|ssrn\.com)/.test(source) ||
@@ -169,8 +170,8 @@ export function buildReadoutEditionSnapshot(
 ): ReadoutEditionSnapshot {
   const ranked = liveRankedDevelopments(payload, area)
     .filter((item) => !appearedInMorningEdition(item, previousEditions));
-  const leadRanked = ranked.filter((item) => !isPreprintEditorialArticle(item));
-  const preprints = ranked.filter(isPreprintEditorialArticle);
+  const leadRanked = ranked.filter((item) => !isPreprintEditorialArticle(item) && (!item.publicationClass || ["research", "guideline"].includes(item.publicationClass)));
+  const preprints = ranked.filter((item) => !leadRanked.includes(item));
   const developments: EditorialDevelopment[] = leadRanked.slice(0, 5);
   const relevant = uniqueRelevant([
     ...leadRanked.slice(5),

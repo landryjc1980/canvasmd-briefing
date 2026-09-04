@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import type { ReadoutWindowPayload } from "@/lib/types";
 import {
   readoutWindowDays,
+  activeReadoutEditionDate,
   type ReadoutWindow,
 } from "@/app/briefing-preview/readoutRequest";
 import { EDITION_AREAS, type EditionArea } from "@/app/briefing-preview/edition";
@@ -14,7 +15,7 @@ import {
   readoutEditionPreferNonEmpty,
 } from "@/app/briefing-preview/editionHistory";
 
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v17";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v18";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -39,13 +40,14 @@ function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
 }
 
 function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
-  return {
-    ...payload,
-    overlays: (payload.overlays ?? []).map((overlay) => ({
-      ...overlay,
-      posts: overlay.posts.slice(0, 1),
-    })),
-  };
+  // These bounded comments are part of the publication. Keeping them allows
+  // guests to expand evidence without accessing the private live share graph.
+  return payload;
+}
+
+function currentFinishedWindow(payload: ReadoutWindowPayload | null | undefined): boolean {
+  const edition = payload?.currentEdition as { schemaVersion?: number; editionDate?: string } | null | undefined;
+  return edition?.schemaVersion === 2 && edition.editionDate === activeReadoutEditionDate();
 }
 
 async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
@@ -117,7 +119,7 @@ async function readFinishedWindow(area: EditionArea, window: ReadoutWindow): Pro
   if (!response.ok) return null;
   const rows = await response.json() as Array<{ card?: ReadoutWindowPayload }>;
   const payload = rows[0]?.card;
-  return payload?.area === area && payload.windowDays === readoutWindowDays(window) ? payload : null;
+  return payload?.area === area && payload.windowDays === readoutWindowDays(window) && currentFinishedWindow(payload) ? payload : null;
 }
 
 const fetchReadoutWindow = unstable_cache(
@@ -206,7 +208,7 @@ async function buildFinishedReadoutWindow(
 
 const fetchFinishedReadoutWindow = unstable_cache(
   async (area: EditionArea, window: ReadoutWindow) => readFinishedWindow(area, window),
-  ["readout-window-finished-v4"],
+  ["readout-window-finished-v5"],
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
@@ -215,7 +217,7 @@ export async function getCachedReadoutWindow(
   window: ReadoutWindow,
 ): Promise<ReadoutWindowPayload> {
   const finished = await fetchFinishedReadoutWindow(area, window);
-  if (finished) return finished;
+  if (finished && currentFinishedWindow(finished)) return finished;
 
   const rebuilt = await buildFinishedReadoutWindow(area, window);
   await persistFinishedWindow(area, window, rebuilt);
