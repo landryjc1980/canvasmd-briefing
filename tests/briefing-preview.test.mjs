@@ -411,10 +411,10 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(preview, /visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v18"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v19"/);
   assert.match(readoutServer, /readout-window:finished:v3:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
-  assert.match(readoutServer, /\["readout-window-finished-v5"\]/,
+  assert.match(readoutServer, /\["readout-window-finished-v6"\]/,
     "the framework data cache cannot retain a finished v1 payload after deploy");
   assert.match(readoutServer, /const finished = await fetchFinishedReadoutWindow\(area, window\)/);
   assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload\)/,

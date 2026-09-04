@@ -546,7 +546,7 @@ function ArticleDevelopment({
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
-  const isResearch = contentType === "Paper" || contentType === "Preprint";
+  const isResearch = !["FDA approval", "FDA safety", "Regulatory"].includes(contentType);
   const actionDate = isResearch ? null : editionDateLabel(item.occurredOn);
   const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
