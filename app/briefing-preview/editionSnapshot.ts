@@ -101,6 +101,14 @@ function renderableArticle(item: EditorialArticle): boolean {
   return /^https?:\/\//i.test(item.url) && item.title.trim().length > 0;
 }
 
+/** Preprints stay discoverable in Also Relevant, but cannot occupy a lead-paper slot. */
+export function isPreprintEditorialArticle(item: EditorialArticle): boolean {
+  const source = `${item.journal ?? ""} ${item.url ?? ""}`.toLowerCase();
+  return /\b(?:biorxiv|medrxiv)\b/.test(source) ||
+    /(?:researchsquare\.com|ssrn\.com)/.test(source) ||
+    /doi\.org\/10\.(?:1101|64898)\//.test(source);
+}
+
 export function liveInsertionDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
   return uniqueDevelopments([
     ...(payload.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area)),
@@ -161,9 +169,12 @@ export function buildReadoutEditionSnapshot(
 ): ReadoutEditionSnapshot {
   const ranked = liveRankedDevelopments(payload, area)
     .filter((item) => !appearedInMorningEdition(item, previousEditions));
-  const developments: EditorialDevelopment[] = ranked.slice(0, 5);
+  const leadRanked = ranked.filter((item) => !isPreprintEditorialArticle(item));
+  const preprints = ranked.filter(isPreprintEditorialArticle);
+  const developments: EditorialDevelopment[] = leadRanked.slice(0, 5);
   const relevant = uniqueRelevant([
-    ...ranked.slice(5),
+    ...leadRanked.slice(5),
+    ...preprints,
     ...(payload.moreCards ?? [])
       .map(archivedEditorialArticle)
       .filter(renderableArticle)

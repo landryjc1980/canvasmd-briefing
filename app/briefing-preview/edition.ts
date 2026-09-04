@@ -12,6 +12,7 @@ export type EditorialArticle = {
   nickname: string;
   takeaway: string;
   finding: string;
+  sourceExcerpt?: string;
   findingSource?: "source" | "summary";
   findingLabel?: string;
   remember: string;
@@ -608,6 +609,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     nickname: card.kind === "event" ? "REGULATORY" : "",
     takeaway: card.headline,
     finding: sourceFinding ? readoutFindingExcerpt(sourceFinding) : "",
+    sourceExcerpt: sourceFinding,
     findingSource: sourceFinding ? "source" : undefined,
     findingLabel: sourceFinding ? findingLabel : undefined,
     remember: ARCHIVED_TAKEAWAY_FALLBACK,

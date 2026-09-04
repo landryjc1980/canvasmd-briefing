@@ -464,6 +464,15 @@ test("the daily archive reads every prior canonical edition before deduplicating
   assert.match(readoutEditionArchive, /buildReadoutEditionSnapshot\([\s\S]*?previousForArea/);
 });
 
+test("preprints remain discoverable but cannot occupy lead-paper slots", () => {
+  assert.match(editionSnapshot, /export function isPreprintEditorialArticle/);
+  assert.match(editionSnapshot, /biorxiv\|medrxiv/);
+  assert.match(editionSnapshot, /const leadRanked = ranked\.filter\(\(item\) => !isPreprintEditorialArticle\(item\)\)/);
+  assert.match(editionSnapshot, /const preprints = ranked\.filter\(isPreprintEditorialArticle\)/);
+  assert.match(editionSnapshot, /\.\.\.preprints,/,
+    "preprints are demoted to Also Relevant rather than silently discarded");
+});
+
 test("an authenticated repair can deterministically replace a bad saved morning edition", () => {
   assert.match(readoutArchiveRoute, /req\.nextUrl\.searchParams\.get\("repair"\) === "1"/);
   assert.match(readoutArchiveRoute, /rebuildCurrentReadoutEdition\(\)/);
@@ -489,6 +498,11 @@ test("cards use source-backed excerpts and visually separate the source from the
   assert.match(edition, /const sourceFinding = primaryDescription \|\| card\.excerpt \|\| ""/);
   assert.match(edition, /"From the abstract"/);
   assert.match(previewCss, /\.er-source \{[^}]*color: var\(--er-muted\)[^}]*font-family: inherit[^}]*font-weight: 450/);
+});
+
+test("expanding a paper replaces the concise finding with the full source abstract", () => {
+  assert.match(preview, /expanded && expandedText \? expandedText : text/);
+  assert.match(preview, /expandedText=\{item\.sourceExcerpt\}/);
 });
 
 test("Listen cards use framed artwork and a full-width editorial audio row", () => {

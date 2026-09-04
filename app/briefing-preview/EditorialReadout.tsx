@@ -359,11 +359,19 @@ function PhysicianVoices({
   );
 }
 
-function DevelopmentFinding({ text, expanded = false }: { text: string; expanded?: boolean }) {
+function DevelopmentFinding({
+  text,
+  expandedText,
+  expanded = false,
+}: {
+  text: string;
+  expandedText?: string | null;
+  expanded?: boolean;
+}) {
   const [collapsible, setCollapsible] = useState(false);
   const findingRef = useRef<HTMLParagraphElement>(null);
   const findingId = useId();
-  const finding = cleanReadoutExcerpt(text);
+  const finding = cleanReadoutExcerpt(expanded && expandedText ? expandedText : text);
 
   useEffect(() => {
     const node = findingRef.current;
@@ -568,7 +576,7 @@ function ArticleDevelopment({
       {contentType === "Paper" && publishedDate && (
         <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       )}
-      <DevelopmentFinding text={item.finding} expanded={open} />
+      <DevelopmentFinding text={item.finding} expandedText={item.sourceExcerpt} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
