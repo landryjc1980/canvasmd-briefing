@@ -410,7 +410,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(preview, /setInterval|addEventListener\("focus"|visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v16"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v17"/);
   assert.match(readoutServer, /readout-window:finished:v3:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
   assert.match(readoutServer, /\["readout-window-finished-v4"\]/,
