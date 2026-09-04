@@ -14,7 +14,7 @@ import {
   readoutEditionPreferNonEmpty,
 } from "@/app/briefing-preview/editionHistory";
 
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v15";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v16";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -206,7 +206,7 @@ async function buildFinishedReadoutWindow(
 
 const fetchFinishedReadoutWindow = unstable_cache(
   async (area: EditionArea, window: ReadoutWindow) => readFinishedWindow(area, window),
-  ["readout-window-finished-v3"],
+  ["readout-window-finished-v4"],
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
