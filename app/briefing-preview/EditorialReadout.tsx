@@ -399,6 +399,7 @@ function articleContentType(item: EditorialArticle): string {
   if (/approval/i.test(hay)) return "FDA approval";
   if (/safety|warning/i.test(hay)) return "FDA safety";
   if (/label|regulatory|fast track|priority review|breakthrough/i.test(hay)) return "Regulatory";
+  if (/preprint|biorxiv|medrxiv|research\s*square|ssrn/i.test(hay)) return "Preprint";
   return "Paper";
 }
 
@@ -543,8 +544,9 @@ function ArticleDevelopment({
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
-  const actionDate = contentType === "Paper" ? null : editionDateLabel(item.occurredOn);
-  const publishedDate = contentType === "Paper" ? editionDateLabel(item.occurredOn) : null;
+  const isResearch = contentType === "Paper" || contentType === "Preprint";
+  const actionDate = isResearch ? null : editionDateLabel(item.occurredOn);
+  const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
   const extraComments = Math.max(0, availableComments - 1);
@@ -564,7 +566,7 @@ function ArticleDevelopment({
     <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
       <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>
       <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
-      {contentType !== "Paper" && (
+      {!isResearch && (
         <p className="er-action-date">Action date: {actionDate
           ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
           : "Unavailable"}</p>
@@ -573,7 +575,7 @@ function ArticleDevelopment({
           clinician attention days after it appeared. The publication date keeps that honest.
           Papers show a date ONLY when the source carries one (no "Unavailable" filler): an
           action date is a claim regulators answer for, a missing journal date is just missing. */}
-      {contentType === "Paper" && publishedDate && (
+      {isResearch && publishedDate && (
         <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       )}
       <DevelopmentFinding text={item.finding} expandedText={item.sourceExcerpt} expanded={open} />
