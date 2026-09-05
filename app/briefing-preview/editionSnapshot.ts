@@ -28,6 +28,7 @@ export type ReadoutEditionSnapshot = {
   schemaVersion: 2;
   editionDate: string;
   generatedAt: string;
+  selectionVersion?: string | null;
   area: EditionArea;
   developments: ReadoutEditionDevelopment[];
   relevant: ReadoutEditionArticle[];

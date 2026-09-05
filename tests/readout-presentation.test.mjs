@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { articleExpansion, articleTextPreview } from "../lib/readoutPresentation.ts";
-import { readoutAudioDates } from "../lib/readoutAudio.ts";
+import { articleExpansion, articleSourceText, articleTextPreview, meaningfulArticleExcerpt } from "../lib/readoutPresentation.ts";
+import { audioReflectsEarlierUpdate, readoutAudioDates } from "../lib/readoutAudio.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const renderer = read("app/briefing-preview/EditorialReadout.tsx");
@@ -26,6 +26,24 @@ test("a complete abstract or a truncated named comment has a meaningful disclosu
   assert.equal(articleExpansion({ preview: "", full: "" }, ["Short take."], 3).label, "Read 3 full comments");
 });
 
+test("author conflicts and site marketing cannot become an abstract or an empty disclosure", () => {
+  for (const boilerplate of [
+    "AUTHOR DISCLOSURES: Consulting for a pharmaceutical company.",
+    "Relationships are self-held unless noted. Relationships may not relate to the subject matter.",
+    "View all available purchase options.",
+    "UroToday - GU OncToday brings coverage of the latest developments.",
+  ]) {
+    const source = articleSourceText(boilerplate, boilerplate);
+    assert.deepEqual(source, { preview: "", full: "" });
+    assert.equal(articleExpansion(source, []).canExpand, false);
+  }
+  const abstract = "Results: Median follow-up was 24 months. No new safety signals were observed.";
+  const full = `${abstract} Conflicts of interest are listed below.`;
+  assert.equal(meaningfulArticleExcerpt(full), abstract);
+  assert.deepEqual(articleSourceText("View all available purchase options.", full), { preview: abstract, full });
+  assert.match(renderer, /<DevelopmentFinding text=\{source\.preview\} expandedText=\{source\.full\}/);
+});
+
 test("written Today uses the saved Listen selection and visible regulatory events", () => {
   assert.match(renderer, /sevenDayEditionListen\(\[todayEdition\], currentWorth\)/);
   assert.doesNotMatch(renderer, /listenForArea/);
@@ -46,6 +64,22 @@ test("audio dates are real, unique, newest-first, bounded dates, not query fragm
   assert.equal(readoutAudioDates(Array.from({ length: 12 }, (_, n) => `2026-09-${String(n + 1).padStart(2, "0")}`)).length, 7);
 });
 
+test("audio version notices compare the selected edition only when the All Oncology revision is known", () => {
+  for (const expected of [null, undefined, ""]) assert.equal(audioReflectsEarlierUpdate(expected, "older"), false);
+  assert.equal(audioReflectsEarlierUpdate("same", "same"), false);
+  assert.equal(audioReflectsEarlierUpdate("new", "older"), true);
+  assert.equal(audioReflectsEarlierUpdate("new", null), true);
+  assert.equal(audioReflectsEarlierUpdate("new"), true);
+  assert.match(renderer, /const audioVersions = useMemo\(\(\) => area === "All"/);
+  assert.match(renderer, /\[edition\.editionDate, edition\.selectionVersion\]/);
+  assert.match(renderer, /expectedVersions=\{audioVersions\}/);
+  assert.match(read("app/briefing-preview/editionSnapshot.ts"), /selectionVersion\?: string \| null/);
+  const card = read("components/DailyReadoutAudio.tsx");
+  assert.match(card, /audioReflectsEarlierUpdate\(expectedVersions\[edition\.edition_date\], edition\.selection_version\)/);
+  assert.match(card, /Audio reflects an earlier update of this edition\./);
+  assert.doesNotMatch(card, /if \(reflectsEarlierUpdate\) return|\{edition\.selection_version\}/);
+});
+
 test("web audio only exposes published playback fields through the reader gate", () => {
   const route = read("app/api/readout-audio/route.ts");
   assert.match(route, /currentContactId\(req\)/);
@@ -53,6 +87,7 @@ test("web audio only exposes published playback fields through the reader gate",
   assert.match(route, /SUPABASE_ANON_KEY/);
   assert.doesNotMatch(route, /SERVICE_ROLE|select: "\*"|script,/);
   assert.match(route, /status: "eq.ready"/);
+  assert.match(route, /select: "[^"]*selection_version/);
   assert.match(route, /"Cache-Control": "private, no-store"/);
   const card = read("components/DailyReadoutAudio.tsx");
   assert.match(card, /ALL ONCOLOGY/);

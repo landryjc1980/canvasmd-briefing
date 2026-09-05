@@ -11,6 +11,7 @@ export type ReadoutAudioChapter = {
 export type ReadoutAudioEdition = {
   id: string;
   edition_date: string;
+  selection_version?: string | null;
   title: string;
   summary: string;
   audio_url: string;
@@ -18,6 +19,10 @@ export type ReadoutAudioEdition = {
   source_generated_at: string | null;
   chapters: ReadoutAudioChapter[];
 };
+
+export function audioReflectsEarlierUpdate(expectedVersion?: string | null, recordedVersion?: string | null): boolean {
+  return Boolean(expectedVersion && expectedVersion !== recordedVersion);
+}
 
 export function readoutAudioDates(values: string[]): string[] {
   return [...new Set(values.filter((value) => {

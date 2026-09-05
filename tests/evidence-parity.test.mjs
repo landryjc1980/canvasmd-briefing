@@ -172,7 +172,8 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(nativeSections, /Open article/);
   assert.match(editorial, /function articleContentType/);
   assert.match(editorial, /item\.publicationClass/);
-  assert.match(editorial, /expandedText=\{item\.sourceExcerpt\}/);
+  assert.match(editorial, /articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(item\.sourceExcerpt \|\| item\.finding\)\)/);
+  assert.match(editorial, /expandedText=\{source\.full\}/);
   assert.match(editorial, /<SourceHeadline href=\{href\}/);
   assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);
   assert.doesNotMatch(nativeSections, /hasSources = [^\n]+\|\| !!a\.url/);

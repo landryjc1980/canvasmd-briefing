@@ -16,7 +16,7 @@ import {
 } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import DailyReadoutAudio from "@/components/DailyReadoutAudio";
-import { articleExpansion, articleTextPreview } from "@/lib/readoutPresentation";
+import { articleExpansion, articleSourceText, articleTextPreview } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
   type ReadoutWindow,
@@ -519,7 +519,7 @@ function ArticleDevelopment({
   const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
-  const source = { preview: cleanReadoutExcerpt(item.finding), full: cleanReadoutExcerpt(item.sourceExcerpt || item.finding) };
+  const source = articleSourceText(cleanReadoutExcerpt(item.finding), cleanReadoutExcerpt(item.sourceExcerpt || item.finding));
   const expansion = articleExpansion(source, usefulPosts(article).map((post) => post.text ?? ""), availableComments);
   const links = attachedSources(item, href);
   const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length > 0;
@@ -554,7 +554,7 @@ function ArticleDevelopment({
       {isResearch && publishedDate && (
         <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       )}
-      <DevelopmentFinding text={item.finding} expandedText={item.sourceExcerpt} expanded={open} />
+      <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
@@ -911,6 +911,10 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const audioDates = useMemo(() => readoutWindow === "7d"
     ? editionHistory.map((edition) => edition.editionDate)
     : todayEdition ? [todayEdition.editionDate] : [], [editionHistory, readoutWindow, todayEdition]);
+  const audioVersions = useMemo(() => area === "All" ? Object.fromEntries(
+    (readoutWindow === "7d" ? editionHistory : todayEdition ? [todayEdition] : [])
+      .map((edition) => [edition.editionDate, edition.selectionVersion]),
+  ) : {}, [area, editionHistory, readoutWindow, todayEdition]);
   const briefs = listenBriefs;
   const displayedEditionDate = readoutWindow === "today"
     ? editionDateLabel(todayEdition?.editionDate)
@@ -969,7 +973,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">Specialty lead selected from the 72-hour Listen window.</p>}
         {loadError && <div className="er-load-error" role="alert"><p>The selected view could not load.</p><button type="button" onClick={retryLoad}>Try again</button></div>}
-        {pageReady && <DailyReadoutAudio dates={audioDates} />}
+        {pageReady && <DailyReadoutAudio dates={audioDates} expectedVersions={audioVersions} />}
         {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">
             <p>Nothing new cleared the bar in {AREA_LABELS[area]} today.</p>

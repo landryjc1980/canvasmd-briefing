@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import AudioQuote from "@/components/AudioQuote";
-import { readoutAudioDates, type ReadoutAudioEdition } from "@/lib/readoutAudio";
+import { audioReflectsEarlierUpdate, readoutAudioDates, type ReadoutAudioEdition } from "@/lib/readoutAudio";
 
 const dateLabel = (date: string) => new Intl.DateTimeFormat("en-US", {
   month: "short", day: "numeric", timeZone: "UTC",
 }).format(new Date(`${date}T12:00:00Z`));
 
-export default function DailyReadoutAudio({ dates }: { dates: string[] }) {
+export default function DailyReadoutAudio({ dates, expectedVersions = {} }: { dates: string[]; expectedVersions?: Record<string, string | null | undefined> }) {
   const key = readoutAudioDates(dates).join(",");
   const [editions, setEditions] = useState<ReadoutAudioEdition[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export default function DailyReadoutAudio({ dates }: { dates: string[] }) {
   }, [key]);
   const edition = editions.find((item) => item.id === selected) ?? editions[0];
   if (!edition) return null;
+  const reflectsEarlierUpdate = audioReflectsEarlierUpdate(expectedVersions[edition.edition_date], edition.selection_version);
   return <section className="er-daily-audio" aria-label="Daily Readout Audio">
     <div className="er-daily-audio-heading">
       <div><p>ALL ONCOLOGY</p><h3>Daily Readout Audio</h3></div>
@@ -52,6 +53,7 @@ export default function DailyReadoutAudio({ dates }: { dates: string[] }) {
       </select>
     </div>
     <p className="er-daily-audio-summary">{edition.summary}</p>
+    {reflectsEarlierUpdate && <p className="er-audio-asof">Audio reflects an earlier update of this edition.</p>}
     {edition.source_generated_at && <p className="er-audio-asof">Recorded edition as of {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" }).format(new Date(edition.source_generated_at))}. Later updates may appear below.</p>}
     <AudioQuote key={edition.audio_url} audioUrl={edition.audio_url} startMs={0} durationSeconds={edition.duration_seconds}
       eventId={edition.id} eventLabel={edition.title} tone="dark" accent="#fff" seekRequest={seek} />

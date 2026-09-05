@@ -502,7 +502,8 @@ test("cards use source-backed excerpts and visually separate the source from the
 
 test("expanding a paper replaces the concise finding with the full source abstract", () => {
   assert.match(preview, /expanded\s*\? cleanReadoutExcerpt\(expandedText \|\| text\)/);
-  assert.match(preview, /expandedText=\{item\.sourceExcerpt\}/);
+  assert.match(preview, /articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(item\.sourceExcerpt \|\| item\.finding\)\)/);
+  assert.match(preview, /expandedText=\{source\.full\}/);
 });
 
 test("Listen cards use framed artwork and a full-width editorial audio row", () => {

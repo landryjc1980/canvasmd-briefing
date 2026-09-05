@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!url || !key) return NextResponse.json({ error: "Audio unavailable" }, { status: 503 });
   // Use the existing ready-only reader policy, never a service-role bypass.
   const query = new URLSearchParams({
-    select: "id,edition_date,title,summary,audio_url,duration_seconds,source_generated_at,chapters",
+    select: "id,edition_date,selection_version,title,summary,audio_url,duration_seconds,source_generated_at,chapters",
     status: "eq.ready", edition_date: `in.(${dates.join(",")})`, order: "edition_date.desc", limit: "7",
   });
   try {
