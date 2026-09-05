@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { articleExpansion, articleSourceText, articleTextPreview, meaningfulArticleExcerpt, readoutRegulatoryCoverage } from "../lib/readoutPresentation.ts";
+import { articleExpansion, articleSourceText, articleTextPreview, meaningfulArticleExcerpt, readoutRegulatoryCoverage, sourceLinkKey, sourceLinkLabel } from "../lib/readoutPresentation.ts";
 import { audioReflectsEarlierUpdate, readoutAudioDates } from "../lib/readoutAudio.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -11,6 +11,26 @@ test("a short or already-truncated publisher preview does not promise expansion"
   for (const text of ["", "Short full abstract.", "Publisher preview…"]) {
     assert.equal(articleExpansion({ preview: text, full: text }, []).canExpand, false);
   }
+});
+
+test("legacy source links retain a meaningful label and stable URL identity", () => {
+  const legacyFdaLink = {
+    url: "https://www.fda.gov/news-events/press-announcements/fda-grants-accelerated-approval-new-breast-cancer-treatment",
+    label: "FDA companion notice",
+  };
+  assert.equal(sourceLinkLabel(legacyFdaLink), "FDA companion notice");
+  assert.equal(sourceLinkLabel({ url: legacyFdaLink.url, title: "" }), "fda.gov");
+  assert.equal(sourceLinkLabel({ url: "javascript:alert(1)" }), "Source");
+  assert.equal(sourceLinkLabel({ url: "not a URL" }), "Source");
+  assert.equal(sourceLinkKey("Anchor", legacyFdaLink.url), `Anchor:${legacyFdaLink.url}`);
+  assert.match(renderer, /key=\{sourceLinkKey\(role, link\.url\)\}/);
+  assert.match(renderer, /\{sourceLinkLabel\(link\)\}/);
+});
+
+test("a comment missing from the preview still has a full-comment disclosure", () => {
+  const state = articleExpansion({ preview: "", full: "" }, [], 1);
+  assert.equal(state.label, "Read 1 full comment");
+  assert.equal(state.canExpand, true);
 });
 
 test("a complete abstract or a truncated named comment has a meaningful disclosure", () => {
@@ -118,4 +138,14 @@ test("web audio only exposes published playback fields through the reader gate",
   assert.match(card, /window\.setInterval\(refresh, 60_000\)/);
   assert.match(card, /document\.visibilityState === "hidden"/);
   assert.match(card, /window\.clearInterval\(interval\)/);
+});
+
+test("the readout window switcher implements a complete keyboard tab pattern", () => {
+  assert.match(renderer, /role="tablist"/);
+  assert.match(renderer, /role="tab"/);
+  assert.match(renderer, /aria-controls="readout-window-panel"/);
+  assert.match(renderer, /role="tabpanel"/);
+  assert.match(renderer, /aria-labelledby=\{`readout-window-tab-\$\{requestedWindow\}`\}/);
+  assert.match(renderer, /readoutWindowKeyboardTarget\(candidate, event\.key\)/);
+  assert.match(renderer, /windowTabRefs\.current\[next\]\?\.focus\(\)/);
 });

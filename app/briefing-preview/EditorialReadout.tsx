@@ -1,5 +1,5 @@
 "use client";
-import { activeReadoutEditionDate } from "./readoutRequest";
+import { activeReadoutEditionDate, READOUT_WINDOWS, readoutWindowKeyboardTarget } from "./readoutRequest";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
@@ -16,7 +16,7 @@ import {
 } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import DailyReadoutAudio from "@/components/DailyReadoutAudio";
-import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage } from "@/lib/readoutPresentation";
+import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage, sourceLinkKey, sourceLinkLabel } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
   type ReadoutWindow,
@@ -446,9 +446,9 @@ function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle;
   return (
     <div className="er-sources er-related-links is-open">
       {rows.map(({ role, link }) => (
-        <div className="er-source-row" key={`${role}-${link.id}`}>
+        <div className="er-source-row" key={sourceLinkKey(role, link.url)}>
           <span className="er-role">{role}</span>
-          <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel}</a>
+          <a href={link.url} target="_blank" rel="noreferrer">{sourceLinkLabel(link)}</a>
         </div>
       ))}
     </div>
@@ -462,7 +462,7 @@ function RelatedEpisode({ item, primaryUrl }: { item: EditorialArticle; primaryU
     <div className="er-related-episode">
       <div className="er-related-episode-heading">
         <span>Related episode</span>
-        <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel}</a>
+        <a href={link.url} target="_blank" rel="noreferrer">{sourceLinkLabel(link)}</a>
       </div>
       <p>{link.title}</p>
       {link.audioUrl && (
@@ -774,6 +774,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const [alsoOpen, setAlsoOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const payloadCache = useRef(new Map<string, ReadoutWindowPayload>([[payloadKey("All", "today"), initialPayload]]));
+  const windowTabRefs = useRef<Record<ReadoutWindow, HTMLButtonElement | null>>({ today: null, "7d": null });
 
   useEffect(() => {
     let refreshedAt = Date.now();
@@ -935,6 +936,14 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
     setMoreOpen(false);
   };
 
+  const moveWindowTab = (event: React.KeyboardEvent<HTMLButtonElement>, candidate: ReadoutWindow) => {
+    const next = readoutWindowKeyboardTarget(candidate, event.key);
+    if (!next) return;
+    event.preventDefault();
+    chooseWindow(next);
+    windowTabRefs.current[next]?.focus();
+  };
+
   const retryLoad = () => {
     payloadCache.current.delete(payloadKey(requestedArea, requestedWindow));
     setLoadingWindow(true);
@@ -950,7 +959,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         </div>
       </header>
 
-      <section className="er-section er-worth">
+      <div className="er-section er-worth">
         <div className="er-section-title">
           <div>
             {area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}
@@ -964,10 +973,22 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             {displayedEditionDate && <p className="er-edition-date">Edition: {displayedEditionDate}</p>}
           </div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window" aria-busy={loadingWindow}>
-            <button type="button" role="tab" aria-selected={requestedWindow === "today"} className={requestedWindow === "today" ? "active" : ""} onClick={() => chooseWindow("today")}>Today</button>
-            <button type="button" role="tab" aria-selected={requestedWindow === "7d"} className={requestedWindow === "7d" ? "active" : ""} onClick={() => chooseWindow("7d")}>7 days</button>
+            {READOUT_WINDOWS.map((candidate) => <button
+              key={candidate}
+              ref={(element) => { windowTabRefs.current[candidate] = element; }}
+              id={`readout-window-tab-${candidate}`}
+              type="button"
+              role="tab"
+              aria-controls="readout-window-panel"
+              aria-selected={requestedWindow === candidate}
+              tabIndex={requestedWindow === candidate ? 0 : -1}
+              className={requestedWindow === candidate ? "active" : ""}
+              onClick={() => chooseWindow(candidate)}
+              onKeyDown={(event) => moveWindowTab(event, candidate)}
+            >{candidate === "today" ? "Today" : "7 days"}</button>)}
           </div>
         </div>
+        <div id="readout-window-panel" role="tabpanel" aria-labelledby={`readout-window-tab-${requestedWindow}`} aria-busy={loadingWindow} tabIndex={-1}>
         {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
@@ -982,8 +1003,6 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         ) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
         )}
-      </section>
-
       {pageReady && readoutWindow === "7d" && moreFromSevenDays.length > 0 && (
         <section className="er-section er-relevant er-seven-day-more">
           <button className="er-section-title er-section-button" type="button" onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen}>
@@ -1053,7 +1072,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         </section>
       )}
 
-      {pageReady && <section className="er-section er-regulatory">
+        {pageReady && <section className="er-section er-regulatory">
         <div className="er-section-title">
           <h2>Regulatory Watch</h2>
           <span>{windowPayload?.designationCards.length
@@ -1076,7 +1095,9 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">{regulatoryCoverage.hasPublished
           ? `No additional ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`
           : `No new ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`}</p>}
-      </section>}
-    </main>
+        </section>}
+        </div>
+      </div>
+      </main>
   );
 }

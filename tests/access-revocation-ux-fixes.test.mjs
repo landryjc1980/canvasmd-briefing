@@ -96,8 +96,8 @@ test("reader surfaces describe each payload's rolling window consistently", () =
   assert.match(sharePage, /current contact[\s\S]+activeContactId/);
   assert.match(nativeSections, /Podcasts from the past \{windowDays\} days/);
   assert.match(editorial, /aria-label="Readout window"/);
-  assert.match(editorial, /requestedWindow === "today"/);
-  assert.match(editorial, /requestedWindow === "7d"/);
+  assert.match(editorial, /READOUT_WINDOWS\.map/);
+  assert.match(editorial, /aria-selected=\{requestedWindow === candidate\}/);
   assert.match(editorial, /Edition: \{displayedEditionDate\}/);
 });
 

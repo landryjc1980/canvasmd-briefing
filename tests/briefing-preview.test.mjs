@@ -8,7 +8,7 @@ import {
   readoutEditionHistoryIncludingCurrent,
 } from "../app/briefing-preview/editionHistory.ts";
 import { archiveCardForArticle } from "../app/archiveCard.ts";
-import { activeReadoutEditionDate } from "../app/briefing-preview/readoutRequest.ts";
+import { activeReadoutEditionDate, readoutWindowKeyboardTarget } from "../app/briefing-preview/readoutRequest.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -138,7 +138,7 @@ test("the 7-day tab reads exact daily editions and never quota-fills", () => {
   assert.match(preview, /sevenDayEditionDevelopments\(editionHistory\)/);
   assert.match(preview, /sevenDayEdition\.developments\.slice\(0, 5\)/,
     "the initial seven-day scan remains capped at five");
-  assert.match(preview, /<button type="button" role="tab"[^>]*onClick=\{\(\) => chooseWindow\("7d"\)\}>7 days<\/button>/,
+  assert.match(preview, /READOUT_WINDOWS\.map\(\(candidate\) => <button/,
     "the archive remains reachable while its first seven morning editions accumulate");
   assert.match(preview, /Showing \{historyDays\} daily edition/);
   assert.match(preview, /More from the last 7 days/);
@@ -389,6 +389,13 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
   assert.equal(activeReadoutEditionDate(new Date("2026-08-27T10:00:00Z")), "2026-08-27");
   assert.equal(activeReadoutEditionDate(new Date("2026-12-15T10:59:00Z")), "2026-12-14");
   assert.equal(activeReadoutEditionDate(new Date("2026-12-15T11:00:00Z")), "2026-12-15");
+  assert.equal(readoutWindowKeyboardTarget("today", "ArrowRight"), "7d");
+  assert.equal(readoutWindowKeyboardTarget("today", "ArrowDown"), "7d");
+  assert.equal(readoutWindowKeyboardTarget("7d", "ArrowLeft"), "today");
+  assert.equal(readoutWindowKeyboardTarget("7d", "ArrowUp"), "today");
+  assert.equal(readoutWindowKeyboardTarget("7d", "Home"), "today");
+  assert.equal(readoutWindowKeyboardTarget("today", "End"), "7d");
+  assert.equal(readoutWindowKeyboardTarget("today", "Enter"), null);
   assert.match(readoutEditionArchive, /const editionDate = activeReadoutEditionDate\(now\)/,
     "the hourly merge keeps updating yesterday's frozen edition until the 6am replacement exists");
 });
@@ -754,8 +761,7 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.match(preview, /<h2>The Readout<\/h2>/);
   assert.match(preview, /<p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing\.<\/p>/);
   assert.match(previewCss, /\.er-readout-dek \{[^}]*font-size: 13px/);
-  assert.match(preview, />Today<\/button>/);
-  assert.match(preview, />7 days<\/button>/);
+  assert.match(preview, /candidate === "today" \? "Today" : "7 days"/);
   assert.doesNotMatch(preview, /This week/);
   assert.doesNotMatch(preview, /<h1>The Readout<\/h1>/);
   assert.doesNotMatch(preview, /Key Developments/);

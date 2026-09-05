@@ -24,7 +24,7 @@ export function articleExpansion(source: { preview: string; full: string }, comm
   const preview = articleTextPreview(source.preview);
   const moreSource = Boolean(source.full && source.full !== preview);
   const count = Math.max(comments.length, availableComments);
-  const moreComments = count > 1 || comments.some((text) => articleTextPreview(text, 220) !== text);
+  const moreComments = count > 1 || count > comments.length || comments.some((text) => articleTextPreview(text, 220) !== text);
   const commentLabel = `Read ${count} full comment${count === 1 ? "" : "s"}`;
   return {
     preview,
@@ -33,6 +33,40 @@ export function articleExpansion(source: { preview: string; full: string }, comm
       ? `Full source excerpt${moreComments ? ` + ${count} comment${count === 1 ? "" : "s"}` : ""}`
       : commentLabel,
   };
+}
+
+type DisplaySourceLink = {
+  sourceLabel?: unknown;
+  label?: unknown;
+  title?: unknown;
+  url?: unknown;
+};
+
+function linkText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** Legacy regulatory links used `label`; preserve that reader-visible identity without changing the source. */
+export function sourceLinkLabel(link: DisplaySourceLink): string {
+  const explicit = linkText(link.sourceLabel) ?? linkText(link.label) ?? linkText(link.title);
+  if (explicit) return explicit;
+  const url = linkText(link.url);
+  if (!url) return "Source";
+  try {
+    const parsed = new URL(url);
+    return /^https?:$/.test(parsed.protocol) ? parsed.hostname.replace(/^www\./, "") || "Source" : "Source";
+  } catch {
+    return "Source";
+  }
+}
+
+/** Source rows can lack legacy IDs, but their validated URLs remain stable identities. */
+export function sourceLinkKey(role: string, url: string): string {
+  try {
+    return `${role}:${new URL(url).toString().toLowerCase()}`;
+  } catch {
+    return `${role}:${url}`;
+  }
 }
 
 export function readoutRegulatoryCoverage(

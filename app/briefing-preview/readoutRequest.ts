@@ -1,5 +1,17 @@
 export type ReadoutWindow = "today" | "7d";
 
+export const READOUT_WINDOWS: ReadoutWindow[] = ["today", "7d"];
+
+/** The tablist's roving-focus behavior, kept pure so keyboard paths stay testable. */
+export function readoutWindowKeyboardTarget(current: ReadoutWindow, key: string): ReadoutWindow | null {
+  const index = READOUT_WINDOWS.indexOf(current);
+  if (key === "Home") return READOUT_WINDOWS[0];
+  if (key === "End") return READOUT_WINDOWS[READOUT_WINDOWS.length - 1];
+  if (key === "ArrowRight" || key === "ArrowDown") return READOUT_WINDOWS[(index + 1) % READOUT_WINDOWS.length];
+  if (key === "ArrowLeft" || key === "ArrowUp") return READOUT_WINDOWS[(index - 1 + READOUT_WINDOWS.length) % READOUT_WINDOWS.length];
+  return null;
+}
+
 export function etEditionDate(now = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
