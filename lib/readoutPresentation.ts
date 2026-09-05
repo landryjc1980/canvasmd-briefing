@@ -34,3 +34,14 @@ export function articleExpansion(source: { preview: string; full: string }, comm
       : commentLabel,
   };
 }
+
+export function readoutRegulatoryCoverage(
+  published: Array<{ kind?: string; evidence?: string | null }>,
+  visible: Array<{ kind?: string; evidence?: string | null }>,
+) {
+  const isRegulatory = (item: { kind?: string; evidence?: string | null }) => item.kind === "event"
+    || (item.kind !== "episode" && /approval|label|safety|regulatory/i.test(item.evidence ?? ""));
+  const hasPublished = published.some(isRegulatory);
+  const hasVisible = visible.some(isRegulatory);
+  return { hasPublished, status: hasVisible ? "Covered above" : hasPublished ? "Included in this edition" : "Nothing new" };
+}

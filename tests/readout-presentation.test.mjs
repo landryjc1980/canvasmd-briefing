@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { articleExpansion, articleSourceText, articleTextPreview, meaningfulArticleExcerpt } from "../lib/readoutPresentation.ts";
+import { articleExpansion, articleSourceText, articleTextPreview, meaningfulArticleExcerpt, readoutRegulatoryCoverage } from "../lib/readoutPresentation.ts";
 import { audioReflectsEarlierUpdate, readoutAudioDates } from "../lib/readoutAudio.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -47,10 +47,29 @@ test("author conflicts and site marketing cannot become an abstract or an empty 
 test("written Today uses the saved Listen selection and visible regulatory events", () => {
   assert.match(renderer, /sevenDayEditionListen\(\[todayEdition\], currentWorth\)/);
   assert.doesNotMatch(renderer, /listenForArea/);
-  assert.match(renderer, /const hasRegulatoryDevelopment = renderedDevelopments\.some/);
+  assert.match(renderer, /const publishedDevelopments = \[\.\.\.worth, \.\.\.relevant, \.\.\.moreFromSevenDays\]/);
+  assert.match(renderer, /readoutRegulatoryCoverage\(publishedDevelopments, renderedDevelopments\)/);
   assert.match(renderer, /alsoOpen \? relevant : relevant\.slice\(0, 1\)/);
   assert.match(renderer, /moreOpen \? moreFromSevenDays : \[\]/);
-  assert.doesNotMatch(renderer, /const hasRegulatoryDevelopment = .*regulatoryCards/);
+  assert.doesNotMatch(renderer, /const publishedDevelopments = .*regulatoryCards/);
+});
+
+test("a seven-day FDA item remains included when collapsed and becomes covered above when expanded", () => {
+  const main = Array.from({ length: 5 }, () => ({ evidence: "Phase 3 study" }));
+  const more = [{ kind: "event", evidence: "FDA approval" }];
+  const published = [...main, ...more];
+  assert.deepEqual(readoutRegulatoryCoverage(published, main), { hasPublished: true, status: "Included in this edition" });
+  assert.deepEqual(readoutRegulatoryCoverage(published, [...main, ...more]), { hasPublished: true, status: "Covered above" });
+  assert.deepEqual(readoutRegulatoryCoverage(main, main), { hasPublished: false, status: "Nothing new" });
+  assert.match(renderer, /className="er-regulatory-empty">\{regulatoryCoverage\.hasPublished/);
+});
+
+test("the first relevant FDA card counts as visible and designation counters keep precedence", () => {
+  const main = [{ evidence: "Phase 3 study" }];
+  const relevant = [{ kind: "event", evidence: "FDA safety" }, { evidence: "Review" }];
+  assert.equal(readoutRegulatoryCoverage([...main, ...relevant], [...main, ...relevant.slice(0, 1)]).status, "Covered above");
+  assert.equal(readoutRegulatoryCoverage([{ kind: "episode", evidence: "FDA approval" }], []).hasPublished, false);
+  assert.match(renderer, /windowPayload\?\.designationCards\.length[\s\S]{0,210}: regulatoryCoverage\.status/);
 });
 
 test("More to read expands below the visible article and collapse returns to the article", () => {

@@ -16,7 +16,7 @@ import {
 } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import DailyReadoutAudio from "@/components/DailyReadoutAudio";
-import { articleExpansion, articleSourceText, articleTextPreview } from "@/lib/readoutPresentation";
+import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
   type ReadoutWindow,
@@ -899,9 +899,9 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const activeEvidenceOverlays = payloadEvidenceOverlays;
   const worth = currentWorth;
   const pageReady = !!windowPayload;
+  const publishedDevelopments = [...worth, ...relevant, ...moreFromSevenDays];
   const renderedDevelopments = [...worth, ...(alsoOpen ? relevant : relevant.slice(0, 1)), ...(moreOpen ? moreFromSevenDays : [])];
-  const hasRegulatoryDevelopment = renderedDevelopments.some((item) =>
-    !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
+  const regulatoryCoverage = readoutRegulatoryCoverage(publishedDevelopments, renderedDevelopments);
 
   const listenBriefs = useMemo(() => windowPayload ? liveListenBriefs(windowPayload) : [], [windowPayload]);
   const listenEntries = useMemo(() => readoutWindow === "7d"
@@ -1058,7 +1058,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           <h2>Regulatory Watch</h2>
           <span>{windowPayload?.designationCards.length
             ? `${windowPayload.designationCards.length} designation${windowPayload.designationCards.length === 1 ? "" : "s"}`
-            : hasRegulatoryDevelopment ? "Covered above" : "Nothing new"}</span>
+            : regulatoryCoverage.status}</span>
         </div>
         {(windowPayload?.designationCards ?? []).map((designation) => (
           <article key={designation.id}>
@@ -1073,7 +1073,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             </div>
           </article>
         ))}
-        {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">{hasRegulatoryDevelopment
+        {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">{regulatoryCoverage.hasPublished
           ? `No additional ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`
           : `No new ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`}</p>}
       </section>}

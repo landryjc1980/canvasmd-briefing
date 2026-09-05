@@ -681,7 +681,8 @@ test("archived cards do not render boilerplate as an editorial takeaway", () => 
   assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /No additional \$\{area === "All" \? "oncology" : AREA_LABELS\[area\]\.toLowerCase\(\)\} approval/);
-  assert.match(preview, /hasRegulatoryDevelopment \? "Covered above" : "Nothing new"/);
+  assert.match(preview, /: regulatoryCoverage\.status/);
+  assert.match(preview, /className="er-regulatory-empty">\{regulatoryCoverage\.hasPublished/);
   assert.match(preview, /if \(!finding\) return null/);
 });
 
