@@ -1,7 +1,7 @@
 "use client";
 import { activeReadoutEditionDate } from "./readoutRequest";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import {
   isReadoutEditionSnapshot,
@@ -15,6 +15,8 @@ import {
   readoutEditionPreferNonEmpty,
 } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
+import DailyReadoutAudio from "@/components/DailyReadoutAudio";
+import { articleExpansion, articleTextPreview } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
   type ReadoutWindow,
@@ -27,7 +29,6 @@ import {
   editorialScopeLabel,
   findArticle,
   findEpisode,
-  listenForArea,
   relatedCoverageLinks,
   sameEditorialArticle,
   type EditorialArticle,
@@ -313,7 +314,7 @@ function shareCommentaryLabel(sharedBy: number, authoredCount: number, available
   return commented > 0 ? `${shared} · ${commented} commented` : shared;
 }
 
-function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean }) {
+function Voice({ post, extra = false, expanded = false }: { post: BriefingSharer; extra?: boolean; expanded?: boolean }) {
   return (
     <div className={`er-voice ${extra ? "er-voice-more" : ""}`}>
       <div className="er-who">
@@ -324,8 +325,8 @@ function Voice({ post, extra = false }: { post: BriefingSharer; extra?: boolean 
           <b>{post.name}</b>
         </div>
       </div>
-      <p className="er-quote">{post.text}</p>
-      {post.tweetUrl && <a className="er-xlink" href={post.tweetUrl} target="_blank" rel="noreferrer">View on X ↗</a>}
+      <p className="er-quote">{expanded ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
+      {post.tweetUrl && <a className="er-xlink" href={post.tweetUrl} target="_blank" rel="noreferrer">View on X</a>}
     </div>
   );
 }
@@ -350,9 +351,9 @@ function PhysicianVoices({
   return (
     <div className={`er-convo ${posts.length === 1 ? "is-single" : ""}`}>
       <p className="er-voices-label">What clinicians are saying</p>
-      <Voice post={lead} />
+      <Voice post={lead} expanded={expanded} />
       {rest.map((post, index) => (
-        <Voice post={post} extra key={`${post.handle ?? post.name}-${index}`} />
+        <Voice post={post} extra expanded key={`${post.handle ?? post.name}-${index}`} />
       ))}
       {expanded && loadingMore && <p className="er-no-commentary" role="status">Loading remaining comments...</p>}
       {expanded && loadFailed && <p className="er-no-commentary">The remaining comments could not be loaded.</p>}
@@ -369,26 +370,14 @@ function DevelopmentFinding({
   expandedText?: string | null;
   expanded?: boolean;
 }) {
-  const [collapsible, setCollapsible] = useState(false);
-  const findingRef = useRef<HTMLParagraphElement>(null);
-  const findingId = useId();
-  const finding = cleanReadoutExcerpt(expanded && expandedText ? expandedText : text);
-
-  useEffect(() => {
-    const node = findingRef.current;
-    if (!node || expanded) return;
-    const measure = () => setCollapsible(node.scrollHeight > node.clientHeight + 1);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, finding]);
+  const finding = expanded
+    ? cleanReadoutExcerpt(expandedText || text)
+    : articleTextPreview(cleanReadoutExcerpt(text));
 
   if (!finding) return null;
   return (
     <div className="er-excerpt">
-      <p ref={findingRef} id={findingId} className={`er-finding ${!expanded ? "is-collapsed" : ""}`}>
+      <p className="er-finding">
         {finding}
       </p>
     </div>
@@ -415,7 +404,7 @@ function SourceHeadline({ href, source, title, compact = false }: {
     <div className={`er-source-headline ${compact ? "is-compact" : ""}`}>
       <span className="er-source">{source}</span>
       <h3 className="er-source-title">
-        <a href={href} target="_blank" rel="noreferrer">{title} <span className="er-ext" aria-hidden="true">↗</span></a>
+        <a href={href} target="_blank" rel="noreferrer">{title}</a>
       </h3>
     </div>
   );
@@ -445,18 +434,6 @@ function attachedSources(item: EditorialArticle, primaryUrl: string) {
   return { primarySources, supportingEvidence, related, relatedEpisodes };
 }
 
-function coverageSummary(item: EditorialArticle, primaryUrl: string): string {
-  const { supportingEvidence, related } = attachedSources(item, primaryUrl);
-  const parts: string[] = [];
-  if (supportingEvidence.length) {
-    parts.push(`Supporting study in ${supportingEvidence.map((link) => link.sourceLabel).join(", ")}.`);
-  }
-  if (related.length) {
-    parts.push(`Coverage in ${related.map((link) => link.sourceLabel).join(", ")}.`);
-  }
-  return parts.join(" ");
-}
-
 function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle; primaryUrl: string; expanded: boolean }) {
   const { primarySources, supportingEvidence, related } = attachedSources(item, primaryUrl);
   if (!primarySources.length && !supportingEvidence.length && !related.length) return null;
@@ -471,7 +448,7 @@ function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle;
       {rows.map(({ role, link }) => (
         <div className="er-source-row" key={`${role}-${link.id}`}>
           <span className="er-role">{role}</span>
-          <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a>
+          <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel}</a>
         </div>
       ))}
     </div>
@@ -485,7 +462,7 @@ function RelatedEpisode({ item, primaryUrl }: { item: EditorialArticle; primaryU
     <div className="er-related-episode">
       <div className="er-related-episode-heading">
         <span>Related episode</span>
-        <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel} ↗</a>
+        <a href={link.url} target="_blank" rel="noreferrer">{link.sourceLabel}</a>
       </div>
       <p>{link.title}</p>
       {link.audioUrl && (
@@ -501,16 +478,6 @@ function RelatedEpisode({ item, primaryUrl }: { item: EditorialArticle; primaryU
       )}
     </div>
   );
-}
-
-function discloseLabel(item: EditorialArticle, primaryUrl: string, extraComments: number): string {
-  const { supportingEvidence, related } = attachedSources(item, primaryUrl);
-  const parts: string[] = [];
-  if (item.finding.trim()) parts.push(item.findingSource === "source" ? "Full source excerpt" : "Full summary");
-  if (supportingEvidence.length) parts.push(supportingEvidence.map((link) => link.sourceLabel === "New England Journal of Medicine" ? "NEJM" : link.sourceLabel).join(", "));
-  if (related.length) parts.push(`${related.length} related`);
-  if (extraComments > 0) parts.push(`${extraComments} more available comment${extraComments === 1 ? "" : "s"}`);
-  return parts.join(" · ") || "Show more";
 }
 
 function Disclose({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {
@@ -541,6 +508,7 @@ function ArticleDevelopment({
   const [detailOverlay, setDetailOverlay] = useState<BriefingEvidenceOverlayItem | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailLoadFailed, setDetailLoadFailed] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
   const overlay = detailOverlay ?? overlays.get(item.id);
   const article = articleWithLiveEvidence(item, briefs, overlay);
   const href = article?.url || item.url;
@@ -551,11 +519,17 @@ function ArticleDevelopment({
   const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
-  const extraComments = Math.max(0, availableComments - 1);
-  const canDisclose = Boolean(item.finding.trim()) || extraComments > 0 || Boolean(coverageSummary(item, href));
+  const source = { preview: cleanReadoutExcerpt(item.finding), full: cleanReadoutExcerpt(item.sourceExcerpt || item.finding) };
+  const expansion = articleExpansion(source, usefulPosts(article).map((post) => post.text ?? ""), availableComments);
+  const links = attachedSources(item, href);
+  const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length > 0;
+  const canDisclose = expansion.canExpand || hasMoreLinks;
+  const sourceLabel = item.sourceExcerpt || item.findingSource === "source" ? "Full source excerpt" : "Full summary";
+  const disclosureLabel = [expansion.canExpand ? expansion.label.replace("Full source excerpt", sourceLabel) : null, hasMoreLinks ? "Sources and related coverage" : null].filter(Boolean).join(" · ");
   const toggleDisclosure = () => {
     const nextOpen = !open;
     setOpen(nextOpen);
+    if (!nextOpen) requestAnimationFrame(() => cardRef.current?.scrollIntoView({ block: "start", behavior: "auto" }));
     if (!nextOpen || detailOverlay || loadingDetails || authoredCount >= availableComments) return;
     setLoadingDetails(true);
     setDetailLoadFailed(false);
@@ -565,7 +539,7 @@ function ArticleDevelopment({
     }).finally(() => setLoadingDetails(false));
   };
   return (
-    <article className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
+    <article ref={cardRef} className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
       <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>
       <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
       {!isResearch && (
@@ -587,15 +561,9 @@ function ArticleDevelopment({
         ? <PeerRow article={article} sharedBy={sharedBy} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
-      {canDisclose && <Disclose open={open} label={discloseLabel(item, href, extraComments)} onToggle={toggleDisclosure} />}
+      {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
     </article>
   );
-}
-
-function CompactClinicianComment({ article }: { article: BriefingArticle | null }) {
-  const post = usefulPosts(article)[0];
-  if (!post) return null;
-  return <Voice post={post} />;
 }
 
 function EpisodeDevelopment({
@@ -634,12 +602,9 @@ function EpisodeDevelopment({
   const sharedBy = article?.kolSharers ?? 0;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
-  const extraComments = Math.max(0, availableComments - 1);
-  const canDisclose = Boolean(item.finding.trim()) || extraComments > 0;
-  const disclose = [
-    item.finding.trim() ? "Full description" : null,
-    extraComments > 0 ? `${extraComments} more available comment${extraComments === 1 ? "" : "s"}` : null,
-  ].filter(Boolean).join(" · ");
+  const expansion = articleExpansion({ preview: cleanReadoutExcerpt(item.finding), full: cleanReadoutExcerpt(item.finding) }, usefulPosts(article).map((post) => post.text ?? ""), availableComments);
+  const canDisclose = expansion.canExpand;
+  const disclose = expansion.label.replace("Full source excerpt", "Full description");
   const toggleDisclosure = () => {
     const nextOpen = !open;
     setOpen(nextOpen);
@@ -691,7 +656,7 @@ function EpisodeAudio({
   if (!audioUrl) {
     return (
       <div className="er-episode-actions">
-        <a className="er-source-link" href={sourceHref} target="_blank" rel="noreferrer">Open episode ↗</a>
+        <a className="er-source-link" href={sourceHref} target="_blank" rel="noreferrer">Open episode</a>
         {evidence && <small>{evidence}</small>}
       </div>
     );
@@ -708,7 +673,7 @@ function EpisodeAudio({
         accent="var(--area)"
       />
       <div className="er-episode-actions">
-        <a className="er-source-link" href={sourceHref} target="_blank" rel="noreferrer">Episode page ↗</a>
+        <a className="er-source-link" href={sourceHref} target="_blank" rel="noreferrer">Episode page</a>
         {evidence && <small>{evidence}</small>}
       </div>
     </div>
@@ -934,25 +899,18 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const activeEvidenceOverlays = payloadEvidenceOverlays;
   const worth = currentWorth;
   const pageReady = !!windowPayload;
-  const hasRegulatoryDevelopment = (windowPayload?.regulatoryCards.length ?? 0) > 0 || worth.some((item) =>
+  const renderedDevelopments = [...worth, ...(alsoOpen ? relevant : relevant.slice(0, 1)), ...(moreOpen ? moreFromSevenDays : [])];
+  const hasRegulatoryDevelopment = renderedDevelopments.some((item) =>
     !isEpisodeDevelopment(item) && /approval|label|safety|regulatory/i.test(item.evidence));
 
   const listenBriefs = useMemo(() => windowPayload ? liveListenBriefs(windowPayload) : [], [windowPayload]);
-  const listen = useMemo(() => {
-    return listenForArea(NEW_TO_LISTEN, listenBriefs, area, worth.filter(isEpisodeDevelopment));
-  }, [area, listenBriefs, worth]);
   const listenEntries = useMemo(() => readoutWindow === "7d"
     ? sevenDayEditionListen(editionHistory, currentWorth)
-    : listen.map((item) => {
-      const matched = findEpisode(item, listenBriefs);
-      return {
-        item,
-        episode: matched?.episodeId
-          ? windowPayload?.episodes.find((episode) => episode.episodeId === matched.episodeId) ?? null
-          : null,
-      };
-    }),
-  [currentWorth, editionHistory, listen, listenBriefs, readoutWindow, windowPayload]);
+    : todayEdition ? sevenDayEditionListen([todayEdition], currentWorth) : [],
+  [currentWorth, editionHistory, readoutWindow, todayEdition]);
+  const audioDates = useMemo(() => readoutWindow === "7d"
+    ? editionHistory.map((edition) => edition.editionDate)
+    : todayEdition ? [todayEdition.editionDate] : [], [editionHistory, readoutWindow, todayEdition]);
   const briefs = listenBriefs;
   const displayedEditionDate = readoutWindow === "today"
     ? editionDateLabel(todayEdition?.editionDate)
@@ -986,20 +944,18 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         <div className="er-brand">
           <CanvasMdLogo />
         </div>
-        <nav className="er-filters" aria-label="Tumor area">
-          {EDITION_AREAS.map((candidate) => (
-            <button key={candidate} type="button" aria-pressed={candidate === requestedArea} className={candidate === requestedArea ? "active" : ""} onClick={() => chooseArea(candidate)}>
-              {candidate}
-            </button>
-          ))}
-        </nav>
       </header>
 
       <section className="er-section er-worth">
         <div className="er-section-title">
           <div>
             {area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}
-            <h2>The Readout</h2>
+            <div className="er-readout-heading">
+              <h2>The Readout</h2>
+              <select className="er-specialty-select" aria-label="Specialty" value={requestedArea} onChange={(event) => chooseArea(event.target.value as EditionArea)}>
+                {EDITION_AREAS.map((candidate) => <option key={candidate} value={candidate}>{candidate === "All" ? "All oncology" : AREA_LABELS[candidate]}</option>)}
+              </select>
+            </div>
             <p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing.</p>
             {displayedEditionDate && <p className="er-edition-date">Edition: {displayedEditionDate}</p>}
           </div>
@@ -1013,10 +969,11 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">Specialty lead selected from the 72-hour Listen window.</p>}
         {loadError && <div className="er-load-error" role="alert"><p>The selected view could not load.</p><button type="button" onClick={retryLoad}>Try again</button></div>}
+        {pageReady && <DailyReadoutAudio dates={audioDates} />}
         {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">
             <p>Nothing new cleared the bar in {AREA_LABELS[area]} today.</p>
-            <button className="er-empty-history" type="button" onClick={() => chooseWindow("7d")}>See the last 7 days <span aria-hidden="true">&rarr;</span></button>
+            <button className="er-empty-history" type="button" onClick={() => chooseWindow("7d")}>See the last 7 days</button>
           </div>
         ) : (
           <p className="er-empty">No development cleared the bar in this area during the {readoutWindow === "7d" ? "past 7 days" : "past 24 hours"}.</p>
@@ -1036,16 +993,13 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
 
       {pageReady && relevant.length > 0 && (
         <section className="er-section er-relevant">
-          {relevant.length > 1 ? (
-            <button className="er-section-title er-section-button" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
-              <h2>Also Relevant</h2><span>{alsoOpen ? "Show less \u2212" : `Show ${relevant.length - 1} more +`}</span>
-            </button>
-          ) : (
-            <div className="er-section-title"><h2>Also Relevant</h2></div>
-          )}
+          <div className="er-section-title"><h2>More to read</h2></div>
           <div className="er-compact-list">{(alsoOpen || relevant.length === 1 ? relevant : relevant.slice(0, 1)).map((item) => (
             <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
           ))}</div>
+          {relevant.length > 1 && <button className="er-more-toggle" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
+            {alsoOpen ? "Show less" : `Show ${relevant.length - 1} more`}
+          </button>}
         </section>
       )}
 
@@ -1111,7 +1065,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
                 ? <time dateTime={designation.occurredOn ?? undefined}>{editionDateLabel(designation.occurredOn)}</time>
                 : "Unavailable"}</p>
               <p>{designation.description ? `${designation.description} ` : ""}This is not an approval.</p>
-              <a href={designation.url} target="_blank" rel="noreferrer">{designation.sourceLabel} ↗</a>
+              <a href={designation.url} target="_blank" rel="noreferrer">{designation.sourceLabel}</a>
             </div>
           </article>
         ))}

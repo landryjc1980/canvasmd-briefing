@@ -19,6 +19,8 @@ const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/Sto
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
 const heroPost = fs.readFileSync(new URL("../app/heroPost.ts", import.meta.url), "utf8");
+const editorial = fs.readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
+const nativeEdition = fs.readFileSync(canvasmdFile("components/readout/EditionView.tsx"), "utf8");
 
 function loadExportedFunction(source, name) {
   const start = source.indexOf(`export function ${name}`);
@@ -144,10 +146,11 @@ test("podcast, continuation, and grouped-repost actions retain exact X URLs", ()
 });
 
 test("podcast cards expose canonical episode pages on web and native", () => {
-  for (const source of [webReader, nativeCards]) {
+  for (const source of [editorial, nativeCards]) {
     assert.match(source, /sourceUrl/);
-    assert.match(source, /Open episode ↗/);
+    assert.match(source, /Open episode/);
   }
+  assert.match(editorial, /href=\{sourceHref\}/);
   assert.match(nativeTypes, /sourceUrl\?: string \| null/);
 });
 
@@ -166,7 +169,11 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(nativeTypes, /circulationState\?: "newly_published" \| "resurfaced"/);
   assert.match(nativeCards, /isNewsItem\(\{ peerReviewed, journal, domain \}\)/);
   assert.match(nativeSections, /hasPublisherNames/);
-  assert.match(nativeSections, /Open article ↗/);
+  assert.match(nativeSections, /Open article/);
+  assert.match(editorial, /function articleContentType/);
+  assert.match(editorial, /item\.publicationClass/);
+  assert.match(editorial, /expandedText=\{item\.sourceExcerpt\}/);
+  assert.match(editorial, /<SourceHeadline href=\{href\}/);
   assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);
   assert.doesNotMatch(nativeSections, /hasSources = [^\n]+\|\| !!a\.url/);
   assert.doesNotMatch(nativeStoryEvidence, /publishers=\{p\.publishers\}/);
@@ -190,8 +197,8 @@ test("podcast moments render one timestamp and legacy Open links meet the 44px t
 });
 
 test("reference status does not affect visible People ranking", () => {
-  for (const source of [webReader, nativeReadout]) {
-    assert.match(source, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
+  assert.match(webReader, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
+  for (const source of [webReader, nativeReadout, nativeEdition, editorial]) {
     assert.doesNotMatch(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
   }
   assert.doesNotMatch(webAll, /referenceKol/);

@@ -47,8 +47,8 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /expanded \? posts\.slice\(1\) : \[\]/,
     "the collapsed card keeps one preview while the expansion renders every remaining comment");
   assert.doesNotMatch(preview, /previewPosts|posts\.slice\(0, 2\)/);
-  assert.match(preview, /\$\{extraComments\} more available comment\$\{extraComments === 1/);
-  assert.match(preview, /\{post\.text\}/);
+  assert.match(preview, /articleExpansion\(source, usefulPosts\(article\)\.map/);
+  assert.match(preview, /expanded \? post\.text : articleTextPreview\(post\.text \?\? "", 220\)/);
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /article\?\.faces/);
   assert.match(preview, /function xAvatars/);
@@ -73,7 +73,6 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /article\.sharerPeople/);
   assert.match(preview, /clinicianSharers\(article\)\.slice\(0, sharedBy\)/);
   assert.match(preview, /other clinician/);
-  assert.match(preview, /function CompactClinicianComment/);
   assert.match(preview, /applyEvidenceOverlay/);
   assert.match(preview, /function articleWithLiveEvidence/);
   assert.match(preview, /const base = overlay \? findArticle\(item, briefs\) \?\? articleFromEditorial\(item\) : articleFromEditorial\(item\)/);
@@ -502,7 +501,7 @@ test("cards use source-backed excerpts and visually separate the source from the
 });
 
 test("expanding a paper replaces the concise finding with the full source abstract", () => {
-  assert.match(preview, /expanded && expandedText \? expandedText : text/);
+  assert.match(preview, /expanded\s*\? cleanReadoutExcerpt\(expandedText \|\| text\)/);
   assert.match(preview, /expandedText=\{item\.sourceExcerpt\}/);
 });
 
@@ -633,18 +632,19 @@ test("a development already leading a section is removed from Also Relevant by s
   assert.match(editionSnapshot, /sameArticleDevelopment\(item, lead\)/);
 });
 
-test("cards keep long findings to four lines until expanded at any viewport", () => {
-  assert.match(preview, /node\.scrollHeight > node\.clientHeight \+ 1/);
-  assert.match(preview, /new ResizeObserver\(measure\)/);
+test("cards use explicit previews and meaningful disclosure at every viewport", () => {
+  assert.match(preview, /articleTextPreview\(cleanReadoutExcerpt\(text\)\)/);
+  assert.match(preview, /expansion\.canExpand \|\| hasMoreLinks/);
   assert.match(preview, /Full source excerpt/);
   assert.match(preview, /function SourceHeadline/);
   assert.match(preview, /er-source-headline/);
-  assert.match(preview, /\{title\} <span className="er-ext" aria-hidden="true">↗<\/span>/);
+  assert.match(preview, /rel="noreferrer">\{title\}<\/a>/);
+  assert.doesNotMatch(preview, /↗/);
   assert.doesNotMatch(preview, /er-provenance|From the source/);
   assert.doesNotMatch(previewCss, /\.er-provenance/);
   assert.match(preview, /er-peers-who/);
-  assert.match(previewCss, /\.er-finding\.is-collapsed/);
-  assert.match(previewCss, /\.er-finding\.is-collapsed[^}]*-webkit-line-clamp: 4/);
+  assert.doesNotMatch(previewCss, /\.er-finding\.is-collapsed/);
+  assert.match(preview, /scrollIntoView\(\{ block: "start", behavior: "auto" \}\)/);
   assert.match(previewCss, /\.er-disclose/);
   assert.match(previewCss, /\.er-source-title/);
   assert.match(previewCss, /\.er-compact-list \.er-source-title a \{ color: var\(--er-ink\)/);
@@ -661,20 +661,19 @@ test("briefing cards use source identity as the headline and a warmer reading su
   assert.match(previewCss, /--er-soft: #fbfaf7/);
 });
 
-test("desktop reading columns are centered and the specialty menu aligns right", () => {
+test("reading columns stay centered with a compact accessible specialty dropdown", () => {
   assert.match(preview, /<header className="er-header">/);
   assert.match(previewCss, /\.er-page \{[^}]*max-width: 720px;[^}]*margin: 0 auto;[^}]*padding: 0 0 56px/);
   assert.match(previewCss, /\.er-header \{[^}]*grid-template-columns: auto minmax\(0, 1fr\)/);
   assert.doesNotMatch(preview, /er-edition-meta|Past 7 days|Last 24h/,
     "the window picker is the single masthead signal for Today versus 7 days");
-  assert.match(previewCss, /\.er-filters \{[^}]*justify-content: flex-end/);
+  assert.match(preview, /<select className="er-specialty-select" aria-label="Specialty"/);
+  assert.match(preview, /EDITION_AREAS\.map\(\(candidate\) => <option/);
   assert.match(previewCss, /\.er-worth \{[^}]*margin-inline: auto/);
   assert.match(previewCss, /\.er-relevant \{[^}]*margin: 16px auto 0/);
-  assert.match(previewCss, /@media \(max-width: 800px\) \{[\s\S]*\.er-filters \{[^}]*justify-content: flex-start/);
-  assert.match(previewCss, /@media \(max-width: 800px\) \{[\s\S]*\.er-filters \{[^}]*gap: 14px/,
-    "all eight specialty filters fit the 390px mobile header");
-  assert.match(previewCss, /@media \(max-width: 360px\) \{[\s\S]*\.er-filters \{[^}]*gap: 10px/,
-    "the full specialty row remains visible at 320px");
+  assert.match(previewCss, /\.er-specialty-select \{[^}]*max-width: 180px/);
+  assert.match(previewCss, /\.er-worth > \.er-section-title \{[^}]*flex-wrap: wrap/);
+  assert.match(previewCss, /\.er-readout-heading \{[^}]*flex-wrap: wrap/);
 });
 
 test("archived cards do not render boilerplate as an editorial takeaway", () => {
@@ -760,7 +759,7 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.doesNotMatch(preview, /Key Developments/);
   assert.doesNotMatch(preview, /Today's Readout/);
   assert.doesNotMatch(preview, />Worth Your Time</);
-  assert.match(preview, /Also Relevant/);
+  assert.match(preview, /More to read/);
   assert.match(preview, />Listen</);
   assert.match(preview, /Regulatory Watch/);
   assert.match(preview, /No development cleared the bar/);
@@ -770,7 +769,7 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.match(previewCss, /\.er-empty-history \{[^}]*min-height: 44px/);
   assert.doesNotMatch(preview, />Papers<|>Trials<|>People<|>Drugs</);
   assert.doesNotMatch(preview, /CANVASMD/);
-  assert.match(previewCss, /#C45B28/);
+  assert.match(previewCss, /--er-accent: #9b451f/);
   assert.match(previewCss, /#1A1A2E/);
   assert.match(previewCss, /er-window-tabs/);
   assert.match(previewCss, /er-peers/);
@@ -819,10 +818,10 @@ test("a transcript-supported episode can lead a specialty without duplicating Li
   assert.match(preview, /AudioQuote/);
   assert.match(preview, /audioUrl=\{audioUrl\}/);
   assert.match(preview, /eventLabel=\{title\}/);
-  assert.match(preview, /Episode page ↗/);
+  assert.match(preview, /Episode page/);
   assert.match(preview, /Listen here/);
-  assert.match(preview, /listenForArea/);
-  assert.match(preview, /filter\(isEpisodeDevelopment\)/);
+  assert.match(preview, /sevenDayEditionListen\(\[todayEdition\], currentWorth\)/);
+  assert.doesNotMatch(preview, /listenForArea/);
   assert.match(preview, /episode\?\.audioUrl \?\? item\.audioUrl \?\? null/,
     "a promoted episode keeps its player after the backend removes it from Listen");
   assert.match(preview, /episode\?\.episodeId \?\? item\.episodeId \?\? item\.id/);

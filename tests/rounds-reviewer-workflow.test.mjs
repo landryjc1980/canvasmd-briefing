@@ -470,7 +470,7 @@ test("transcript review stays bounded, cross-cue aware, lazy, and source-specifi
   );
 });
 
-test("the local transcript manifest resolves only durable ignored assets with matching digests", () => {
+test("the local transcript manifest covers the checked-in fixture contract", () => {
   const entries = Object.values(LOCAL_TRANSCRIPT_MANIFEST);
   const fixtureSourceIds = [...new Set(
     LOCAL_ROUNDS_BRIEFS.flatMap((brief) => brief.sources.map((source) => source.id)),
@@ -482,16 +482,24 @@ test("the local transcript manifest resolves only durable ignored assets with ma
   for (const entry of entries) {
     assert.doesNotMatch(entry.srtPath, /\/private\/tmp/u);
     assert.match(entry.srtPath, /\/transcripts\/local-assets\//u);
-    const raw = fs.readFileSync(entry.srtPath);
-    const digest = `sha256:${createHash("sha256").update(raw).digest("hex")}`;
-    assert.equal(digest, entry.sourceFileSha256);
+    assert.match(entry.sourceFileSha256, /^sha256:[a-f0-9]{64}$/u);
     if (entry.audioPath) {
       assert.doesNotMatch(entry.audioPath, /\/private\/tmp/u);
       assert.match(entry.audioPath, /\/transcripts\/local-assets\//u);
-      assert.equal(fs.existsSync(entry.audioPath), true);
     }
   }
 });
+
+for (const entry of Object.values(LOCAL_TRANSCRIPT_MANIFEST)) {
+  test(`optional private transcript ${entry.assetId} matches its allowlisted digest`, {
+    skip: !fs.existsSync(entry.srtPath) && "Private ignored asset not installed; run verifyLocalAssets.mjs before reviewer QA",
+  }, () => {
+    const raw = fs.readFileSync(entry.srtPath);
+    const digest = `sha256:${createHash("sha256").update(raw).digest("hex")}`;
+    assert.equal(digest, entry.sourceFileSha256, "Present assets must fail closed on any content change");
+    if (entry.audioPath) assert.equal(fs.existsSync(entry.audioPath), true, "An installed private transcript must include its paired audio");
+  });
+}
 
 test("a metadata match remains additive to transcript-wording evidence", () => {
   const source = {

@@ -30,6 +30,7 @@ export default function AudioQuote({
   eventId,
   eventLabel,
   tone = "light",
+  seekRequest,
 }: {
   audioUrl: string;
   startMs: number | null;
@@ -39,6 +40,7 @@ export default function AudioQuote({
   eventId?: string | null; // stable hero/episode identity for admin engagement reporting
   eventLabel?: string | null;
   tone?: "light" | "dark"; // "dark" = translucent chrome for use on a dark card
+  seekRequest?: { seconds: number; requestId: number };
 }) {
   const ref = useRef<HTMLAudioElement>(null);
   const atSec = clipSecond(startMs);
@@ -52,6 +54,7 @@ export default function AudioQuote({
   const dur = mediaDur > 0 ? mediaDur : Math.max(0, durationSeconds ?? 0);
   const seekedRef = useRef(false);
   const playLoggedRef = useRef(false);
+  const pendingSeek = useRef<number | null>(null);
 
   useEffect(() => {
     setPlaying(false);
@@ -61,6 +64,18 @@ export default function AudioQuote({
     seekedRef.current = false;
     playLoggedRef.current = false;
   }, [audioUrl, startMs]);
+
+  useEffect(() => {
+    if (!seekRequest || !Number.isFinite(seekRequest.seconds)) return;
+    const seconds = Math.max(0, seekRequest.seconds);
+    pendingSeek.current = seconds;
+    seekedRef.current = true;
+    setCur(seconds);
+    if (ref.current && ref.current.readyState > 0) {
+      ref.current.currentTime = seconds;
+      pendingSeek.current = null;
+    } else ref.current?.load();
+  }, [seekRequest]);
 
   // Jump to the quoted moment once, unless the listener has already scrubbed.
   const applyStart = useCallback(() => {
@@ -121,6 +136,10 @@ export default function AudioQuote({
         preload="none"
         onLoadedMetadata={(e) => {
           setMediaDur(e.currentTarget.duration || 0);
+          if (pendingSeek.current !== null) {
+            e.currentTarget.currentTime = pendingSeek.current;
+            pendingSeek.current = null;
+          }
           applyStart();
         }}
         onCanPlay={applyStart}

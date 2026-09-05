@@ -17,6 +17,8 @@ const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx")
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections.tsx"), "utf8");
 const nativeBriefing = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
+const editorial = read("app/briefing-preview/EditorialReadout.tsx");
+const editorialCss = read("app/briefing-preview/preview.css");
 
 test("signed sessions are revalidated before API access or middleware renewal", () => {
   assert.match(gate, /export async function activeContactId/);
@@ -68,7 +70,9 @@ test("web evidence controls meet target and contrast contracts", () => {
   assert.match(hero, /sb\.url[\s\S]{0,240}minHeight: 44/);
   assert.match(reader, /hasSources &&[\s\S]{0,520}minHeight: 44/);
   assert.match(reader, /\[\[`\$\{data\.windowDays\}-day brief`, false\][\s\S]{0,420}minHeight: 44/);
-  assert.match(nativeBriefing, /\[\[`\$\{data\?\.windowDays \?\? 14\}-day brief`, false\][\s\S]{0,520}minHeight: 44/);
+  assert.match(editorialCss, /\.er-window-tabs button \{[^}]*min-height: 44px/);
+  assert.match(editorialCss, /\.er-disclose \{[^}]*min-height: 44px/);
+  assert.match(editorialCss, /--er-link: #9b451f/);
   assert.match(nativeHero, /sibling\.url![\s\S]{0,180}minHeight: 44/);
   assert.match(css, /\.aq-range\s*\{[\s\S]*?height: 44px/);
   assert.match(css, /\.aq-range::-(?:webkit-slider-runnable-track|moz-range-track)\s*\{[\s\S]*?height: 5px/);
@@ -91,7 +95,10 @@ test("reader surfaces describe each payload's rolling window consistently", () =
   assert.match(read("app/heroPost.ts"), /current 14-day/);
   assert.match(sharePage, /current contact[\s\S]+activeContactId/);
   assert.match(nativeSections, /Podcasts from the past \{windowDays\} days/);
-  assert.match(nativeBriefing, /Building the latest rolling/);
+  assert.match(editorial, /aria-label="Readout window"/);
+  assert.match(editorial, /requestedWindow === "today"/);
+  assert.match(editorial, /requestedWindow === "7d"/);
+  assert.match(editorial, /Edition: \{displayedEditionDate\}/);
 });
 
 test("web receipts preserve quoted context and primary event provenance", () => {
