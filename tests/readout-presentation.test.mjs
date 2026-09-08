@@ -114,7 +114,8 @@ test("audio version notices compare the selected edition only when the All Oncol
   assert.match(renderer, /expectedVersions=\{audioVersions\}/);
   assert.match(read("app/briefing-preview/editionSnapshot.ts"), /selectionVersion\?: string \| null/);
   const card = read("components/DailyReadoutAudio.tsx");
-  assert.match(card, /audioReflectsEarlierUpdate\(expectedVersions\[edition\.edition_date\], edition\.selection_version\)/);
+  assert.match(card, /expectedVersion=\{expectedVersions\[edition\.edition_date\]\}/);
+  assert.match(card, /audioReflectsEarlierUpdate\(expectedVersion, edition\.selection_version\)/);
   assert.match(card, /Audio reflects an earlier update of this edition\./);
   assert.doesNotMatch(card, /if \(reflectsEarlierUpdate\) return|\{edition\.selection_version\}/);
 });
@@ -129,11 +130,11 @@ test("web audio only exposes published playback fields through the reader gate",
   assert.match(route, /select: "[^"]*selection_version/);
   assert.match(route, /"Cache-Control": "private, no-store"/);
   const card = read("components/DailyReadoutAudio.tsx");
-  assert.match(card, /ALL ONCOLOGY/);
+  assert.match(card, /aria-label="Oncology Mornings"/);
   assert.match(card, /editions\[0\]/);
   assert.match(card, /aria-label="Audio edition"/);
   assert.match(card, /Recorded edition as of/);
-  assert.match(card, /<summary>Chapters<\/summary>/);
+  assert.match(card, /<summary><span>Chapters<\/span>/);
   assert.match(card, /seekRequest=\{seek\}/);
   assert.match(card, /window\.setInterval\(refresh, 60_000\)/);
   assert.match(card, /document\.visibilityState === "hidden"/);

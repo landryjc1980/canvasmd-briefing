@@ -679,7 +679,8 @@ test("reading columns stay centered with a compact accessible specialty dropdown
   assert.match(preview, /EDITION_AREAS\.map\(\(candidate\) => <option/);
   assert.match(previewCss, /\.er-worth \{[^}]*margin-inline: auto/);
   assert.match(previewCss, /\.er-relevant \{[^}]*margin: 16px auto 0/);
-  assert.match(previewCss, /\.er-specialty-select \{[^}]*max-width: 180px/);
+  assert.match(previewCss, /\.er-specialty-picker \{[^}]*max-width: 190px/);
+  assert.match(previewCss, /\.er-picker select \{[^}]*min-height: 44px/);
   assert.match(previewCss, /\.er-worth > \.er-section-title \{[^}]*flex-wrap: wrap/);
   assert.match(previewCss, /\.er-readout-heading \{[^}]*flex-wrap: wrap/);
 });

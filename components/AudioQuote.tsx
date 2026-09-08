@@ -31,6 +31,7 @@ export default function AudioQuote({
   eventLabel,
   tone = "light",
   seekRequest,
+  onPositionChange,
 }: {
   audioUrl: string;
   startMs: number | null;
@@ -41,6 +42,7 @@ export default function AudioQuote({
   eventLabel?: string | null;
   tone?: "light" | "dark"; // "dark" = translucent chrome for use on a dark card
   seekRequest?: { seconds: number; requestId: number };
+  onPositionChange?: (seconds: number) => void;
 }) {
   const ref = useRef<HTMLAudioElement>(null);
   const atSec = clipSecond(startMs);
@@ -55,6 +57,8 @@ export default function AudioQuote({
   const seekedRef = useRef(false);
   const playLoggedRef = useRef(false);
   const pendingSeek = useRef<number | null>(null);
+
+  useEffect(() => { onPositionChange?.(cur); }, [cur, onPositionChange]);
 
   useEffect(() => {
     setPlaying(false);

@@ -965,9 +965,9 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             {area !== "All" && <p className="er-eyebrow">{AREA_LABELS[area].toUpperCase()}</p>}
             <div className="er-readout-heading">
               <h2>The Readout</h2>
-              <select className="er-specialty-select" aria-label="Specialty" value={requestedArea} onChange={(event) => chooseArea(event.target.value as EditionArea)}>
+              <span className="er-picker er-specialty-picker"><select className="er-specialty-select" aria-label="Specialty" value={requestedArea} onChange={(event) => chooseArea(event.target.value as EditionArea)}>
                 {EDITION_AREAS.map((candidate) => <option key={candidate} value={candidate}>{candidate === "All" ? "All oncology" : AREA_LABELS[candidate]}</option>)}
-              </select>
+              </select></span>
             </div>
             <p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing.</p>
             {displayedEditionDate && <p className="er-edition-date">Edition: {displayedEditionDate}</p>}
