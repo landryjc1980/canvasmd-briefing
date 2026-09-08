@@ -29,6 +29,7 @@ import {
   editorialScopeLabel,
   findArticle,
   findEpisode,
+  listenCardTitle,
   relatedCoverageLinks,
   sameEditorialArticle,
   type EditorialArticle,
@@ -1038,7 +1039,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
               const durationSeconds = episode?.durationSeconds ?? item.durationSeconds ?? archivedMedia?.durationSeconds;
               const episodeId = episode?.episodeId ?? item.episodeId ?? archivedMedia?.episodeId ?? item.id;
               const show = episode?.show || item.show;
-              const title = episode?.title || item.hook;
+              const title = listenCardTitle(episode?.title, item, archivedMedia);
               return (
                 <article className={`er-listen-card${showArt ? "" : " no-art"}`} key={item.id}>
                   {showArt && (

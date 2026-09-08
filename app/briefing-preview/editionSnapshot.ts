@@ -296,9 +296,11 @@ export function sevenDayEditionDevelopments(history: ReadoutEditionSnapshot[]) {
     }
   }
   developments.sort((left, right) => left.position - right.position || right.editionDate.localeCompare(left.editionDate));
+  const uniqueRelevant = relevant.filter((entry) => !developments.some((development) =>
+    !isEpisodeDevelopment(development.development) && sameEditorialArticle(development.development, entry.article)));
 
-  if (snapshots[0]?.area !== "All" && developments.length === 0 && relevant.length > 0) {
-    const [lead] = relevant.splice(0, 1);
+  if (snapshots[0]?.area !== "All" && developments.length === 0 && uniqueRelevant.length > 0) {
+    const [lead] = uniqueRelevant.splice(0, 1);
     developments.push({
       development: lead.article,
       episode: null,
@@ -306,7 +308,7 @@ export function sevenDayEditionDevelopments(history: ReadoutEditionSnapshot[]) {
       editionDate: lead.editionDate,
     });
   }
-  return { developments: developments.map((entry) => entry.development), relevant: relevant.map((entry) => entry.article) };
+  return { developments: developments.map((entry) => entry.development), relevant: uniqueRelevant.map((entry) => entry.article) };
 }
 
 export function sevenDayEditionListen(

@@ -404,6 +404,14 @@ export const ARCHIVED_LISTEN_MEDIA: EditorialEpisode[] = [
   },
 ];
 
+export function listenCardTitle(
+  episodeTitle: string | null | undefined,
+  item: Pick<EditorialEpisode, "title">,
+  archivedMedia?: Pick<EditorialEpisode, "title"> | null,
+): string {
+  return episodeTitle || item.title || archivedMedia?.title || "Podcast episode";
+}
+
 function norm(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").trim();
 }
@@ -519,9 +527,11 @@ export function relatedCoverageLinks(
 export function sameEditorialArticle(left: EditorialArticle, right: EditorialArticle): boolean {
   const leftDoi = norm(left.match.doi);
   const rightDoi = norm(right.match.doi);
-  if (leftDoi && rightDoi && leftDoi === rightDoi) return true;
   const leftPmid = norm(left.match.pmid);
   const rightPmid = norm(right.match.pmid);
+  if ((leftDoi && rightDoi && leftDoi !== rightDoi) ||
+    (leftPmid && rightPmid && leftPmid !== rightPmid)) return false;
+  if (leftDoi && rightDoi && leftDoi === rightDoi) return true;
   if (leftPmid && rightPmid && leftPmid === rightPmid) return true;
   const leftUrl = canonicalEditorialUrl(left.url);
   const rightUrl = canonicalEditorialUrl(right.url);
