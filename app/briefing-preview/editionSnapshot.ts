@@ -114,7 +114,7 @@ export function liveInsertionDevelopments(payload: ReadoutWindowPayload, area: E
   return uniqueDevelopments([
     ...(payload.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area)),
     ...(payload.breakingCards ?? []).map((candidate) => breakingEditorialArticle(candidate, area)),
-  ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item));
+  ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item) && !isPreprintEditorialArticle(item));
 }
 
 function liveRankedDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
@@ -170,7 +170,9 @@ export function buildReadoutEditionSnapshot(
 ): ReadoutEditionSnapshot {
   const ranked = liveRankedDevelopments(payload, area)
     .filter((item) => !appearedInMorningEdition(item, previousEditions));
-  const leadRanked = ranked.filter((item) => !isPreprintEditorialArticle(item) && (!item.publicationClass || ["research", "guideline"].includes(item.publicationClass)));
+  // Publication class labels the source; it does not veto an otherwise qualified article.
+  // Preprints retain their existing non-lead safety rule.
+  const leadRanked = ranked.filter((item) => !isPreprintEditorialArticle(item));
   const preprints = ranked.filter((item) => !leadRanked.includes(item));
   const developments: EditorialDevelopment[] = leadRanked.slice(0, 5);
   const relevant = uniqueRelevant([

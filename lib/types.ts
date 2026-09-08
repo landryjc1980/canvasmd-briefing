@@ -725,6 +725,7 @@ export type ReadoutRegulatoryCandidate = {
 export type ReadoutBreakingCandidate = {
   id: string;
   kind: "paper";
+  publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
   headline: string;
   sourceLabel: string;
   url: string;

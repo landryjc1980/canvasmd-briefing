@@ -474,7 +474,8 @@ test("the daily archive reads every prior canonical edition before deduplicating
 test("preprints remain discoverable but cannot occupy lead-paper slots", () => {
   assert.match(editionSnapshot, /export function isPreprintEditorialArticle/);
   assert.match(editionSnapshot, /biorxiv\|medrxiv/);
-  assert.match(editionSnapshot, /const leadRanked = ranked\.filter\(\(item\) => !isPreprintEditorialArticle\(item\) &&/);
+  assert.match(editionSnapshot, /const leadRanked = ranked\.filter\(\(item\) => !isPreprintEditorialArticle\(item\)\)/);
+  assert.doesNotMatch(editionSnapshot, /\["research", "guideline"\]\.includes\(item\.publicationClass\)/);
   assert.match(editionSnapshot, /const preprints = ranked\.filter\(\(item\) => !leadRanked\.includes\(item\)\)/);
   assert.match(editionSnapshot, /\.\.\.preprints,/,
     "preprints are demoted to Also Relevant rather than silently discarded");

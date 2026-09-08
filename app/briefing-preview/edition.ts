@@ -692,6 +692,7 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
 export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate, area: EditionArea): EditorialArticle {
   return {
     id: candidate.id,
+    publicationClass: candidate.publicationClass ?? "unknown",
     area,
     site: candidate.areas[0] ?? "Oncology",
     nickname: "BREAKING",
@@ -703,7 +704,11 @@ export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate, ar
     journal: candidate.sourceLabel,
     title: candidate.headline,
     url: candidate.url,
-    evidence: "Major paper",
+    evidence: candidate.publicationClass === "research" ? "Published research"
+      : candidate.publicationClass === "review" ? "Review"
+      : candidate.publicationClass === "commentary" ? "Commentary"
+      : candidate.publicationClass === "guideline" ? "Guideline"
+      : candidate.publicationClass === "preprint" ? "Preprint — not peer reviewed" : "Article",
     sharedBy: candidate.metrics.totalSharers,
     match: { doi: candidate.doi ?? undefined, pmid: candidate.pmid ?? undefined, titleIncludes: candidate.headline },
     articleIds: candidate.articleIds,
