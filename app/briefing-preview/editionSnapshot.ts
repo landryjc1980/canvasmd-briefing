@@ -1,6 +1,5 @@
 import type { BriefingData, BriefingEpisode, ReadoutListenEpisode, ReadoutWindowPayload } from "@/lib/types";
 import {
-  NEW_TO_LISTEN,
   archivedEditorialArticle,
   breakingEditorialArticle,
   editorialEpisodeIdentityKeys,
@@ -185,7 +184,7 @@ export function buildReadoutEditionSnapshot(
 
   const briefs = liveListenBriefs(payload);
   const featured = developments.filter(isEpisodeDevelopment);
-  const listenItems = listenForArea(NEW_TO_LISTEN, briefs, area, featured, now);
+  const listenItems = listenForArea(briefs, area, featured, now);
   const listen = listenItems.map((item) => ({ item, episode: matchedEpisode(item, briefs, payload) }));
 
   return {
@@ -235,7 +234,7 @@ export function mergeReadoutEditionSnapshot(
     !snapshot.designationCards.some((existing) => existing.id === candidate.id));
   const briefs = liveListenBriefs(payload);
   const featured = existingDevelopments.filter(isEpisodeDevelopment);
-  const currentListen = listenForArea(NEW_TO_LISTEN, briefs, snapshot.area, featured, now)
+  const currentListen = listenForArea(briefs, snapshot.area, featured, now)
     .map((item) => ({ item, episode: matchedEpisode(item, briefs, payload) }));
   const existingListenKeys = new Set(
     snapshot.listen.flatMap((entry) => editorialEpisodeIdentityKeys(entry.item, entry.episode)),

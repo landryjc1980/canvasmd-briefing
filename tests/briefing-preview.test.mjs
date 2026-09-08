@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { FEATURED_EPISODES, NEW_TO_LISTEN, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { ARCHIVED_LISTEN_MEDIA, FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
@@ -842,22 +842,22 @@ test("podcast Listen holds use exact show titles and preserve episode metadata",
     episode("The Uromigos", "Episode 516: The Influence of Hypoxia on Response and Resistance in RCC", "2026-08-24T16:00:00Z", "https://uromigos.example/516"),
     episode("The Uromigos Extra", "Episode 517: The Influence of Hypoxia on Response and Resistance in RCC", "2026-08-24T17:00:00Z"),
   ]);
-  const listen = listenForArea([], [briefing], "GU", [], now);
+  const listen = listenForArea([briefing], "GU", [], now);
   assert.deepEqual(listen.map((item) => item.show), ["The Uromigos"]);
   assert.equal(listen[0].title, "Episode 516: The Influence of Hypoxia on Response and Resistance in RCC");
   assert.equal(listen[0].hook, listen[0].title);
   assert.equal(listen[0].url, "https://uromigos.example/516");
 });
 
-test("curated Listen cards keep their artwork and player after leaving the live window", () => {
-  for (const item of NEW_TO_LISTEN) {
+test("saved Listen cards retain archived media without becoming timeless selections", () => {
+  for (const item of ARCHIVED_LISTEN_MEDIA) {
     assert.ok(item.episodeId);
     assert.ok(item.showArt);
     assert.ok(item.audioUrl);
     assert.ok(item.durationSeconds);
   }
-  assert.match(preview, /episode\?\.showArt \?\? item\.showArt \?\? curated\?\.showArt/);
-  assert.match(preview, /episode\?\.audioUrl \?\? item\.audioUrl \?\? curated\?\.audioUrl/);
+  assert.match(preview, /episode\?\.showArt \?\? item\.showArt \?\? archivedMedia\?\.showArt/);
+  assert.match(preview, /episode\?\.audioUrl \?\? item\.audioUrl \?\? archivedMedia\?\.audioUrl/);
   assert.match(preview, /audioUrl=\{audioUrl\}/);
 });
 
@@ -866,9 +866,9 @@ test("cross-specialty podcast holds route by episode area only", () => {
   const breast = brief("Breast", [
     episode("The Lancet Oncology in conversation with", "Tumour-infiltrating lymphocytes in breast cancer with Professor Sherene Loi", "2026-08-24T21:30:00Z"),
   ]);
-  assert.equal(listenForArea([], [breast], "Breast", [], now).length, 1);
-  assert.equal(listenForArea([], [breast], "GU", [], now).length, 0);
-  assert.equal(listenForArea([], [breast], "All", [], now).length, 1);
+  assert.equal(listenForArea([breast], "Breast", [], now).length, 1);
+  assert.equal(listenForArea([breast], "GU", [], now).length, 0);
+  assert.equal(listenForArea([breast], "All", [], now).length, 1);
 });
 
 test("Healthcare Unfiltered is held on All and only on an explicitly assigned specialty", () => {
@@ -876,19 +876,19 @@ test("Healthcare Unfiltered is held on All and only on an explicitly assigned sp
   const general = brief("All", [
     episode("Healthcare Unfiltered", "How AI Helps Logistics in Oncology", "2026-09-01T12:00:00Z"),
   ]);
-  assert.deepEqual(listenForArea([], [general], "All", [], now).map((item) => item.title), [
+  assert.deepEqual(listenForArea([general], "All", [], now).map((item) => item.title), [
     "How AI Helps Logistics in Oncology",
   ]);
-  assert.deepEqual(listenForArea([], [general], "GU", [], now), []);
+  assert.deepEqual(listenForArea([general], "GU", [], now), []);
 
   const heme = brief("Heme", [
     episode("Healthcare Unfiltered", "Cell therapy logistics", "2026-09-01T13:00:00Z"),
   ]);
-  assert.deepEqual(listenForArea([], [heme], "Heme", [], now).map((item) => item.title), [
+  assert.deepEqual(listenForArea([heme], "Heme", [], now).map((item) => item.title), [
     "Cell therapy logistics",
   ]);
-  assert.deepEqual(listenForArea([], [heme], "GU", [], now), []);
-  assert.deepEqual(listenForArea([], [heme], "All", [], now).map((item) => item.title), [
+  assert.deepEqual(listenForArea([heme], "GU", [], now), []);
+  assert.deepEqual(listenForArea([heme], "All", [], now).map((item) => item.title), [
     "Cell therapy logistics",
   ]);
 });
@@ -898,7 +898,19 @@ test("podcast Listen holds expire after 72 hours", () => {
   const heme = brief("Heme", [
     episode("Blood Podcast", "Balancing Infection and Thrombosis: Bispecific Antibodies and the Many Roles of HRG", "2026-08-22T15:59:59Z"),
   ]);
-  assert.deepEqual(listenForArea([], [heme], "Heme", [], now), []);
+  assert.deepEqual(listenForArea([heme], "Heme", [], now), []);
+});
+
+test("new Listen selections require a current timestamped episode and never fall back to archived media", () => {
+  const now = new Date("2026-08-25T16:00:00Z");
+  const breast = brief("Breast", [
+    episode("The Lancet Oncology in conversation with", "Eligible breast episode", "2026-08-24T16:01:00Z"),
+    episode("The Lancet Oncology in conversation with", "Expired breast episode", "2026-08-22T15:59:59Z"),
+    episode("The Lancet Oncology in conversation with", "Future breast episode", "2026-08-25T16:00:01Z"),
+    episode("The Lancet Oncology in conversation with", "Undated breast episode", "not-a-date"),
+  ]);
+  assert.deepEqual(listenForArea([breast], "All", [], now).map((item) => item.title), ["Eligible breast episode"]);
+  assert.deepEqual(listenForArea([], "All", [], now), [], "archived media must not enter a new Today selection");
 });
 
 test("podcast Listen holds cap at two per specialty and three on All", () => {
@@ -912,8 +924,8 @@ test("podcast Listen holds cap at two per specialty and three on All", () => {
     episode("The Breast Friends Podcast", "Breast ASCO takeaways", "2026-08-24T13:00:00Z"),
     episode("The Lancet Oncology in conversation with", "Breast TILs", "2026-08-24T11:00:00Z"),
   ]);
-  assert.deepEqual(listenForArea([], [gu], "GU", [], now).map((item) => item.title), ["Newest prostate cancer sequencing", "New prostate guidelines"]);
-  assert.equal(listenForArea([], [gu, breast], "All", [], now).length, 3);
+  assert.deepEqual(listenForArea([gu], "GU", [], now).map((item) => item.title), ["Newest prostate cancer sequencing", "New prostate guidelines"]);
+  assert.equal(listenForArea([gu, breast], "All", [], now).length, 3);
 });
 
 test("podcast holds do not become lead developments without transcript support", () => {
@@ -921,7 +933,7 @@ test("podcast holds do not become lead developments without transcript support",
   const gyn = brief("Gyn", [
     episode("ASCO Guidelines", "Systemic Treatment of Ovarian Cancer Recurrence: ASCO Living Guideline 2026.1.0", "2026-08-24T20:00:00Z"),
   ]);
-  const listen = listenForArea([], [gyn], "Gyn", FEATURED_EPISODES, now);
+  const listen = listenForArea([gyn], "Gyn", FEATURED_EPISODES, now);
   assert.deepEqual(listen, []);
   assert.match(edition, /FEATURED_EPISODES/);
   assert.match(preview, /const currentWorth = useMemo/);
@@ -933,7 +945,7 @@ test("conditional and explicitly excluded shows are not held by host identity al
     episode("Oncology Insights with Petros Grivas", "Head & Neck cancer updates", "2026-08-24T20:00:00Z"),
     episode("OncLive® On Air", "Prostate cancer update", "2026-08-24T20:00:00Z"),
   ]);
-  assert.deepEqual(listenForArea([], [gu], "GU", [], now), []);
+  assert.deepEqual(listenForArea([gu], "GU", [], now), []);
 });
 
 test("the preview is public locally without weakening the production gate", () => {

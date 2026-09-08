@@ -23,7 +23,7 @@ import {
 } from "./readoutRequest";
 import {
   EDITION_AREAS,
-  NEW_TO_LISTEN,
+  ARCHIVED_LISTEN_MEDIA,
   cleanClinicianText,
   cleanReadoutExcerpt,
   editorialScopeLabel,
@@ -1032,11 +1032,11 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
           <div className="er-listen-grid">
             {listenEntries.map(({ item, episode }) => {
               const sourceHref = episode?.sourceUrl || item.url;
-              const curated = NEW_TO_LISTEN.find((candidate) => candidate.id === item.id);
-              const showArt = episode?.showArt ?? item.showArt ?? curated?.showArt;
-              const audioUrl = episode?.audioUrl ?? item.audioUrl ?? curated?.audioUrl;
-              const durationSeconds = episode?.durationSeconds ?? item.durationSeconds ?? curated?.durationSeconds;
-              const episodeId = episode?.episodeId ?? item.episodeId ?? curated?.episodeId ?? item.id;
+              const archivedMedia = ARCHIVED_LISTEN_MEDIA.find((candidate) => candidate.id === item.id);
+              const showArt = episode?.showArt ?? item.showArt ?? archivedMedia?.showArt;
+              const audioUrl = episode?.audioUrl ?? item.audioUrl ?? archivedMedia?.audioUrl;
+              const durationSeconds = episode?.durationSeconds ?? item.durationSeconds ?? archivedMedia?.durationSeconds;
+              const episodeId = episode?.episodeId ?? item.episodeId ?? archivedMedia?.episodeId ?? item.id;
               const show = episode?.show || item.show;
               const title = episode?.title || item.hook;
               return (

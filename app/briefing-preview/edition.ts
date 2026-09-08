@@ -359,7 +359,10 @@ export const ALSO_RELEVANT: EditorialArticle[] = [
   },
 ];
 
-export const NEW_TO_LISTEN: EditorialEpisode[] = [
+// Media lookup for editions frozen before episode media was saved with the entry.
+// This is deliberately not an editorial-selection list: new Listen choices must
+// originate in the timestamped, 72-hour episode supply below.
+export const ARCHIVED_LISTEN_MEDIA: EditorialEpisode[] = [
   {
     id: "loi-tils",
     area: "Breast",
@@ -773,23 +776,14 @@ export function findEpisode(item: EditorialEpisode, briefs: BriefingData[]): Bri
 }
 
 export function listenForArea(
-  baseItems: EditorialEpisode[],
   briefs: BriefingData[],
   area: EditionArea,
   featuredItems: EditorialEpisode[] = [],
   now = new Date(),
 ): EditorialEpisode[] {
   const featured = new Set(featuredItems.flatMap((item) => episodeKeys(item)));
-  const base = visibleForArea(baseItems, area).filter((item) => !hasAnyKey(item, featured));
   const held = heldEpisodesForArea(briefs, area, featured, now);
-  const seen = new Set(held.flatMap((item) => episodeKeys(item)));
-  const remainder = base.filter((item) => {
-    if (hasAnyKey(item, seen)) return false;
-    for (const key of episodeKeys(item)) seen.add(key);
-    return true;
-  });
-  const items = [...held, ...remainder];
-  return area === "All" ? items.slice(0, ALL_LISTEN_CAP) : items;
+  return area === "All" ? held.slice(0, ALL_LISTEN_CAP) : held;
 }
 
 function heldEpisodesForArea(

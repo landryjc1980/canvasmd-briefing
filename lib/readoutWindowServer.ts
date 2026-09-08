@@ -208,7 +208,7 @@ async function buildFinishedReadoutWindow(
 
 const fetchFinishedReadoutWindow = unstable_cache(
   async (area: EditionArea, window: ReadoutWindow) => readFinishedWindow(area, window),
-  ["readout-window-finished-v7"],
+  ["readout-window-finished-v8"],
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
