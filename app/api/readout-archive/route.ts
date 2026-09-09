@@ -36,7 +36,9 @@ export async function GET(req: NextRequest) {
     : await archiveCurrentReadoutEdition();
   if (("archived" in edition && edition.archived.length > 0) || ("rebuilt" in edition && edition.rebuilt.length > 0)) {
     revalidateTag(READOUT_WINDOW_CACHE_TAG);
-    warmed = await warmReadoutWindowCache();
+    // The inner one-hour source cache may still hold the pre-archive edition.
+    // Rebuild the reader payload from the durable edition with a fresh source read.
+    warmed = await warmReadoutWindowCache({ freshSource: true });
   }
   const pruned = await pruneArchive();
   return NextResponse.json({ ok: true, archived, edition, warmed, pruned, retentionDays: RETENTION_DAYS });

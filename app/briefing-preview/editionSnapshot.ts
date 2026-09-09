@@ -209,6 +209,7 @@ export function buildReadoutEditionSnapshot(
 export function resolveReadoutTodayEdition(
   area: EditionArea,
   payload: ReadoutWindowPayload,
+  previousEditions: ReadoutEditionSnapshot[] = [],
 ): ReadoutEditionSnapshot {
   const generatedAt = new Date(payload.generatedAt);
   const now = Number.isFinite(generatedAt.getTime()) ? generatedAt : new Date();
@@ -217,7 +218,7 @@ export function resolveReadoutTodayEdition(
       payload.currentEdition.area === area && payload.currentEdition.editionDate === editionDate
     ? payload.currentEdition
     : null;
-  return saved ?? buildReadoutEditionSnapshot(area, payload, now);
+  return saved ?? buildReadoutEditionSnapshot(area, payload, now, previousEditions);
 }
 
 export function mergeReadoutEditionSnapshot(
