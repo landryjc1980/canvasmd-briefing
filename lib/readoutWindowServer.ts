@@ -21,7 +21,7 @@ import {
 
 // Bump this whenever reader-side cache acceptance changes. It prevents an old
 // finished selection from being served before the new durable-edition check runs.
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v21";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v22";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -82,8 +82,29 @@ function sameEditionVersion(value: unknown, durable: ReadoutEditionSnapshot): bo
     value.editionDate === durable.editionDate &&
     value.generatedAt === durable.generatedAt &&
     (value.updatedAt ?? null) === (durable.updatedAt ?? null) &&
-    (value.selectionVersion ?? null) === (durable.selectionVersion ?? null) &&
+    (!durable.selectionVersion || value.selectionVersion === durable.selectionVersion) &&
     sameSelectionMembership(value, durable);
+}
+
+async function withSelectionVersion(snapshot: ReadoutEditionSnapshot): Promise<ReadoutEditionSnapshot> {
+  if (snapshot.selectionVersion) return snapshot;
+  // Keep this byte-for-byte aligned with Native's readoutSelectionVersion: public
+  // content and selection are versioned, never live engagement overlays.
+  const item = (value: Record<string, unknown> | null | undefined) => value ? {
+    id: value.id, title: value.title, url: value.url, kind: value.kind,
+    journal: value.journal, publicationClass: value.publicationClass,
+    finding: value.finding, sourceExcerpt: value.sourceExcerpt,
+    episodeId: value.episodeId, show: value.show, description: value.description,
+  } : null;
+  const source = JSON.stringify({
+    editionDate: snapshot.editionDate, area: snapshot.area,
+    developments: snapshot.developments.map((entry) => item(entry.development)),
+    relevant: snapshot.relevant.map((entry) => item(entry.article)),
+    listen: snapshot.listen.map((entry) => ({ item: item(entry.item), episode: item(entry.episode) })),
+  });
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
+  const selectionVersion = `readout-v1-${Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  return { ...snapshot, selectionVersion };
 }
 
 function isEpisodeOnlyFallback(edition: ReadoutEditionSnapshot, durableForArea: ReadoutEditionSnapshot): boolean {
@@ -116,13 +137,16 @@ function validFinishedEdition(
   edition: unknown,
   durableCanonical: ReadoutEditionSnapshot | null,
 ): boolean {
+  // v5 rows written before selection revisions existed are deliberately rebuilt
+  // once, so subsequent finished-cache reads always prove their public selection.
+  if (!isReadoutEditionSnapshot(edition) || !edition.selectionVersion) return false;
   if (!durableCanonical) return true;
   const durableForArea = readoutEditionForArea(durableCanonical, area);
   if (!durableForArea) return false;
   if (sameEditionVersion(edition, durableForArea)) return true;
   // A specialty with no canonical cards may truthfully surface its transcript-supported
   // 72-hour podcast lead; it is not a paper selection and must remain available.
-  return area !== "All" && isReadoutEditionSnapshot(edition) && isEpisodeOnlyFallback(edition, durableForArea);
+  return area !== "All" && isEpisodeOnlyFallback(edition, durableForArea);
 }
 
 async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
@@ -277,8 +301,10 @@ async function buildFinishedReadoutWindow(
     : null;
   // The durable selection governs membership, while a matching live payload retains
   // source-hydrated titles and links. A mismatched/stale source cannot replace it.
-  const canonicalCurrent = matchingSourceCanonical ?? durableCanonical ??
-    resolveReadoutTodayEdition("All", allToday, fallbackCanonicalHistory);
+  const resolvedCanonicalCurrent = matchingSourceCanonical ?? (durableCanonical
+    ? await withSelectionVersion(durableCanonical)
+    : resolveReadoutTodayEdition("All", allToday, fallbackCanonicalHistory));
+  const canonicalCurrent = await withSelectionVersion(resolvedCanonicalCurrent);
   const durableForArea = durableCanonical ? readoutEditionForArea(durableCanonical, area) : null;
   const hydratedCanonicalForArea = readoutEditionForArea(canonicalCurrent, area);
   const fallbackAreaHistory = fallbackCanonicalHistory
@@ -289,11 +315,12 @@ async function buildFinishedReadoutWindow(
   // An otherwise-empty specialty can additionally receive a transcript-supported podcast
   // lead from its own payload, but a same-date synthetic paper slate never outranks the
   // durable canonical edition.
-  const currentEdition = durableForArea
+  const selectedCurrentEdition = durableForArea
     ? validFinishedEdition(area, exactCurrent, durableCanonical)
       ? exactCurrent
       : hydratedCanonicalForArea ?? durableForArea
     : readoutEditionPreferNonEmpty(exactCurrent, hydratedCanonicalForArea);
+  const currentEdition = selectedCurrentEdition ? await withSelectionVersion(selectedCurrentEdition) : null;
   if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,

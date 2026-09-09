@@ -234,9 +234,9 @@ test("a stale current edition cannot displace a durable three-by-three daily sel
     ["new-1", "new-2", "new-3", "new-4", "new-5", "new-6"],
   );
   assert.equal(selected.editionDate === oldCurrent.editionDate, false);
-  assert.match(readoutServer, /const canonicalCurrent = matchingSourceCanonical \?\? durableCanonical \?\?/,
+  assert.match(readoutServer, /const resolvedCanonicalCurrent = matchingSourceCanonical \?\? \(durableCanonical/,
     "when a current source does not match the durable selection, the durable selection stays authoritative");
-  assert.match(readoutServer, /const currentEdition = durableForArea[\s\S]*?hydratedCanonicalForArea \?\? durableForArea/,
+  assert.match(readoutServer, /const selectedCurrentEdition = durableForArea[\s\S]*?hydratedCanonicalForArea \?\? durableForArea/,
     "a mismatched source falls back to all six durable editorial cards rather than relabeling yesterday's slate");
 });
 
@@ -448,7 +448,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(preview, /visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v21"/);
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v22"/);
   assert.match(readoutServer, /readout-window:finished:v5:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
   assert.doesNotMatch(readoutServer, /fetchFinishedReadoutWindow/,
@@ -465,6 +465,12 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(readoutServer, /sameEditionVersion\(snapshot, durableCanonical\)/);
   assert.match(readoutServer, /value\.updatedAt \?\? null\) === \(durable\.updatedAt \?\? null\)/,
     "an hourly insertion with the same morning generation time invalidates an old finished selection");
+  assert.match(readoutServer, /!durable\.selectionVersion \|\| value\.selectionVersion === durable\.selectionVersion/,
+    "legacy durable snapshots do not reject an otherwise matching hydrated source merely because they predate selectionVersion");
+  assert.match(readoutServer, /async function withSelectionVersion[\s\S]*?readout-v1-/,
+    "a durable fallback receives the Native-compatible public selection revision before it is persisted");
+  assert.match(readoutServer, /if \(!isReadoutEditionSnapshot\(edition\) \|\| !edition\.selectionVersion\) return false/,
+    "a finished v5 row from before revisions is rebuilt rather than remaining indefinitely accepted");
   assert.match(readoutServer, /sameSelectionMembership\(value, durable\)/,
     "a source selection has to match the durable membership before its hydrated fields are retained");
   assert.match(readoutServer, /isEpisodeOnlyFallback\(edition, durableForArea\)/,
