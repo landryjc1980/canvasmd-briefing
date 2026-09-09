@@ -16,7 +16,7 @@ import {
 } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import DailyReadoutAudio from "@/components/DailyReadoutAudio";
-import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage, sourceLinkKey, sourceLinkLabel } from "@/lib/readoutPresentation";
+import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage, regulatoryApprovalSourceText, sourceLinkKey, sourceLinkLabel } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
   type ReadoutWindow,
@@ -26,11 +26,13 @@ import {
   ARCHIVED_LISTEN_MEDIA,
   cleanClinicianText,
   cleanReadoutExcerpt,
+  displayReadoutTitle,
   editorialScopeLabel,
   findArticle,
   findEpisode,
   listenCardTitle,
   relatedCoverageLinks,
+  regulatoryWatchArticles,
   sameEditorialArticle,
   type EditorialArticle,
   type EditorialDevelopment,
@@ -366,14 +368,16 @@ function DevelopmentFinding({
   text,
   expandedText,
   expanded = false,
+  preservePreview = false,
 }: {
   text: string;
   expandedText?: string | null;
   expanded?: boolean;
+  preservePreview?: boolean;
 }) {
   const finding = expanded
     ? cleanReadoutExcerpt(expandedText || text)
-    : articleTextPreview(cleanReadoutExcerpt(text));
+    : preservePreview ? cleanReadoutExcerpt(text) : articleTextPreview(cleanReadoutExcerpt(text));
 
   if (!finding) return null;
   return (
@@ -520,8 +524,25 @@ function ArticleDevelopment({
   const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
-  const source = articleSourceText(cleanReadoutExcerpt(item.finding), cleanReadoutExcerpt(item.sourceExcerpt || item.finding));
-  const expansion = articleExpansion(source, usefulPosts(article).map((post) => post.text ?? ""), availableComments);
+  // FDA paragraph boundaries select the source preview, so retain them until that
+  // selection has happened. Cleaning first would collapse a later paragraph into
+  // the first one and make the collapsed card misleading.
+  const rawSourceText = item.sourceExcerpt || item.finding;
+  const source = contentType === "FDA approval"
+    ? (() => {
+        const approvalSource = regulatoryApprovalSourceText(rawSourceText);
+        return {
+          preview: cleanReadoutExcerpt(approvalSource.preview),
+          full: cleanReadoutExcerpt(approvalSource.full),
+        };
+      })()
+    : articleSourceText(cleanReadoutExcerpt(item.finding), cleanReadoutExcerpt(rawSourceText));
+  const expansion = articleExpansion(
+    source,
+    usefulPosts(article).map((post) => post.text ?? ""),
+    availableComments,
+    contentType === "FDA approval",
+  );
   const links = attachedSources(item, href);
   const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length > 0;
   const canDisclose = expansion.canExpand || hasMoreLinks;
@@ -542,7 +563,7 @@ function ArticleDevelopment({
   return (
     <article ref={cardRef} className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
       <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>
-      <SourceHeadline href={href} source={item.journal} title={article?.title || item.title} compact={compact} />
+      <SourceHeadline href={href} source={item.journal} title={displayReadoutTitle(article?.title || item.title)} compact={compact} />
       {!isResearch && (
         <p className="er-action-date">Action date: {actionDate
           ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
@@ -555,7 +576,7 @@ function ArticleDevelopment({
       {isResearch && publishedDate && (
         <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       )}
-      <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} />
+      <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
@@ -904,6 +925,15 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
   const publishedDevelopments = [...worth, ...relevant, ...moreFromSevenDays];
   const renderedDevelopments = [...worth, ...(alsoOpen ? relevant : relevant.slice(0, 1)), ...(moreOpen ? moreFromSevenDays : [])];
   const regulatoryCoverage = readoutRegulatoryCoverage(publishedDevelopments, renderedDevelopments);
+  const regulatoryArticles = useMemo(() => regulatoryWatchArticles(
+    windowPayload?.regulatoryCards ?? [],
+    area,
+    publishedDevelopments,
+  ), [area, publishedDevelopments, windowPayload]);
+  const regulatoryHeader = [
+    regulatoryArticles.length ? `${regulatoryArticles.length} action${regulatoryArticles.length === 1 ? "" : "s"}` : null,
+    windowPayload?.designationCards.length ? `${windowPayload.designationCards.length} designation${windowPayload.designationCards.length === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" · ") || regulatoryCoverage.status;
 
   const listenBriefs = useMemo(() => windowPayload ? liveListenBriefs(windowPayload) : [], [windowPayload]);
   const listenEntries = useMemo(() => readoutWindow === "7d"
@@ -1076,9 +1106,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
         {pageReady && <section className="er-section er-regulatory">
         <div className="er-section-title">
           <h2>Regulatory Watch</h2>
-          <span>{windowPayload?.designationCards.length
-            ? `${windowPayload.designationCards.length} designation${windowPayload.designationCards.length === 1 ? "" : "s"}`
-            : regulatoryCoverage.status}</span>
+          <span>{regulatoryHeader}</span>
         </div>
         {(windowPayload?.designationCards ?? []).map((designation) => (
           <article key={designation.id}>
@@ -1093,7 +1121,10 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             </div>
           </article>
         ))}
-        {!windowPayload?.designationCards.length && <p className="er-regulatory-empty">{regulatoryCoverage.hasPublished
+        {regulatoryArticles.map((item) => (
+          <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
+        ))}
+        {!windowPayload?.designationCards.length && !regulatoryArticles.length && <p className="er-regulatory-empty">{regulatoryCoverage.hasPublished
           ? `No additional ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`
           : `No new ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`}</p>}
         </section>}

@@ -14,7 +14,7 @@ const webAll = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "
 const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
 const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections.tsx"), "utf8");
 const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
-const nativeReadout = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
+const nativeReadout = fs.readFileSync(canvasmdFile("app/(tabs)/(3-briefing)/briefing.tsx"), "utf8");
 const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/StoryEvidence.tsx"), "utf8");
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
@@ -172,7 +172,8 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(nativeSections, /Open article/);
   assert.match(editorial, /function articleContentType/);
   assert.match(editorial, /item\.publicationClass/);
-  assert.match(editorial, /articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(item\.sourceExcerpt \|\| item\.finding\)\)/);
+  assert.match(editorial, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
+  assert.match(editorial, /: articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(rawSourceText\)\)/);
   assert.match(editorial, /expandedText=\{source\.full\}/);
   assert.match(editorial, /<SourceHeadline href=\{href\}/);
   assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);

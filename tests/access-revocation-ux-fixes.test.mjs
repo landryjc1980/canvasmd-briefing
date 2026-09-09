@@ -16,7 +16,7 @@ const nativeStoryEvidence = fs.readFileSync(canvasmdFile("components/readout/Sto
 const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections.tsx"), "utf8");
-const nativeBriefing = fs.readFileSync(canvasmdFile("app/(tabs)/briefing.tsx"), "utf8");
+const nativeBriefing = fs.readFileSync(canvasmdFile("app/(tabs)/(3-briefing)/briefing.tsx"), "utf8");
 const editorial = read("app/briefing-preview/EditorialReadout.tsx");
 const editorialCss = read("app/briefing-preview/preview.css");
 

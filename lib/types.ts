@@ -704,6 +704,9 @@ export type ReadoutRegulatoryCandidate = {
   articleIds: string[];
   drugTags?: string[];
   finding?: string | null;
+  /** Raw regulator copy, kept separate from legacy trial-background findings. */
+  sourceExcerpt?: string | null;
+  primarySources?: Array<Partial<HeroSupportLink> & { url: string; label?: string }>;
   primaryStudy?: {
     id: string;
     title: string;

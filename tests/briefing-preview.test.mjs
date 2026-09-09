@@ -47,7 +47,7 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /expanded \? posts\.slice\(1\) : \[\]/,
     "the collapsed card keeps one preview while the expansion renders every remaining comment");
   assert.doesNotMatch(preview, /previewPosts|posts\.slice\(0, 2\)/);
-  assert.match(preview, /articleExpansion\(source, usefulPosts\(article\)\.map/);
+  assert.match(preview, /articleExpansion\(\s*source,\s*usefulPosts\(article\)\.map/);
   assert.match(preview, /expanded \? post\.text : articleTextPreview\(post\.text \?\? "", 220\)/);
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /article\?\.faces/);
@@ -97,8 +97,9 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.doesNotMatch(preview, /<h3>\{item\.takeaway\}<\/h3>/);
   assert.doesNotMatch(preview, /<h3>\{item\.hook\}<\/h3>/);
   assert.match(preview, /function SourceHeadline/);
-  assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{article\?\.title \|\| item\.title\} compact=\{compact\} \/>/);
-  assert.match(preview, /<DevelopmentFinding text=\{item\.finding\} expanded=\{open\} \/>/);
+  assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{displayReadoutTitle\(article\?\.title \|\| item\.title\)\} compact=\{compact\} \/>/);
+  assert.match(preview, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
+  assert.match(preview, /<DevelopmentFinding text=\{source\.preview\} expandedText=\{source\.full\} expanded=\{open\}/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /kolSharers: overlay\.kolSharers/);
   assert.match(preview, /faces: overlay\.faces/);
@@ -554,7 +555,8 @@ test("cards use source-backed excerpts and visually separate the source from the
 
 test("expanding a paper replaces the concise finding with the full source abstract", () => {
   assert.match(preview, /expanded\s*\? cleanReadoutExcerpt\(expandedText \|\| text\)/);
-  assert.match(preview, /articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(item\.sourceExcerpt \|\| item\.finding\)\)/);
+  assert.match(preview, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
+  assert.match(preview, /: articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(rawSourceText\)\)/);
   assert.match(preview, /expandedText=\{source\.full\}/);
 });
 
@@ -589,6 +591,17 @@ test("regulatory developments keep the regulator primary and the trial explicitl
     occurredOn: "2026-08-25",
     areas: ["GI"],
     articleIds: ["fda", "nejm", "targeted"],
+    finding: "Legacy trial background that is not the FDA action copy.",
+    sourceExcerpt: "FDA approved Ziihera for first-line treatment of adults with HER2-positive gastroesophageal cancer.",
+    primarySources: [{
+      id: "fda-release",
+      kind: "article",
+      title: "FDA approval announcement",
+      url: "https://fda.gov/ziihera-approval-announcement",
+      sourceLabel: "U.S. Food and Drug Administration",
+      relationshipType: "primary_source",
+      occurredAt: "2026-08-25T17:00:00Z",
+    }],
     primaryStudy: {
       id: "nejm",
       title: "Zanidatamab with and without Tislelizumab in HER2-Positive Gastroesophageal Cancer",
@@ -611,7 +624,10 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.equal(approval.title, approval.takeaway);
   assert.equal(approval.journal, "U.S. Food and Drug Administration");
   assert.equal(approval.sourceAction, "View FDA source");
-  assert.deepEqual(approval.primarySources, []);
+  assert.equal(approval.finding, "FDA approved Ziihera for first-line treatment of adults with HER2-positive gastroesophageal cancer.");
+  assert.equal(approval.sourceExcerpt, approval.finding);
+  assert.equal(approval.findingLabel, "From U.S. Food and Drug Administration");
+  assert.deepEqual(approval.primarySources?.map((link) => link.sourceLabel), ["U.S. Food and Drug Administration"]);
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
   assert.equal(approval.occurredOn, "2026-08-25");
@@ -734,7 +750,7 @@ test("archived cards do not render boilerplate as an editorial takeaway", () => 
   assert.match(edition, /ARCHIVED_TAKEAWAY_FALLBACK/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
   assert.match(preview, /No additional \$\{area === "All" \? "oncology" : AREA_LABELS\[area\]\.toLowerCase\(\)\} approval/);
-  assert.match(preview, /: regulatoryCoverage\.status/);
+  assert.match(preview, /\]\.filter\(Boolean\)\.join\(" · "\) \|\| regulatoryCoverage\.status/);
   assert.match(preview, /className="er-regulatory-empty">\{regulatoryCoverage\.hasPublished/);
   assert.match(preview, /if \(!finding\) return null/);
 });

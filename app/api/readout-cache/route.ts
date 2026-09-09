@@ -14,8 +14,15 @@ export async function GET(req: NextRequest) {
 
   try {
     revalidateTag(READOUT_WINDOW_CACHE_TAG);
-    let warmed = await warmReadoutWindowCache();
-    const edition = await mergeCurrentReadoutEditionInsertions();
+    // Source/display repairs can refresh projections without changing the saved
+    // daily selection (or making its existing audio obsolete).
+    const refreshOnly = req.nextUrl.searchParams.get("refreshOnly") === "1";
+    let warmed = refreshOnly
+      ? await warmReadoutWindowCache({ freshSource: true })
+      : await warmReadoutWindowCache();
+    const edition = refreshOnly
+      ? { changed: false, skipped: "cache-refresh-only" }
+      : await mergeCurrentReadoutEditionInsertions();
     if (edition.changed) {
       revalidateTag(READOUT_WINDOW_CACHE_TAG);
       warmed = await warmReadoutWindowCache();

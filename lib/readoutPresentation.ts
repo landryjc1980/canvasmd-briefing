@@ -13,6 +13,16 @@ export function articleSourceText(preview: string, full: string): { preview: str
   return { preview: meaningfulArticleExcerpt(preview) || meaningful, full: meaningful ? full : "" };
 }
 
+/** Keep the first FDA source paragraph intact without generating a new summary. */
+export function regulatoryApprovalSourceText(full: string): { preview: string; full: string } {
+  const meaningful = meaningfulArticleExcerpt(full);
+  const firstParagraph = full
+    .split(/\n\s*\n/)
+    .map((paragraph) => meaningfulArticleExcerpt(paragraph))
+    .find(Boolean) || meaningful;
+  return { preview: firstParagraph, full: meaningful };
+}
+
 /** Deterministic previews make disclosure depend on hidden content, not viewport width. */
 export function articleTextPreview(text: string, maxChars = 360): string {
   if (text.length <= maxChars) return text;
@@ -20,8 +30,13 @@ export function articleTextPreview(text: string, maxChars = 360): string {
   return `${prefix.slice(0, prefix.lastIndexOf(" ") > maxChars / 2 ? prefix.lastIndexOf(" ") : maxChars).trimEnd()}…`;
 }
 
-export function articleExpansion(source: { preview: string; full: string }, comments: string[], availableComments = comments.length) {
-  const preview = articleTextPreview(source.preview);
+export function articleExpansion(
+  source: { preview: string; full: string },
+  comments: string[],
+  availableComments = comments.length,
+  preserveSourcePreview = false,
+) {
+  const preview = preserveSourcePreview ? source.preview : articleTextPreview(source.preview);
   const moreSource = Boolean(source.full && source.full !== preview);
   const count = Math.max(comments.length, availableComments);
   const moreComments = count > 1 || count > comments.length || comments.some((text) => articleTextPreview(text, 220) !== text);

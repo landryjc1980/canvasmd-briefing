@@ -550,6 +550,30 @@ export function sameEditorialDevelopment(left: EditorialDevelopment, right: Edit
   return left.id === right.id || sameEditorialArticle(left, right);
 }
 
+/** Display-only repair for a duplicated hyphen in an upstream PubMed title. */
+export function displayReadoutTitle(title: string): string {
+  return title.replace(/\b(BRCA[12])-\s+-associated\b/gi, "$1-associated");
+}
+
+/**
+ * Keep saved edition cards primary, while exposing a current-window regulatory action
+ * that was not selected into that edition. Source identity prevents a second copy.
+ */
+export function regulatoryWatchArticles(
+  candidates: ReadoutRegulatoryCandidate[],
+  area: EditionArea,
+  published: EditorialDevelopment[],
+): EditorialArticle[] {
+  const publishedArticles = published.filter((item): item is EditorialArticle =>
+    (item as { kind?: string }).kind !== "episode");
+  return candidates
+    .filter((candidate) => area === "All" || candidate.areas.includes(area))
+    .map((candidate) => regulatoryEditorialArticle(candidate, area))
+    .filter((candidate, index, all) =>
+      !publishedArticles.some((existing) => sameEditorialArticle(candidate, existing)) &&
+      !all.slice(0, index).some((existing) => sameEditorialArticle(candidate, existing)));
+}
+
 export const ARCHIVED_TAKEAWAY_FALLBACK = "Review the primary source and attached evidence for the exact population and result.";
 
 // Structured abstracts lead with BACKGROUND — the one section that tells a clinician nothing.
@@ -658,6 +682,20 @@ export function findArchivedEditorialSource(item: EditorialArticle, cards: Array
 export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate, area: EditionArea): EditorialArticle {
   const primaryStudy = candidate.primaryStudy;
   const studyUrl = validHttpUrl(primaryStudy?.url);
+  const sourceExcerpt = candidate.sourceExcerpt?.trim() || undefined;
+  const primarySources: HeroSupportLink[] = (candidate.primarySources ?? []).flatMap((link) => {
+    const url = validHttpUrl(link.url);
+    return url ? [{
+      ...link,
+      id: link.id || url,
+      kind: link.kind ?? "article",
+      title: link.title || link.label || link.sourceLabel || candidate.sourceLabel,
+      url,
+      sourceLabel: link.sourceLabel || link.label || candidate.sourceLabel,
+      relationshipType: "primary_source",
+      occurredAt: link.occurredAt ?? candidate.occurredOn,
+    }] : [];
+  });
   const supportingEvidence: HeroSupportLink[] = primaryStudy && studyUrl && studyUrl.toLowerCase() !== candidate.url.toLowerCase()
     ? [{
         id: primaryStudy.id,
@@ -680,9 +718,11 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     site: candidate.areas[0] ?? "Oncology",
     nickname: candidate.eligibleLabel,
     takeaway: candidate.headline,
-    finding: candidate.finding || primaryStudy?.description || "",
-    findingSource: candidate.finding || primaryStudy?.description ? "source" : undefined,
-    findingLabel: candidate.finding || primaryStudy?.description ? "From the supporting study" : undefined,
+    finding: sourceExcerpt || candidate.finding || primaryStudy?.description || "",
+    sourceExcerpt,
+    findingSource: sourceExcerpt || candidate.finding || primaryStudy?.description ? "source" : undefined,
+    findingLabel: sourceExcerpt ? `From ${candidate.sourceLabel}`
+      : candidate.finding || primaryStudy?.description ? "From the supporting study" : undefined,
     remember,
     journal: candidate.sourceLabel,
     title: candidate.headline,
@@ -692,7 +732,7 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     match: { titleIncludes: candidate.headline },
     articleIds: candidate.articleIds,
     sourceAction: "View FDA source",
-    primarySources: [],
+    primarySources,
     supportingEvidence,
     relatedCoverage: candidate.relatedCoverage ?? [],
     occurredOn: candidate.occurredOn,
