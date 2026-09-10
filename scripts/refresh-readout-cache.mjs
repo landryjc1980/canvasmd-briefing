@@ -8,6 +8,12 @@ import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 
 assert.ok(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY, "Supabase service environment is required");
+const configuredTimeout = process.env.READOUT_CACHE_REFRESH_TIMEOUT_MS ?? "300000";
+const requestTimeoutMs = Number(configuredTimeout);
+assert.ok(
+  Number.isSafeInteger(requestTimeoutMs) && requestTimeoutMs > 0 && requestTimeoutMs <= 900_000,
+  "READOUT_CACHE_REFRESH_TIMEOUT_MS must be a positive integer no greater than 900000",
+);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const reservation = createServer();
 await new Promise((resolve, reject) => reservation.once("error", reject).listen(0, "127.0.0.1", resolve));
@@ -38,7 +44,7 @@ try {
   assert.ok(ready, "The loopback server did not start");
   const response = await fetch(`${base}/api/readout-cache?refreshOnly=1`, {
     headers: { authorization: `Bearer ${secret}` },
-    signal: AbortSignal.timeout(300_000),
+    signal: AbortSignal.timeout(requestTimeoutMs),
   });
   const result = await response.json();
   assert.equal(response.status, 200, `Cache refresh failed: ${result.error ?? response.status}`);
