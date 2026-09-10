@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import ts from "typescript";
 import { canvasmdFile } from "./paired-repo.mjs";
 
 const webCard = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
@@ -8,6 +9,8 @@ const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "ut
 const nativeCard = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
 const nativeVm = fs.readFileSync(canvasmdFile("components/readout/vm.ts"), "utf8");
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
+const editorialReadout = fs.readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
+const threadPartsSource = fs.readFileSync(new URL("../app/briefing-preview/threadParts.ts", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
 const ingest = fs.readFileSync(canvasmdFile("supabase/functions/x-official-ingest/index.ts"), "utf8");
@@ -30,6 +33,36 @@ test("web and native source receipts expose the same thread disclosure", () => {
     assert.match(source, /View on X/);
     assert.match(source, /Show less/);
   }
+});
+
+const threadPartsModule = { exports: {} };
+Function("exports", "module", ts.transpileModule(threadPartsSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText)(threadPartsModule.exports, threadPartsModule);
+const { availableThreadParts } = threadPartsModule.exports;
+
+test("the canonical Readout expands only supplied thread continuations per comment", () => {
+  assert.match(editorialReadout, /Expand thread · \$\{availableThreadCount\} posts/);
+  assert.match(editorialReadout, /availableThreadParts\(post\.thread, post\.tweetUrl, cleanClinicianText\)/);
+  assert.match(editorialReadout, /part\.tweetUrl && <a className="er-thread-source"/);
+  assert.match(editorialReadout, /aria-expanded=\{threadOpen\}/);
+  assert.match(editorialReadout, /expanded \|\| threadOpen/);
+  assert.match(editorialReadout, /className="er-thread-source"/);
+  assert.doesNotMatch(editorialReadout, /Show full thread/);
+  assert.doesNotMatch(editorialReadout, /index \+ 2/);
+});
+
+test("thread normalization orders stored reverse children without inventing parts or URLs", () => {
+  const parts = availableThreadParts([
+    { id: "2096278859310109023", text: "1/4 duplicate root", tweetUrl: "https://x.com/hassankwth/status/2096278859310109023" },
+    { id: "2096278863714132321", text: "4/4", tweetUrl: "https://x.com/hassankwth/status/2096278863714132321" },
+    { id: "2096278861960859934", text: "3/4", tweetUrl: null },
+    { id: "2096278860702601433", text: "2/4", tweetUrl: "https://x.com/hassankwth/status/2096278860702601433" },
+    { id: "2096278860702601433", text: "2/4 duplicate", tweetUrl: "https://x.com/hassankwth/status/2096278860702601433" },
+    { id: "2096278865000000000", text: "   ", tweetUrl: "https://x.com/hassankwth/status/2096278865000000000" },
+  ], "https://x.com/hassankwth/status/2096278859310109023", (text) => text?.trim() ?? "");
+  assert.deepEqual(parts.map((part) => part.id), ["2096278860702601433", "2096278861960859934", "2096278863714132321"]);
+  assert.equal(parts[1].tweetUrl, null, "a missing source URL remains unavailable");
 });
 
 test("web and native remove labels orphaned by t.co cleanup", () => {

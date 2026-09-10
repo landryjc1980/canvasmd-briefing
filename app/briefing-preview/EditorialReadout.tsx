@@ -39,6 +39,7 @@ import {
   type EditorialEpisodeFeature,
   type EditionArea,
 } from "./edition";
+import { availableThreadParts } from "./threadParts";
 
 const AREA_LABELS: Record<EditionArea, string> = {
   All: "All oncology",
@@ -318,6 +319,12 @@ function shareCommentaryLabel(sharedBy: number, authoredCount: number, available
 }
 
 function Voice({ post, extra = false, expanded = false }: { post: BriefingSharer; extra?: boolean; expanded?: boolean }) {
+  const [threadOpen, setThreadOpen] = useState(false);
+  // A thread is only the ordered continuation entries supplied by evidence. Do
+  // not derive missing parts from a visible “1/4” convention or manufacture a
+  // status URL: an absent body or URL stays absent.
+  const thread = availableThreadParts(post.thread, post.tweetUrl, cleanClinicianText);
+  const availableThreadCount = thread.length + 1;
   return (
     <div className={`er-voice ${extra ? "er-voice-more" : ""}`}>
       <div className="er-who">
@@ -328,7 +335,18 @@ function Voice({ post, extra = false, expanded = false }: { post: BriefingSharer
           <b>{post.name}</b>
         </div>
       </div>
-      <p className="er-quote">{expanded ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
+      <p className="er-quote">{expanded || threadOpen ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
+      {threadOpen && thread.map((part, index) => {
+        return <div className="er-thread-part" key={part.id || `thread:${index}`}>
+          <p>{part.text}</p>
+          {part.tweetUrl && <a className="er-thread-source" href={part.tweetUrl} target="_blank" rel="noreferrer">View on X</a>}
+        </div>;
+      })}
+      {thread.length > 0 && (
+        <button type="button" className="er-thread-toggle" aria-expanded={threadOpen} onClick={() => setThreadOpen((open) => !open)}>
+          {threadOpen ? "Show less" : `Expand thread · ${availableThreadCount} posts`}
+        </button>
+      )}
       {post.tweetUrl && <a className="er-xlink" href={post.tweetUrl} target="_blank" rel="noreferrer">View on X</a>}
     </div>
   );

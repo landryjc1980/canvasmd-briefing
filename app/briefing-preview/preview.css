@@ -139,6 +139,12 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-who b { color: var(--er-ink); font-size: 13.5px; font-weight: 650; }
 .er-quote { margin: 8px 0 0; color: #4a4a5e; font-size: 14px; font-weight: 400; line-height: 1.45; }
 .er-development.is-open .er-quote { -webkit-line-clamp: unset; overflow: visible; }
+.er-thread-part { margin: 11px 0 0 8px; padding-left: 11px; border-left: 2px solid var(--er-line); color: #4a4a5e; }
+.er-thread-part p { margin: 0; font-size: 14px; font-weight: 400; line-height: 1.45; overflow-wrap: anywhere; }
+.er-thread-source { display: inline-flex; align-items: center; min-height: 36px; color: var(--er-link); font-size: 12px; font-weight: 650; text-decoration: none; }
+.er-thread-source:hover { text-decoration: underline; }
+.er-thread-toggle { display: block; min-height: 44px; margin: 3px 0 -4px; padding: 0; border: 0; background: transparent; color: var(--er-link); cursor: pointer; font: 650 12.5px system-ui; }
+.er-thread-toggle:hover { text-decoration: underline; }
 .er-xlink { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 650; text-decoration: none; }
 .er-xlink:hover { text-decoration: underline; }
 .er-voice-more { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--er-line); }
