@@ -17,6 +17,10 @@ import {
 } from "./edition";
 import { activeReadoutEditionDate } from "./readoutRequest";
 import type { ReadoutAttentionAnchor } from "@/lib/readoutAttention";
+import {
+  preferredReadoutRegulatoryItem,
+  sameReadoutRegulatoryIdentity,
+} from "@/lib/readoutRegulatoryIdentity";
 
 export type ReadoutEditionDevelopment = {
   development: EditorialDevelopment;
@@ -289,12 +293,35 @@ export function sevenDayEditionDevelopments(history: ReadoutEditionSnapshot[]) {
   const relevant: Array<ReadoutEditionArticle & { editionDate: string }> = [];
   for (const snapshot of snapshots) {
     for (const entry of snapshot.developments) {
-      if (developments.some((existing) => sameEditorialDevelopment(existing.development, entry.development))) continue;
+      const existingIndex = developments.findIndex((existing) =>
+        sameEditorialDevelopment(existing.development, entry.development) ||
+        (!isEpisodeDevelopment(existing.development) && !isEpisodeDevelopment(entry.development) &&
+          sameReadoutRegulatoryIdentity(existing.development, entry.development)));
+      if (existingIndex >= 0) {
+        const existing = developments[existingIndex];
+        if (!isEpisodeDevelopment(existing.development) && !isEpisodeDevelopment(entry.development) &&
+          preferredReadoutRegulatoryItem(existing.development, entry.development) === entry.development) {
+          // Keep the first saved position/date: replacing identity is not a
+          // re-rank of the canonical morning edition.
+          developments[existingIndex] = { ...existing, development: entry.development };
+        }
+        continue;
+      }
       developments.push({ ...entry, editionDate: snapshot.editionDate });
     }
     for (const entry of snapshot.relevant) {
-      if (developments.some((existing) => !isEpisodeDevelopment(existing.development) && sameEditorialArticle(existing.development, entry.article)) ||
-        relevant.some((existing) => sameEditorialArticle(existing.article, entry.article))) continue;
+      const existingDevelopment = developments.find((existing) => !isEpisodeDevelopment(existing.development) &&
+        (sameEditorialArticle(existing.development, entry.article) || sameReadoutRegulatoryIdentity(existing.development, entry.article)));
+      const existingRelevantIndex = relevant.findIndex((existing) =>
+        sameEditorialArticle(existing.article, entry.article) || sameReadoutRegulatoryIdentity(existing.article, entry.article));
+      if (existingDevelopment) continue;
+      if (existingRelevantIndex >= 0) {
+        const existing = relevant[existingRelevantIndex];
+        if (preferredReadoutRegulatoryItem(existing.article, entry.article) === entry.article) {
+          relevant[existingRelevantIndex] = { ...existing, article: entry.article };
+        }
+        continue;
+      }
       relevant.push({ ...entry, editionDate: snapshot.editionDate });
     }
   }

@@ -4,6 +4,9 @@ import { registerHooks } from "node:module";
 
 // Resolve the pure Readout modules in Node without changing their production imports.
 registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === "@/lib/readoutRegulatoryIdentity") {
+    return nextResolve(new URL("../lib/readoutRegulatoryIdentity.ts", import.meta.url).href, context);
+  }
   if (context.parentURL?.includes("/app/briefing-preview/") && ["./edition", "./readoutRequest"].includes(specifier)) {
     return nextResolve(`${specifier}.ts`, context);
   }
@@ -12,6 +15,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 const { ARCHIVED_LISTEN_MEDIA, listenCardTitle, sameEditorialArticle } = await import("../app/briefing-preview/edition.ts");
 const { sevenDayEditionDevelopments, sevenDayEditionListen } = await import("../app/briefing-preview/editionSnapshot.ts");
+const { readoutRegulatoryIdentity } = await import("../lib/readoutRegulatoryIdentity.ts");
 
 const article = (id, { doi, pmid, url = `https://example.test/${id}`, title = "A source-identified oncology article" } = {}) => ({
   id,
@@ -60,6 +64,25 @@ test("seven-day history keeps an older lead once when a newer edition carried it
   ]);
   assert.deepEqual(result.developments.map((item) => item.id), ["same-paper"]);
   assert.deepEqual(result.relevant, []);
+});
+
+test("seven-day union keeps the reviewed FDA camizestrant notice once without changing its saved position", () => {
+  const companion = article("fda-breast-companion", {
+    title: "FDA Grants Accelerated Approval to a New Breast Cancer Treatment",
+    url: "https://www.fda.gov/news-events/press-announcements/fda-grants-accelerated-approval-new-breast-cancer-treatment",
+  });
+  const approval = article("camizestrant", {
+    title: "FDA grants accelerated approval to camizestrant",
+    url: "https://www.fda.gov/drugs/resources-information-approved-drugs/fda-grants-accelerated-approval-camizestrant-cdk46-inhibitor-esr1-mutated-hr-positive-her2-negative",
+  });
+  companion.evidence = "FDA approval";
+  approval.evidence = "FDA approval";
+  assert.equal(readoutRegulatoryIdentity(companion), readoutRegulatoryIdentity(approval));
+  const result = sevenDayEditionDevelopments([
+    snapshot("2026-09-11", { developments: [{ development: companion, episode: null, position: 0 }] }),
+    snapshot("2026-09-10", { developments: [{ development: approval, episode: null, position: 4 }] }),
+  ]);
+  assert.deepEqual(result.developments.map((item) => item.id), [approval.id]);
 });
 
 test("conflicting explicit DOI or PMID identities fail closed before URL or title matching", () => {
