@@ -59,11 +59,8 @@ const SHARER_PREVIEW_LIMIT = 3;
 const EMPTY_BRIEFS: BriefingData[] = [];
 const fullOverlayCache = new Map<string, Promise<BriefingEvidenceOverlayItem | null>>();
 
-function loadFullEvidenceOverlay(item: EditorialDevelopment, observation?: BriefingEvidenceOverlayItem): Promise<BriefingEvidenceOverlayItem | null> {
-  const windowStartAt = observation?.windowStartAt ?? null;
-  const windowEndAt = windowStartAt ? observation?.windowAsOf : undefined;
-  const cacheKey = JSON.stringify([item.id, item.url, windowStartAt, windowEndAt]);
-  const cached = fullOverlayCache.get(cacheKey);
+function loadFullEvidenceOverlay(item: EditorialDevelopment): Promise<BriefingEvidenceOverlayItem | null> {
+  const cached = fullOverlayCache.get(item.id);
   if (cached) return cached;
   const card = isEpisodeDevelopment(item)
     ? {
@@ -87,7 +84,7 @@ function loadFullEvidenceOverlay(item: EditorialDevelopment, observation?: Brief
     body: JSON.stringify({
       mode: "evidence-overlay",
       windowHours: 168,
-      cards: [{ ...card, windowStartAt, windowEndAt }],
+      cards: [card],
     }),
     cache: "no-store",
   }).then(async (response) => {
@@ -95,13 +92,13 @@ function loadFullEvidenceOverlay(item: EditorialDevelopment, observation?: Brief
     const payload = await response.json() as BriefingEvidenceOverlay;
     return payload.overlays.find((overlay) => overlay.id === item.id) ?? null;
   }).then((overlay) => {
-    if (!overlay) fullOverlayCache.delete(cacheKey);
+    if (!overlay) fullOverlayCache.delete(item.id);
     return overlay;
   }).catch(() => {
-    fullOverlayCache.delete(cacheKey);
+    fullOverlayCache.delete(item.id);
     return null;
   });
-  fullOverlayCache.set(cacheKey, request);
+  fullOverlayCache.set(item.id, request);
   return request;
 }
 
@@ -481,12 +478,7 @@ function ArticleDevelopment({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailLoadFailed, setDetailLoadFailed] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
-  const liveOverlay = overlays.get(item.id);
-  // A detail response belongs to one hourly observation. It cannot pin an older
-  // count after the page receives the next evidence refresh or changes windows.
-  const overlay = detailOverlay && detailOverlay.windowStartAt === liveOverlay?.windowStartAt &&
-      detailOverlay.windowAsOf === liveOverlay?.windowAsOf
-    ? detailOverlay : liveOverlay;
+  const overlay = detailOverlay ?? overlays.get(item.id);
   const article = articleWithLiveEvidence(item, briefs, overlay);
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
@@ -524,10 +516,10 @@ function ArticleDevelopment({
     const nextOpen = !open;
     setOpen(nextOpen);
     if (!nextOpen) requestAnimationFrame(() => cardRef.current?.scrollIntoView({ block: "start", behavior: "auto" }));
-    if (!nextOpen || overlay === detailOverlay || loadingDetails || authoredCount >= availableComments) return;
+    if (!nextOpen || detailOverlay || loadingDetails || authoredCount >= availableComments) return;
     setLoadingDetails(true);
     setDetailLoadFailed(false);
-    loadFullEvidenceOverlay(item, liveOverlay).then((details) => {
+    loadFullEvidenceOverlay(item).then((details) => {
       if (details) setDetailOverlay(details);
       else setDetailLoadFailed(true);
     }).finally(() => setLoadingDetails(false));
