@@ -167,6 +167,7 @@ export function buildReadoutEditionSnapshot(
   payload: ReadoutWindowPayload,
   now = new Date(),
   previousEditions: ReadoutEditionSnapshot[] = [],
+  editionDate = activeReadoutEditionDate(now),
 ): ReadoutEditionSnapshot {
   const ranked = liveRankedDevelopments(payload, area)
     .filter((item) => !appearedInMorningEdition(item, previousEditions));
@@ -191,7 +192,7 @@ export function buildReadoutEditionSnapshot(
 
   return {
     schemaVersion: 2,
-    editionDate: activeReadoutEditionDate(now),
+    editionDate,
     generatedAt: now.toISOString(),
     area,
     developments: developments.map((development, position) => ({

@@ -8,7 +8,7 @@ import {
   readoutEditionHistoryIncludingCurrent,
 } from "../app/briefing-preview/editionHistory.ts";
 import { archiveCardForArticle } from "../app/archiveCard.ts";
-import { activeReadoutEditionDate, readoutWindowKeyboardTarget } from "../app/briefing-preview/readoutRequest.ts";
+import { activeReadoutEditionDate, hasFrozenPrepublishedEdition, hasScheduledReadoutSourceRun, prepublicationEditionDate, readoutWindowKeyboardTarget, scheduledReadoutSourceRunId } from "../app/briefing-preview/readoutRequest.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -24,6 +24,7 @@ const readoutRequest = read("app/briefing-preview/readoutRequest.ts");
 const readoutServer = read("lib/readoutWindowServer.ts");
 const readoutCacheRoute = read("app/api/readout-cache/route.ts");
 const readoutArchiveRoute = read("app/api/readout-archive/route.ts");
+const readoutPrearchiveRoute = read("app/api/readout-prearchive/route.ts");
 const readoutEditionArchive = read("lib/readoutEditionArchive.ts");
 const heroPost = read("app/heroPost.ts");
 const archiveCard = read("app/archiveCard.ts");
@@ -415,6 +416,20 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
     "the 6am job refreshes the candidate payload before freezing the dated edition");
   assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
   assert.match(readoutArchiveRoute, /warmReadoutWindowCache\(\)/);
+  assert.match(readoutPrearchiveRoute, /prepublishCurrentReadoutEdition\(\)/);
+  assert.doesNotMatch(readoutPrearchiveRoute, /warmReadoutWindowCache/,
+    "prepublication must not promote a future edition into the reader cache");
+  assert.match(readoutEditionArchive, /export async function prepublishCurrentReadoutEdition/);
+  assert.match(readoutEditionArchive, /edition:v2:<today ET>:All/);
+  assert.match(readoutEditionArchive, /fetchFreshReadoutWindowForPrepublication/);
+  assert.match(readoutEditionArchive, /withReadoutSelectionVersion/);
+  assert.match(vercelConfig, /"\/api\/readout-prearchive"/);
+  assert.match(vercelConfig, /"0 9 \* \* \*"/);
+  assert.match(vercelConfig, /"0 10 \* \* \*"/);
+  assert.match(vercelConfig, /"5 9 \* \* \*"/);
+  assert.match(vercelConfig, /"5 10 \* \* \*"/);
+  assert.match(vercelConfig, /"0 10 \* \* \*"/);
+  assert.match(vercelConfig, /"0 11 \* \* \*"/);
   assert.match(vercelConfig, /"5 10 \* \* \*"/);
   assert.match(vercelConfig, /"5 11 \* \* \*"/);
   assert.equal(activeReadoutEditionDate(new Date("2026-08-27T09:59:00Z")), "2026-08-26");
@@ -430,6 +445,26 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
   assert.equal(readoutWindowKeyboardTarget("today", "Enter"), null);
   assert.match(readoutEditionArchive, /const editionDate = activeReadoutEditionDate\(now\)/,
     "the hourly merge keeps updating yesterday's frozen edition until the 6am replacement exists");
+});
+
+test("pre-6am preparation uses today's explicit edition date and only today's promoted source", () => {
+  const now = new Date("2026-08-27T09:05:00Z"); // 05:05 ET
+  assert.equal(activeReadoutEditionDate(now), "2026-08-26");
+  assert.equal(prepublicationEditionDate(now), "2026-08-27",
+    "prepublication must not inherit the public pre-6am date");
+  assert.equal(scheduledReadoutSourceRunId(now), "scheduled-2026082706");
+  assert.equal(hasScheduledReadoutSourceRun("scheduled-2026082706", now), true);
+  assert.equal(hasScheduledReadoutSourceRun("scheduled-2026082606", now), false);
+  assert.equal(hasScheduledReadoutSourceRun(null, now), false, "missing source provenance fails closed");
+  const frozen = { schemaVersion: 2, area: "All", editionDate: "2026-08-27", selectionVersion: `readout-v1-${"a".repeat(64)}` };
+  assert.equal(hasFrozenPrepublishedEdition(frozen, "2026-08-27"), true);
+  assert.equal(hasFrozenPrepublishedEdition({ ...frozen, selectionVersion: null }, "2026-08-27"), false);
+  assert.match(readoutEditionArchive, /MORNING_SOURCE_AREAS = EDITION_AREAS\.filter\(\(area\) => area !== "All"\)/,
+    "source provenance is checked against the seven persisted specialty snapshots, not a nonexistent All row");
+  assert.match(readoutEditionArchive, /const existing = await readEditionRow\(editionDate\);[\s\S]*?if \(validPrepublishedEdition\(existing, editionDate\)\)[\s\S]*?already-prepublished[\s\S]*?await assertScheduledMorningSource\(now\)/,
+    "a retry returns the frozen canonical selection before reading fresh source data");
+  assert.match(readoutEditionArchive, /if \(validPrepublishedEdition\(existing, editionDate\)\)[\s\S]*?skipped: "prepublished"/,
+    "the 6am archive respects a valid prepublished canonical row");
 });
 
 test("the browser receives one server-cached payload and never refreshes evidence after paint", () => {
@@ -468,7 +503,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "an hourly insertion with the same morning generation time invalidates an old finished selection");
   assert.match(readoutServer, /!durable\.selectionVersion \|\| value\.selectionVersion === durable\.selectionVersion/,
     "legacy durable snapshots do not reject an otherwise matching hydrated source merely because they predate selectionVersion");
-  assert.match(readoutServer, /async function withSelectionVersion[\s\S]*?readout-v1-/,
+  assert.match(readoutServer, /withReadoutSelectionVersion[\s\S]*?readout-v1-/,
     "a durable fallback receives the Native-compatible public selection revision before it is persisted");
   assert.match(readoutServer, /if \(!isReadoutEditionSnapshot\(edition\) \|\| !edition\.selectionVersion\) return false/,
     "a finished v5 row from before revisions is rebuilt rather than remaining indefinitely accepted");

@@ -34,6 +34,27 @@ export function activeReadoutEditionDate(now = new Date()): string {
   return etEditionDate(new Date(now.getTime() - 12 * 60 * 60 * 1000));
 }
 
+/** The frozen morning source set is promoted under this ET-dated run identity. */
+export function scheduledReadoutSourceRunId(now = new Date()): string {
+  return `scheduled-${prepublicationEditionDate(now).replace(/-/g, "")}06`;
+}
+
+/** The canonical morning being prepared is today, even while public readers show yesterday. */
+export function prepublicationEditionDate(now = new Date()): string {
+  return etEditionDate(now);
+}
+
+export function hasScheduledReadoutSourceRun(sourceRunId: unknown, now = new Date()): boolean {
+  return sourceRunId === scheduledReadoutSourceRunId(now);
+}
+
+/** A retry may preserve only the exact, versioned canonical publication shape. */
+export function hasFrozenPrepublishedEdition(value: unknown, editionDate: string): boolean {
+  const edition = value as { schemaVersion?: unknown; area?: unknown; editionDate?: unknown; selectionVersion?: unknown } | null;
+  return !!edition && edition.schemaVersion === 2 && edition.area === "All" &&
+    edition.editionDate === editionDate && /^readout-v1-[a-f0-9]{64}$/.test(String(edition.selectionVersion ?? ""));
+}
+
 export function readoutWindowDays(window: ReadoutWindow): 1 | 7 {
   return window === "7d" ? 7 : 1;
 }

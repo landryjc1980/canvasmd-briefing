@@ -86,7 +86,7 @@ function sameEditionVersion(value: unknown, durable: ReadoutEditionSnapshot): bo
     sameSelectionMembership(value, durable);
 }
 
-async function withSelectionVersion(snapshot: ReadoutEditionSnapshot): Promise<ReadoutEditionSnapshot> {
+export async function withReadoutSelectionVersion(snapshot: ReadoutEditionSnapshot): Promise<ReadoutEditionSnapshot> {
   if (snapshot.selectionVersion) return snapshot;
   // Keep this byte-for-byte aligned with Native's readoutSelectionVersion: public
   // content and selection are versioned, never live engagement overlays.
@@ -105,6 +105,14 @@ async function withSelectionVersion(snapshot: ReadoutEditionSnapshot): Promise<R
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
   const selectionVersion = `readout-v1-${Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
   return { ...snapshot, selectionVersion };
+}
+
+/** Service-only source read for the pre-6am canonical edition. It never writes a
+ * finished reader-window token, so yesterday remains the public edition until rollover. */
+export async function fetchFreshReadoutWindowForPrepublication(
+  area: EditionArea,
+): Promise<ReadoutWindowPayload> {
+  return fetchFreshReadoutWindow(area, "today", "[]");
 }
 
 function isEpisodeOnlyFallback(edition: ReadoutEditionSnapshot, durableForArea: ReadoutEditionSnapshot): boolean {
@@ -302,9 +310,9 @@ async function buildFinishedReadoutWindow(
   // The durable selection governs membership, while a matching live payload retains
   // source-hydrated titles and links. A mismatched/stale source cannot replace it.
   const resolvedCanonicalCurrent = matchingSourceCanonical ?? (durableCanonical
-    ? await withSelectionVersion(durableCanonical)
+    ? await withReadoutSelectionVersion(durableCanonical)
     : resolveReadoutTodayEdition("All", allToday, fallbackCanonicalHistory));
-  const canonicalCurrent = await withSelectionVersion(resolvedCanonicalCurrent);
+  const canonicalCurrent = await withReadoutSelectionVersion(resolvedCanonicalCurrent);
   const durableForArea = durableCanonical ? readoutEditionForArea(durableCanonical, area) : null;
   const hydratedCanonicalForArea = readoutEditionForArea(canonicalCurrent, area);
   const fallbackAreaHistory = fallbackCanonicalHistory
@@ -320,7 +328,7 @@ async function buildFinishedReadoutWindow(
       ? exactCurrent
       : hydratedCanonicalForArea ?? durableForArea
     : readoutEditionPreferNonEmpty(exactCurrent, hydratedCanonicalForArea);
-  const currentEdition = selectedCurrentEdition ? await withSelectionVersion(selectedCurrentEdition) : null;
+  const currentEdition = selectedCurrentEdition ? await withReadoutSelectionVersion(selectedCurrentEdition) : null;
   if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,

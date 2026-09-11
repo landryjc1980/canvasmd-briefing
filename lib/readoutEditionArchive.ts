@@ -11,12 +11,21 @@ import {
   activeReadoutEditionDate,
   etEditionDate,
   etEditionHour,
+  hasFrozenPrepublishedEdition,
+  hasScheduledReadoutSourceRun,
+  prepublicationEditionDate,
+  scheduledReadoutSourceRunId,
 } from "@/app/briefing-preview/readoutRequest";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
 } from "@/app/briefing-preview/editionHistory";
-import { getCachedReadoutWindow, supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
+import {
+  fetchFreshReadoutWindowForPrepublication,
+  getCachedReadoutWindow,
+  supabaseApiKeyHeaders,
+  withReadoutSelectionVersion,
+} from "@/lib/readoutWindowServer";
 
 function supabaseServiceEnvironment() {
   const url = process.env.SUPABASE_URL;
@@ -58,6 +67,31 @@ async function readEditionRow(editionDate: string): Promise<ReadoutEditionSnapsh
   if (!response.ok) throw new Error(`Edition lookup returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
   const rows = await response.json() as Array<{ card?: unknown }>;
   return isReadoutEditionSnapshot(rows[0]?.card) ? rows[0].card : null;
+}
+
+function validPrepublishedEdition(snapshot: ReadoutEditionSnapshot | null, editionDate: string): snapshot is ReadoutEditionSnapshot {
+  return hasFrozenPrepublishedEdition(snapshot, editionDate);
+}
+
+type SourceSnapshotRow = { area?: unknown; data?: { build?: { sourceRunId?: unknown } }; generated_at?: unknown };
+const MORNING_SOURCE_AREAS = EDITION_AREAS.filter((area) => area !== "All");
+
+/** The pre-6am edition may only derive from all seven frozen specialty source sets. */
+async function assertScheduledMorningSource(now: Date) {
+  const { url, key } = supabaseServiceEnvironment();
+  const response = await fetch(
+    `${url}/rest/v1/briefing_snapshots?select=area,data,generated_at&area=in.(${MORNING_SOURCE_AREAS.join(",")})`,
+    { headers: supabaseApiKeyHeaders(key), cache: "no-store" },
+  );
+  if (!response.ok) throw new Error(`Morning source lookup returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  const rows = await response.json() as SourceSnapshotRow[];
+  const expected = scheduledReadoutSourceRunId(now);
+  const missing = MORNING_SOURCE_AREAS.filter((area) => {
+    const row = rows.find((candidate) => candidate.area === area);
+    return !row || !hasScheduledReadoutSourceRun(row.data?.build?.sourceRunId, now) ||
+      typeof row.generated_at !== "string" || !Number.isFinite(Date.parse(row.generated_at));
+  });
+  if (missing.length) throw new Error(`Morning source is incomplete for ${missing.join(", ")}; expected ${expected}.`);
 }
 
 async function readEditionRows(): Promise<ReadoutEditionSnapshot[]> {
@@ -116,19 +150,27 @@ async function priorEditions(
   });
 }
 
-async function buildCanonicalEdition(now: Date): Promise<ReadoutEditionSnapshot> {
-  const editionDate = activeReadoutEditionDate(now);
+async function buildCanonicalEdition(
+  now: Date,
+  options: { editionDate?: string; prepublication?: boolean } = {},
+): Promise<ReadoutEditionSnapshot> {
+  const editionDate = options.editionDate ?? activeReadoutEditionDate(now);
   const previousCanonical = await priorEditions(editionDate, []);
   const snapshots = await Promise.all(EDITION_AREAS.map(async (area) => {
-    const payload = await getCachedReadoutWindow(area, "today");
+    const payload = options.prepublication
+      ? await fetchFreshReadoutWindowForPrepublication(area)
+      : await getCachedReadoutWindow(area, "today");
+    if (options.prepublication && payload.stale === true) {
+      throw new Error(`Prepublication source is stale for ${area}.`);
+    }
     const previousForArea = previousCanonical
       .map((snapshot) => readoutEditionForArea(snapshot, area))
       .filter((snapshot): snapshot is ReadoutEditionSnapshot => !!snapshot);
-    return buildReadoutEditionSnapshot(area, payload, now, previousForArea);
+    return buildReadoutEditionSnapshot(area, payload, now, previousForArea, editionDate);
   }));
   const canonical = canonicalReadoutEditionSnapshot(snapshots);
   if (!canonical) throw new Error("The canonical All edition could not be built.");
-  return canonical;
+  return withReadoutSelectionVersion(canonical);
 }
 
 /** Consolidate exact rows saved by the old per-specialty archive. This repairs
@@ -162,9 +204,37 @@ export async function rebuildCurrentReadoutEdition(now = new Date()) {
 export async function archiveCurrentReadoutEdition(now = new Date()) {
   const editionDate = etEditionDate(now);
   if (etEditionHour(now) !== 6) return { editionDate, archived: [], skipped: "outside-6am-et" };
+  const existing = await readEditionRow(editionDate);
+  if (validPrepublishedEdition(existing, editionDate)) {
+    return { editionDate, archived: ["All"], skipped: "prepublished" };
+  }
   const snapshot = await buildCanonicalEdition(now);
   await writeEditionRow(snapshot);
   return { editionDate, archived: ["All"], skipped: null };
+}
+
+/**
+ * Build the next public day without changing the public rollover. This writes only
+ * `edition:v2:<today ET>:All`; all browser/current-window reads remain pinned to
+ * yesterday until `activeReadoutEditionDate()` switches at 06:00 ET. The audio
+ * publisher may read this exact service-role row before 06:00, but must require
+ * schemaVersion 2, area All, the requested ET date, and selectionVersion.
+ */
+export async function prepublishCurrentReadoutEdition(now = new Date()) {
+  const editionDate = prepublicationEditionDate(now);
+  if (etEditionHour(now) !== 5) {
+    return { editionDate, prepublished: [], skipped: "outside-5am-et" as const };
+  }
+  // A retry must never replace a selection that narration might already be using.
+  const existing = await readEditionRow(editionDate);
+  if (validPrepublishedEdition(existing, editionDate)) {
+    return { editionDate, prepublished: ["All"], selectionVersion: existing.selectionVersion, skipped: "already-prepublished" as const };
+  }
+  if (existing) throw new Error(`Existing ${editionDate} canonical edition is not a valid prepublication.`);
+  await assertScheduledMorningSource(now);
+  const snapshot = await buildCanonicalEdition(now, { editionDate, prepublication: true });
+  await writeEditionRow(snapshot);
+  return { editionDate, prepublished: ["All"], selectionVersion: snapshot.selectionVersion ?? null, skipped: null };
 }
 
 export async function mergeCurrentReadoutEditionInsertions(now = new Date()) {
