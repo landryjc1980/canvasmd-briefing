@@ -1,8 +1,9 @@
 import "server-only";
 
-import { EDITION_AREAS } from "@/app/briefing-preview/edition";
+import { archivedEditorialArticle, EDITION_AREAS } from "@/app/briefing-preview/edition";
 import {
   buildReadoutEditionSnapshot,
+  appearedInMorningEdition,
   isReadoutEditionSnapshot,
   mergeReadoutEditionSnapshot,
   type ReadoutEditionSnapshot,
@@ -39,7 +40,10 @@ function supabaseServiceEnvironment() {
   return { url, key };
 }
 
-async function writeEditionRow(snapshot: ReadoutEditionSnapshot) {
+function throwIfAborted(signal?: AbortSignal) { if (signal?.aborted) throw new Error("Readout canonical publication aborted before write."); }
+
+async function writeEditionRow(snapshot: ReadoutEditionSnapshot, signal?: AbortSignal) {
+  throwIfAborted(signal);
   const { url, key } = supabaseServiceEnvironment();
   const response = await fetch(`${url}/rest/v1/readout_posts?on_conflict=tok`, {
     method: "POST",
@@ -58,6 +62,7 @@ async function writeEditionRow(snapshot: ReadoutEditionSnapshot) {
       last_seen: snapshot.generatedAt,
     }]),
     cache: "no-store",
+    signal,
   });
   if (!response.ok) throw new Error(`Edition archive returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
 }
@@ -121,7 +126,8 @@ async function readAllEditionRows(): Promise<ReadoutEditionSnapshot[]> {
   return rows.map((row) => row.card).filter(isReadoutEditionSnapshot);
 }
 
-async function updateEditionRow(snapshot: ReadoutEditionSnapshot) {
+async function updateEditionRow(snapshot: ReadoutEditionSnapshot, signal?: AbortSignal) {
+  throwIfAborted(signal);
   const { url, key } = supabaseServiceEnvironment();
   const tok = encodeURIComponent(`edition:v2:${snapshot.editionDate}:All`);
   const response = await fetch(`${url}/rest/v1/readout_posts?tok=eq.${tok}`, {
@@ -133,6 +139,7 @@ async function updateEditionRow(snapshot: ReadoutEditionSnapshot) {
     },
     body: JSON.stringify({ card: snapshot, last_seen: snapshot.updatedAt ?? snapshot.generatedAt }),
     cache: "no-store",
+    signal,
   });
   if (!response.ok) throw new Error(`Edition update returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
 }
@@ -155,20 +162,46 @@ async function priorEditions(
   });
 }
 
+async function writeSelectionAudit(snapshot: ReadoutEditionSnapshot, candidateBuild: { runId: string; generatedAt: string }, audit: unknown, candidateCards: unknown[], previous: ReadoutEditionSnapshot[], captureKind: "prepublication" | "fallback" | "repair", signal?: AbortSignal) {
+  throwIfAborted(signal);
+  const { url, key } = supabaseServiceEnvironment();
+  const source = audit as { scope?: unknown; papers?: Array<Record<string, unknown>> } | null;
+  if (source?.scope !== "source-admitted-candidates" || !Array.isArray(source.papers)) throw new Error("Selection audit receipt is missing or malformed.");
+  const selectedIds = new Set([...snapshot.developments.map((x) => x.development.id), ...snapshot.relevant.map((x) => x.article.id)]);
+  const candidates = new Map(candidateCards.map((card) => {
+    const article = archivedEditorialArticle(card as any);
+    return [article.id, article] as const;
+  }));
+  const papers: Array<Record<string, unknown>> = source.papers.map((paper): Record<string, unknown> => {
+    const id = typeof paper.id === "string" ? paper.id : "";
+    const selected = selectedIds.has(id);
+    const candidate = candidates.get(id);
+    const priorMorning = candidate ? appearedInMorningEdition(candidate, previous) : false;
+    return { ...paper, selected, selectionReason: selected ? "selected" : paper.eligible === false ? paper.reason : priorMorning ? "prior_morning_repeat" : "not_selected" };
+  });
+  for (const id of selectedIds) if (!papers.some((paper) => paper.id === id)) papers.push({ id, eligible: null, selected: true, selectionReason: "selected_audit_eligibility_unknown" });
+  throwIfAborted(signal);
+  const response = await fetch(`${url}/rest/v1/readout_edition_selection_audits?on_conflict=edition_date,selection_version`, { method: "POST", headers: { ...supabaseApiKeyHeaders(key), "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify([{ edition_date: snapshot.editionDate, selection_version: snapshot.selectionVersion, candidate_build_run_id: candidateBuild.runId, candidate_generated_at: candidateBuild.generatedAt, attention_anchor: snapshot.attentionAnchor ?? null, papers, capture_kind: captureKind }]), cache: "no-store", signal });
+  if (!response.ok) throw new Error(`Selection audit write returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+}
+
 async function buildCanonicalEdition(
   now: Date,
-  options: { editionDate?: string; prepublication?: boolean } = {},
+  options: { editionDate?: string; prepublication?: boolean; signal?: AbortSignal; captureKind?: "prepublication" | "fallback" | "repair" } = {},
 ): Promise<ReadoutEditionSnapshot> {
   const editionDate = options.editionDate ?? activeReadoutEditionDate(now);
   const attentionAnchor = readoutAttentionAnchor(editionDate);
   const { url, key } = supabaseServiceEnvironment();
   const candidateEnvironment = { url, headers: supabaseApiKeyHeaders(key) };
-  const candidateBuild = await refreshReadoutCandidatesForEdition(candidateEnvironment);
+  const candidateBuild = await refreshReadoutCandidatesForEdition(candidateEnvironment, { signal: options.signal });
   const previousCanonical = await priorEditions(editionDate, []);
+  let selectionAudit: unknown = null;
+  let selectionAuditCards: unknown[] = [];
   const snapshots = await Promise.all(EDITION_AREAS.map(async (area) => {
     // Every new canonical must consume the just-completed candidate build, not
     // a one-hour source cache. Existing saved editions bypass this constructor.
-    const payload = await fetchFreshReadoutWindowForPrepublication(area, editionDate, attentionAnchor);
+    const payload = await fetchFreshReadoutWindowForPrepublication(area, editionDate, attentionAnchor, { includeSelectionAudit: area === "All", signal: options.signal });
+    if (area === "All") { selectionAudit = (payload as any).selectionAudit ?? null; selectionAuditCards = [...(payload.cards ?? []), ...(payload.moreCards ?? [])]; }
     if (payload.stale === true) {
       throw new Error(`Prepublication source is stale for ${area}.`);
     }
@@ -184,12 +217,14 @@ async function buildCanonicalEdition(
   const canonical = canonicalReadoutEditionSnapshot(snapshots);
   if (!canonical) throw new Error("The canonical All edition could not be built.");
   await assertReadoutCandidateBuildUnchanged(candidateEnvironment, candidateBuild);
-  return withReadoutSelectionVersion({ ...canonical, candidateBuild });
+  const versioned = await withReadoutSelectionVersion({ ...canonical, candidateBuild });
+  await writeSelectionAudit(versioned, candidateBuild, selectionAudit, selectionAuditCards, previousCanonical, options.captureKind ?? (options.prepublication ? "prepublication" : "fallback"), options.signal);
+  return versioned;
 }
 
 /** Consolidate exact rows saved by the old per-specialty archive. This repairs
  * history without synthesizing a story that was not present in a saved edition. */
-async function consolidateStoredEditions(): Promise<string[]> {
+async function consolidateStoredEditions(signal?: AbortSignal): Promise<string[]> {
   const stored = await readAllEditionRows();
   const dates = [...new Set(stored.map((snapshot) => snapshot.editionDate))];
   const consolidated: string[] = [];
@@ -198,33 +233,33 @@ async function consolidateStoredEditions(): Promise<string[]> {
       stored.filter((snapshot) => snapshot.editionDate === editionDate),
     );
     if (!canonical) continue;
-    await updateEditionRow(canonical);
+    await updateEditionRow(canonical, signal);
     consolidated.push(editionDate);
   }
   return consolidated;
 }
 
 /** Explicit, service-authenticated repair for a bad saved morning payload. */
-export async function rebuildCurrentReadoutEdition(now = new Date()) {
+export async function rebuildCurrentReadoutEdition(now = new Date(), signal?: AbortSignal) {
   const editionDate = activeReadoutEditionDate(now);
-  const consolidated = await consolidateStoredEditions();
-  const snapshot = await buildCanonicalEdition(now);
+  const consolidated = await consolidateStoredEditions(signal);
+  const snapshot = await buildCanonicalEdition(now, { signal, captureKind: "repair" });
   const existing = await readEditionRow(editionDate);
-  if (existing) await updateEditionRow(snapshot);
-  else await writeEditionRow(snapshot);
-  return { editionDate, rebuilt: ["All"], consolidated };
+  if (existing) await updateEditionRow(snapshot, signal);
+  else await writeEditionRow(snapshot, signal);
+  return { editionDate, rebuilt: ["All"], consolidated, selectionVersion: snapshot.selectionVersion ?? null };
 }
 
-export async function archiveCurrentReadoutEdition(now = new Date()) {
+export async function archiveCurrentReadoutEdition(now = new Date(), signal?: AbortSignal) {
   const editionDate = etEditionDate(now);
   if (etEditionHour(now) !== 6) return { editionDate, archived: [], skipped: "outside-6am-et" };
   const existing = await readEditionRow(editionDate);
   if (validPrepublishedEdition(existing, editionDate)) {
-    return { editionDate, archived: ["All"], skipped: "prepublished" };
+    return { editionDate, archived: ["All"], skipped: "prepublished", selectionVersion: existing.selectionVersion ?? null };
   }
-  const snapshot = await buildCanonicalEdition(now);
-  await writeEditionRow(snapshot);
-  return { editionDate, archived: ["All"], skipped: null };
+  const snapshot = await buildCanonicalEdition(now, { signal });
+  await writeEditionRow(snapshot, signal);
+  return { editionDate, archived: ["All"], skipped: null, selectionVersion: snapshot.selectionVersion ?? null };
 }
 
 /**
@@ -234,7 +269,7 @@ export async function archiveCurrentReadoutEdition(now = new Date()) {
  * publisher may read this exact service-role row before 06:00, but must require
  * schemaVersion 2, area All, the requested ET date, and selectionVersion.
  */
-export async function prepublishCurrentReadoutEdition(now = new Date()) {
+export async function prepublishCurrentReadoutEdition(now = new Date(), signal?: AbortSignal) {
   const editionDate = prepublicationEditionDate(now);
   if (etEditionHour(now) !== 5) {
     return { editionDate, prepublished: [], skipped: "outside-5am-et" as const };
@@ -246,18 +281,18 @@ export async function prepublishCurrentReadoutEdition(now = new Date()) {
   }
   if (existing) throw new Error(`Existing ${editionDate} canonical edition is not a valid prepublication.`);
   await assertScheduledMorningSource(now);
-  const snapshot = await buildCanonicalEdition(now, { editionDate, prepublication: true });
-  await writeEditionRow(snapshot);
+  const snapshot = await buildCanonicalEdition(now, { editionDate, prepublication: true, signal });
+  await writeEditionRow(snapshot, signal);
   return { editionDate, prepublished: ["All"], selectionVersion: snapshot.selectionVersion ?? null, skipped: null };
 }
 
-export async function mergeCurrentReadoutEditionInsertions(now = new Date()) {
+export async function mergeCurrentReadoutEditionInsertions(now = new Date(), signal?: AbortSignal) {
   const editionDate = activeReadoutEditionDate(now);
   const snapshot = await readEditionRow(editionDate);
   if (!snapshot) {
     if (etEditionHour(now) < 6) return { editionDate, results: [], changed: false, skipped: "no-morning-edition" as const };
-    const created = await buildCanonicalEdition(now);
-    await writeEditionRow(created);
+    const created = await buildCanonicalEdition(now, { signal });
+    await writeEditionRow(created, signal);
     return { editionDate, results: [{ area: "All", inserted: [], skipped: null, bootstrapped: true }], changed: true };
   }
 
@@ -275,7 +310,7 @@ export async function mergeCurrentReadoutEditionInsertions(now = new Date()) {
   if (!merged) throw new Error("The merged canonical edition could not be built.");
   const inserted = (merged.middayInsertions ?? []).filter((id) => !(snapshot.middayInsertions ?? []).includes(id));
   const changed = JSON.stringify(merged) !== JSON.stringify(snapshot);
-  if (changed) await updateEditionRow(merged);
+  if (changed) await updateEditionRow(merged, signal);
   return {
     editionDate,
     results: [{ area: "All", inserted, skipped: changed ? null : "no-new-development", bootstrapped: false }],

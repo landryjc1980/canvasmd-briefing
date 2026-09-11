@@ -13,6 +13,7 @@ type Dependencies = {
   sleep?: (ms: number) => Promise<void>;
   runId?: () => string;
   timeoutMs?: number;
+  signal?: AbortSignal;
 };
 type CandidateRow = { build_run_id?: unknown; generated_at?: unknown; window_days?: unknown };
 
@@ -26,13 +27,16 @@ async function jsonRequest(
   url: string,
   init: RequestInit,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       (async () => {
-        const response = await fetcher(url, { ...init, signal: controller.signal, cache: "no-store" });
+        if (signal?.aborted) throw new Error("Readout candidate refresh aborted before request.");
+        const combinedSignal = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
+        const response = await fetcher(url, { ...init, signal: combinedSignal, cache: "no-store" });
         if (!response.ok) throw new Error(`Readout candidate dependency returned HTTP ${response.status}.`);
         return response.json();
       })(),
@@ -48,10 +52,10 @@ async function jsonRequest(
   }
 }
 
-async function candidateRow(environment: Environment, fetcher: typeof fetch, timeoutMs: number) {
+async function candidateRow(environment: Environment, fetcher: typeof fetch, timeoutMs: number, signal?: AbortSignal) {
   const value = await jsonRequest(fetcher,
     `${environment.url}/rest/v1/front_page_candidates?select=build_run_id,generated_at,window_days&lane=eq.cross_cutting&limit=1`,
-    { headers: environment.headers }, timeoutMs);
+    { headers: environment.headers }, timeoutMs, signal);
   if (!Array.isArray(value) || value.length > 1) throw new Error("Invalid Readout candidate dependency receipt.");
   return value[0] as CandidateRow | undefined;
 }
@@ -73,12 +77,13 @@ export async function refreshReadoutCandidatesForEdition(
     method: "POST",
     headers: { ...environment.headers, "content-type": "application/json" },
     body: JSON.stringify({ p_run_id: runId }),
-  }, Math.min(10_000, deadline - now()));
+  }, Math.min(10_000, deadline - now()), dependencies.signal);
   if (typeof requestId !== "number" || !Number.isSafeInteger(requestId) || requestId <= 0) {
     throw new Error("Readout candidate refresh did not return a request receipt.");
   }
   while (now() < deadline) {
-    const row = await candidateRow(environment, fetcher, Math.min(10_000, deadline - now()));
+    if (dependencies.signal?.aborted) throw new Error("Readout candidate refresh aborted while waiting.");
+    const row = await candidateRow(environment, fetcher, Math.min(10_000, deadline - now()), dependencies.signal);
     if (row?.build_run_id === runId) {
       const generatedAt = typeof row.generated_at === "string" ? row.generated_at : "";
       const generatedMs = Date.parse(generatedAt);

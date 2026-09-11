@@ -103,3 +103,14 @@ test("post-selection verification accepts the same build and rejects concurrent 
   await assert.rejects(assertReadoutCandidateBuildUnchanged(environment, expected,
     async () => response([receipt({ build_run_id: "hourly-replacement" })])), /changed during selection/);
 });
+
+test("an already-aborted candidate signal never begins the refresh RPC", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let calls = 0;
+  await assert.rejects(
+    refreshReadoutCandidatesForEdition(environment, { signal: controller.signal, fetch: async () => { calls += 1; return new Response("[]"); } }),
+    /aborted/,
+  );
+  assert.equal(calls, 0);
+});

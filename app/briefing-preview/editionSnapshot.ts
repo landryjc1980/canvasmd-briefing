@@ -140,7 +140,7 @@ function uniqueRelevant(items: EditorialArticle[], developments: EditorialDevelo
     !all.slice(0, index).some((existing) => sameArticleDevelopment(item, existing)));
 }
 
-function appearedInMorningEdition(item: EditorialArticle, history: ReadoutEditionSnapshot[]): boolean {
+export function appearedInMorningEdition(item: EditorialArticle, history: ReadoutEditionSnapshot[]): boolean {
   const priorEditionDate = history.reduce(
     (latest, snapshot) => snapshot.editionDate > latest ? snapshot.editionDate : latest,
     "",

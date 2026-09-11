@@ -46,9 +46,9 @@ function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
 }
 
 function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
-  // These bounded comments are part of the publication. Keeping them allows
-  // guests to expand evidence without accessing the private live share graph.
-  return payload;
+  // Selection-audit receipts are service-only and must never enter reader cache rows.
+  const { selectionAudit: _selectionAudit, ...publicPayload } = payload as ReadoutWindowPayload & { selectionAudit?: unknown };
+  return publicPayload;
 }
 
 function currentFinishedWindow(payload: ReadoutWindowPayload | null | undefined): boolean {
@@ -112,8 +112,9 @@ export async function fetchFreshReadoutWindowForPrepublication(
   area: EditionArea,
   editionDate: string,
   attentionAnchor: ReadoutAttentionAnchor,
+  options: { includeSelectionAudit?: boolean; signal?: AbortSignal } = {},
 ): Promise<ReadoutWindowPayload> {
-  return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor }));
+  return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor, includeSelectionAudit: area === "All" && options.includeSelectionAudit === true }), options.signal);
 }
 
 /** The dated canonical edition is the authority for every paper-facing Today lens. */
@@ -163,7 +164,8 @@ function validFinishedEdition(
   return sameEditionVersion(edition, durableForArea);
 }
 
-async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
+async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload, signal?: AbortSignal) {
+  if (signal?.aborted) throw new Error("Readout cache persistence aborted.");
   const { url, key } = supabaseServiceEnvironment();
   const response = await fetch(`${url}/rest/v1/readout_posts?on_conflict=tok`, {
     method: "POST",
@@ -182,6 +184,7 @@ async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, p
       last_seen: payload.generatedAt,
     }]),
     cache: "no-store",
+    signal,
   });
   if (!response.ok) throw new Error(`Readout last-good write returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
 }
@@ -199,7 +202,8 @@ async function readLastGoodWindow(area: EditionArea, window: ReadoutWindow): Pro
   return payload?.area === area && payload.windowDays === readoutWindowDays(window) ? payload : null;
 }
 
-async function persistFinishedWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
+async function persistFinishedWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload, signal?: AbortSignal) {
+  if (signal?.aborted) throw new Error("Finished Readout persistence aborted.");
   const { url, key } = supabaseServiceEnvironment();
   const response = await fetch(`${url}/rest/v1/readout_posts?on_conflict=tok`, {
     method: "POST",
@@ -218,6 +222,7 @@ async function persistFinishedWindow(area: EditionArea, window: ReadoutWindow, p
       last_seen: payload.generatedAt,
     }]),
     cache: "no-store",
+    signal,
   });
   if (!response.ok) throw new Error(`Finished Readout cache write returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
 }
@@ -242,6 +247,7 @@ async function fetchFreshReadoutWindow(
   window: ReadoutWindow,
   cardsJson: string,
   attentionContextJson: string,
+  signal?: AbortSignal,
 ): Promise<ReadoutWindowPayload> {
     const { url, key } = supabaseServiceEnvironment();
     const briefingFunctionUrl = process.env.BRIEFING_FUNCTION_URL ?? `${url}/functions/v1/briefing`;
@@ -260,6 +266,7 @@ async function fetchFreshReadoutWindow(
           ...JSON.parse(attentionContextJson),
         }),
         cache: "no-store",
+        signal,
       });
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
@@ -267,7 +274,7 @@ async function fetchFreshReadoutWindow(
       }
       const payload = await response.json() as ReadoutWindowPayload;
       try {
-        await persistLastGoodWindow(area, window, payload);
+        await persistLastGoodWindow(area, window, payload, signal);
       } catch (error) {
         console.error("Readout last-good cache write failed; serving fresh payload.", error);
       }
@@ -393,7 +400,7 @@ function unavailableRawPayload(area: EditionArea, window: ReadoutWindow): Readou
 async function buildFinishedReadoutWindow(
   area: EditionArea,
   window: ReadoutWindow,
-  options: { freshSource?: boolean; sourceCache?: Map<string, Promise<ReadoutWindowPayload>> } = {},
+  options: { freshSource?: boolean; canonicalOnly?: boolean; signal?: AbortSignal; sourceCache?: Map<string, Promise<ReadoutWindowPayload>> } = {},
 ): Promise<ReadoutWindowPayload> {
   const source = options.freshSource ? fetchFreshReadoutWindow : fetchReadoutWindow;
   const durableCanonical = await readDurableCanonicalEdition();
@@ -410,7 +417,9 @@ async function buildFinishedReadoutWindow(
     try {
       let pending = options.sourceCache?.get(key);
       if (!pending) {
-        pending = source(rawArea, rawWindow, "[]", attentionContextJson);
+        pending = options.signal
+          ? fetchFreshReadoutWindow(rawArea, rawWindow, "[]", attentionContextJson, options.signal)
+          : source(rawArea, rawWindow, "[]", attentionContextJson);
         options.sourceCache?.set(key, pending);
       }
       return await pending;
@@ -419,7 +428,11 @@ async function buildFinishedReadoutWindow(
       return unavailableRawPayload(rawArea, rawWindow);
     }
   };
-  const payload = { ...await raw("All", window), area };
+  // The critical 06:00 All/today projection is reconstructed from the durable
+  // canonical selection even when the live evidence service is unavailable.
+  // Full cache warming remains the independent path that refreshes receipts.
+  const canonicalOnlyAllToday = options.canonicalOnly === true && area === "All" && window === "today";
+  const payload = canonicalOnlyAllToday ? unavailableRawPayload(area, window) : { ...await raw("All", window), area };
   // Raw responses may refresh evidence receipts only. They never supply a
   // published edition, history, or Regulatory Watch membership.
   // The All raw window already includes every canonical story's evidence.
@@ -481,9 +494,25 @@ export async function getCachedReadoutWindow(
   return rebuilt;
 }
 
-export async function warmReadoutWindowCache(options: { freshSource?: boolean } = {}) {
-  // One observation per window for the whole fan-out: never repeat the same
-  // expensive All source query for each of eight specialty projections.
+export async function warmReadoutWindow(
+  area: EditionArea,
+  window: ReadoutWindow,
+  options: { freshSource?: boolean; canonicalOnly?: boolean; signal?: AbortSignal } = {},
+) {
+  if (options.signal?.aborted) throw new Error("Readout window warm aborted before source read.");
+  const payload = await buildFinishedReadoutWindow(area, window, options);
+  if (options.signal?.aborted) throw new Error("Readout window warm aborted before persistence.");
+  await persistFinishedWindow(area, window, payload, options.signal);
+  const edition = payload.currentEdition as { editionDate?: unknown; selectionVersion?: unknown } | null | undefined;
+  return {
+    area, window, generatedAt: payload.generatedAt, stale: payload.stale === true,
+    editionDate: typeof edition?.editionDate === "string" ? edition.editionDate : null,
+    selectionVersion: typeof edition?.selectionVersion === "string" ? edition.selectionVersion : null,
+  };
+}
+
+export async function warmReadoutWindowCache(options: { freshSource?: boolean; signal?: AbortSignal } = {}) {
+  // Share one observation per window across all eight specialty projections.
   const sourceCache = new Map<string, Promise<ReadoutWindowPayload>>();
   const requests = EDITION_AREAS.flatMap((area) => (["today", "7d"] as const).map((window) => ({ area, window })));
   const warmed: Array<{ area: EditionArea; window: ReadoutWindow; generatedAt: string | null; stale: boolean; error?: string }> = [];
@@ -492,9 +521,16 @@ export async function warmReadoutWindowCache(options: { freshSource?: boolean } 
     const batch = requests.slice(index, index + 4);
     const results = await Promise.all(batch.map(async ({ area, window }) => {
       try {
+        if (options.signal?.aborted) throw new Error("Readout cache warm aborted before source read.");
         const payload = await buildFinishedReadoutWindow(area, window, { ...options, sourceCache });
-        await persistFinishedWindow(area, window, payload);
-        return { area, window, generatedAt: payload.generatedAt, stale: payload.stale === true };
+        if (options.signal?.aborted) throw new Error("Readout cache warm aborted before persistence.");
+        await persistFinishedWindow(area, window, payload, options.signal);
+        const edition = payload.currentEdition as { editionDate?: unknown; selectionVersion?: unknown } | null | undefined;
+  return {
+    area, window, generatedAt: payload.generatedAt, stale: payload.stale === true,
+    editionDate: typeof edition?.editionDate === "string" ? edition.editionDate : null,
+    selectionVersion: typeof edition?.selectionVersion === "string" ? edition.selectionVersion : null,
+  };
       } catch (error) {
         return { area, window, generatedAt: null, stale: true, error: error instanceof Error ? error.message : "Unknown refresh error" };
       }

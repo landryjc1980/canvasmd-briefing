@@ -412,12 +412,12 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
     "the saved edition consolidates every specialty into one canonical day");
   assert.match(readoutEditionArchive, /resolution=ignore-duplicates/);
   assert.match(readoutEditionArchive, /etEditionHour\(now\) !== 6/);
-  assert.match(readoutArchiveRoute, /archiveCurrentReadoutEdition\(\)/);
-  assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)[\s\S]*?warmReadoutWindowCache\(\)[\s\S]*?archiveCurrentReadoutEdition\(\)/,
-    "the 6am job refreshes the candidate payload before freezing the dated edition");
+  assert.match(readoutArchiveRoute, /archiveCurrentReadoutEdition/);
+  assert.match(readoutArchiveRoute, /canonical-edition[\s\S]*?verify-all-today-reader/,
+    "the 6am job freezes or reuses the dated edition before checking the bounded All reader path");
   assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
-  assert.match(readoutArchiveRoute, /warmReadoutWindowCache\(\)/);
-  assert.match(readoutPrearchiveRoute, /prepublishCurrentReadoutEdition\(\)/);
+  assert.match(readoutArchiveRoute, /warmReadoutWindow\("All", "today", \{ freshSource: true \}\)/);
+  assert.match(readoutPrearchiveRoute, /prepublishCurrentReadoutEdition/);
   assert.doesNotMatch(readoutPrearchiveRoute, /warmReadoutWindowCache/,
     "prepublication must not promote a future edition into the reader cache");
   assert.match(readoutEditionArchive, /export async function prepublishCurrentReadoutEdition/);

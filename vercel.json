@@ -1,13 +1,52 @@
 {
   "crons": [
-    { "path": "/api/readout-cache", "schedule": "50 * * * *" },
-    { "path": "/api/readout-prearchive", "schedule": "0 9 * * *" },
-    { "path": "/api/readout-prearchive", "schedule": "0 10 * * *" },
-    { "path": "/api/readout-prearchive", "schedule": "5 9 * * *" },
-    { "path": "/api/readout-prearchive", "schedule": "5 10 * * *" },
-    { "path": "/api/readout-archive", "schedule": "0 10 * * *" },
-    { "path": "/api/readout-archive", "schedule": "0 11 * * *" },
-    { "path": "/api/readout-archive", "schedule": "5 10 * * *" },
-    { "path": "/api/readout-archive", "schedule": "5 11 * * *" }
+    {
+      "path": "/api/readout-cache",
+      "schedule": "50 * * * *"
+    },
+    {
+      "path": "/api/readout-cache",
+      "schedule": "10 10 * * *"
+    },
+    {
+      "path": "/api/readout-cache",
+      "schedule": "10 11 * * *"
+    },
+    {
+      "path": "/api/readout-prearchive",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/readout-prearchive",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/readout-prearchive",
+      "schedule": "5 9 * * *"
+    },
+    {
+      "path": "/api/readout-prearchive",
+      "schedule": "5 10 * * *"
+    },
+    {
+      "path": "/api/readout-archive",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/readout-archive",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/readout-archive",
+      "schedule": "5 10 * * *"
+    },
+    {
+      "path": "/api/readout-archive",
+      "schedule": "5 11 * * *"
+    },
+    {
+      "path": "/api/readout-maintenance",
+      "schedule": "20 */6 * * *"
+    }
   ]
 }
