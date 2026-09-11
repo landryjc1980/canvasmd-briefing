@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
+import { readoutAttentionAnchor } from "../lib/readoutAttention.ts";
 
 const code = ts.transpileModule(
   fs.readFileSync(new URL("../lib/readoutEditionArchive.ts", import.meta.url), "utf8"),
@@ -22,7 +23,7 @@ function savedEdition(date = "2026-09-11") {
   };
 }
 
-function harness({ existing = null, refreshError = null, changedAfterRead = false } = {}) {
+function harness({ existing = null, refreshError = null, changedAfterRead = false, attentionMismatch = false } = {}) {
   const calls = [];
   const writes = [];
   let refreshed = false;
@@ -46,6 +47,7 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
   const candidateBuild = { runId: "candidate-run", requestId: 7, generatedAt: "2026-09-11T09:59:00.000Z" };
   const mocks = {
     "server-only": {},
+    "@/lib/readoutAttention": { readoutAttentionAnchor },
     "@/app/briefing-preview/edition": { EDITION_AREAS: AREAS },
     "@/app/briefing-preview/editionSnapshot": {
       isReadoutEditionSnapshot: (value) => !!value && value.schemaVersion === 2,
@@ -68,10 +70,13 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
       readoutEditionForArea: (snapshot) => snapshot,
     },
     "@/lib/readoutWindowServer": {
-      fetchFreshReadoutWindowForPrepublication: async (area) => {
+      fetchFreshReadoutWindowForPrepublication: async (area, editionDate, attentionAnchor) => {
         calls.push(["fresh", area]);
         assert.equal(refreshed, true, "fresh source reads must wait for candidate refresh");
-        return freshPayload;
+        assert.deepEqual(attentionAnchor, readoutAttentionAnchor(editionDate));
+        return { ...freshPayload, attentionWindow: attentionMismatch ? null : {
+          startAt: attentionAnchor.startAt, editionDate, timeZone: attentionAnchor.timeZone, kind: "edition",
+        } };
       },
       getCachedReadoutWindow: async (area) => {
         calls.push(["cached", area]);
@@ -161,6 +166,18 @@ test("a valid prepublished edition is also preserved by the 6am archive path", a
   const result = await h.archiveCurrentReadoutEdition(sixAm);
   assert.deepEqual(result, { editionDate: "2026-09-11", archived: ["All"], skipped: "prepublished" });
   assert.deepEqual(h.calls.filter(([kind]) => kind === "candidate-refresh" || kind === "fresh" || kind === "cached"), []);
+});
+
+test("the new edition stores the exact fixed start used by every specialty selection", async () => {
+  const h = harness();
+  await h.prepublishCurrentReadoutEdition(fiveAm);
+  assert.deepEqual(h.writes[0][0].card.attentionAnchor, readoutAttentionAnchor("2026-09-11"));
+});
+
+test("a new canonical fails closed if the backend did not select against the requested anchor", async () => {
+  const h = harness({ attentionMismatch: true });
+  await assert.rejects(h.prepublishCurrentReadoutEdition(fiveAm), /attention window is missing or mismatched/);
+  assert.equal(h.writes.length, 0);
 });
 
 test("the no-edition fallback used outside the scheduled archive path still requires a candidate build", async () => {

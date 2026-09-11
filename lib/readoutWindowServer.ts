@@ -18,10 +18,11 @@ import {
   readoutEditionHistoryIncludingCurrent,
   readoutEditionPreferNonEmpty,
 } from "@/app/briefing-preview/editionHistory";
+import { readoutAttentionAnchor, validReadoutAttentionAnchor, type ReadoutAttentionAnchor } from "@/lib/readoutAttention";
 
 // Bump this whenever reader-side cache acceptance changes. It prevents an old
 // finished selection from being served before the new durable-edition check runs.
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v22";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v23";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -38,11 +39,11 @@ function supabaseServiceEnvironment() {
 }
 
 function windowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:v4:${area}:${window}`;
+  return `readout-window:v5:${area}:${window}`;
 }
 
 function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:finished:v5:${area}:${window}`;
+  return `readout-window:finished:v6:${area}:${window}`;
 }
 
 function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
@@ -82,6 +83,7 @@ function sameEditionVersion(value: unknown, durable: ReadoutEditionSnapshot): bo
     value.editionDate === durable.editionDate &&
     value.generatedAt === durable.generatedAt &&
     (value.updatedAt ?? null) === (durable.updatedAt ?? null) &&
+    JSON.stringify(value.attentionAnchor ?? null) === JSON.stringify(durable.attentionAnchor ?? null) &&
     (!durable.selectionVersion || value.selectionVersion === durable.selectionVersion) &&
     sameSelectionMembership(value, durable);
 }
@@ -111,8 +113,10 @@ export async function withReadoutSelectionVersion(snapshot: ReadoutEditionSnapsh
  * finished reader-window token, so yesterday remains the public edition until rollover. */
 export async function fetchFreshReadoutWindowForPrepublication(
   area: EditionArea,
+  editionDate: string,
+  attentionAnchor: ReadoutAttentionAnchor,
 ): Promise<ReadoutWindowPayload> {
-  return fetchFreshReadoutWindow(area, "today", "[]");
+  return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor }));
 }
 
 function isEpisodeOnlyFallback(edition: ReadoutEditionSnapshot, durableForArea: ReadoutEditionSnapshot): boolean {
@@ -235,6 +239,7 @@ async function fetchFreshReadoutWindow(
   area: EditionArea,
   window: ReadoutWindow,
   cardsJson: string,
+  attentionContextJson: string,
 ): Promise<ReadoutWindowPayload> {
     const { url, key } = supabaseServiceEnvironment();
     const briefingFunctionUrl = process.env.BRIEFING_FUNCTION_URL ?? `${url}/functions/v1/briefing`;
@@ -250,6 +255,7 @@ async function fetchFreshReadoutWindow(
           area,
           days: readoutWindowDays(window),
           cards: JSON.parse(cardsJson),
+          ...JSON.parse(attentionContextJson),
         }),
         cache: "no-store",
       });
@@ -288,17 +294,24 @@ async function buildFinishedReadoutWindow(
   options: { freshSource?: boolean } = {},
 ): Promise<ReadoutWindowPayload> {
   const source = options.freshSource ? fetchFreshReadoutWindow : fetchReadoutWindow;
-  const payload = await source(area, window, "[]");
-  const today = window === "today" ? payload : await source(area, "today", "[]");
-  const allToday = area === "All" ? today : await source("All", "today", "[]");
   const durableCanonical = await readDurableCanonicalEdition();
+  const editionDate = activeReadoutEditionDate();
+  // The persisted morning anchor governs every hourly read. An old saved edition
+  // must not acquire a new window merely because a new reader was deployed.
+  const attentionAnchor = durableCanonical
+    ? validReadoutAttentionAnchor(durableCanonical.attentionAnchor, editionDate)
+    : readoutAttentionAnchor(editionDate);
+  const attentionContextJson = JSON.stringify({ editionDate, attentionAnchor });
+  const payload = await source(area, window, "[]", attentionContextJson);
+  const today = window === "today" ? payload : await source(area, "today", "[]", attentionContextJson);
+  const allToday = area === "All" ? today : await source("All", "today", "[]", attentionContextJson);
   const sourceCurrentIsToday = isReadoutEditionSnapshot(allToday.currentEdition) &&
     allToday.currentEdition.editionDate === activeReadoutEditionDate();
   // During the rollover gap, carry the exact prior editions into the fallback build.
   // Otherwise a Sep. 8 source response can be relabeled Sep. 9 with no dedup history.
   const allHistory = window === "7d"
-    ? (area === "All" ? payload : await source("All", "7d", "[]"))
-    : (!durableCanonical && !sourceCurrentIsToday ? await source("All", "7d", "[]") : null);
+    ? (area === "All" ? payload : await source("All", "7d", "[]", attentionContextJson))
+    : (!durableCanonical && !sourceCurrentIsToday ? await source("All", "7d", "[]", attentionContextJson) : null);
   const fallbackCanonicalHistory = (allHistory?.editionHistory ?? [])
     .filter(isReadoutEditionSnapshot)
     .filter((snapshot) => snapshot.area === "All" && snapshot.editionDate < activeReadoutEditionDate());
@@ -332,6 +345,9 @@ async function buildFinishedReadoutWindow(
   if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,
+    // Specialty rows are projections of the canonical All edition. Keep its
+    // receipts even when a selected paper no longer passes live admission.
+    overlays: mergeEvidenceOverlays(payload, allToday),
     stale: payload.stale === true || allToday.stale === true,
   });
 

@@ -46,8 +46,8 @@ test("ordinary midday candidates wait while backend-qualified trending articles 
   const ordinary = mergeReadoutEditionSnapshot(morning, payload({ cards: [card("ordinary", "commentary")] }), now);
   assert.deepEqual(ordinary, morning);
   const merged = mergeReadoutEditionSnapshot(morning, payload({ breakingCards: [breaking("news", "unknown")] }), now);
-  assert.equal(merged.developments[0].development.id, "breaking:news");
-  assert.equal(merged.developments[1].development.finding, morning.developments[0].development.finding);
+  assert.deepEqual(merged.developments, morning.developments);
+  assert.equal(merged.relevant.at(-1).article.id, "breaking:news");
   assert.deepEqual(merged.middayInsertions, ["breaking:news"]);
 });
 

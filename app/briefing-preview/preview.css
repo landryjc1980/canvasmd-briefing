@@ -130,6 +130,16 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-related-links { margin-top: 0; }
 .er-peers { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .er-peers-pending { margin: 14px 0 0; color: var(--er-muted); font-size: 13px; }
+.er-attention-count { margin: 16px 0 0; color: var(--er-ink); font-size: 13px; font-weight: 600; line-height: 1.5; }
+.er-attention-explanation { max-width: 560px; margin: 8px 0 0; color: var(--er-muted); font-size: 12px; line-height: 1.5; }
+.er-attention-evidence { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--er-line); }
+.er-evidence-scope { margin: 4px 0 8px; color: var(--er-muted); font-size: 12px; line-height: 1.5; }
+.er-share-receipts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0; padding: 0; list-style: none; font-size: 12.5px; line-height: 1.5; }
+.er-share-receipts a { color: var(--er-link); text-decoration: underline; text-underline-offset: 2px; }
+.er-overall-evidence { margin-top: 16px; }
+.er-overall-evidence > summary { padding: 10px 0; color: var(--er-muted); font-size: 12.5px; line-height: 1.5; cursor: pointer; }
+.er-added-since-morning { margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--er-line); }
+.er-added-since-morning > h2 { margin: 0 0 12px; color: var(--er-muted); font-size: 13px; font-weight: 600; }
 .er-peer-copy { min-width: 0; }
 .er-faces { display: flex; }
 .er-faces img, .er-av-more { width: 30px; height: 30px; object-fit: cover; border-radius: 50%; border: 2px solid var(--er-surface); margin-left: -8px; background: #ddd; }

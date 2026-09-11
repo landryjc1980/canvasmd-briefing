@@ -15,6 +15,7 @@ import {
   type EditionArea,
 } from "./edition";
 import { activeReadoutEditionDate } from "./readoutRequest";
+import type { ReadoutAttentionAnchor } from "@/lib/readoutAttention";
 
 export type ReadoutEditionDevelopment = {
   development: EditorialDevelopment;
@@ -29,6 +30,7 @@ export type ReadoutEditionSnapshot = {
   generatedAt: string;
   selectionVersion?: string | null;
   candidateBuild?: { runId: string; requestId: number; generatedAt: string };
+  attentionAnchor?: ReadoutAttentionAnchor;
   area: EditionArea;
   developments: ReadoutEditionDevelopment[];
   relevant: ReadoutEditionArticle[];
@@ -252,20 +254,15 @@ export function mergeReadoutEditionSnapshot(
   });
   if (!additions.length && !newDesignations.length && !newListen.length) return snapshot;
 
-  const combined = uniqueDevelopments([...additions, ...existingDevelopments]);
-  const lead = combined.slice(0, 5);
-  const displaced = combined.slice(5).filter((item): item is EditorialArticle => !("kind" in item));
-  const relevant = uniqueRelevant([...displaced, ...existingRelevant], lead);
+  // The morning slate is the narrated edition. Hourly admissions live in the
+  // remainder with explicit insertion IDs; they cannot displace or renumber it.
+  const relevant = uniqueRelevant([...existingRelevant, ...additions], existingDevelopments);
   const insertedIds = additions.map((item) => item.id);
   return {
     ...snapshot,
     updatedAt: now.toISOString(),
     middayInsertions: [...new Set([...(snapshot.middayInsertions ?? []), ...insertedIds])],
-    developments: lead.map((development, position) => ({
-      development,
-      episode: snapshot.developments.find((entry) => sameEditorialDevelopment(entry.development, development))?.episode ?? null,
-      position,
-    })),
+    developments: snapshot.developments,
     relevant: relevant.map((article, position) => ({ article, position })),
     regulatoryCards: [
       ...snapshot.regulatoryCards,
