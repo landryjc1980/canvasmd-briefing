@@ -1,7 +1,7 @@
 "use client";
 import { activeReadoutEditionDate, READOUT_WINDOWS, readoutWindowKeyboardTarget } from "./readoutRequest";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import {
   isReadoutEditionSnapshot,
@@ -43,7 +43,6 @@ import {
 } from "./edition";
 import ConferenceTeaser from "./ConferenceTeaser";
 import type { ConferenceMeeting } from "@/lib/conference";
-import { attentionExactStart, attentionOverlayMatches, attentionSinceLabel, attentionWindowForPayload, publicationSourceLabel, type ReadoutAttentionWindow } from "@/lib/readoutAttentionPresentation";
 
 const AREA_LABELS: Record<EditionArea, string> = {
   All: "All oncology",
@@ -59,7 +58,6 @@ const AREA_LABELS: Record<EditionArea, string> = {
 const SHARER_PREVIEW_LIMIT = 3;
 const EMPTY_BRIEFS: BriefingData[] = [];
 const fullOverlayCache = new Map<string, Promise<BriefingEvidenceOverlayItem | null>>();
-const ReadoutAttentionContext = createContext<ReadoutAttentionWindow | null>(null);
 
 function loadFullEvidenceOverlay(item: EditorialDevelopment, observation?: BriefingEvidenceOverlayItem): Promise<BriefingEvidenceOverlayItem | null> {
   const windowStartAt = observation?.windowStartAt ?? null;
@@ -349,59 +347,6 @@ function PhysicianVoices({
   );
 }
 
-function PaperAttention({ article, overlay, open, loading, failed }: {
-  article: BriefingArticle;
-  overlay: BriefingEvidenceOverlayItem | undefined;
-  open: boolean;
-  loading: boolean;
-  failed: boolean;
-}) {
-  const scope = useContext(ReadoutAttentionContext);
-  const matched = attentionOverlayMatches(overlay, scope);
-  const scopedArticle: BriefingArticle | null = matched ? {
-    ...article,
-    sharers: overlay.windowClinicianCount,
-    kolSharers: overlay.windowClinicianCount,
-    faces: overlay.windowFaces ?? [],
-    posts: overlay.windowPosts ?? [],
-    sharerPeople: overlay.windowSharerPeople ?? [],
-    authoredClinicianCount: overlay.windowAuthoredClinicianCount ?? 0,
-  } : null;
-  return (
-    <>
-      {matched && scope ? (
-        <p className="er-attention-count">{overlay.windowClinicianCount} clinician{overlay.windowClinicianCount === 1 ? "" : "s"} · {attentionSinceLabel(scope)}</p>
-      ) : <p className="er-peers-pending">{scope ? "Edition attention is unavailable." : "Edition attention was not recorded for this edition."}</p>}
-      {scopedArticle && <PhysicianVoices article={scopedArticle} sharedBy={scopedArticle.kolSharers} expanded={open} loadingMore={loading} loadFailed={failed} />}
-      {open && overlay && (
-        <div className="er-attention-evidence">
-          {matched && scope && <>
-            <p className="er-evidence-scope">Clinician shares since {attentionExactStart(scope)}</p>
-            <ShareReceipts people={overlay.windowSharerPeople ?? []} count={overlay.windowClinicianCount} />
-            {!overlay.windowSharerPeople?.length && <p className="er-peers-pending">No qualifying clinician shares in this window.</p>}
-          </>}
-          <details className="er-overall-evidence">
-            <summary>{overlay.kolSharers} clinician{overlay.kolSharers === 1 ? "" : "s"} overall · all recorded shares</summary>
-            <ShareReceipts people={overlay.sharerPeople} count={overlay.kolSharers} />
-            <PhysicianVoices article={article} sharedBy={overlay.kolSharers} expanded loadingMore={loading} loadFailed={failed} />
-          </details>
-        </div>
-      )}
-    </>
-  );
-}
-
-function ShareReceipts({ people, count }: { people: BriefingEvidenceOverlayItem["sharerPeople"]; count: number }) {
-  return <>
-    <ul className="er-share-receipts">{people.map((person, index) => (
-      <li key={`${person.handle ?? person.name}-${index}`}>
-        {person.tweetUrl ? <a href={person.tweetUrl} target="_blank" rel="noreferrer">{person.name}</a> : person.name}
-      </li>
-    ))}</ul>
-    {people.length > 0 && people.length < count && <p className="er-evidence-scope">Showing {people.length} of {count} clinicians.</p>}
-  </>;
-}
-
 function DevelopmentFinding({
   text,
   expandedText,
@@ -548,6 +493,7 @@ function ArticleDevelopment({
   const contentType = articleContentType(item);
   const isResearch = !["FDA approval", "FDA safety", "Regulatory"].includes(contentType);
   const actionDate = isResearch ? null : editionDateLabel(item.occurredOn);
+  const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
   // FDA paragraph boundaries select the source preview, so retain them until that
@@ -571,9 +517,9 @@ function ArticleDevelopment({
   );
   const links = attachedSources(item, href);
   const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length > 0;
-  const canDisclose = expansion.canExpand || hasMoreLinks || (isResearch && !!overlay);
+  const canDisclose = expansion.canExpand || hasMoreLinks;
   const sourceLabel = item.sourceExcerpt || item.findingSource === "source" ? "Full source excerpt" : "Full summary";
-  const disclosureLabel = [expansion.canExpand ? expansion.label.replace("Full source excerpt", sourceLabel) : null, isResearch && overlay ? "Clinician evidence" : null, hasMoreLinks ? "Sources and related coverage" : null].filter(Boolean).join(" · ");
+  const disclosureLabel = [expansion.canExpand ? expansion.label.replace("Full source excerpt", sourceLabel) : null, hasMoreLinks ? "Sources and related coverage" : null].filter(Boolean).join(" · ");
   const toggleDisclosure = () => {
     const nextOpen = !open;
     setOpen(nextOpen);
@@ -591,7 +537,7 @@ function ArticleDevelopment({
       articleRef={cardRef}
       className={`${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}
       href={href}
-      source={isResearch ? publicationSourceLabel(item.journal, item.occurredOn) : item.journal}
+      source={item.journal}
       title={displayReadoutTitle(article?.title || item.title)}
       compact={compact}
       beforeSource={<div className="er-kicker">{editorialScopeLabel(item)}{item.studySetting === "preclinical" ? " · PRECLINICAL" : ""}{numbered ? "" : ` · ${contentType}`}</div>}
@@ -599,17 +545,17 @@ function ArticleDevelopment({
         <p className="er-action-date">Action date: {actionDate
           ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
           : "Unavailable"}</p>
+      ) : isResearch && publishedDate ? (
+        <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
       ) : undefined}
     >
       <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
-      {isResearch ? <PaperAttention article={article} overlay={overlay} open={open} loading={loadingDetails} failed={detailLoadFailed} /> : <>
-        {overlay
-          ? <PeerRow article={article} sharedBy={sharedBy} />
-          : <p className="er-peers-pending">Updating clinician evidence...</p>}
-        {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
-      </>}
+      {overlay
+        ? <PeerRow article={article} sharedBy={sharedBy} />
+        : <p className="er-peers-pending">Updating clinician evidence...</p>}
+      {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
       {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
     </ReadoutArticleCard>
   );
@@ -960,7 +906,6 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
   );
   const activeEvidenceOverlays = payloadEvidenceOverlays;
   const worth = currentWorth;
-  const attentionWindow = attentionWindowForPayload(windowPayload);
   const pageReady = !!windowPayload;
   const publishedDevelopments = [...worth, ...addedSinceMorning, ...relevant, ...moreFromSevenDays];
   const renderedDevelopments = [...worth, ...addedSinceMorning, ...(alsoOpen ? relevant : relevant.slice(0, 1)), ...(moreOpen ? moreFromSevenDays : [])];
@@ -1023,7 +968,6 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
   };
 
   return (
-    <ReadoutAttentionContext.Provider value={attentionWindow}>
     <main className={`er-page er-area-${area.toLowerCase()}`}>
       <header className="er-header">
         <div className="er-brand">
@@ -1043,9 +987,6 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
             </div>
             <p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing.</p>
             {displayedEditionDate && <p className="er-edition-date">Edition: {displayedEditionDate}</p>}
-            {pageReady && <p className="er-attention-explanation">{attentionWindow
-              ? `${readoutWindow === "7d" ? "Picks from saved daily editions. " : ""}Counts are distinct clinicians who shared since ${attentionExactStart(attentionWindow)}, updated hourly.`
-              : "Edition-scoped attention is unavailable for this saved edition. Overall sharing is in each paper’s evidence."}</p>}
           </div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window" aria-busy={loadingWindow}>
             {READOUT_WINDOWS.map((candidate) => <button
@@ -1184,6 +1125,5 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         </div>
       </div>
       </main>
-    </ReadoutAttentionContext.Provider>
   );
 }
