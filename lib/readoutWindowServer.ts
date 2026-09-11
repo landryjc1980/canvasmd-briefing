@@ -299,6 +299,72 @@ function mergeEvidenceOverlays(...payloads: ReadoutWindowPayload[]) {
     (payload.overlays ?? []).map((overlay) => [overlay.id, overlay] as const))).values()];
 }
 
+// A fresh source response is allowed to repair source-facing copy, but it is
+// never an alternate edition. In particular, it cannot change area routing,
+// order, selection revision, or the set of published cards.
+const PAPER_DISPLAY_FIELDS = [
+  "title", "url", "sourceExcerpt", "finding", "publicationClass", "studySetting", "sourceAction",
+] as const;
+const REGULATORY_DISPLAY_FIELDS = [
+  "headline", "url", "finding", "sourceExcerpt", "sourceAction", "sourceLabel", "eligibleLabel",
+] as const;
+const DESIGNATION_DISPLAY_FIELDS = ["headline", "url", "description", "sourceAction", "sourceLabel", "label"] as const;
+
+function sourceDisplayRepair<T extends { id: string }>(
+  frozen: T,
+  source: unknown,
+  fields: readonly string[],
+): T {
+  if (!source || typeof source !== "object" || (source as { id?: unknown }).id !== frozen.id) return frozen;
+  const repaired: Record<string, unknown> = {};
+  for (const field of fields) {
+    const value = (source as Record<string, unknown>)[field];
+    if (value !== undefined) repaired[field] = value;
+  }
+  return Object.keys(repaired).length ? { ...frozen, ...repaired } : frozen;
+}
+
+function sourceSnapshotForEdition(
+  snapshot: ReadoutEditionSnapshot,
+  sourceSnapshots: ReadoutEditionSnapshot[],
+): ReadoutEditionSnapshot | null {
+  return sourceSnapshots.find((candidate) =>
+    candidate.area === "All" && candidate.editionDate === snapshot.editionDate) ?? null;
+}
+
+function hydrateCanonicalDisplayFields(
+  snapshot: ReadoutEditionSnapshot,
+  sourceSnapshots: ReadoutEditionSnapshot[],
+): ReadoutEditionSnapshot {
+  const source = sourceSnapshotForEdition(snapshot, sourceSnapshots);
+  if (!source) return snapshot;
+  const sourceDevelopments = new Map(source.developments.map((entry) => [entry.development.id, entry.development]));
+  const sourceRelevant = new Map(source.relevant.map((entry) => [entry.article.id, entry.article]));
+  const sourceRegulatory = new Map(source.regulatoryCards.map((card) => [card.id, card]));
+  const sourceDesignations = new Map(source.designationCards.map((card) => [card.id, card]));
+  return {
+    ...snapshot,
+    developments: snapshot.developments.map((entry) => ({
+      ...entry,
+      development: sourceDisplayRepair(entry.development, sourceDevelopments.get(entry.development.id), PAPER_DISPLAY_FIELDS),
+    })),
+    relevant: snapshot.relevant.map((entry) => ({
+      ...entry,
+      article: sourceDisplayRepair(entry.article, sourceRelevant.get(entry.article.id), PAPER_DISPLAY_FIELDS),
+    })),
+    regulatoryCards: snapshot.regulatoryCards.map((card) =>
+      sourceDisplayRepair(card, sourceRegulatory.get(card.id), REGULATORY_DISPLAY_FIELDS)),
+    designationCards: snapshot.designationCards.map((card) =>
+      sourceDisplayRepair(card, sourceDesignations.get(card.id), DESIGNATION_DISPLAY_FIELDS)),
+  };
+}
+
+function canonicalSourceSnapshots(...payloads: ReadoutWindowPayload[]): ReadoutEditionSnapshot[] {
+  return payloads.flatMap((payload) => [payload.currentEdition, ...(payload.editionHistory ?? [])])
+    .filter(isReadoutEditionSnapshot)
+    .filter((snapshot) => snapshot.area === "All");
+}
+
 function unavailableRawPayload(area: EditionArea, window: ReadoutWindow): ReadoutWindowPayload {
   return {
     generatedAt: new Date().toISOString(),
@@ -348,12 +414,16 @@ async function buildFinishedReadoutWindow(
     ? (area === "All" ? payload : await raw("All", "7d"))
     : null;
   const canonicalCurrent = await withReadoutSelectionVersion(durableCanonical);
-  const currentEdition = await withReadoutSelectionVersion(readoutEditionForArea(canonicalCurrent, area) ?? canonicalCurrent);
+  const sourceSnapshots = canonicalSourceSnapshots(rawAllToday, rawAllWeek ?? rawAllToday);
+  const hydratedCanonicalCurrent = hydrateCanonicalDisplayFields(canonicalCurrent, sourceSnapshots);
+  const currentEdition = readoutEditionForArea(hydratedCanonicalCurrent, area) ?? hydratedCanonicalCurrent;
   const canonicalHistory = window === "7d" ? await readDurableCanonicalHistory(canonicalCurrent) : [canonicalCurrent];
-  const editionHistory = canonicalHistory
+  const hydratedCanonicalHistory = canonicalHistory
+    .map((snapshot) => hydrateCanonicalDisplayFields(snapshot, sourceSnapshots));
+  const editionHistory = hydratedCanonicalHistory
     .map((snapshot) => readoutEditionForArea(snapshot, area))
     .filter((snapshot): snapshot is ReadoutEditionSnapshot => !!snapshot);
-  const publicationSnapshots = window === "7d" ? canonicalHistory : [canonicalCurrent];
+  const publicationSnapshots = window === "7d" ? hydratedCanonicalHistory : [hydratedCanonicalCurrent];
   const uniqueById = <T extends { id: string }>(items: T[]) =>
     items.filter((item, index) => items.findIndex((candidate) => candidate.id === item.id) === index);
   const publishedCardsForArea = <T extends { areas: string[] }>(items: T[]) =>

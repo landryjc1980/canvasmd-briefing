@@ -168,9 +168,9 @@ test("the 7-day tab reads exact daily editions and never quota-fills", () => {
   assert.match(preview, /sevenDayEditionListen\(editionHistory, currentWorth\)/,
     "Listen comes from the exact daily selections and retains featured episodes outside the top five");
   assert.match(briefingRoute, /"readout-window"/);
-  assert.match(readoutServer, /resolveReadoutTodayEdition\("All", allToday, fallbackCanonicalHistory\)/,
+  assert.match(readoutServer, /readDurableCanonicalEdition\(\)/,
     "the one canonical daily edition is the source for every lens");
-  assert.match(readoutServer, /readoutEditionForArea\(canonicalCurrent, area\)/,
+  assert.match(readoutServer, /readoutEditionForArea\(hydratedCanonicalCurrent, area\)/,
     "Today is a specialty filter over the canonical edition");
   assert.match(readoutServer, /readoutEditionForArea\(snapshot, area\)/,
     "each archived day is filtered through the same specialty lens");
@@ -237,10 +237,10 @@ test("a stale current edition cannot displace a durable three-by-three daily sel
     ["new-1", "new-2", "new-3", "new-4", "new-5", "new-6"],
   );
   assert.equal(selected.editionDate === oldCurrent.editionDate, false);
-  assert.match(readoutServer, /const resolvedCanonicalCurrent = matchingSourceCanonical \?\? \(durableCanonical/,
-    "when a current source does not match the durable selection, the durable selection stays authoritative");
-  assert.match(readoutServer, /const selectedCurrentEdition = durableForArea[\s\S]*?hydratedCanonicalForArea \?\? durableForArea/,
-    "a mismatched source falls back to all six durable editorial cards rather than relabeling yesterday's slate");
+  assert.match(readoutServer, /const sourceSnapshots = canonicalSourceSnapshots\(rawAllToday, rawAllWeek \?\? rawAllToday\)/,
+    "fresh source snapshots are isolated from the durable canonical selection");
+  assert.match(readoutServer, /hydrateCanonicalDisplayFields\(canonicalCurrent, sourceSnapshots\)/,
+    "fresh source copy may repair display fields without replacing the saved selection");
 });
 
 test("one complete canonical daily edition supplies every specialty lens without an admission cap", () => {
@@ -485,8 +485,8 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(preview, /visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v23"/);
-  assert.match(readoutServer, /readout-window:finished:v6:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v24"/);
+  assert.match(readoutServer, /readout-window:finished:v7:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
   assert.doesNotMatch(readoutServer, /fetchFinishedReadoutWindow/,
     "durable-edition validation runs outside the framework data cache on every reader request");
@@ -495,11 +495,11 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "the scheduled warmer writes all finished views before readers request them");
   assert.doesNotMatch(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
     "published comments remain available to guests in the bounded saved edition");
-  assert.match(readoutServer, /readout-window:v5:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /readout-window:v6:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
-  assert.match(readoutServer, /resolveReadoutTodayEdition\(area, today, fallbackAreaHistory\)/,
-    "a stale rollover builds against the seven-day durable history instead of replaying yesterday's papers");
-  assert.match(readoutServer, /sameEditionVersion\(snapshot, durableCanonical\)/);
+  assert.match(readoutServer, /kind=eq\.edition&area=eq\.All&order=last_seen\.desc/,
+    "the seven-day reader window is reconstructed from persisted canonical All history");
+  assert.match(readoutServer, /sameEditionVersion\(edition, durableForArea\)/);
   assert.match(readoutServer, /value\.updatedAt \?\? null\) === \(durable\.updatedAt \?\? null\)/,
     "an hourly insertion with the same morning generation time invalidates an old finished selection");
   assert.match(readoutServer, /!durable\.selectionVersion \|\| value\.selectionVersion === durable\.selectionVersion/,
@@ -509,9 +509,9 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(readoutServer, /if \(!isReadoutEditionSnapshot\(edition\) \|\| !edition\.selectionVersion\) return false/,
     "a finished v5 row from before revisions is rebuilt rather than remaining indefinitely accepted");
   assert.match(readoutServer, /sameSelectionMembership\(value, durable\)/,
-    "a source selection has to match the durable membership before its hydrated fields are retained");
-  assert.match(readoutServer, /isEpisodeOnlyFallback\(edition, durableForArea\)/,
-    "the retired 72-hour allowance is episode-only and cannot retain stale paper cards");
+    "a persisted reader selection must retain the durable membership");
+  assert.match(readoutServer, /sourceDisplayRepair\(entry\.development, sourceDevelopments\.get\(entry\.development\.id\), PAPER_DISPLAY_FIELDS\)/,
+    "source repairs are field-only and matched by the frozen story id");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
   assert.match(readoutServer, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(readoutServer, /SUPABASE_ANON_KEY/);

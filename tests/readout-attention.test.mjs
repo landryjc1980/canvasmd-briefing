@@ -197,6 +197,20 @@ test("seven-day specialty reads keep archived positions and weekly receipts over
   });
   const old = await withReadoutSelectionVersion(buildReadoutEditionSnapshot("All", payload({ cards: [card("archived-weekly")] }), now, [], priorDate));
   const history = [canonical, old];
+  const rawCanonical = {
+    ...canonical,
+    developments: [
+      { ...canonical.developments[0], development: { ...canonical.developments[0].development,
+        title: "Clipped current weekly source title", studySetting: "preclinical" } },
+      { ...canonical.developments[0], position: 99, development: { ...canonical.developments[0].development,
+        id: "decoy-live-membership", title: "Must not enter the saved edition" } },
+    ],
+  };
+  const rawOld = {
+    ...old,
+    developments: [{ ...old.developments[0], development: { ...old.developments[0].development,
+      title: "Sevabertinib seven-day source title", sourceExcerpt: "The refreshed historical source excerpt." } }],
+  };
   const ids = ["archive-current-weekly", "archive-archived-weekly"];
   const weeklyScope = { editionDate, startAt: attentionAnchor.sevenDayStartAt, timeZone: attentionAnchor.timeZone, kind: "seven-day" };
   const originalFetch = globalThis.fetch;
@@ -211,18 +225,27 @@ test("seven-day specialty reads keep archived positions and weekly receipts over
       const startAt = weekly ? attentionAnchor.sevenDayStartAt : attentionAnchor.startAt;
       return Response.json(payload({ generatedAt: now.toISOString(), area: body.area, windowDays: body.days,
         attentionWindow: weekly ? weeklyScope : { ...weeklyScope, startAt, kind: "edition" },
-        currentEdition: body.area === "All" ? canonical : null, editionHistory: weekly ? history : [],
+        currentEdition: body.area === "All" ? rawCanonical : null, editionHistory: weekly && body.area === "All" ? [rawCanonical, rawOld] : [],
         overlays: body.area === "All" ? ids.map((id, index) => ({ ...observation, id, windowStartAt: startAt,
           windowAsOf: now.toISOString(), windowClinicianCount: weekly ? 9 - index : 1 })) : [],
       }));
     }
-    if ((init.method ?? "GET") === "GET") return Response.json(decodeURIComponent(String(url)).includes("edition:v2:") ? [{ card: canonical }] : []);
+    if ((init.method ?? "GET") === "GET") {
+      const request = decodeURIComponent(String(url));
+      return Response.json(request.includes("kind=eq.edition") ? [{ card: canonical }, { card: old }]
+        : request.includes("edition:v2:") ? [{ card: canonical }] : []);
+    }
     return new Response(null, { status: 201 });
   };
   try {
     const result = await getCachedReadoutWindow("GU", "7d");
     assert.deepEqual(sevenDayEditionDevelopments(result.editionHistory).developments.map((entry) => entry.id), ids);
     assert.deepEqual(result.editionHistory.map((entry) => entry.selectionVersion), history.map((entry) => entry.selectionVersion));
+    assert.equal(result.currentEdition.developments[0].development.title, "Clipped current weekly source title");
+    assert.equal(result.currentEdition.developments[0].development.studySetting, "preclinical");
+    assert.equal(result.editionHistory[1].developments[0].development.title, "Sevabertinib seven-day source title");
+    assert.equal(result.editionHistory[1].developments[0].development.sourceExcerpt, "The refreshed historical source excerpt.");
+    assert.equal(result.currentEdition.developments.some((entry) => entry.development.id === "decoy-live-membership"), false);
     assert.deepEqual(attentionWindowForPayload(result), weeklyScope);
     for (const [index, id] of ids.entries()) {
       const receipt = result.overlays.find((entry) => entry.id === id);
