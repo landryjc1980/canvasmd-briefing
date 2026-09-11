@@ -7,22 +7,20 @@ import {
   activeReadoutEditionDate,
   type ReadoutWindow,
 } from "@/app/briefing-preview/readoutRequest";
-import { EDITION_AREAS, type EditionArea } from "@/app/briefing-preview/edition";
+import { EDITION_AREAS, editorialBelongsToArea, type EditionArea } from "@/app/briefing-preview/edition";
 import {
   isReadoutEditionSnapshot,
-  resolveReadoutTodayEdition,
   type ReadoutEditionSnapshot,
 } from "@/app/briefing-preview/editionSnapshot";
 import {
   readoutEditionForArea,
   readoutEditionHistoryIncludingCurrent,
-  readoutEditionPreferNonEmpty,
 } from "@/app/briefing-preview/editionHistory";
 import { readoutAttentionAnchor, validReadoutAttentionAnchor, type ReadoutAttentionAnchor } from "@/lib/readoutAttention";
 
 // Bump this whenever reader-side cache acceptance changes. It prevents an old
 // finished selection from being served before the new durable-edition check runs.
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v23";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v24";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -39,11 +37,11 @@ function supabaseServiceEnvironment() {
 }
 
 function windowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:v5:${area}:${window}`;
+  return `readout-window:v6:${area}:${window}`;
 }
 
 function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:finished:v6:${area}:${window}`;
+  return `readout-window:finished:v7:${area}:${window}`;
 }
 
 function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
@@ -55,10 +53,6 @@ function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPaylo
 function currentFinishedWindow(payload: ReadoutWindowPayload | null | undefined): boolean {
   const edition = payload?.currentEdition as { schemaVersion?: number; editionDate?: string } | null | undefined;
   return edition?.schemaVersion === 2 && edition.editionDate === activeReadoutEditionDate();
-}
-
-function snapshotHasEditorialCards(snapshot: ReadoutEditionSnapshot | null): boolean {
-  return !!snapshot && (snapshot.developments.length > 0 || snapshot.relevant.length > 0);
 }
 
 function editionSelectionMembership(snapshot: ReadoutEditionSnapshot): string[] {
@@ -119,14 +113,6 @@ export async function fetchFreshReadoutWindowForPrepublication(
   return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor }));
 }
 
-function isEpisodeOnlyFallback(edition: ReadoutEditionSnapshot, durableForArea: ReadoutEditionSnapshot): boolean {
-  return edition.fallbackWindowHours === 72 &&
-    !snapshotHasEditorialCards(durableForArea) &&
-    edition.relevant.length === 0 &&
-    edition.developments.length > 0 &&
-    edition.developments.every((entry) => "kind" in entry.development && entry.development.kind === "episode");
-}
-
 /** The dated canonical edition is the authority for every paper-facing Today lens. */
 async function readDurableCanonicalEdition(): Promise<ReadoutEditionSnapshot | null> {
   const { url, key } = supabaseServiceEnvironment();
@@ -144,21 +130,34 @@ async function readDurableCanonicalEdition(): Promise<ReadoutEditionSnapshot | n
     : null;
 }
 
+/** The published seven-day window is the persisted canonical All history, never
+ * a current live response's per-area snapshots. */
+async function readDurableCanonicalHistory(current: ReadoutEditionSnapshot): Promise<ReadoutEditionSnapshot[]> {
+  const { url, key } = supabaseServiceEnvironment();
+  const response = await fetch(
+    `${url}/rest/v1/readout_posts?select=card&kind=eq.edition&area=eq.All&order=last_seen.desc`,
+    { headers: supabaseApiKeyHeaders(key), cache: "no-store" },
+  );
+  if (!response.ok) return [];
+  const rows = await response.json() as Array<{ card?: unknown }>;
+  return readoutEditionHistoryIncludingCurrent(
+    current,
+    rows.map((row) => row.card).filter(isReadoutEditionSnapshot),
+  );
+}
+
 function validFinishedEdition(
   area: EditionArea,
   edition: unknown,
   durableCanonical: ReadoutEditionSnapshot | null,
 ): boolean {
-  // v5 rows written before selection revisions existed are deliberately rebuilt
-  // once, so subsequent finished-cache reads always prove their public selection.
+  // Old rows are deliberately rebuilt so published reads always prove their
+  // canonical All-edition projection.
   if (!isReadoutEditionSnapshot(edition) || !edition.selectionVersion) return false;
-  if (!durableCanonical) return true;
+  if (!durableCanonical) return false;
   const durableForArea = readoutEditionForArea(durableCanonical, area);
   if (!durableForArea) return false;
-  if (sameEditionVersion(edition, durableForArea)) return true;
-  // A specialty with no canonical cards may truthfully surface its transcript-supported
-  // 72-hour podcast lead; it is not a paper selection and must remain available.
-  return area !== "All" && isEpisodeOnlyFallback(edition, durableForArea);
+  return sameEditionVersion(edition, durableForArea);
 }
 
 async function persistLastGoodWindow(area: EditionArea, window: ReadoutWindow, payload: ReadoutWindowPayload) {
@@ -283,9 +282,38 @@ const fetchReadoutWindow = unstable_cache(
   { revalidate: READOUT_WINDOW_REVALIDATE_SECONDS, tags: [READOUT_WINDOW_CACHE_TAG] },
 );
 
+/** Raw candidate access is intentionally separate from published reader windows.
+ * `mergeCurrentReadoutEditionInsertions` must call this for admission; it must
+ * never call getCachedReadoutWindow, whose membership is already frozen. */
+export async function fetchFreshReadoutWindowForInsertions(area: EditionArea): Promise<ReadoutWindowPayload> {
+  const editionDate = activeReadoutEditionDate();
+  const durableCanonical = await readDurableCanonicalEdition();
+  const attentionAnchor = durableCanonical
+    ? validReadoutAttentionAnchor(durableCanonical.attentionAnchor, editionDate)
+    : readoutAttentionAnchor(editionDate);
+  return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor }));
+}
+
 function mergeEvidenceOverlays(...payloads: ReadoutWindowPayload[]) {
   return [...new Map(payloads.flatMap((payload) =>
     (payload.overlays ?? []).map((overlay) => [overlay.id, overlay] as const))).values()];
+}
+
+function unavailableRawPayload(area: EditionArea, window: ReadoutWindow): ReadoutWindowPayload {
+  return {
+    generatedAt: new Date().toISOString(),
+    windowDays: readoutWindowDays(window),
+    area,
+    cards: [],
+    moreCards: [],
+    episodes: [],
+    regulatoryCards: [],
+    breakingCards: [],
+    designationCards: [],
+    overlays: [],
+    candidateGeneratedAt: null,
+    stale: true,
+  };
 }
 
 async function buildFinishedReadoutWindow(
@@ -295,6 +323,7 @@ async function buildFinishedReadoutWindow(
 ): Promise<ReadoutWindowPayload> {
   const source = options.freshSource ? fetchFreshReadoutWindow : fetchReadoutWindow;
   const durableCanonical = await readDurableCanonicalEdition();
+  if (!durableCanonical) throw new Error("The canonical All Readout edition is not available yet.");
   const editionDate = activeReadoutEditionDate();
   // The persisted morning anchor governs every hourly read. An old saved edition
   // must not acquire a new window merely because a new reader was deployed.
@@ -302,69 +331,55 @@ async function buildFinishedReadoutWindow(
     ? validReadoutAttentionAnchor(durableCanonical.attentionAnchor, editionDate)
     : readoutAttentionAnchor(editionDate);
   const attentionContextJson = JSON.stringify({ editionDate, attentionAnchor });
-  const payload = await source(area, window, "[]", attentionContextJson);
-  const today = window === "today" ? payload : await source(area, "today", "[]", attentionContextJson);
-  const allToday = area === "All" ? today : await source("All", "today", "[]", attentionContextJson);
-  const sourceCurrentIsToday = isReadoutEditionSnapshot(allToday.currentEdition) &&
-    allToday.currentEdition.editionDate === activeReadoutEditionDate();
-  // During the rollover gap, carry the exact prior editions into the fallback build.
-  // Otherwise a Sep. 8 source response can be relabeled Sep. 9 with no dedup history.
-  const allHistory = window === "7d"
-    ? (area === "All" ? payload : await source("All", "7d", "[]", attentionContextJson))
-    : (!durableCanonical && !sourceCurrentIsToday ? await source("All", "7d", "[]", attentionContextJson) : null);
-  const fallbackCanonicalHistory = (allHistory?.editionHistory ?? [])
-    .filter(isReadoutEditionSnapshot)
-    .filter((snapshot) => snapshot.area === "All" && snapshot.editionDate < activeReadoutEditionDate());
-  const matchingSourceCanonical = durableCanonical
-    ? [allToday.currentEdition, ...(allHistory?.editionHistory ?? [])]
-      .filter(isReadoutEditionSnapshot)
-      .find((snapshot) => sameEditionVersion(snapshot, durableCanonical)) ?? null
+  const raw = async (rawArea: EditionArea, rawWindow: ReadoutWindow) => {
+    try {
+      return await source(rawArea, rawWindow, "[]", attentionContextJson);
+    } catch (error) {
+      console.error("Readout raw evidence unavailable; serving canonical publication.", error);
+      return unavailableRawPayload(rawArea, rawWindow);
+    }
+  };
+  const payload = await raw(area, window);
+  // Raw responses may refresh evidence receipts only. They never supply a
+  // published edition, history, or Regulatory Watch membership.
+  const rawToday = window === "today" ? payload : await raw(area, "today");
+  const rawAllToday = area === "All" ? rawToday : await raw("All", "today");
+  const rawAllWeek = window === "7d"
+    ? (area === "All" ? payload : await raw("All", "7d"))
     : null;
-  // The durable selection governs membership, while a matching live payload retains
-  // source-hydrated titles and links. A mismatched/stale source cannot replace it.
-  const resolvedCanonicalCurrent = matchingSourceCanonical ?? (durableCanonical
-    ? await withReadoutSelectionVersion(durableCanonical)
-    : resolveReadoutTodayEdition("All", allToday, fallbackCanonicalHistory));
-  const canonicalCurrent = await withReadoutSelectionVersion(resolvedCanonicalCurrent);
-  const durableForArea = durableCanonical ? readoutEditionForArea(durableCanonical, area) : null;
-  const hydratedCanonicalForArea = readoutEditionForArea(canonicalCurrent, area);
-  const fallbackAreaHistory = fallbackCanonicalHistory
+  const canonicalCurrent = await withReadoutSelectionVersion(durableCanonical);
+  const currentEdition = await withReadoutSelectionVersion(readoutEditionForArea(canonicalCurrent, area) ?? canonicalCurrent);
+  const canonicalHistory = window === "7d" ? await readDurableCanonicalHistory(canonicalCurrent) : [canonicalCurrent];
+  const editionHistory = canonicalHistory
     .map((snapshot) => readoutEditionForArea(snapshot, area))
     .filter((snapshot): snapshot is ReadoutEditionSnapshot => !!snapshot);
-  const exactCurrent = resolveReadoutTodayEdition(area, today, fallbackAreaHistory);
-  // The All edition remains the canonical source for papers, approvals, and guidelines.
-  // An otherwise-empty specialty can additionally receive a transcript-supported podcast
-  // lead from its own payload, but a same-date synthetic paper slate never outranks the
-  // durable canonical edition.
-  const selectedCurrentEdition = durableForArea
-    ? validFinishedEdition(area, exactCurrent, durableCanonical)
-      ? exactCurrent
-      : hydratedCanonicalForArea ?? durableForArea
-    : readoutEditionPreferNonEmpty(exactCurrent, hydratedCanonicalForArea);
-  const currentEdition = selectedCurrentEdition ? await withReadoutSelectionVersion(selectedCurrentEdition) : null;
+  const publicationSnapshots = window === "7d" ? canonicalHistory : [canonicalCurrent];
+  const uniqueById = <T extends { id: string }>(items: T[]) =>
+    items.filter((item, index) => items.findIndex((candidate) => candidate.id === item.id) === index);
+  const publishedCardsForArea = <T extends { areas: string[] }>(items: T[]) =>
+    items.filter((item) => editorialBelongsToArea({ area: "All", areas: item.areas }, area));
+  const regulatoryCards = uniqueById(publicationSnapshots.flatMap((snapshot) =>
+    publishedCardsForArea(snapshot.regulatoryCards)));
+  const designationCards = uniqueById(publicationSnapshots.flatMap((snapshot) =>
+    publishedCardsForArea(snapshot.designationCards)));
   if (window === "today") return compactWindowPayload({
     ...payload,
     currentEdition,
-    // Specialty rows are projections of the canonical All edition. Keep its
-    // receipts even when a selected paper no longer passes live admission.
-    overlays: mergeEvidenceOverlays(payload, allToday),
-    stale: payload.stale === true || allToday.stale === true,
+    editionHistory: [],
+    regulatoryCards,
+    designationCards,
+    overlays: mergeEvidenceOverlays(payload, rawAllToday),
+    stale: payload.stale === true || rawAllToday.stale === true,
   });
-
-  const canonicalHistory = readoutEditionHistoryIncludingCurrent(
-    canonicalCurrent,
-    allHistory?.editionHistory ?? [],
-  );
-  const editionHistory = canonicalHistory
-    .map((snapshot) => readoutEditionForArea(snapshot, area))
-    .filter((snapshot): snapshot is NonNullable<typeof snapshot> => !!snapshot);
   return compactWindowPayload({
     ...payload,
     currentEdition,
     editionHistory,
     historyDays: new Set(editionHistory.map((snapshot) => snapshot.editionDate)).size,
-    overlays: mergeEvidenceOverlays(today, payload, allHistory ?? payload),
-    stale: payload.stale === true || today.stale === true || allToday.stale === true || allHistory?.stale === true,
+    regulatoryCards,
+    designationCards,
+    overlays: mergeEvidenceOverlays(rawToday, payload, rawAllWeek ?? payload),
+    stale: payload.stale === true || rawToday.stale === true || rawAllWeek?.stale === true,
   });
 }
 
