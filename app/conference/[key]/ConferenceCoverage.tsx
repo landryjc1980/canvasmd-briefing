@@ -159,11 +159,17 @@ function ConferenceReportCard({ item }: { item: CoverageItem }) {
   const published = publicationDateLabel(item.publishedAt);
   return (
     <ReadoutArticleCard
-      className="conference-readout-card"
+      className="conference-readout-card has-kicker-source"
       href={item.url}
       source={item.source ?? "Source"}
       title={item.title}
-      date={published ? <p className="er-action-date"><time dateTime={item.publishedAt ?? undefined}>{published}</time></p> : undefined}
+      beforeSource={
+        <div className="er-kicker-row">
+          <div className="er-kicker">{item.label}</div>
+          <span className="er-kicker-source">{item.source ?? "Source"}</span>
+        </div>
+      }
+      footer={published ? <div className="er-foot"><p className="er-action-date">Published: <time dateTime={item.publishedAt ?? undefined}>{published}</time></p></div> : undefined}
     >
       {item.excerpt && <div className="er-excerpt"><p className="er-finding">{item.excerpt}</p></div>}
       <PublisherComments comments={item.publisherComments} />

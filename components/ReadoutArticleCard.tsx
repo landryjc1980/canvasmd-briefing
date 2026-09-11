@@ -7,6 +7,7 @@ export default function ReadoutArticleCard({
   title,
   date,
   beforeSource,
+  footer,
   compact = false,
   className = "",
   articleRef,
@@ -17,6 +18,7 @@ export default function ReadoutArticleCard({
   title: string;
   date?: ReactNode;
   beforeSource?: ReactNode;
+  footer?: ReactNode;
   compact?: boolean;
   className?: string;
   articleRef?: Ref<HTMLElement>;
@@ -30,6 +32,7 @@ export default function ReadoutArticleCard({
         : <div className="er-source-headline"><span className="er-source">{source}</span><h3 className="er-source-title">{title}</h3></div>}
       {date}
       {children}
+      {footer}
     </article>
   );
 }

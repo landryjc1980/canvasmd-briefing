@@ -36,13 +36,13 @@ export default function ReadoutVoice({
   const availableThreadCount = thread.length + 1;
   return (
     <div className={`er-voice ${extra ? "er-voice-more" : ""}`}>
-      <div className="er-who">
+      <div className="er-who" aria-hidden="true">
         {post.avatar
           ? <img src={post.avatar} alt="" loading="lazy" decoding="async" />
-          : <span className="er-av" aria-hidden="true">{initials(post.name)}</span>}
-        <div><b>{post.name}</b></div>
+          : <span className="er-av">{initials(post.name)}</span>}
       </div>
-      <p className="er-quote">{expanded || threadOpen ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
+      <div className="er-voice-body">
+        <p className="er-quote"><b className="er-quote-name">{post.name}</b> · {expanded || threadOpen ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
       {threadOpen && thread.map((part, index) => (
         <div className="er-thread-part" key={part.id || `thread:${index}`}>
           <p>{part.text}</p>
@@ -55,6 +55,7 @@ export default function ReadoutVoice({
         </button>
       )}
       {post.tweetUrl && <a className="er-xlink" href={post.tweetUrl} target="_blank" rel="noreferrer">View on X</a>}
+      </div>
     </div>
   );
 }

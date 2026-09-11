@@ -453,9 +453,6 @@ function Disclose({ open, label, onToggle }: { open: boolean; label: string; onT
   return (
     <button className="er-disclose" type="button" aria-expanded={open} onClick={onToggle}>
       <span>{open ? "Show less" : label}</span>
-      <svg className="er-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
     </button>
   );
 }
@@ -527,19 +524,29 @@ function ArticleDevelopment({
   return (
     <ReadoutArticleCard
       articleRef={cardRef}
-      className={`${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}
+      className={`has-kicker-source is-collapsible ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}
       href={href}
       source={item.journal}
       title={displayReadoutTitle(article?.title || item.title)}
       compact={compact}
-      beforeSource={<div className="er-kicker">{editorialScopeLabel(item)}{item.studySetting === "preclinical" ? " · PRECLINICAL" : ""}{numbered ? "" : ` · ${contentType}`}</div>}
-      date={!isResearch ? (
-        <p className="er-action-date">Action date: {actionDate
-          ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
-          : "Unavailable"}</p>
-      ) : isResearch && publishedDate ? (
-        <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
-      ) : undefined}
+      beforeSource={
+        <div className="er-kicker-row">
+          <div className="er-kicker">{editorialScopeLabel(item)}{item.studySetting === "preclinical" ? " · PRECLINICAL" : ""}{numbered ? "" : ` · ${contentType}`}</div>
+          <span className="er-kicker-source">{item.journal}</span>
+        </div>
+      }
+      footer={
+        <div className="er-foot">
+          {!isResearch ? (
+            <p className="er-action-date">Action date: {actionDate
+              ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
+              : "Unavailable"}</p>
+          ) : publishedDate ? (
+            <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
+          ) : <span />}
+          {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
+        </div>
+      }
     >
       <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
@@ -548,7 +555,6 @@ function ArticleDevelopment({
         ? <PeerRow article={article} sharedBy={sharedBy} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
-      {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
     </ReadoutArticleCard>
   );
 }

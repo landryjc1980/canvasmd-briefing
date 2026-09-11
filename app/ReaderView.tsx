@@ -1219,7 +1219,7 @@ export default function ReaderView({ data: rawData, area, areas, onArea, seen, c
                   </div>
                   {/* Description is a 2-line teaser when closed (sans = the "gloss", not the field's
                       own words), and unclamps to the full text on expand. */}
-                  {s.description && <p style={{ margin: "11px 0 0", font: "400 14px/1.55 system-ui", color: "var(--rv-muted, #aab0bf)", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
+                  {s.description && <p style={{ margin: "10px 0 0", font: "400 15px/1.5 system-ui", color: "var(--rv-muted, #aab0bf)", ...(open ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>{s.description}</p>}
                   {/* Facts-forward: who + how many + where. The stance ("favorable") does NOT live
                       here — it only appears in the drawer, next to its receipts. */}
                   <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
