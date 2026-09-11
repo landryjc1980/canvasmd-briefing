@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { ARCHIVED_LISTEN_MEDIA, FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialScopeLabel, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { ARCHIVED_LISTEN_MEDIA, FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialBelongsToArea, editorialScopeLabel, editorialStoryAreas, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
@@ -700,17 +700,56 @@ test("card kickers pair specialty with one reliable tumor focus", () => {
   assert.equal(readoutFocusLabel(["nsclc"]), "NSCLC");
   assert.equal(readoutFocusLabel(["kidney", "bladder"]), null,
     "a multi-focus story keeps the broader specialty label");
-  assert.equal(editorialScopeLabel({ area: "GU", site: "Kidney" }), "GU · Kidney");
+  assert.equal(editorialScopeLabel({ area: "GU", site: "Kidney" }), "GU");
   assert.equal(editorialScopeLabel({
     area: "GU",
     site: "GU",
     title: "Panitumumab-Based EGFR Blockade in SMARCB1-Deficient Renal Medullary Carcinoma",
-  }), "GU · Kidney", "a current frozen card can recover its focus from the same deterministic taxonomy");
-  assert.equal(editorialScopeLabel({ area: "Heme", site: "Myeloma" }), "Heme · Myeloma");
-  assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Adjuvant nivolumab in melanoma" }), "Skin · Melanoma");
+  }), "GU", "a title cannot manufacture a kidney focus");
+  assert.equal(editorialScopeLabel({ area: "Heme", site: "Myeloma" }), "Heme");
+  assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Adjuvant nivolumab in melanoma" }), "Skin");
   assert.equal(editorialScopeLabel({ area: "Skin", site: "Skin", title: "Non-melanoma skin cancer incidence" }), "Skin");
-  assert.equal(editorialScopeLabel({ area: "All", site: "GI" }), "GI");
-  assert.equal(editorialScopeLabel({ area: "All", site: "GI", title: "Metastatic pancreatic cancer" }), "GI · Pancreatic");
+  assert.equal(editorialScopeLabel({ area: "All", site: "GI" }), "Oncology");
+  assert.equal(editorialScopeLabel({ area: "All", site: "GI", title: "Metastatic pancreatic cancer" }), "Oncology");
+  assert.equal(editorialScopeLabel({ area: "GU", areas: ["GU"], subAreas: ["kidney"], site: "Oncology" }), "GU · Kidney");
+});
+
+test("explicit story areas drive every specialty lens without text inference", () => {
+  const nection4 = { id: "breaking:2230ae59-4ab3-42ba-bbcc-d99d1a383253", area: "All", areas: ["GU"], title: "NECTIN4 urothelial carcinoma" };
+  const camizestrant = { id: "regulatory:fded311c-201a-48a0-b000-90f075a5dc08", area: "All", areas: ["Breast"], title: "FDA grants accelerated approval to camizestrant" };
+  const multiArea = { id: "multi", area: "All", areas: ["GU", "Breast"], title: "Shared trial" };
+  const general = { id: "general", area: "All", areas: [], title: "Kidney cancer mentioned in an oncology-wide methods paper" };
+  const legacy = { id: "legacy", area: "GU", title: "Legacy bladder item" };
+
+  assert.deepEqual(editorialStoryAreas(nection4), ["GU"]);
+  assert.equal(editorialBelongsToArea(nection4, "GU"), true);
+  assert.equal(editorialBelongsToArea(nection4, "Breast"), false);
+  assert.equal(editorialBelongsToArea(camizestrant, "Breast"), true);
+  assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, legacy], "All").map((item) => item.id), [nection4.id, camizestrant.id, multiArea.id, general.id, legacy.id]);
+  assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, legacy], "GU").map((item) => item.id), [nection4.id, multiArea.id, legacy.id]);
+  assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, legacy], "Breast").map((item) => item.id), [camizestrant.id, multiArea.id]);
+  assert.equal(editorialBelongsToArea(general, "GU"), false, "an explicit empty array is All-only despite a kidney title");
+  assert.deepEqual(editorialStoryAreas(legacy), ["GU"], "a legacy scalar remains a narrow compatibility fallback");
+  assert.equal(editorialScopeLabel({ ...general, site: "GU", subAreas: [] }), "Oncology", "labels use explicit membership, not title or site text");
+});
+
+test("canonical Today and seven-day projections preserve explicit specialty membership", () => {
+  const nection4 = { id: "breaking:2230ae59-4ab3-42ba-bbcc-d99d1a383253", area: "All", areas: ["GU"], title: "NECTIN4" };
+  const camizestrant = { id: "regulatory:fded311c-201a-48a0-b000-90f075a5dc08", area: "All", areas: ["Breast"], title: "camizestrant" };
+  const canonical = {
+    schemaVersion: 2,
+    editionDate: "2026-09-11",
+    generatedAt: "2026-09-11T12:00:00.000Z",
+    area: "All",
+    developments: [{ development: nection4, episode: null, position: 0 }],
+    relevant: [{ article: camizestrant, position: 0 }],
+    listen: [],
+    regulatoryCards: [],
+    designationCards: [],
+  };
+  assert.deepEqual(readoutEditionForArea(canonical, "GU")?.developments.map((entry) => entry.development.id), [nection4.id]);
+  assert.deepEqual(readoutEditionForArea(canonical, "Breast")?.developments.map((entry) => entry.development.id), [camizestrant.id]);
+  assert.deepEqual(readoutEditionForArea(canonical, "Lung")?.developments, []);
 });
 
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {
@@ -905,7 +944,8 @@ test("All can carry oncology-wide developments without leaking them into special
   assert.deepEqual(visibleForArea(items, "Lung").map((item) => item.id), ["lung-paper"]);
   assert.deepEqual(visibleForArea(items, "GU").map((item) => item.id), []);
   assert.match(edition, /type EditorialArea = SpecialtyArea \| "All"/);
-  assert.match(edition, /area: EditorialArea/);
+  assert.match(edition, /areas\?: SpecialtyArea\[\]/);
+  assert.match(edition, /editorialBelongsToArea\(item, area\)/);
 });
 
 test("a transcript-supported episode can lead a specialty without duplicating Listen", () => {

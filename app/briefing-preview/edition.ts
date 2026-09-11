@@ -1,4 +1,5 @@
 import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutArchivedCardSummary, ReadoutBreakingCandidate, ReadoutRegulatoryCandidate } from "@/lib/types";
+import { editorialBelongsToArea, editorialStoryAreas, isSpecialtyArea } from "./storyMembership.js";
 
 export const EDITION_AREAS = ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"] as const;
 export type EditionArea = (typeof EDITION_AREAS)[number];
@@ -8,7 +9,11 @@ export type EditorialArea = SpecialtyArea | "All";
 export type EditorialArticle = {
   publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
   id: string;
+  /** Explicit specialty routing. When present, including [], it overrides legacy area. */
+  areas?: SpecialtyArea[];
   area: EditorialArea;
+  /** Source-backed within-specialty focus only; never inferred for rendering. */
+  subAreas?: string[];
   site: string;
   nickname: string;
   takeaway: string;
@@ -33,7 +38,9 @@ export type EditorialArticle = {
 
 export type EditorialEpisode = {
   id: string;
+  areas?: SpecialtyArea[];
   area: EditorialArea;
+  subAreas?: string[];
   hook: string;
   show: string;
   title: string;
@@ -55,6 +62,13 @@ export type EditorialEpisodeFeature = EditorialEpisode & {
 };
 
 export type EditorialDevelopment = EditorialArticle | EditorialEpisodeFeature;
+
+type EditorialMembership = { area: EditorialArea; areas?: unknown };
+export { editorialBelongsToArea, editorialStoryAreas };
+
+function isEditorialSpecialtyArea(value: unknown): value is SpecialtyArea {
+  return isSpecialtyArea(value);
+}
 
 const READOUT_FOCUS_LABELS: Record<string, string> = {
   bladder: "Bladder",
@@ -93,76 +107,15 @@ const READOUT_FOCUS_LABELS: Record<string, string> = {
   merkel: "Merkel cell",
 };
 
-const READOUT_FOCUS_PATTERNS: Partial<Record<EditorialArea, Record<string, RegExp>>> = {
-  GU: {
-    bladder: /\b(bladder|urotheli\w*|MIBC|NMIBC|UTUC)\b/i,
-    kidney: /(renal (?:cell|medullary)|RCC\b|kidney|clear[- ]cell renal|papillary renal|belzutifan|LITESPARK)/i,
-    prostate: /\b(prostat\w*|m?CRPC|m?HSPC|m?CSPC|castration[- ](?:resistant|sensitive)|PSA)\b/i,
-    testicular: /\b(testicular|germ[- ]cell|seminoma)\b/i,
-  },
-  Gyn: {
-    endometrial: /\b(endometri\w*|uterine)\b/i,
-    ovarian: /\b(ovarian|fallopian|primary peritoneal)\b/i,
-    cervical: /\bcervic\w*\b/i,
-    vulvar: /\b(vulvar|vaginal)\b/i,
-  },
-  Heme: {
-    myeloma: /\b(myeloma|plasma[- ]cell|MGUS|smoldering|amyloidosis|AL amyloid)\b/i,
-    lymphoma: /\b(lymphoma|DLBCL|follicular|Hodgkin|mantle[- ]cell|marginal[- ]zone|Burkitt|Waldenstr\w*)\b/i,
-    leukemia: /\b(leukemi\w*|AML|CLL|CML|acute myeloid|chronic lymphocytic|acute lymphoblastic|hairy[- ]cell)\b/i,
-    mds: /\b(MDS|myelodysplas\w*)\b/i,
-    mpn: /\b(myelofibrosis|MPN|polycythemia|essential thrombocythemia|myeloproliferative)\b/i,
-    bpdcn: /\b(BPDCN|blastic plasmacytoid)\b/i,
-    clonal_hematopoiesis: /\b(clonal h(?:a)?ematopoiesis|CHIP|CCUS)\b/i,
-  },
-  GI: {
-    colorectal: /\b(colorectal|m?CRC|colon cancer|rectal)\b/i,
-    gastric: /\b(gastric|GEJ|stomach|gastroesophageal)\b/i,
-    pancreatic: /\b(pancrea\w*|PDAC)\b/i,
-    biliary: /\b(biliary|cholangio\w*|BTC|gallbladder|bile[- ]duct)\b/i,
-    hcc: /\b(hepatocellular|HCC|liver cancer)\b/i,
-    esophageal: /\b(esophag\w*|oesophag\w*)\b/i,
-    net: /\b(neuroendocrine|NET|GIST)\b/i,
-  },
-  Skin: {
-    melanoma: /(?<!non[-\u2013\u2014 ])\bmelanoma\b|\b(melanocytic|lentigo maligna|uveal melanoma)\b/i,
-    cscc: /\b(cutaneous squamous cell|cSCC|squamous cell carcinoma of the skin|keratinocyte carcinoma)\b/i,
-    bcc: /\b(basal cell carcinoma|BCC|vismodegib|sonidegib|hedgehog inhibitor)\b/i,
-    merkel: /\b(merkel|MCC)\b/i,
-  },
-  Lung: {
-    nsclc: /\b(NSCLC|non[-\u2013\u2014 ]small[-\u2013\u2014 ]cell(?: lung)?)\b/i,
-    sclc: /\bSCLC\b|(?<!non[-\u2013\u2014 ])\bsmall[-\u2013\u2014 ]cell lung\b/i,
-    pulmonary_net: /\b(pulmonary carcinoid|bronchial carcinoid|lung neuroendocrine|thoracic neuroendocrine|LCNEC)\b/i,
-  },
-};
-
 export function readoutFocusLabel(subAreas: string[] | null | undefined): string | null {
   const labels = [...new Set((subAreas ?? []).map((key) => READOUT_FOCUS_LABELS[key]).filter(Boolean))];
   return labels.length === 1 ? labels[0] : null;
 }
 
-function inferredReadoutFocus(area: EditorialArea, text: string): string | null {
-  const patterns = READOUT_FOCUS_PATTERNS[area];
-  if (!patterns || !text) return null;
-  const labels = Object.entries(patterns)
-    .filter(([, pattern]) => pattern.test(text))
-    .map(([key]) => READOUT_FOCUS_LABELS[key]);
-  return labels.length === 1 ? labels[0] : null;
-}
-
-export function editorialScopeLabel(item: { area: EditorialArea; site: string; title?: string; finding?: string }): string {
-  let site = item.site.trim();
-  const text = [item.title, item.finding].filter(Boolean).join(" ");
-  if (item.area === "All") {
-    const focus = inferredReadoutFocus(site as EditorialArea, text);
-    return focus ? `${site} · ${focus}` : site || "Oncology";
-  }
-  if (!site || site === item.area || site === "Oncology") {
-    site = inferredReadoutFocus(item.area, text) ?? site;
-  }
-  if (!site || site === item.area || site === "Oncology") return item.area;
-  return site.startsWith(`${item.area} · `) ? site : `${item.area} · ${site}`;
+export function editorialScopeLabel(item: EditorialMembership & { subAreas?: string[] }): string {
+  const area = editorialStoryAreas(item)[0] ?? "Oncology";
+  const focus = readoutFocusLabel(item.subAreas);
+  return focus ? `${area} · ${focus}` : area;
 }
 
 const LISTEN_HOLD_HOURS = 72;
@@ -568,7 +521,7 @@ export function regulatoryWatchArticles(
     (item as { kind?: string }).kind !== "episode");
   return candidates
     .filter((candidate) => area === "All" || candidate.areas.includes(area))
-    .map((candidate) => regulatoryEditorialArticle(candidate, area))
+    .map(regulatoryEditorialArticle)
     .filter((candidate, index, all) =>
       !publishedArticles.some((existing) => sameEditorialArticle(candidate, existing)) &&
       !all.slice(0, index).some((existing) => sameEditorialArticle(candidate, existing)));
@@ -622,6 +575,10 @@ export function cleanReadoutExcerpt(value: string): string {
 
 export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArchivedCardSummary): EditorialArticle {
   const card = item.card;
+  const cardHasAreas = Object.prototype.hasOwnProperty.call(card, "areas");
+  const cardAreas: SpecialtyArea[] = cardHasAreas && Array.isArray((card as { areas?: unknown }).areas)
+    ? (card as { areas?: unknown[] }).areas!.filter(isEditorialSpecialtyArea)
+    : [];
   const clinicianRank = card.rankTrace?.find((entry) => entry.input === "clinicianSharers")?.value ?? 0;
   const supportLinks = card.support?.links ?? [];
   const articleIds = supportLinks
@@ -643,7 +600,11 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   return {
     id: `archive-${card.id}`,
     publicationClass: card.publicationClass,
-    area: item.area as EditorialArea,
+    // Archive routing was selected upstream. Persisted explicit membership wins;
+    // otherwise preserve the old selected-area scalar as a compatibility fallback.
+    ...(cardHasAreas ? { areas: cardAreas } : {}),
+    area: (cardHasAreas ? cardAreas[0] ?? "All" : item.area) as EditorialArea,
+    subAreas: card.subAreas,
     site,
     nickname: card.kind === "event" ? "REGULATORY" : "",
     takeaway: card.headline,
@@ -679,7 +640,7 @@ export function findArchivedEditorialSource(item: EditorialArticle, cards: Array
   }) ?? null;
 }
 
-export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate, area: EditionArea): EditorialArticle {
+export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate): EditorialArticle {
   const primaryStudy = candidate.primaryStudy;
   const studyUrl = validHttpUrl(primaryStudy?.url);
   const sourceExcerpt = candidate.sourceExcerpt?.trim() || undefined;
@@ -714,7 +675,8 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
       : "This is an FDA safety update; review the source before changing care.";
   return {
     id: candidate.id,
-    area,
+    areas: candidate.areas.filter(isEditorialSpecialtyArea),
+    area: candidate.areas.find(isEditorialSpecialtyArea) ?? "All",
     site: candidate.areas[0] ?? "Oncology",
     nickname: candidate.eligibleLabel,
     takeaway: candidate.headline,
@@ -739,11 +701,12 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
   };
 }
 
-export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate, area: EditionArea): EditorialArticle {
+export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate): EditorialArticle {
   return {
     id: candidate.id,
     publicationClass: candidate.publicationClass ?? "unknown",
-    area,
+    areas: candidate.areas.filter(isEditorialSpecialtyArea),
+    area: candidate.areas.find(isEditorialSpecialtyArea) ?? "All",
     site: candidate.areas[0] ?? "Oncology",
     nickname: "BREAKING",
     takeaway: candidate.headline,
@@ -872,7 +835,9 @@ function heldEpisodesForArea(
 function heldEpisodeFromBriefEpisode(episode: BriefingEpisode, area: EditorialArea): EditorialEpisode {
   return {
     id: episode.episodeId ?? `held-${slug([area, episode.show, episode.title].filter(Boolean).join("-"))}`,
+    areas: isEditorialSpecialtyArea(area) ? [area] : [],
     area,
+    subAreas: episode.subAreas,
     hook: episode.title,
     show: episode.show ?? "Podcast",
     title: episode.title,
@@ -937,6 +902,6 @@ function slug(value: string) {
   return norm(value).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-export function visibleForArea<T extends { area: EditorialArea }>(items: T[], area: EditionArea) {
-  return area === "All" ? items : items.filter((item) => item.area === area);
+export function visibleForArea<T extends EditorialMembership>(items: T[], area: EditionArea) {
+  return items.filter((item) => editorialBelongsToArea(item, area));
 }

@@ -1,4 +1,5 @@
 import type { ReadoutEditionSnapshot } from "./editionSnapshot";
+import { editorialBelongsToArea } from "./storyMembership.js";
 
 type SnapshotDevelopment = ReadoutEditionSnapshot["developments"][number]["development"];
 type SnapshotArticle = ReadoutEditionSnapshot["relevant"][number]["article"];
@@ -91,9 +92,9 @@ export function readoutEditionForArea(
   if (area === "All") return all;
 
   const matchingDevelopments = all.developments
-    .filter((entry) => entry.development.area === area);
+    .filter((entry) => editorialBelongsToArea(entry.development, area));
   const matchingRelevant = all.relevant
-    .filter((entry) => entry.article.area === area)
+    .filter((entry) => editorialBelongsToArea(entry.article, area))
     .filter((entry) => !matchingDevelopments.some((existing) =>
       !("kind" in existing.development) && sameSnapshotArticle(existing.development, entry.article)));
   const allMatching = [

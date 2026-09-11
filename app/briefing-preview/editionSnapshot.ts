@@ -111,16 +111,16 @@ export function isPreprintEditorialArticle(item: EditorialArticle): boolean {
     /doi\.org\/10\.(?:1101|64898)\//.test(source);
 }
 
-export function liveInsertionDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
+export function liveInsertionDevelopments(payload: ReadoutWindowPayload): EditorialArticle[] {
   return uniqueDevelopments([
-    ...(payload.regulatoryCards ?? []).map((candidate) => regulatoryEditorialArticle(candidate, area)),
-    ...(payload.breakingCards ?? []).map((candidate) => breakingEditorialArticle(candidate, area)),
+    ...(payload.regulatoryCards ?? []).map(regulatoryEditorialArticle),
+    ...(payload.breakingCards ?? []).map(breakingEditorialArticle),
   ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item) && !isPreprintEditorialArticle(item));
 }
 
-function liveRankedDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
+function liveRankedDevelopments(payload: ReadoutWindowPayload): EditorialArticle[] {
   return uniqueDevelopments([
-    ...liveInsertionDevelopments(payload, area),
+    ...liveInsertionDevelopments(payload),
     ...(payload.cards ?? []).map(archivedEditorialArticle),
   ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item));
 }
@@ -170,7 +170,7 @@ export function buildReadoutEditionSnapshot(
   previousEditions: ReadoutEditionSnapshot[] = [],
   editionDate = activeReadoutEditionDate(now),
 ): ReadoutEditionSnapshot {
-  const ranked = liveRankedDevelopments(payload, area)
+  const ranked = liveRankedDevelopments(payload)
     .filter((item) => !appearedInMorningEdition(item, previousEditions));
   // Publication class labels the source; it does not veto an otherwise qualified article.
   // Preprints retain their existing non-lead safety rule.
@@ -231,7 +231,7 @@ export function mergeReadoutEditionSnapshot(
 ): ReadoutEditionSnapshot {
   const existingDevelopments = snapshot.developments.map((entry) => entry.development);
   const existingRelevant = snapshot.relevant.map((entry) => entry.article);
-  const additions = liveInsertionDevelopments(payload, snapshot.area).filter((candidate) =>
+  const additions = liveInsertionDevelopments(payload).filter((candidate) =>
     !appearedInAnyEarlierEdition(candidate, previousEditions) &&
     !existingDevelopments.some((existing) => !("kind" in existing) && sameArticleDevelopment(candidate, existing)) &&
     !existingRelevant.some((existing) => sameArticleDevelopment(candidate, existing)));
