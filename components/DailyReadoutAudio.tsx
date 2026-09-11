@@ -64,7 +64,8 @@ export function MorningsAudioCard({ edition, editions, onEditionChange, expected
   const [position, setPosition] = useState(0);
   const [listenOpen, setListenOpen] = useState(false);
   const chapters = morningsPlayableChapters(edition.chapters);
-  const visibleChapters = chapters.filter((chapter) => chapter.depth !== 1 || listenOpen);
+  const hasListenParent = chapters.some((chapter) => chapter.source === "Listen" && chapter.depth !== 1);
+  const visibleChapters = chapters.filter((chapter) => chapter.depth !== 1 || !hasListenParent || listenOpen);
   const activeChapter = [...chapters].reverse().find((chapter) => position >= chapter.startSeconds) ?? chapters[0];
   const reflectsEarlierUpdate = audioReflectsEarlierUpdate(expectedVersion, edition.selection_version);
   const title = `Oncology Mornings — ${morningsEditionDate(edition.edition_date)}`;
@@ -95,7 +96,7 @@ export function MorningsAudioCard({ edition, editions, onEditionChange, expected
         <p className="er-daily-audio-summary">{morningsProducerSummary(edition)}</p>
         {edition.source_generated_at && <p className="er-audio-asof">Recorded edition as of {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" }).format(new Date(edition.source_generated_at))}. Later updates may appear below.</p>}
         <ol>{visibleChapters.map((chapter, index) => {
-          const isListen = chapter.source === "Listen" && chapter.depth !== 1 && chapters.some((item) => item.depth === 1);
+          const isListen = chapter.source === "Listen" && chapter.depth !== 1 && hasListenParent;
           const chapterTime = `${Math.floor(chapter.startSeconds / 60)}:${String(Math.floor(chapter.startSeconds % 60)).padStart(2, "0")}`;
           const isCurrent = activeChapter === chapter;
           return <li key={`${chapter.startSeconds}-${index}`} className={`${chapter.depth ? "is-subchapter" : ""}${isCurrent ? " is-current" : ""}`}>

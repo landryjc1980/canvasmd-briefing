@@ -26,6 +26,7 @@ export function morningsProducerSummary(audio: Pick<ReadoutAudioEdition, "chapte
 export function morningsPlayableChapters(chapters: ReadoutAudioChapter[]): ReadoutAudioChapter[] {
   const hasRegulatory = morningsHasRegulatoryCoverage(chapters);
   return chapters.filter((chapter) => {
+    if (chapter.headline === "Next" && chapter.summary === "A new story.") return false;
     const headline = normalizedText(chapter.headline);
     if (/^sources?(?: and| &) receipts?$/.test(headline)) return false;
     return headline !== "regulatory watch" || !(isEmptyRegulatoryWatch(chapter.summary) || isRegulatoryRecapPointer(chapter.summary));

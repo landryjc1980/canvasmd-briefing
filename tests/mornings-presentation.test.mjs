@@ -25,6 +25,7 @@ const { MorningsAudioCard } = module.exports;
 const intro = { headline: "Today’s briefing", summary: "0 papers · 4 podcast episodes · Regulatory Watch", startSeconds: 0 };
 const listen = { headline: "4 new episodes", source: "Listen", startSeconds: 12 };
 const topic = { headline: "Recorded source episode title", source: "Podcast", summary: "Original producer topic description.", startSeconds: 15, depth: 1 };
+const authoredPodcastSegment = { headline: "Practice-changing podcast discussion", source: "Podcast", summary: "An authored segment with source-grounded claims.", startSeconds: 21, depth: 1 };
 const emptyReg = { headline: "Regulatory Watch", summary: "No new actions in this edition.", startSeconds: 140 };
 const receipts = { headline: "Sources and receipts", summary: "See the written edition.", startSeconds: 150 };
 const edition = {
@@ -45,6 +46,19 @@ test("web Mornings removes only empty scaffolding and preserves source timestamp
   assert.equal(chapters[2], topic);
   assert.equal(chapters[0].summary, "0 papers · 4 podcast episodes");
   assert.equal(JSON.stringify(edition), before);
+});
+
+test("only exact structural transition rows are removed from authored chapters", () => {
+  const transition = { headline: "Next", summary: "A new story.", startSeconds: 5 };
+  const meaningfulNext = { headline: "Next", summary: "A new story with a source-grounded clinical claim.", startSeconds: 6 };
+  const omissionNotice = { headline: "Omissions", summary: "No episode claim was added without a verified source.", startSeconds: 7 };
+  const closing = { headline: "Closing", summary: "Read the written edition for links and source context.", startSeconds: 8 };
+  const chapters = morningsPlayableChapters([transition, meaningfulNext, authoredPodcastSegment, omissionNotice, closing]);
+  assert.deepEqual(chapters.map((chapter) => chapter.startSeconds), [6, 21, 7, 8]);
+  assert.equal(chapters[0], meaningfulNext);
+  assert.equal(chapters[1], authoredPodcastSegment);
+  assert.equal(chapters[2], omissionNotice);
+  assert.equal(chapters[3], closing);
 });
 
 test("Mornings descriptions omit false regulatory promises but retain written-only disclosure", () => {
@@ -87,6 +101,12 @@ test("card starts chapters collapsed with nested Listen disclosure and retains p
   assert.match(html, /Recorded edition as of/);
   assert.match(html, /Written-only items remain in the Readout/);
   assert.doesNotMatch(html, /Recorded source episode title/);
+});
+
+test("authored depth-one podcast chapters remain visible without a Listen parent", () => {
+  const html = render({ chapters: [intro, authoredPodcastSegment] });
+  assert.match(html, /Practice-changing podcast discussion/);
+  assert.doesNotMatch(html, /Expand Listen episodes/);
 });
 
 test("revision mismatch stays visible outside the collapsed chapters", () => {
