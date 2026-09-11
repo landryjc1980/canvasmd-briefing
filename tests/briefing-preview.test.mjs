@@ -119,9 +119,10 @@ test("a midday insertion preserves every existing card while fresh evidence stay
   assert.match(editionSnapshot, /const additions = liveInsertionDevelopments\(payload, snapshot\.area\)\.filter/);
   assert.match(editionSnapshot, /!existingDevelopments\.some/,
     "a candidate already frozen into the edition is never regenerated");
-  assert.match(editionSnapshot, /const combined = uniqueDevelopments\(\[\.\.\.additions, \.\.\.existingDevelopments\]\)/,
-    "new qualifying developments are inserted ahead of unchanged saved card objects");
-  assert.match(editionSnapshot, /snapshot\.developments\.find\(\(entry\) => sameEditorialDevelopment\(entry\.development, development\)\)\?\.episode \?\? null/);
+  assert.match(editionSnapshot, /uniqueRelevant\(\[\.\.\.existingRelevant, \.\.\.additions\], existingDevelopments\)/,
+    "new qualifying developments are appended to the labeled remainder");
+  assert.match(editionSnapshot, /developments: snapshot\.developments/,
+    "morning positions and attached episodes stay unchanged");
   assert.doesNotMatch(editionSnapshot, /overlay.*development|development.*overlay/i,
     "live evidence is never copied into frozen editorial card content");
   assert.match(editionSnapshot, /!appearedInAnyEarlierEdition\(candidate, previousEditions\)/,
@@ -484,8 +485,8 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(preview, /visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v22"/);
-  assert.match(readoutServer, /readout-window:finished:v5:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v23"/);
+  assert.match(readoutServer, /readout-window:finished:v6:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
   assert.doesNotMatch(readoutServer, /fetchFinishedReadoutWindow/,
     "durable-edition validation runs outside the framework data cache on every reader request");
@@ -494,7 +495,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "the scheduled warmer writes all finished views before readers request them");
   assert.doesNotMatch(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
     "published comments remain available to guests in the bounded saved edition");
-  assert.match(readoutServer, /readout-window:v4:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /readout-window:v5:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /resolveReadoutTodayEdition\(area, today, fallbackAreaHistory\)/,
     "a stale rollover builds against the seven-day durable history instead of replaying yesterday's papers");

@@ -143,7 +143,7 @@ test("the duplicate upstream BRCA hyphen is repaired only for display", () => {
 test("written Today uses the saved Listen selection and visible regulatory events", () => {
   assert.match(renderer, /sevenDayEditionListen\(\[todayEdition\], currentWorth\)/);
   assert.doesNotMatch(renderer, /listenForArea/);
-  assert.match(renderer, /const publishedDevelopments = \[\.\.\.worth, \.\.\.relevant, \.\.\.moreFromSevenDays\]/);
+  assert.match(renderer, /const publishedDevelopments = \[\.\.\.worth, \.\.\.addedSinceMorning, \.\.\.relevant, \.\.\.moreFromSevenDays\]/);
   assert.match(renderer, /readoutRegulatoryCoverage\(publishedDevelopments, renderedDevelopments\)/);
   assert.match(renderer, /alsoOpen \? relevant : relevant\.slice\(0, 1\)/);
   assert.match(renderer, /moreOpen \? moreFromSevenDays : \[\]/);

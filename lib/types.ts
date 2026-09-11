@@ -652,7 +652,14 @@ export type BriefingEvidenceSharer = {
 export type BriefingEvidenceOverlayItem = {
   id: string;
   articleIds?: string[];
-  windowClinicianCount: number; // person-deduped activity used only for Today/7-day eligibility
+  windowClinicianCount: number;
+  // Only an explicit start proves an edition-scoped count. Older/rolling overlays lack it.
+  windowStartAt?: string | null;
+  windowAsOf?: string;
+  windowFaces?: string[];
+  windowPosts?: BriefingSharer[];
+  windowSharerPeople?: BriefingEvidenceSharer[];
+  windowAuthoredClinicianCount?: number;
   kolSharers: number;
   faces: string[];
   posts: BriefingSharer[];
@@ -764,6 +771,12 @@ export type ReadoutDesignationCandidate = {
 export type ReadoutWindowPayload = {
   generatedAt: string;
   windowDays: 1 | 7;
+  attentionWindow?: {
+    startAt: string;
+    editionDate: string;
+    timeZone: "America/New_York";
+    kind: "edition" | "seven-day";
+  } | null;
   area: string;
   cards: ReadoutArchivedCardSummary[];
   moreCards?: ReadoutArchivedCardSummary[];

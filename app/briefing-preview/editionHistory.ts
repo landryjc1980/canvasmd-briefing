@@ -107,7 +107,10 @@ export function readoutEditionForArea(
   const relevant = allMatching.slice(5)
     .flatMap((entry) => "kind" in entry.development ? [] : [{ article: entry.development, position: 0 }])
     .map((entry, position) => ({ ...entry, position }));
-  const includedIds = new Set(developments.map((entry) => entry.development.id));
+  const includedIds = new Set([
+    ...developments.map((entry) => entry.development.id),
+    ...relevant.map((entry) => entry.article.id),
+  ]);
 
   return {
     ...all,
