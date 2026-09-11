@@ -48,9 +48,22 @@ function publisherCommentText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function publisherCommentUrl(value: unknown): string | null {
+function publisherCommentExternalUrl(value: unknown): string | null {
   const url = publisherCommentText(value);
   return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+function publisherCommentReceipt(value: unknown, handle: string): string | null {
+  const raw = publisherCommentText(value);
+  if (!raw || !handle) return null;
+  try {
+    const url = new URL(raw);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    const path = url.pathname.split("/").filter(Boolean);
+    const expectedHandle = handle.replace(/^@/, "").toLowerCase();
+    if (url.protocol !== "https:" || !["x.com", "twitter.com"].includes(hostname) || path.length !== 3 || path[1] !== "status" || !/^\d+$/.test(path[2]) || path[0].toLowerCase() !== expectedHandle) return null;
+    return url.toString();
+  } catch { return null; }
 }
 
 /** Fails closed: a publisher caption must retain its source receipt and authored text. */
@@ -62,16 +75,17 @@ export function parseConferencePublisherComments(value: unknown): ConferencePubl
     const comment = item as Record<string, unknown>;
     const sourceId = publisherCommentText(comment.sourceId);
     const name = publisherCommentText(comment.name);
+    const handle = publisherCommentText(comment.handle);
     const text = publisherCommentText(comment.text);
-    const postUrl = publisherCommentUrl(comment.postUrl);
+    const postUrl = publisherCommentReceipt(comment.postUrl, handle ?? "");
     const postedAt = publisherCommentText(comment.postedAt);
-    if (!sourceId || !name || !text || !postUrl || !postedAt || seen.has(postUrl)) return [];
+    if (!sourceId || !name || !handle || !text || !postUrl || !postedAt || !Number.isFinite(Date.parse(postedAt)) || seen.has(postUrl)) return [];
     seen.add(postUrl);
     return [{
       sourceId,
       name,
-      handle: publisherCommentText(comment.handle) ?? "",
-      avatarUrl: publisherCommentUrl(comment.avatarUrl),
+      handle,
+      avatarUrl: publisherCommentExternalUrl(comment.avatarUrl),
       text,
       postUrl,
       postedAt,

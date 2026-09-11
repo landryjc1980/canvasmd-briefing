@@ -7,6 +7,7 @@ import ReadoutArticleCard from "@/components/ReadoutArticleCard";
 import ReadoutVoice, { type ReadoutVoicePost } from "@/components/ReadoutVoice";
 import type { ConferenceClinicianShare, ConferencePublisherComment, ConferenceWindowPayload } from "@/lib/conference";
 import { conferenceDateRange, conferenceStatusLabel, parseConferencePublisherComments, publicationDateLabel } from "@/lib/conference";
+import { cleanClinicianText } from "@/app/briefing-preview/edition";
 
 type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[]; publisherComments: ConferencePublisherComment[] };
 
@@ -125,12 +126,18 @@ function ClinicianReceipts({ shares }: { shares: ConferenceClinicianShare[] }) {
 
 function PublisherComments({ comments }: { comments: ConferencePublisherComment[] }) {
   const [expanded, setExpanded] = useState(false);
-  if (!comments.length) return null;
-  const lead = comments[0];
+  // Publishers use the same stored-X cleanup as clinician comments, so receipt
+  // artifacts never determine the visible preview or disclosure state.
+  const cleanComments = comments.flatMap((comment) => {
+    const text = cleanClinicianText(comment.text);
+    return text ? [{ ...comment, text }] : [];
+  });
+  if (!cleanComments.length) return null;
+  const lead = cleanComments[0];
   const leadIsLong = lead.text.length > 220;
-  const remaining = comments.slice(1);
+  const remaining = cleanComments.slice(1);
   const needsDisclosure = leadIsLong || remaining.length > 0;
-  const visible = expanded ? comments : [lead];
+  const visible = expanded ? cleanComments : [lead];
   return <div className="er-convo conference-publisher-comments" aria-label="Publisher comments on X">
     <p className="er-voices-label">Publisher comments on X</p>
     {visible.map((comment, index) => {
@@ -140,7 +147,7 @@ function PublisherComments({ comments }: { comments: ConferencePublisherComment[
         tweetUrl: comment.postUrl,
         text: comment.text,
       };
-      return <ReadoutVoice key={`${comment.sourceId}:${comment.postUrl}`} post={post} extra={index > 0} expanded={expanded} cleanText={(value) => value?.trim() ?? ""} />;
+      return <ReadoutVoice key={`${comment.sourceId}:${comment.postUrl}`} post={post} extra={index > 0} expanded={expanded} cleanText={cleanClinicianText} />;
     })}
     {needsDisclosure && <button type="button" className="er-thread-toggle" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}>
       {expanded ? "Show less" : remaining.length > 0 ? `Show ${remaining.length} more comment${remaining.length === 1 ? "" : "s"}` : "Show full comment"}
