@@ -520,7 +520,7 @@ export function regulatoryWatchArticles(
   const publishedArticles = published.filter((item): item is EditorialArticle =>
     (item as { kind?: string }).kind !== "episode");
   return candidates
-    .filter((candidate) => area === "All" || candidate.areas.includes(area))
+    .filter((candidate) => editorialBelongsToArea({ area: "All", areas: candidate.areas }, area))
     .map(regulatoryEditorialArticle)
     .filter((candidate, index, all) =>
       !publishedArticles.some((existing) => sameEditorialArticle(candidate, existing)) &&
@@ -600,10 +600,11 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   return {
     id: `archive-${card.id}`,
     publicationClass: card.publicationClass,
-    // Archive routing was selected upstream. Persisted explicit membership wins;
-    // otherwise preserve the old selected-area scalar as a compatibility fallback.
-    ...(cardHasAreas ? { areas: cardAreas } : {}),
-    area: (cardHasAreas ? cardAreas[0] ?? "All" : item.area) as EditorialArea,
+    // New snapshots always persist an explicit routing array. Existing archived
+    // cards without it get exactly their already-selected valid specialty; an
+    // explicit [] remains authoritative All-only.
+    areas: cardHasAreas ? cardAreas : isEditorialSpecialtyArea(item.area) ? [item.area] : [],
+    area: (cardHasAreas ? cardAreas[0] ?? "All" : isEditorialSpecialtyArea(item.area) ? item.area : "All") as EditorialArea,
     subAreas: card.subAreas,
     site,
     nickname: card.kind === "event" ? "REGULATORY" : "",

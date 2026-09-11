@@ -1,5 +1,5 @@
 import type { ReadoutEditionSnapshot } from "./editionSnapshot";
-import { editorialBelongsToArea } from "./storyMembership.js";
+import { editorialBelongsToArea, editorialStoryAreas } from "./storyMembership.js";
 
 type SnapshotDevelopment = ReadoutEditionSnapshot["developments"][number]["development"];
 type SnapshotArticle = ReadoutEditionSnapshot["relevant"][number]["article"];
@@ -60,6 +60,24 @@ function sameSnapshotDevelopment(left: SnapshotDevelopment, right: SnapshotDevel
   return sameSnapshotArticle(left, right);
 }
 
+function hasExplicitAreas(value: unknown): value is { areas?: unknown } {
+  return !!value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "areas");
+}
+
+/** Keep an existing explicit [] intact; otherwise add compatible specialty proof
+ * from an older per-area snapshot without changing the canonical story identity. */
+function mergeStoryMembership<T extends { area: string; areas?: unknown }>(existing: T, incoming: T): T {
+  if (hasExplicitAreas(existing)) {
+    const current = editorialStoryAreas(existing);
+    if (!current.length || !hasExplicitAreas(incoming)) return existing;
+    const merged = [...new Set([...current, ...editorialStoryAreas(incoming)])];
+    return merged.length === current.length ? existing : { ...existing, areas: merged };
+  }
+  if (!hasExplicitAreas(incoming)) return existing;
+  const areas = editorialStoryAreas(incoming);
+  return Object.assign({}, existing, { areas, area: areas[0] ?? "All" }) as T;
+}
+
 function editionSnapshot(value: unknown): ReadoutEditionSnapshot | null {
   const snapshot = value as Partial<ReadoutEditionSnapshot> | null;
   return !!snapshot && snapshot.schemaVersion === 2 && typeof snapshot.editionDate === "string" &&
@@ -117,7 +135,7 @@ export function readoutEditionForArea(
     area,
     developments,
     relevant,
-    listen: all.listen.filter((entry) => entry.item.area === area),
+    listen: all.listen.filter((entry) => editorialBelongsToArea(entry.item, area)),
     regulatoryCards: all.regulatoryCards.filter((candidate) => candidateAreas(candidate).includes(area)),
     designationCards: all.designationCards.filter((candidate) => candidateAreas(candidate).includes(area)),
     middayInsertions: (all.middayInsertions ?? []).filter((id) => includedIds.has(id)),
@@ -140,14 +158,41 @@ export function canonicalReadoutEditionSnapshot(
     for (const entry of snapshot.developments) {
       const article = entry.development;
       if (!isSnapshotArticle(article)) continue;
-      if (developments.some((existing) => sameSnapshotDevelopment(existing.development, article)) ||
-          relevant.some((existing) => sameSnapshotArticle(existing.article, article))) continue;
+      const existingDevelopment = developments.findIndex((existing) => sameSnapshotDevelopment(existing.development, article));
+      if (existingDevelopment >= 0) {
+        developments[existingDevelopment] = {
+          ...developments[existingDevelopment],
+          development: mergeStoryMembership(developments[existingDevelopment].development, article),
+        };
+        continue;
+      }
+      const existingRelevant = relevant.findIndex((existing) => sameSnapshotArticle(existing.article, article));
+      if (existingRelevant >= 0) {
+        relevant[existingRelevant] = {
+          ...relevant[existingRelevant],
+          article: mergeStoryMembership(relevant[existingRelevant].article, article),
+        };
+        continue;
+      }
       relevant.push({ article, position: relevant.length });
     }
     for (const entry of snapshot.relevant) {
-      if (developments.some((existing) => !("kind" in existing.development) &&
-          sameSnapshotArticle(existing.development, entry.article)) ||
-          relevant.some((existing) => sameSnapshotArticle(existing.article, entry.article))) continue;
+      const existingDevelopment = developments.findIndex((existing) => !("kind" in existing.development) &&
+        sameSnapshotArticle(existing.development, entry.article));
+      if (existingDevelopment >= 0) {
+        const development = developments[existingDevelopment].development;
+        if (!("kind" in development)) developments[existingDevelopment] = {
+          ...developments[existingDevelopment], development: mergeStoryMembership(development, entry.article),
+        };
+        continue;
+      }
+      const existingRelevant = relevant.findIndex((existing) => sameSnapshotArticle(existing.article, entry.article));
+      if (existingRelevant >= 0) {
+        relevant[existingRelevant] = {
+          ...relevant[existingRelevant], article: mergeStoryMembership(relevant[existingRelevant].article, entry.article),
+        };
+        continue;
+      }
       relevant.push({ article: entry.article, position: relevant.length });
     }
   }
@@ -156,7 +201,15 @@ export function canonicalReadoutEditionSnapshot(
   const listenKeys = new Set(listen.flatMap(snapshotEpisodeIdentityKeys));
   for (const entry of snapshots.filter((candidate) => candidate.area !== "All").flatMap((snapshot) => snapshot.listen)) {
     const keys = snapshotEpisodeIdentityKeys(entry);
-    if (keys.some((key) => listenKeys.has(key))) continue;
+    const existingIndex = listen.findIndex((candidate) =>
+      snapshotEpisodeIdentityKeys(candidate).some((key) => keys.includes(key)));
+    if (existingIndex >= 0) {
+      listen[existingIndex] = {
+        ...listen[existingIndex],
+        item: mergeStoryMembership(listen[existingIndex].item, entry.item),
+      };
+      continue;
+    }
     keys.forEach((key) => listenKeys.add(key));
     listen.push(entry);
   }

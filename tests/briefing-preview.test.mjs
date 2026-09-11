@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { ARCHIVED_LISTEN_MEDIA, FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialBelongsToArea, editorialScopeLabel, editorialStoryAreas, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
+import { ARCHIVED_LISTEN_MEDIA, FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialBelongsToArea, editorialScopeLabel, editorialStoryAreas, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, regulatoryWatchArticles, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
   readoutEditionForArea,
@@ -720,6 +720,7 @@ test("explicit story areas drive every specialty lens without text inference", (
   const camizestrant = { id: "regulatory:fded311c-201a-48a0-b000-90f075a5dc08", area: "All", areas: ["Breast"], title: "FDA grants accelerated approval to camizestrant" };
   const multiArea = { id: "multi", area: "All", areas: ["GU", "Breast"], title: "Shared trial" };
   const general = { id: "general", area: "All", areas: [], title: "Kidney cancer mentioned in an oncology-wide methods paper" };
+  const explicitAllOnly = { id: "explicit-all-only", area: "GU", areas: [], title: "A kidney title cannot restore GU membership" };
   const legacy = { id: "legacy", area: "GU", title: "Legacy bladder item" };
 
   assert.deepEqual(editorialStoryAreas(nection4), ["GU"]);
@@ -727,11 +728,43 @@ test("explicit story areas drive every specialty lens without text inference", (
   assert.equal(editorialBelongsToArea(nection4, "Breast"), false);
   assert.equal(editorialBelongsToArea(camizestrant, "Breast"), true);
   assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, legacy], "All").map((item) => item.id), [nection4.id, camizestrant.id, multiArea.id, general.id, legacy.id]);
-  assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, legacy], "GU").map((item) => item.id), [nection4.id, multiArea.id, legacy.id]);
+  assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, explicitAllOnly, legacy], "GU").map((item) => item.id), [nection4.id, multiArea.id, legacy.id]);
   assert.deepEqual(visibleForArea([nection4, camizestrant, multiArea, general, legacy], "Breast").map((item) => item.id), [camizestrant.id, multiArea.id]);
   assert.equal(editorialBelongsToArea(general, "GU"), false, "an explicit empty array is All-only despite a kidney title");
+  assert.equal(editorialBelongsToArea(explicitAllOnly, "GU"), false, "an explicit empty array overrides a contradictory legacy scalar");
   assert.deepEqual(editorialStoryAreas(legacy), ["GU"], "a legacy scalar remains a narrow compatibility fallback");
   assert.equal(editorialScopeLabel({ ...general, site: "GU", subAreas: [] }), "Oncology", "labels use explicit membership, not title or site text");
+});
+
+test("mixed source payloads and canonical dedupe retain, rather than invent, membership", () => {
+  const snapshotSource = read("app/briefing-preview/editionSnapshot.ts");
+  assert.match(snapshotSource, /liveInsertionDevelopments\(payload: ReadoutWindowPayload, area: EditionArea\)/);
+  assert.match(snapshotSource, /editorialBelongsToArea\(item, area\)/);
+
+  const snapshot = (area, article, listen = []) => ({
+    schemaVersion: 2, editionDate: "2026-09-11", generatedAt: "2026-09-11T12:00:00.000Z", area,
+    developments: article ? [{ development: article, episode: null, position: 0 }] : [], relevant: [], listen,
+    regulatoryCards: [], designationCards: [],
+  });
+  const legacyAll = { id: "shared", area: "All", title: "shared" };
+  const specialtyProof = { id: "shared", area: "GU", areas: ["GU", "Breast"], title: "shared" };
+  const explicitAllOnly = { id: "all-only", area: "All", areas: [], title: "all-only" };
+  const conflictingSpecialty = { id: "all-only", area: "GU", areas: ["GU"], title: "all-only" };
+  const listenItem = { id: "episode:multi", area: "All", areas: ["GU", "Breast"], show: "Podcast", title: "Multi-area listen", url: "https://example.com/audio", hook: "", match: "Multi-area" };
+  const allSnapshot = snapshot("All", legacyAll, [{ item: listenItem, episode: null }]);
+  allSnapshot.relevant = [{ article: explicitAllOnly, position: 0 }];
+  const canonical = canonicalReadoutEditionSnapshot([
+    allSnapshot,
+    snapshot("GU", specialtyProof),
+    snapshot("Breast", conflictingSpecialty),
+  ]);
+  assert.deepEqual(canonical?.developments.find((entry) => entry.development.id === "shared")?.development.areas, ["GU", "Breast"]);
+  assert.deepEqual(canonical?.relevant.find((entry) => entry.article.id === "all-only")?.article.areas, [], "explicit All-only must not be overwritten by a specialty copy");
+  assert.equal(readoutEditionForArea(canonical, "GU")?.listen.length, 1);
+  assert.equal(readoutEditionForArea(canonical, "Breast")?.listen.length, 1);
+  const regulatory = { id: "regulatory:breast", kind: "event", regulatoryKind: "approval", eligibleLabel: "FDA approval", headline: "Breast approval", sourceLabel: "FDA", url: "https://example.com/fda", occurredOn: "2026-09-11", areas: ["Breast"], articleIds: [], metrics: { clinicians: 1, cliniciansFeedEligible: 1, reposters: 0, totalSharers: 1, lastSharedAt: null } };
+  assert.equal(regulatoryWatchArticles([regulatory], "GU", []).length, 0);
+  assert.equal(regulatoryWatchArticles([regulatory], "Breast", []).length, 1);
 });
 
 test("canonical Today and seven-day projections preserve explicit specialty membership", () => {

@@ -2,6 +2,7 @@ import type { BriefingData, BriefingEpisode, ReadoutListenEpisode, ReadoutWindow
 import {
   archivedEditorialArticle,
   breakingEditorialArticle,
+  editorialBelongsToArea,
   editorialEpisodeIdentityKeys,
   findEpisode,
   listenForArea,
@@ -113,18 +114,20 @@ export function isPreprintEditorialArticle(item: EditorialArticle): boolean {
     /doi\.org\/10\.(?:1101|64898)\//.test(source);
 }
 
-export function liveInsertionDevelopments(payload: ReadoutWindowPayload): EditorialArticle[] {
+export function liveInsertionDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
   return uniqueDevelopments([
     ...(payload.regulatoryCards ?? []).map(regulatoryEditorialArticle),
     ...(payload.breakingCards ?? []).map(breakingEditorialArticle),
-  ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item) && !isPreprintEditorialArticle(item));
+  ]).filter((item): item is EditorialArticle =>
+    !('kind' in item) && editorialBelongsToArea(item, area) && renderableArticle(item) && !isPreprintEditorialArticle(item));
 }
 
-function liveRankedDevelopments(payload: ReadoutWindowPayload): EditorialArticle[] {
+function liveRankedDevelopments(payload: ReadoutWindowPayload, area: EditionArea): EditorialArticle[] {
   return uniqueDevelopments([
-    ...liveInsertionDevelopments(payload),
+    ...liveInsertionDevelopments(payload, area),
     ...(payload.cards ?? []).map(archivedEditorialArticle),
-  ]).filter((item): item is EditorialArticle => !("kind" in item) && renderableArticle(item));
+  ]).filter((item): item is EditorialArticle =>
+    !('kind' in item) && editorialBelongsToArea(item, area) && renderableArticle(item));
 }
 
 function uniqueRelevant(items: EditorialArticle[], developments: EditorialDevelopment[]): EditorialArticle[] {
@@ -172,7 +175,7 @@ export function buildReadoutEditionSnapshot(
   previousEditions: ReadoutEditionSnapshot[] = [],
   editionDate = activeReadoutEditionDate(now),
 ): ReadoutEditionSnapshot {
-  const ranked = liveRankedDevelopments(payload)
+  const ranked = liveRankedDevelopments(payload, area)
     .filter((item) => !appearedInMorningEdition(item, previousEditions));
   // Publication class labels the source; it does not veto an otherwise qualified article.
   // Preprints retain their existing non-lead safety rule.
@@ -233,7 +236,7 @@ export function mergeReadoutEditionSnapshot(
 ): ReadoutEditionSnapshot {
   const existingDevelopments = snapshot.developments.map((entry) => entry.development);
   const existingRelevant = snapshot.relevant.map((entry) => entry.article);
-  const additions = liveInsertionDevelopments(payload).filter((candidate) =>
+  const additions = liveInsertionDevelopments(payload, snapshot.area).filter((candidate) =>
     !appearedInAnyEarlierEdition(candidate, previousEditions) &&
     !existingDevelopments.some((existing) => !("kind" in existing) && sameArticleDevelopment(candidate, existing)) &&
     !existingRelevant.some((existing) => sameArticleDevelopment(candidate, existing)));
