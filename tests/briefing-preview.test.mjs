@@ -683,9 +683,9 @@ test("regulatory developments keep the regulator primary and the trial explicitl
   assert.deepEqual(approval.supportingEvidence?.map((link) => link.sourceLabel), ["New England Journal of Medicine"]);
   assert.deepEqual(approval.relatedCoverage?.map((link) => link.sourceLabel), ["Targeted Oncology"]);
   assert.equal(approval.occurredOn, "2026-08-25");
-  assert.match(preview, /Action date:/,
+  assert.match(preview, /const dateWord = isResearch \? "Published" : "Action date"/,
     "approval developments retain the regulator's action date");
-  assert.match(preview, /<time dateTime=\{item\.occurredOn \?\? undefined\}>/);
+  assert.match(preview, /<time dateTime=\{item\.occurredOn \?\? undefined\} title=/);
   assert.match(preview, /<time dateTime=\{designation\.occurredOn \?\? undefined\}>/);
   assert.match(preview, /designation\.dateLabel \?\? "First shared"/,
     "designation coverage never presents an X discovery date as an FDA action date");

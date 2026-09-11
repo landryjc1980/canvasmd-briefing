@@ -8,6 +8,7 @@ import ReadoutVoice, { type ReadoutVoicePost } from "@/components/ReadoutVoice";
 import type { ConferenceClinicianShare, ConferencePublisherComment, ConferenceWindowPayload } from "@/lib/conference";
 import { conferenceDateRange, conferenceStatusLabel, parseConferencePublisherComments, publicationDateLabel } from "@/lib/conference";
 import { cleanClinicianText } from "@/app/briefing-preview/edition";
+import { timeAgoLabel } from "@/lib/timeAgo";
 
 type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[]; publisherComments: ConferencePublisherComment[] };
 
@@ -157,6 +158,7 @@ function PublisherComments({ comments }: { comments: ConferencePublisherComment[
 
 function ConferenceReportCard({ item }: { item: CoverageItem }) {
   const published = publicationDateLabel(item.publishedAt);
+  const stamp = timeAgoLabel(item.publishedAt);
   return (
     <ReadoutArticleCard
       className="conference-readout-card has-kicker-source"
@@ -169,7 +171,7 @@ function ConferenceReportCard({ item }: { item: CoverageItem }) {
           <span className="er-kicker-source">{item.source ?? "Source"}</span>
         </div>
       }
-      footer={published ? <div className="er-foot"><p className="er-action-date">Published: <time dateTime={item.publishedAt ?? undefined}>{published}</time></p></div> : undefined}
+      footer={stamp ? <div className="er-foot"><p className="er-action-date"><span className="er-sr-only">Published </span><time dateTime={item.publishedAt ?? undefined} title={published ? `Published ${published}` : undefined}>{stamp}</time></p></div> : undefined}
     >
       {item.excerpt && <div className="er-excerpt"><p className="er-finding">{item.excerpt}</p></div>}
       <PublisherComments comments={item.publisherComments} />

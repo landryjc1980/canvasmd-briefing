@@ -43,6 +43,7 @@ import {
 } from "./edition";
 import ConferenceTeaser from "./ConferenceTeaser";
 import type { ConferenceMeeting } from "@/lib/conference";
+import { timeAgoLabel } from "@/lib/timeAgo";
 
 const AREA_LABELS: Record<EditionArea, string> = {
   All: "All oncology",
@@ -481,8 +482,11 @@ function ArticleDevelopment({
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
   const isResearch = !["FDA approval", "FDA safety", "Regulatory"].includes(contentType);
-  const actionDate = isResearch ? null : editionDateLabel(item.occurredOn);
-  const publishedDate = isResearch ? editionDateLabel(item.occurredOn) : null;
+  // The footer stamps a compact age (13h, 3d) so it stays on one line beside the
+  // disclosure; the full date is kept for assistive tech and the hover title.
+  const dateWord = isResearch ? "Published" : "Action date";
+  const fullDate = editionDateLabel(item.occurredOn);
+  const dateStamp = timeAgoLabel(item.occurredOn);
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
   // FDA paragraph boundaries select the source preview, so retain them until that
@@ -537,12 +541,10 @@ function ArticleDevelopment({
       }
       footer={
         <div className="er-foot">
-          {!isResearch ? (
-            <p className="er-action-date">Action date: {actionDate
-              ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
-              : "Unavailable"}</p>
-          ) : publishedDate ? (
-            <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
+          {dateStamp ? (
+            <p className="er-action-date"><span className="er-sr-only">{dateWord} </span><time dateTime={item.occurredOn ?? undefined} title={fullDate ? `${dateWord} ${fullDate}` : undefined}>{dateStamp}</time></p>
+          ) : !isResearch ? (
+            <p className="er-action-date">Date unavailable</p>
           ) : <span />}
           {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
         </div>
