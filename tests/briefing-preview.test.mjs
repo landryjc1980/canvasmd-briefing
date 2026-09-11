@@ -786,6 +786,31 @@ test("canonical Today and seven-day projections preserve explicit specialty memb
   assert.deepEqual(readoutEditionForArea(canonical, "Lung")?.developments, []);
 });
 
+test("legacy midday ids never displace saved leads or promote added relevant cards", () => {
+  const article = (id, area = "GU") => ({ id, area: "All", areas: [area], title: id, url: `https://example.com/${id}` });
+  const nection4 = article("NECTIN4");
+  const morningRelevant = article("morning-relevant");
+  const added = article("added-after-morning");
+  const canonical = {
+    schemaVersion: 2,
+    editionDate: "2026-09-11",
+    generatedAt: "2026-09-11T12:00:00.000Z",
+    area: "All",
+    developments: [{ development: nection4, episode: null, position: 0 }],
+    relevant: [{ article: morningRelevant, position: 0 }, { article: added, position: 1 }],
+    listen: [], regulatoryCards: [], designationCards: [],
+    middayInsertions: [nection4.id, added.id],
+  };
+  const gu = readoutEditionForArea(canonical, "GU");
+  assert.deepEqual(gu?.developments.map((entry) => entry.development.id), [nection4.id, morningRelevant.id]);
+  assert.deepEqual(gu?.relevant.map((entry) => entry.article.id), [added.id]);
+  assert.deepEqual(gu?.middayInsertions, [added.id]);
+  assert.match(preview, /return todayEdition\.relevant\.map\(\(entry\) => entry\.article\)/,
+    "only saved relevant entries can render in Added since morning");
+  assert.doesNotMatch(preview, /developments\.map\(\(entry\) => entry\.development\)\n      \.filter\(\(item\) => !todayEdition\.middayInsertions/,
+    "saved lead order is never filtered by a legacy midday log");
+});
+
 test("a development already leading a section is removed from Also Relevant by stable identity", () => {
   const article = (id, doi, url) => ({
     id,

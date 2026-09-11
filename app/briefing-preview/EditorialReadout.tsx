@@ -938,14 +938,13 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
   const addedSinceMorning = useMemo(() => {
     if (!todayEdition || readoutWindow !== "today") return [];
     const ids = new Set(todayEdition.middayInsertions ?? []);
-    return [...todayEdition.developments.map((entry) => entry.development), ...todayEdition.relevant.map((entry) => entry.article)]
+    return todayEdition.relevant.map((entry) => entry.article)
       .filter((item): item is EditorialArticle => !isEpisodeDevelopment(item) && ids.has(item.id))
       .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index);
   }, [todayEdition, readoutWindow]);
   const currentWorth = useMemo(() => {
     if (readoutWindow === "7d") return sevenDayEdition.developments.slice(0, 5);
-    return todayEdition?.developments.map((entry) => entry.development)
-      .filter((item) => !todayEdition.middayInsertions?.includes(item.id)) ?? [];
+    return todayEdition?.developments.map((entry) => entry.development) ?? [];
   }, [readoutWindow, sevenDayEdition, todayEdition]);
   const moreFromSevenDays = useMemo(() => readoutWindow === "7d"
     ? [...sevenDayEdition.developments.slice(5).filter((item): item is EditorialArticle => !isEpisodeDevelopment(item)), ...sevenDayEdition.relevant]

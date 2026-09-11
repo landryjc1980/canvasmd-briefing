@@ -115,15 +115,29 @@ export function readoutEditionForArea(
     .filter((entry) => editorialBelongsToArea(entry.article, area))
     .filter((entry) => !matchingDevelopments.some((existing) =>
       !("kind" in existing.development) && sameSnapshotArticle(existing.development, entry.article)));
-  const allMatching = [
+  // A legacy midday id may appear on a saved lead. That lead remains part of
+  // the morning edition; only appended relevant entries are "Added since".
+  const middayIds = new Set(all.middayInsertions ?? []);
+  const morningMatching = [
     ...matchingDevelopments,
-    ...matchingRelevant.map((entry) => ({ development: entry.article, episode: null, position: entry.position })),
+    ...matchingRelevant
+      .filter((entry) => !middayIds.has(entry.article.id))
+      .map((entry) => ({ development: entry.article, episode: null, position: entry.position })),
   ].filter((entry, index, entries) => !entries.slice(0, index).some((existing) =>
     sameSnapshotDevelopment(existing.development, entry.development)));
-  const developments = allMatching.slice(0, 5)
+  const addedRelevant = matchingRelevant
+    .filter((entry) => middayIds.has(entry.article.id))
+    .filter((entry, index, entries) => !entries.slice(0, index).some((existing) =>
+      sameSnapshotArticle(existing.article, entry.article)));
+  const developments = morningMatching.slice(0, 5)
     .map((entry, position) => ({ ...entry, position }));
-  const relevant = allMatching.slice(5)
-    .flatMap((entry) => "kind" in entry.development ? [] : [{ article: entry.development, position: 0 }])
+  const relevant = [
+    ...morningMatching.slice(5)
+      .flatMap((entry) => "kind" in entry.development ? [] : [entry.development]),
+    ...addedRelevant.map((entry) => entry.article),
+  ]
+    .filter((article, index, entries) => !entries.slice(0, index).some((existing) => sameSnapshotArticle(existing, article)))
+    .map((article) => ({ article, position: 0 }))
     .map((entry, position) => ({ ...entry, position }));
   const includedIds = new Set([
     ...developments.map((entry) => entry.development.id),
@@ -138,7 +152,7 @@ export function readoutEditionForArea(
     listen: all.listen.filter((entry) => editorialBelongsToArea(entry.item, area)),
     regulatoryCards: all.regulatoryCards.filter((candidate) => candidateAreas(candidate).includes(area)),
     designationCards: all.designationCards.filter((candidate) => candidateAreas(candidate).includes(area)),
-    middayInsertions: (all.middayInsertions ?? []).filter((id) => includedIds.has(id)),
+    middayInsertions: addedRelevant.map((entry) => entry.article.id).filter((id) => includedIds.has(id)),
   };
 }
 
