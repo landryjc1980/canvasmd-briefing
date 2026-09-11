@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ReadoutArticleCard from "@/components/ReadoutArticleCard";
 import type { ConferenceClinicianShare, ConferenceWindowPayload } from "@/lib/conference";
-import { conferenceDateRange, conferenceStatusLabel, publicationDateLabel, reportLabel } from "@/lib/conference";
+import { conferenceDateRange, conferenceStatusLabel, publicationDateLabel } from "@/lib/conference";
 
 type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[] };
 
@@ -59,9 +60,7 @@ function coverageItem(value: unknown, section: "cards" | "articles" | "episodes"
   const source = value as Record<string, unknown>;
   const title = text(source.headline) ?? text(source.title) ?? text(source.episodeTitle);
   if (!title) return null;
-  const label = section === "reports"
-    ? reportLabel({ title, sourceName: text(source.sourceName) ?? "" })
-    : section === "episodes" || source.kind === "episode" ? "Podcast episode"
+  const label = section === "episodes" || source.kind === "episode" ? "Podcast episode"
       : section === "articles" ? "Source article"
         : source.kind === "event" ? "Meeting update" : "Source update";
   return {
@@ -105,7 +104,6 @@ function ClinicianReceipt({ share }: { share: ConferenceClinicianShare }) {
   return <a className="conference-clinician-receipt" href={share.postUrl} target="_blank" rel="noreferrer" aria-label={`Open X receipt: ${clinicianAction(share.kind)} ${share.name}`}>
     {share.avatarUrl ? <img className="conference-clinician-avatar" src={share.avatarUrl} alt="" loading="lazy" decoding="async" /> : <span className="conference-clinician-avatar conference-clinician-avatar-fallback" aria-hidden="true">{share.name.slice(0, 1).toUpperCase()}</span>}
     <span className="conference-clinician-copy"><span className="conference-clinician-action">{clinicianAction(share.kind)}</span><span className="conference-clinician-name">{share.name}{handle ? ` · @${handle}` : ""}</span></span>
-    <span className="conference-clinician-external" aria-hidden="true">↗</span>
   </a>;
 }
 
@@ -122,15 +120,30 @@ function ClinicianReceipts({ shares }: { shares: ConferenceClinicianShare[] }) {
   </div>;
 }
 
+function ConferenceReportCard({ item }: { item: CoverageItem }) {
+  const published = publicationDateLabel(item.publishedAt);
+  return (
+    <ReadoutArticleCard
+      className="conference-readout-card"
+      href={item.url}
+      source={item.source ?? "Source"}
+      title={item.title}
+      date={published ? <p className="er-action-date"><time dateTime={item.publishedAt ?? undefined}>{published}</time></p> : undefined}
+    >
+      {item.excerpt && <div className="er-excerpt"><p className="er-finding">{item.excerpt}</p></div>}
+      <ClinicianReceipts shares={item.clinicianShares} />
+    </ReadoutArticleCard>
+  );
+}
+
 function CoverageCard({ item }: { item: CoverageItem }) {
   const published = publicationDateLabel(item.publishedAt);
   return (
     <article className="conference-report-card">
       <p className="conference-report-type">{item.label}</p>
-      <h2>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.title}<span aria-hidden="true"> ↗</span></a> : item.title}</h2>
+      <h2>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a> : item.title}</h2>
       {(item.source || published) && <p className="conference-report-source">{item.source}{item.source && published ? <> <span aria-hidden="true">·</span> </> : null}{published ? <time dateTime={item.publishedAt ?? undefined}>{published}</time> : null}</p>}
       {item.excerpt && <p className="conference-report-excerpt">{item.excerpt}</p>}
-      <ClinicianReceipts shares={item.clinicianShares} />
       {item.url && <a className="conference-source-link" href={item.url} target="_blank" rel="noreferrer">Read source</a>}
     </article>
   );
@@ -175,21 +188,21 @@ export default function ConferenceCoverage({ payload, requestedKey }: { payload:
     <main className="conference-page">
       <header className="conference-masthead">
         <Link href="/" className="conference-brand">Canvas<span>MD</span></Link>
-        <Link href="/" className="conference-back">← The Readout</Link>
+        <Link href="/" className="conference-back">The Readout</Link>
       </header>
       <section className="conference-hero">
         <p className="conference-eyebrow">{conferenceStatusLabel(meeting)}</p>
         <h1>{meeting.shortName}</h1>
         <p className="conference-name">{meeting.name}</p>
         <p className="conference-meta">{conferenceDateRange(meeting)}{meeting.location ? ` · ${meeting.location}` : ""}</p>
-        {meeting.sourceUrl && <a className="conference-official-link" href={meeting.sourceUrl} target="_blank" rel="noreferrer">Official meeting site <span aria-hidden="true">↗</span></a>}
+        {meeting.sourceUrl && <a className="conference-official-link" href={meeting.sourceUrl} target="_blank" rel="noreferrer">Official meeting site</a>}
       </section>
       {(reports.length > 0 || !hasCoverage) && <section className="conference-reports" aria-labelledby="conference-reports-title">
         <div className="conference-section-heading">
           <div><p className="conference-eyebrow">From the meeting</p><h2 id="conference-reports-title">Source coverage</h2></div>
           {reports.length > 0 && <span>{reports.length} {reports.length === 1 ? "report" : "reports"}</span>}
         </div>
-        {reports.length > 0 ? <div className="conference-report-list">{reports.map((item) => <CoverageCard item={item} key={item.id} />)}</div> : !hasCoverage && (
+        {reports.length > 0 ? <div className="conference-report-list">{reports.map((item) => <ConferenceReportCard item={item} key={item.id} />)}</div> : !hasCoverage && (
           <div className="conference-empty conference-empty-inline">
             <p>No source reports have been published here yet. Please check back as coverage is added.</p>
             <button type="button" onClick={retry}>Refresh coverage</button>

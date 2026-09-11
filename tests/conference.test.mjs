@@ -9,6 +9,7 @@ const ts = require("typescript");
 const source = fs.readFileSync(new URL("../lib/conference.ts", import.meta.url), "utf8");
 const page = fs.readFileSync(new URL("../app/conference/[key]/page.tsx", import.meta.url), "utf8");
 const coverage = fs.readFileSync(new URL("../app/conference/[key]/ConferenceCoverage.tsx", import.meta.url), "utf8");
+const readoutCard = fs.readFileSync(new URL("../components/ReadoutArticleCard.tsx", import.meta.url), "utf8");
 const teaser = fs.readFileSync(new URL("../app/briefing-preview/ConferenceTeaser.tsx", import.meta.url), "utf8");
 const coverageCss = fs.readFileSync(new URL("../app/conference/[key]/conference.css", import.meta.url), "utf8");
 const server = fs.readFileSync(new URL("../lib/conferenceServer.ts", import.meta.url), "utf8");
@@ -53,9 +54,12 @@ test("conference links preserve the requested meeting year while the page accept
   assert.match(page, /getConferenceWindow\(key, readYear\(searchParams\.year\)\)/);
 });
 
-test("conference coverage stays source-led and does not label source reports as papers", () => {
-  assert.match(coverage, /reportLabel\(/);
-  assert.match(source, /"Source report"/);
+test("conference reports use the Readout source-card anatomy without a report taxonomy", () => {
+  assert.match(coverage, /ReadoutArticleCard/);
+  assert.match(readoutCard, /className=\{`er-development \$\{className\}`\.trim\(\)\}/);
+  assert.match(coverage, /className="er-excerpt"/);
+  assert.doesNotMatch(coverage, /reportLabel\(/);
+  assert.doesNotMatch(coverage, />Source report</);
   assert.match(coverage, /item\.excerpt/);
   assert.match(coverage, /publicationDateLabel\(item\.publishedAt\)/);
   assert.doesNotMatch(coverage, /sharedAt/);
@@ -71,6 +75,7 @@ test("conference reports render only validated clinician receipt attribution", (
   assert.match(coverage, /Quote-posted by/);
   assert.match(coverage, /href=\{share\.postUrl\}/);
   assert.doesNotMatch(coverage, /share\.text/);
+  assert.doesNotMatch(coverage, />↗</);
   assert.match(coverageCss, /conference-clinician-receipt/);
   assert.match(coverageCss, /conference-clinician-more/);
 });

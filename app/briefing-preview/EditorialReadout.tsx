@@ -16,6 +16,7 @@ import {
 } from "./editionHistory";
 import AudioQuote from "@/components/AudioQuote";
 import DailyReadoutAudio from "@/components/DailyReadoutAudio";
+import ReadoutArticleCard from "@/components/ReadoutArticleCard";
 import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage, regulatoryApprovalSourceText, sourceLinkKey, sourceLinkLabel } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
@@ -419,22 +420,6 @@ function articleContentType(item: EditorialArticle): string {
   return "Paper";
 }
 
-function SourceHeadline({ href, source, title, compact = false }: {
-  href: string;
-  source: string;
-  title: string;
-  compact?: boolean;
-}) {
-  return (
-    <div className={`er-source-headline ${compact ? "is-compact" : ""}`}>
-      <span className="er-source">{source}</span>
-      <h3 className="er-source-title">
-        <a href={href} target="_blank" rel="noreferrer">{title}</a>
-      </h3>
-    </div>
-  );
-}
-
 function validSupportLinks(links: HeroSupportLink[] | undefined, primaryUrl: string): HeroSupportLink[] {
   const seen = new Set<string>();
   return (links ?? []).filter((link) => {
@@ -581,21 +566,22 @@ function ArticleDevelopment({
     }).finally(() => setLoadingDetails(false));
   };
   return (
-    <article ref={cardRef} className={`er-development ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>
-      <SourceHeadline href={href} source={item.journal} title={displayReadoutTitle(article?.title || item.title)} compact={compact} />
-      {!isResearch && (
+    <ReadoutArticleCard
+      articleRef={cardRef}
+      className={`${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}
+      href={href}
+      source={item.journal}
+      title={displayReadoutTitle(article?.title || item.title)}
+      compact={compact}
+      beforeSource={<div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>}
+      date={!isResearch ? (
         <p className="er-action-date">Action date: {actionDate
           ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>
           : "Unavailable"}</p>
-      )}
-      {/* "Today" means shared-today, not published-today — a paper can re-enter on renewed
-          clinician attention days after it appeared. The publication date keeps that honest.
-          Papers show a date ONLY when the source carries one (no "Unavailable" filler): an
-          action date is a claim regulators answer for, a missing journal date is just missing. */}
-      {isResearch && publishedDate && (
+      ) : isResearch && publishedDate ? (
         <p className="er-action-date">Published: <time dateTime={item.occurredOn ?? undefined}>{publishedDate}</time></p>
-      )}
+      ) : undefined}
+    >
       <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
@@ -604,7 +590,7 @@ function ArticleDevelopment({
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
       {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
-    </article>
+    </ReadoutArticleCard>
   );
 }
 
@@ -659,9 +645,13 @@ function EpisodeDevelopment({
     }).finally(() => setLoadingDetails(false));
   };
   return (
-    <article className={`er-development er-development-episode ${open ? "is-open" : ""}`}>
-      <div className="er-kicker">{editorialScopeLabel(item)}{!numbered && <> · <b>Podcast</b></>}</div>
-      <SourceHeadline href={sourceHref} source={episode?.show || item.show} title={episode?.title || item.title} />
+    <ReadoutArticleCard
+      className={`er-development-episode ${open ? "is-open" : ""}`}
+      href={sourceHref}
+      source={episode?.show || item.show}
+      title={episode?.title || item.title}
+      beforeSource={<div className="er-kicker">{editorialScopeLabel(item)}{!numbered && <> · <b>Podcast</b></>}</div>}
+    >
       <DevelopmentFinding text={item.finding} expanded={open} />
       {overlay
         ? <PeerRow article={article} sharedBy={sharedBy} />
@@ -676,7 +666,7 @@ function EpisodeDevelopment({
         evidence={item.evidence}
       />
       {canDisclose && <Disclose open={open} label={disclose || "Show more"} onToggle={toggleDisclosure} />}
-    </article>
+    </ReadoutArticleCard>
   );
 }
 
