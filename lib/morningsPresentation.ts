@@ -4,6 +4,20 @@ const normalizedText = (value = "") => value.replace(/[’‘]/g, "'").replace(/
 const isEmptyRegulatoryWatch = (summary = "") =>
   /^(?:no new (?:(?:oncology|regulatory) )?actions?(?: in this edition)?|no new oncology approval, safety warning, or designation cleared today)[.!]?$/.test(normalizedText(summary));
 const isRegulatoryRecapPointer = (summary = "") => /^covered in today'?s lead stories[.!]?$/.test(normalizedText(summary));
+const hasClinicalSource = (chapter: ReadoutAudioChapter) => {
+  const source = normalizedText(chapter.source);
+  return Boolean(source) && source !== "listen";
+};
+const isStructuralTransition = (chapter: ReadoutAudioChapter) =>
+  normalizedText(chapter.headline) === "next"
+  && normalizedText(chapter.summary) === "a new story."
+  && !hasClinicalSource(chapter);
+const normalizeLegacyCaption = (chapter: ReadoutAudioChapter): ReadoutAudioChapter => {
+  const headline = normalizedText(chapter.headline) === "hook" ? "Opening"
+    : normalizedText(chapter.headline) === "edition note" ? "Edition notes"
+      : chapter.headline;
+  return headline === chapter.headline ? chapter : { ...chapter, headline };
+};
 
 // Keep these presentation rules aligned with Native's mornings-presentation.ts.
 // Only producer scaffolding changes; source claims, recordings and timestamps do not.
@@ -26,11 +40,12 @@ export function morningsProducerSummary(audio: Pick<ReadoutAudioEdition, "chapte
 export function morningsPlayableChapters(chapters: ReadoutAudioChapter[]): ReadoutAudioChapter[] {
   const hasRegulatory = morningsHasRegulatoryCoverage(chapters);
   return chapters.filter((chapter) => {
-    if (chapter.headline === "Next" && chapter.summary === "A new story.") return false;
+    if (isStructuralTransition(chapter)) return false;
     const headline = normalizedText(chapter.headline);
     if (/^sources?(?: and| &) receipts?$/.test(headline)) return false;
     return headline !== "regulatory watch" || !(isEmptyRegulatoryWatch(chapter.summary) || isRegulatoryRecapPointer(chapter.summary));
-  }).map((chapter) => {
+  }).map((recordedChapter) => {
+    const chapter = normalizeLegacyCaption(recordedChapter);
     if (hasRegulatory || !/^today'?s (briefing|readout)$/.test(normalizedText(chapter.headline))) return chapter;
     const summary = morningsProducerSummary({ chapters, summary: chapter.summary ?? "" });
     return summary === chapter.summary ? chapter : { ...chapter, summary };

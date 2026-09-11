@@ -50,15 +50,35 @@ test("web Mornings removes only empty scaffolding and preserves source timestamp
 
 test("only exact structural transition rows are removed from authored chapters", () => {
   const transition = { headline: "Next", summary: "A new story.", startSeconds: 5 };
+  const sourcedNext = { headline: "Next", source: "JCO", summary: "A new story.", startSeconds: 5.5 };
   const meaningfulNext = { headline: "Next", summary: "A new story with a source-grounded clinical claim.", startSeconds: 6 };
   const omissionNotice = { headline: "Omissions", summary: "No episode claim was added without a verified source.", startSeconds: 7 };
   const closing = { headline: "Closing", summary: "Read the written edition for links and source context.", startSeconds: 8 };
-  const chapters = morningsPlayableChapters([transition, meaningfulNext, authoredPodcastSegment, omissionNotice, closing]);
-  assert.deepEqual(chapters.map((chapter) => chapter.startSeconds), [6, 21, 7, 8]);
-  assert.equal(chapters[0], meaningfulNext);
-  assert.equal(chapters[1], authoredPodcastSegment);
-  assert.equal(chapters[2], omissionNotice);
-  assert.equal(chapters[3], closing);
+  const chapters = morningsPlayableChapters([transition, sourcedNext, meaningfulNext, authoredPodcastSegment, omissionNotice, closing]);
+  assert.deepEqual(chapters.map((chapter) => chapter.startSeconds), [5.5, 6, 21, 7, 8]);
+  assert.equal(chapters[0], sourcedNext);
+  assert.equal(chapters[1], meaningfulNext);
+  assert.equal(chapters[2], authoredPodcastSegment);
+  assert.equal(chapters[3], omissionNotice);
+  assert.equal(chapters[4], closing);
+});
+
+test("legacy captions are normalized without manufacturing chapters or changing new captions", () => {
+  const hook = { headline: "Hook", summary: "A recorded opening.", startSeconds: 0, endSeconds: 5 };
+  const note = { headline: "Edition note", summary: "A recorded omission notice.", startSeconds: 5, endSeconds: 8 };
+  const welcome = { headline: "Welcome", summary: "A new recorded welcome.", startSeconds: 0, endSeconds: 5 };
+  const paper = { headline: "Actual paper title", source: "JCO", summary: "Recorded paper summary.", startSeconds: 5, endSeconds: 30 };
+  const notes = { headline: "Edition notes", summary: "A new recorded omission notice.", startSeconds: 30, endSeconds: 34 };
+  const closing = { headline: "Closing", summary: "Recorded closing.", startSeconds: 34, endSeconds: 40 };
+  const chapters = morningsPlayableChapters([hook, note, welcome, paper, notes, closing]);
+  assert.deepEqual(chapters.map((chapter) => chapter.headline), ["Opening", "Edition notes", "Welcome", "Actual paper title", "Edition notes", "Closing"]);
+  assert.notEqual(chapters[0], hook);
+  assert.notEqual(chapters[1], note);
+  assert.equal(chapters[2], welcome);
+  assert.equal(chapters[3], paper);
+  assert.equal(chapters[4], notes);
+  assert.equal(chapters[5], closing);
+  assert.deepEqual(chapters.map((chapter) => [chapter.startSeconds, chapter.endSeconds]), [[0, 5], [5, 8], [0, 5], [5, 30], [30, 34], [34, 40]]);
 });
 
 test("Mornings descriptions omit false regulatory promises but retain written-only disclosure", () => {
