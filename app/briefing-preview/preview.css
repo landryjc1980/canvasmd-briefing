@@ -252,20 +252,25 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-audio-chapters summary::-webkit-details-marker { display: none; }
 .er-mornings-chevron { display: block; flex: 0 0 14px; width: 14px; height: 14px; align-self: center; }
 .er-audio-chapters[open] > summary .er-mornings-chevron, .er-mornings-chevron.is-expanded { transform: rotate(180deg); }
-.er-mornings-chapter-panel { margin: 0 0 20px; border-top: 1px solid var(--er-mornings-line); border-radius: 0 0 8px 8px; background: rgba(255, 255, 255, .08); }
-.er-mornings-chapter-panel > .er-audio-asof { margin: -5px 0 0; padding: 0 14px 16px; }
+.er-mornings-chapter-count { margin-left: auto; color: var(--er-mornings-muted); font-size: .75rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.er-mornings-chapter-panel { margin: 0 0 18px; }
 .er-audio-chapters ol { list-style: none; padding: 0; margin: 0; }
 .er-audio-chapters li { border-top: 1px solid var(--er-mornings-line); }
-.er-audio-chapters li.is-subchapter { padding-left: 14px; background: rgba(255, 255, 255, .035); }
-.er-audio-chapters li.is-current { background: rgba(255, 255, 255, .14); }
-.er-audio-chapters button { display: grid; grid-template-columns: 3px minmax(0, 1fr) auto; gap: 11px; width: 100%; min-height: 66px; padding: 14px; border: 0; background: none; color: white; text-align: left; font: .875rem/1.5 system-ui, sans-serif; cursor: pointer; }
-.er-audio-chapters button::before { content: ""; border-radius: 2px; background: var(--er-mornings-line); }
-.er-audio-chapters .is-current button::before { background: white; }
+.er-audio-chapters li:first-child { border-top: 0; }
+.er-audio-chapters li.is-subchapter { padding-left: 24px; }
+.er-audio-chapters button { display: grid; grid-template-columns: 44px 14px minmax(0, 1fr); column-gap: 10px; align-items: start; width: 100%; min-height: 44px; padding: 11px 0; border: 0; background: none; color: white; text-align: left; font: .875rem/1.45 system-ui, sans-serif; cursor: pointer; }
+.er-mornings-chapter-time { padding-top: 3px; color: var(--er-mornings-muted); font-size: .75rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.er-mornings-chapter-dot { display: block; width: 8px; height: 8px; margin: 6px 3px 0; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .45); box-sizing: border-box; }
+.er-audio-chapters .is-current .er-mornings-chapter-dot { background: var(--er-mornings-peach); border-color: var(--er-mornings-peach); }
+.er-audio-chapters .is-current .er-mornings-chapter-time { color: white; }
 .er-mornings-chapter-copy { min-width: 0; overflow-wrap: anywhere; }
-.er-audio-chapters strong { display: block; margin-bottom: 2px; font-size: .75rem; }
-.er-mornings-chapter-title { display: block; font-weight: 600; }
-.er-mornings-chapter-summary { display: block; margin-top: 3px; color: var(--er-mornings-muted); font-size: .8125rem; }
-.er-mornings-chapter-end { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; color: var(--er-mornings-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.er-audio-chapters strong { display: block; margin-bottom: 3px; color: rgba(255, 255, 255, .55); font-size: .6875rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.er-audio-chapters .is-current strong { color: var(--er-mornings-peach); }
+.er-mornings-chapter-title { display: flex; align-items: center; gap: 8px; font-family: Newsreader, Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 400; line-height: 1.25; }
+.er-audio-chapters .is-played .er-mornings-chapter-title { color: var(--er-mornings-muted); }
+.er-mornings-chapter-summary { display: block; margin-top: 6px; color: var(--er-mornings-muted); font-size: .8438rem; line-height: 1.45; }
+.er-mornings-chapter-foot { margin: 4px 0 0; padding-top: 12px; border-top: 1px solid var(--er-mornings-line); color: rgba(255, 255, 255, .55); font-size: .75rem; line-height: 1.45; }
+.er-mornings-chapter-foot i { color: var(--er-mornings-muted); }
 .er-daily-audio button:focus-visible, .er-daily-audio summary:focus-visible, .er-daily-audio select:focus-visible, .er-daily-audio input:focus-visible { outline: 2px solid var(--er-mornings-peach); outline-offset: 3px; }
 @media (max-width: 480px) {
   .er-conference-teaser { align-items: flex-start; flex-direction: column; gap: 7px; padding: 15px 16px; }
