@@ -19,6 +19,17 @@ export type ConferenceReport = {
   excerpt: string | null;
   publishedAt: string | null;
   sharedAt: string;
+  clinicianShares?: ConferenceClinicianShare[];
+};
+
+export type ConferenceClinicianShare = {
+  personId: string;
+  name: string;
+  handle: string;
+  avatarUrl: string | null;
+  kind: "share" | "repost" | "quote";
+  postUrl: string;
+  postedAt: string;
 };
 
 export type ConferenceWindowPayload = {

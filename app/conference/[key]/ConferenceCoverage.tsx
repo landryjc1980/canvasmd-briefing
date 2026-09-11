@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ConferenceWindowPayload } from "@/lib/conference";
+import type { ConferenceClinicianShare, ConferenceWindowPayload } from "@/lib/conference";
 import { conferenceDateRange, conferenceStatusLabel, publicationDateLabel, reportLabel } from "@/lib/conference";
 
-type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null };
+type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[] };
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -31,6 +31,29 @@ function canonicalUrl(value: string | null): string | null {
   } catch { return null; }
 }
 
+function clinicianShares(value: unknown): ConferenceClinicianShare[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const share = item as Record<string, unknown>;
+    const personId = text(share.personId);
+    const name = text(share.name);
+    const handle = text(share.handle) ?? "";
+    const postUrl = externalUrl(share.postUrl);
+    const kind = share.kind;
+    if (!personId || !name || !postUrl || (kind !== "share" && kind !== "repost" && kind !== "quote")) return [];
+    return [{
+      personId,
+      name,
+      handle,
+      avatarUrl: externalUrl(share.avatarUrl),
+      kind,
+      postUrl,
+      postedAt: text(share.postedAt) ?? "",
+    }];
+  });
+}
+
 function coverageItem(value: unknown, section: "cards" | "articles" | "episodes" | "reports", index: number): CoverageItem | null {
   if (!value || typeof value !== "object") return null;
   const source = value as Record<string, unknown>;
@@ -51,6 +74,7 @@ function coverageItem(value: unknown, section: "cards" | "articles" | "episodes"
     // The compact page links to primary papers rather than reproducing full abstracts.
     excerpt: text(source.excerpt) ?? text(source.description),
     publishedAt: text(source.pubDate) ?? text(source.published) ?? text(source.publishedAt) ?? text(source.occurredOn),
+    clinicianShares: section === "reports" ? clinicianShares(source.clinicianShares) : [],
   };
 }
 
@@ -70,6 +94,34 @@ function dedupeCoverage(items: CoverageItem[], existingUrls = new Set<string>(),
   });
 }
 
+function clinicianAction(kind: ConferenceClinicianShare["kind"]): string {
+  if (kind === "repost") return "Reposted by";
+  if (kind === "quote") return "Quote-posted by";
+  return "Shared by";
+}
+
+function ClinicianReceipt({ share }: { share: ConferenceClinicianShare }) {
+  const handle = share.handle.replace(/^@/, "");
+  return <a className="conference-clinician-receipt" href={share.postUrl} target="_blank" rel="noreferrer" aria-label={`Open X receipt: ${clinicianAction(share.kind)} ${share.name}`}>
+    {share.avatarUrl ? <img className="conference-clinician-avatar" src={share.avatarUrl} alt="" loading="lazy" decoding="async" /> : <span className="conference-clinician-avatar conference-clinician-avatar-fallback" aria-hidden="true">{share.name.slice(0, 1).toUpperCase()}</span>}
+    <span className="conference-clinician-copy"><span className="conference-clinician-action">{clinicianAction(share.kind)}</span><span className="conference-clinician-name">{share.name}{handle ? ` · @${handle}` : ""}</span></span>
+    <span className="conference-clinician-external" aria-hidden="true">↗</span>
+  </a>;
+}
+
+function ClinicianReceipts({ shares }: { shares: ConferenceClinicianShare[] }) {
+  if (!shares.length) return null;
+  const firstShares = shares.slice(0, 3);
+  const remainingShares = shares.slice(3);
+  return <div className="conference-clinician-receipts" aria-label="Clinician X receipts">
+    {firstShares.map((share) => <ClinicianReceipt key={`${share.personId}:${share.postUrl}`} share={share} />)}
+    {remainingShares.length > 0 && <details className="conference-clinician-more">
+      <summary>Show {remainingShares.length} more clinicians</summary>
+      <div>{remainingShares.map((share) => <ClinicianReceipt key={`${share.personId}:${share.postUrl}`} share={share} />)}</div>
+    </details>}
+  </div>;
+}
+
 function CoverageCard({ item }: { item: CoverageItem }) {
   const published = publicationDateLabel(item.publishedAt);
   return (
@@ -78,6 +130,7 @@ function CoverageCard({ item }: { item: CoverageItem }) {
       <h2>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.title}<span aria-hidden="true"> ↗</span></a> : item.title}</h2>
       {(item.source || published) && <p className="conference-report-source">{item.source}{item.source && published ? <> <span aria-hidden="true">·</span> </> : null}{published ? <time dateTime={item.publishedAt ?? undefined}>{published}</time> : null}</p>}
       {item.excerpt && <p className="conference-report-excerpt">{item.excerpt}</p>}
+      <ClinicianReceipts shares={item.clinicianShares} />
       {item.url && <a className="conference-source-link" href={item.url} target="_blank" rel="noreferrer">Read source</a>}
     </article>
   );

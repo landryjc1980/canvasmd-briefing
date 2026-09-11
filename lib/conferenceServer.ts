@@ -41,7 +41,7 @@ export const getCachedConferenceList = unstable_cache(async (): Promise<Conferen
 }, ["conference-list-v1"], { revalidate: CONFERENCE_REVALIDATE_SECONDS });
 
 export async function getConferenceWindow(seriesKey: string, year?: number): Promise<ConferenceWindowPayload> {
-  const key = `conference-window-v1:${seriesKey}:${year ?? "latest"}`;
+  const key = `conference-window-v2:${seriesKey}:${year ?? "latest"}`;
   return unstable_cache(async () => {
     const payload = await invokeConference({ mode: "conference-window", seriesKey, ...(year ? { year } : {}) });
     const window = payload as ConferenceWindowPayload;

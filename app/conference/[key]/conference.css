@@ -26,6 +26,21 @@
 .conference-report-source { margin: 10px 0 0; color: var(--er-muted); font-size: 12px; line-height: 1.4; }
 .conference-report-source span { margin: 0 3px; }
 .conference-report-excerpt { margin: 13px 0 0; color: #484b58; font: 400 15px/1.52 Newsreader, Georgia, "Times New Roman", serif; }
+.conference-clinician-receipts { margin-top: 15px; border-top: 1px solid var(--er-line); }
+.conference-clinician-receipt { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; min-height: 52px; border-bottom: 1px solid var(--er-line); color: inherit; text-decoration: none; }
+.conference-clinician-receipt:hover .conference-clinician-name { color: var(--er-accent); text-decoration: underline; text-underline-offset: 3px; }
+.conference-clinician-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--er-line); object-fit: cover; }
+.conference-clinician-avatar-fallback { display: inline-flex; align-items: center; justify-content: center; color: var(--er-muted); font: 750 12px/1 system-ui, sans-serif; }
+.conference-clinician-copy { display: grid; min-width: 0; }
+.conference-clinician-action { color: var(--er-muted); font-size: 11px; line-height: 1.25; }
+.conference-clinician-name { overflow: hidden; color: var(--er-ink); font-size: 13px; font-weight: 700; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.conference-clinician-external { color: var(--er-accent); font: 16px/1 system-ui, sans-serif; }
+.conference-clinician-more { border-bottom: 1px solid var(--er-line); }
+.conference-clinician-more > summary { display: flex; min-height: 40px; align-items: center; color: var(--er-link); cursor: pointer; font-size: 13px; font-weight: 750; list-style: none; }
+.conference-clinician-more > summary::-webkit-details-marker { display: none; }
+.conference-clinician-more > summary::after { margin-left: 7px; content: "⌄"; }
+.conference-clinician-more[open] > summary::after { transform: rotate(180deg); }
+.conference-clinician-more > div .conference-clinician-receipt:last-child { border-bottom: 0; }
 .conference-source-link { display: inline-flex; min-height: 44px; align-items: center; margin-top: 10px; color: var(--er-link); font-size: 13px; font-weight: 750; text-decoration: none; }
 .conference-source-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .conference-empty { padding: 54px 0; }

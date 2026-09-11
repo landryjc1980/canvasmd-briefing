@@ -62,6 +62,19 @@ test("conference coverage stays source-led and does not label source reports as 
   assert.doesNotMatch(coverage, /source\.abstract/);
 });
 
+test("conference reports render only validated clinician receipt attribution", () => {
+  assert.match(source, /clinicianShares\?: ConferenceClinicianShare\[\]/);
+  assert.match(coverage, /function clinicianShares\(value: unknown\)/);
+  assert.match(coverage, /kind !== "share" && kind !== "repost" && kind !== "quote"/);
+  assert.match(coverage, /Shared by/);
+  assert.match(coverage, /Reposted by/);
+  assert.match(coverage, /Quote-posted by/);
+  assert.match(coverage, /href=\{share\.postUrl\}/);
+  assert.doesNotMatch(coverage, /share\.text/);
+  assert.match(coverageCss, /conference-clinician-receipt/);
+  assert.match(coverageCss, /conference-clinician-more/);
+});
+
 test("conference page preserves existing cards, articles, and episode coverage with source links", () => {
   assert.match(coverage, /coverage\.cards/);
   assert.match(coverage, /coverage\.articles/);
