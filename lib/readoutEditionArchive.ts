@@ -22,7 +22,7 @@ import {
 } from "@/app/briefing-preview/editionHistory";
 import {
   fetchFreshReadoutWindowForPrepublication,
-  getCachedReadoutWindow,
+  fetchFreshReadoutWindowForInsertions,
   supabaseApiKeyHeaders,
   withReadoutSelectionVersion,
 } from "@/lib/readoutWindowServer";
@@ -265,7 +265,7 @@ export async function mergeCurrentReadoutEditionInsertions(now = new Date()) {
   const mergedByArea = await Promise.all(EDITION_AREAS.map(async (area) => {
     const currentForArea = readoutEditionForArea(snapshot, area);
     if (!currentForArea) throw new Error(`Canonical edition cannot project ${area}.`);
-    const payload = await getCachedReadoutWindow(area, "today");
+    const payload = await fetchFreshReadoutWindowForInsertions(area);
     const previousForArea = previousCanonical
       .map((edition) => readoutEditionForArea(edition, area))
       .filter((edition): edition is ReadoutEditionSnapshot => !!edition);

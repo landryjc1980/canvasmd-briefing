@@ -733,6 +733,7 @@ export type ReadoutRegulatoryCandidate = {
 };
 
 export type ReadoutBreakingCandidate = {
+  studySetting?: "preclinical" | null;
   id: string;
   kind: "paper";
   publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
@@ -1080,6 +1081,8 @@ export type HeroConversationSpan = {
   lastTouchAt: string | null;
 };
 export type HeroCard = {
+  areas?: string[];
+  studySetting?: "preclinical" | null;
   publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
   sourceExcerpt?: string | null;
   id: string; // anchor-derived, stable across builds

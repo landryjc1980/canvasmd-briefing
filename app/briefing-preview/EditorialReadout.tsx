@@ -594,7 +594,7 @@ function ArticleDevelopment({
       source={isResearch ? publicationSourceLabel(item.journal, item.occurredOn) : item.journal}
       title={displayReadoutTitle(article?.title || item.title)}
       compact={compact}
-      beforeSource={<div className="er-kicker">{editorialScopeLabel(item)}{numbered ? "" : ` · ${contentType}`}</div>}
+      beforeSource={<div className="er-kicker">{editorialScopeLabel(item)}{item.studySetting === "preclinical" ? " · PRECLINICAL" : ""}{numbered ? "" : ` · ${contentType}`}</div>}
       date={!isResearch ? (
         <p className="er-action-date">Action date: {actionDate
           ? <time dateTime={item.occurredOn ?? undefined}>{actionDate}</time>

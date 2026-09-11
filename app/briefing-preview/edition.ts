@@ -7,6 +7,7 @@ export type SpecialtyArea = Exclude<EditionArea, "All">;
 export type EditorialArea = SpecialtyArea | "All";
 
 export type EditorialArticle = {
+  studySetting?: "preclinical" | null;
   publicationClass?: "research" | "review" | "commentary" | "preprint" | "guideline" | "unknown";
   id: string;
   /** Explicit specialty routing. When present, including [], it overrides legacy area. */
@@ -600,6 +601,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   return {
     id: `archive-${card.id}`,
     publicationClass: card.publicationClass,
+    studySetting: card.studySetting,
     // New snapshots always persist an explicit routing array. Existing archived
     // cards without it get exactly their already-selected valid specialty; an
     // explicit [] remains authoritative All-only.
@@ -706,6 +708,7 @@ export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate): E
   return {
     id: candidate.id,
     publicationClass: candidate.publicationClass ?? "unknown",
+    studySetting: candidate.studySetting,
     areas: candidate.areas.filter(isEditorialSpecialtyArea),
     area: candidate.areas.find(isEditorialSpecialtyArea) ?? "All",
     site: candidate.areas[0] ?? "Oncology",

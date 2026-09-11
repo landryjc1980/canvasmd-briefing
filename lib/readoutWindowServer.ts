@@ -7,7 +7,7 @@ import {
   activeReadoutEditionDate,
   type ReadoutWindow,
 } from "@/app/briefing-preview/readoutRequest";
-import { EDITION_AREAS, editorialBelongsToArea, type EditionArea } from "@/app/briefing-preview/edition";
+import { EDITION_AREAS, editorialBelongsToArea, editorialStoryAreas, type EditionArea } from "@/app/briefing-preview/edition";
 import {
   isReadoutEditionSnapshot,
   type ReadoutEditionSnapshot,
@@ -56,13 +56,15 @@ function currentFinishedWindow(payload: ReadoutWindowPayload | null | undefined)
 }
 
 function editionSelectionMembership(snapshot: ReadoutEditionSnapshot): string[] {
+  const membership = (item: { area?: string; areas?: unknown; subAreas?: string[] }) =>
+    JSON.stringify([editorialStoryAreas(item), item.subAreas ?? []]);
   return [
-    ...snapshot.developments.map((entry) => `development:${entry.development.id}`),
-    ...snapshot.relevant.map((entry) => `relevant:${entry.article.id}`),
-    ...snapshot.listen.map((entry) => `listen:${entry.episode?.episodeId ?? entry.item.episodeId ?? entry.item.id}`),
-    ...snapshot.regulatoryCards.map((card) => `regulatory:${card.id}`),
-    ...snapshot.designationCards.map((card) => `designation:${card.id}`),
-  ].sort();
+    ...snapshot.developments.map((entry) => `development:${entry.development.id}:${membership(entry.development)}`),
+    ...snapshot.relevant.map((entry) => `relevant:${entry.article.id}:${membership(entry.article)}`),
+    ...snapshot.listen.map((entry) => `listen:${entry.episode?.episodeId ?? entry.item.episodeId ?? entry.item.id}:${membership(entry.item)}`),
+    ...snapshot.regulatoryCards.map((card) => `regulatory:${card.id}:${membership(card)}`),
+    ...snapshot.designationCards.map((card) => `designation:${card.id}:${membership(card)}`),
+  ];
 }
 
 function sameSelectionMembership(left: ReadoutEditionSnapshot, right: ReadoutEditionSnapshot): boolean {
