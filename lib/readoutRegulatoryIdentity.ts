@@ -1,5 +1,5 @@
 /**
- * The agency reviewed these two exact notices as one camizestrant action.
+ * The reviewed source mapping treats these two exact notices as one camizestrant action.
  * Keep this deliberately narrow: a shared drug, tumor, or generic FDA domain
  * is not enough to merge two published editorial selections.
  */

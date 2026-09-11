@@ -17,6 +17,7 @@ import {
   readoutEditionHistoryIncludingCurrent,
 } from "@/app/briefing-preview/editionHistory";
 import { readoutAttentionAnchor, validReadoutAttentionAnchor, type ReadoutAttentionAnchor } from "@/lib/readoutAttention";
+import { sameReadoutRegulatoryIdentity } from "@/lib/readoutRegulatoryIdentity";
 
 // Bump this whenever reader-side cache acceptance changes. It prevents an old
 // finished selection from being served before the new durable-edition check runs.
@@ -312,12 +313,13 @@ const REGULATORY_DISPLAY_FIELDS = [
 ] as const;
 const DESIGNATION_DISPLAY_FIELDS = ["headline", "url", "description", "sourceAction", "sourceLabel", "label"] as const;
 
-function sourceDisplayRepair<T extends { id: string }>(
+function sourceDisplayRepair<T extends { id: string; evidence?: string; url?: string | null }>(
   frozen: T,
   source: unknown,
   fields: readonly string[],
 ): T {
-  if (!source || typeof source !== "object" || (source as { id?: unknown }).id !== frozen.id) return frozen;
+  if (!source || typeof source !== "object" || ((source as { id?: unknown }).id !== frozen.id &&
+    !sameReadoutRegulatoryIdentity(frozen, source as { evidence?: string; url?: string }))) return frozen;
   const repaired: Record<string, unknown> = {};
   for (const field of fields) {
     const value = (source as Record<string, unknown>)[field];
@@ -344,15 +346,19 @@ function hydrateCanonicalDisplayFields(
   const sourceRelevant = new Map(source.relevant.map((entry) => [entry.article.id, entry.article]));
   const sourceRegulatory = new Map(source.regulatoryCards.map((card) => [card.id, card]));
   const sourceDesignations = new Map(source.designationCards.map((card) => [card.id, card]));
+  const sourceStories = [...sourceDevelopments.values(), ...sourceRelevant.values()];
+  const repairedSourceFor = (item: { id: string; evidence?: string; url?: string }) =>
+    sourceDevelopments.get(item.id) ?? sourceRelevant.get(item.id) ??
+    sourceStories.find((candidate) => sameReadoutRegulatoryIdentity(item, candidate));
   return {
     ...snapshot,
     developments: snapshot.developments.map((entry) => ({
       ...entry,
-      development: sourceDisplayRepair(entry.development, sourceDevelopments.get(entry.development.id), PAPER_DISPLAY_FIELDS),
+      development: sourceDisplayRepair(entry.development, repairedSourceFor(entry.development), PAPER_DISPLAY_FIELDS),
     })),
     relevant: snapshot.relevant.map((entry) => ({
       ...entry,
-      article: sourceDisplayRepair(entry.article, sourceRelevant.get(entry.article.id), PAPER_DISPLAY_FIELDS),
+      article: sourceDisplayRepair(entry.article, repairedSourceFor(entry.article), PAPER_DISPLAY_FIELDS),
     })),
     regulatoryCards: snapshot.regulatoryCards.map((card) =>
       sourceDisplayRepair(card, sourceRegulatory.get(card.id), REGULATORY_DISPLAY_FIELDS)),

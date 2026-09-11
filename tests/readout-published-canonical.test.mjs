@@ -107,3 +107,35 @@ test("published Today and 7d windows project only durable canonical editions", a
     if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
   }
 });
+
+test("reviewed FDA aliases hydrate to one source URL without changing saved IDs or routing", async () => {
+  const date = activeReadoutEditionDate();
+  const detailed = { id: "detail", areas: ["Breast"], area: "All", evidence: "FDA approval", title: "Detailed FDA notice",
+    url: "https://www.fda.gov/drugs/resources-information-approved-drugs/fda-grants-accelerated-approval-camizestrant-cdk46-inhibitor-esr1-mutated-hr-positive-her2-negative" };
+  const companion = { ...detailed, id: "companion", title: "FDA press notice",
+    url: "https://fda.gov/news-events/press-announcements/fda-grants-accelerated-approval-new-breast-cancer-treatment" };
+  const canonical = await withReadoutSelectionVersion(edition(date, [companion, detailed]));
+  const repaired = { ...canonical, developments: [{ development: detailed, position: 0 }] };
+  const originalFetch = globalThis.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = "https://aliases.test";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).includes("/functions/v1/briefing")) return Response.json({ area: "All", windowDays: 1,
+      generatedAt: new Date().toISOString(), currentEdition: repaired, overlays: [] });
+    if ((init.method ?? "GET") !== "GET") return new Response(null, { status: 201 });
+    return Response.json(decodeURIComponent(String(url)).includes("edition:v2:") ? [{ card: canonical }] : []);
+  };
+  try {
+    const result = await getCachedReadoutWindow("All", "today");
+    assert.deepEqual(result.currentEdition.developments.map(e => e.development.id), ["companion", "detail"]);
+    assert.deepEqual(result.currentEdition.developments.map(e => e.development.url), [detailed.url, detailed.url]);
+    assert.deepEqual(result.currentEdition.developments.map(e => e.development.areas), [["Breast"], ["Breast"]]);
+    assert.equal(result.currentEdition.selectionVersion, canonical.selectionVersion);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  }
+});
