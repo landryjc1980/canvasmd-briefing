@@ -195,25 +195,22 @@ async function buildCanonicalEdition(
   const candidateEnvironment = { url, headers: supabaseApiKeyHeaders(key) };
   const candidateBuild = await refreshReadoutCandidatesForEdition(candidateEnvironment, { signal: options.signal });
   const previousCanonical = await priorEditions(editionDate, []);
-  let selectionAudit: unknown = null;
-  let selectionAuditCards: unknown[] = [];
-  const snapshots = await Promise.all(EDITION_AREAS.map(async (area) => {
-    // Every new canonical must consume the just-completed candidate build, not
-    // a one-hour source cache. Existing saved editions bypass this constructor.
-    const payload = await fetchFreshReadoutWindowForPrepublication(area, editionDate, attentionAnchor, { includeSelectionAudit: area === "All", signal: options.signal });
-    if (area === "All") { selectionAudit = (payload as any).selectionAudit ?? null; selectionAuditCards = [...(payload.cards ?? []), ...(payload.moreCards ?? [])]; }
-    if (payload.stale === true) {
-      throw new Error(`Prepublication source is stale for ${area}.`);
-    }
-    if (payload.attentionWindow?.startAt !== attentionAnchor.startAt ||
-        payload.attentionWindow.editionDate !== editionDate || payload.attentionWindow.kind !== "edition") {
-      throw new Error(`Prepublication attention window is missing or mismatched for ${area}.`);
-    }
+  // A complete All response is the single admitted supply. Specialty editions are
+  // projected locally with the same membership and history rules as before.
+  const payload = await fetchFreshReadoutWindowForPrepublication("All", editionDate, attentionAnchor, { includeSelectionAudit: true, signal: options.signal });
+  const selectionAudit: unknown = (payload as any).selectionAudit ?? null;
+  const selectionAuditCards: unknown[] = [...(payload.cards ?? []), ...(payload.moreCards ?? [])];
+  if (payload.stale === true) throw new Error("Prepublication All source is stale.");
+  if (payload.attentionWindow?.startAt !== attentionAnchor.startAt ||
+      payload.attentionWindow.editionDate !== editionDate || payload.attentionWindow.kind !== "edition") {
+    throw new Error("Prepublication All source attention window is missing or mismatched.");
+  }
+  const snapshots = EDITION_AREAS.map((area) => {
     const previousForArea = previousCanonical
       .map((snapshot) => readoutEditionForArea(snapshot, area))
       .filter((snapshot): snapshot is ReadoutEditionSnapshot => !!snapshot);
     return { ...buildReadoutEditionSnapshot(area, payload, now, previousForArea, editionDate), attentionAnchor };
-  }));
+  });
   const canonical = canonicalReadoutEditionSnapshot(snapshots);
   if (!canonical) throw new Error("The canonical All edition could not be built.");
   await assertReadoutCandidateBuildUnchanged(candidateEnvironment, candidateBuild);

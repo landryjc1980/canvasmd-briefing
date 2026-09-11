@@ -130,7 +130,7 @@ test("a midday insertion preserves every existing card while fresh evidence stay
   assert.match(readoutEditionArchive, /priorEditions\(editionDate, \[\]\)/);
   assert.match(readoutEditionArchive, /mergeReadoutEditionSnapshot\(currentForArea, payload, now, previousForArea\)/);
   assert.match(readoutEditionArchive, /canonicalReadoutEditionSnapshot\(mergedByArea\)/);
-  assert.match(readoutEditionArchive, /updateEditionRow\(merged\)/);
+  assert.match(readoutEditionArchive, /updateEditionRow\(merged, signal\)/);
 });
 
 test("the 7-day tab reads exact daily editions and never quota-fills", () => {
@@ -416,7 +416,7 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
   assert.match(readoutArchiveRoute, /canonical-edition[\s\S]*?verify-all-today-reader/,
     "the 6am job freezes or reuses the dated edition before checking the bounded All reader path");
   assert.match(readoutArchiveRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
-  assert.match(readoutArchiveRoute, /warmReadoutWindow\("All", "today", \{ freshSource: true \}\)/);
+  assert.match(readoutArchiveRoute, /warmReadoutWindow\("All", "today", \{ freshSource: true, canonicalOnly: true, signal \}\)/);
   assert.match(readoutPrearchiveRoute, /prepublishCurrentReadoutEdition/);
   assert.doesNotMatch(readoutPrearchiveRoute, /warmReadoutWindowCache/,
     "prepublication must not promote a future edition into the reader cache");
@@ -564,7 +564,7 @@ test("preprints remain discoverable but cannot occupy lead-paper slots", () => {
 
 test("an authenticated repair can deterministically replace a bad saved morning edition", () => {
   assert.match(readoutArchiveRoute, /req\.nextUrl\.searchParams\.get\("repair"\) === "1"/);
-  assert.match(readoutArchiveRoute, /rebuildCurrentReadoutEdition\(\)/);
+  assert.match(readoutArchiveRoute, /rebuildCurrentReadoutEdition\(new Date\(\), signal\)/);
   assert.match(readoutEditionArchive, /export async function rebuildCurrentReadoutEdition/);
 });
 

@@ -48,13 +48,14 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
   const mocks = {
     "server-only": {},
     "@/lib/readoutAttention": { readoutAttentionAnchor },
-    "@/app/briefing-preview/edition": { EDITION_AREAS: AREAS },
+    "@/app/briefing-preview/edition": { EDITION_AREAS: AREAS, archivedEditorialArticle: (card) => ({ id: card.id }) },
     "@/app/briefing-preview/editionSnapshot": {
       isReadoutEditionSnapshot: (value) => !!value && value.schemaVersion === 2,
       buildReadoutEditionSnapshot: (area, _payload, now, _previous, editionDate) => ({
         ...savedEdition(editionDate), area, generatedAt: now.toISOString(), selectionVersion: undefined,
       }),
       mergeReadoutEditionSnapshot: (snapshot) => snapshot,
+      appearedInMorningEdition: () => false,
     },
     "@/app/briefing-preview/readoutRequest": {
       activeReadoutEditionDate: () => "2026-09-11",
@@ -74,7 +75,7 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
         calls.push(["fresh", area]);
         assert.equal(refreshed, true, "fresh source reads must wait for candidate refresh");
         assert.deepEqual(attentionAnchor, readoutAttentionAnchor(editionDate));
-        return { ...freshPayload, attentionWindow: attentionMismatch ? null : {
+        return { ...freshPayload, selectionAudit: area === "All" ? { scope: "source-admitted-candidates", papers: [] } : undefined, attentionWindow: attentionMismatch ? null : {
           startAt: attentionAnchor.startAt, editionDate, timeZone: attentionAnchor.timeZone, kind: "edition",
         } };
       },
@@ -110,13 +111,13 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
 test("new 6am canonical editions await candidates before every fresh source read and never use cached reads", async () => {
   const h = harness();
   const result = await h.archiveCurrentReadoutEdition(sixAm);
-  assert.deepEqual(result, { editionDate: "2026-09-11", archived: ["All"], skipped: null });
+  assert.deepEqual(result, { editionDate: "2026-09-11", archived: ["All"], skipped: null, selectionVersion: "readout-v1-test" });
   const refresh = h.calls.findIndex(([kind]) => kind === "candidate-refresh");
   const firstFresh = h.calls.findIndex(([kind]) => kind === "fresh");
   assert.ok(refresh >= 0 && firstFresh > refresh);
-  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, AREAS.length);
+  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
   assert.equal(h.calls.some(([kind]) => kind === "cached"), false);
-  assert.equal(h.calls.filter(([kind, method]) => kind === "db" && method === "POST").length, 1);
+  assert.equal(h.calls.filter(([kind, method]) => kind === "db" && method === "POST").length, 2);
 });
 
 test("candidate refresh failure fails closed before any source read or edition write", async () => {
@@ -130,7 +131,7 @@ test("candidate refresh failure fails closed before any source read or edition w
 test("a candidate replacement during parallel fresh reads prevents the canonical edition from being saved", async () => {
   const h = harness({ changedAfterRead: true });
   await assert.rejects(() => h.archiveCurrentReadoutEdition(sixAm), /changed during selection/);
-  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, AREAS.length);
+  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
   assert.deepEqual(h.calls.filter(([kind, method]) => kind === "db" && method === "POST"), []);
 });
 
@@ -155,23 +156,23 @@ test("a new 5am prepublication validates all scheduled sources, then persists th
   const write = h.calls.findIndex(([kind, method]) => kind === "db" && method === "POST");
   assert.ok(scheduledSource >= 0 && refresh > scheduledSource);
   assert.ok(firstFresh > refresh, "fresh reads must observe the awaited candidate build");
-  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, AREAS.length);
+  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
   assert.ok(candidateAssert > firstFresh && write > candidateAssert);
-  assert.equal(h.writes.length, 1);
-  assert.deepEqual(h.writes[0][0].card.candidateBuild, h.candidateBuild);
+  assert.equal(h.writes.length, 2);
+  assert.deepEqual(h.writes[1][0].card.candidateBuild, h.candidateBuild);
 });
 
 test("a valid prepublished edition is also preserved by the 6am archive path", async () => {
   const h = harness({ existing: savedEdition() });
   const result = await h.archiveCurrentReadoutEdition(sixAm);
-  assert.deepEqual(result, { editionDate: "2026-09-11", archived: ["All"], skipped: "prepublished" });
+  assert.deepEqual(result, { editionDate: "2026-09-11", archived: ["All"], skipped: "prepublished", selectionVersion: `readout-v1-${"a".repeat(64)}` });
   assert.deepEqual(h.calls.filter(([kind]) => kind === "candidate-refresh" || kind === "fresh" || kind === "cached"), []);
 });
 
 test("the new edition stores the exact fixed start used by every specialty selection", async () => {
   const h = harness();
   await h.prepublishCurrentReadoutEdition(fiveAm);
-  assert.deepEqual(h.writes[0][0].card.attentionAnchor, readoutAttentionAnchor("2026-09-11"));
+  assert.deepEqual(h.writes[1][0].card.attentionAnchor, readoutAttentionAnchor("2026-09-11"));
 });
 
 test("a new canonical fails closed if the backend did not select against the requested anchor", async () => {
@@ -185,5 +186,5 @@ test("the no-edition fallback used outside the scheduled archive path still requ
   const result = await h.mergeCurrentReadoutEditionInsertions(sixAm);
   assert.equal(result.changed, true);
   assert.ok(h.calls.some(([kind]) => kind === "candidate-refresh"));
-  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, AREAS.length);
+  assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
 });
