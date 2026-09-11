@@ -387,7 +387,7 @@ function unavailableRawPayload(area: EditionArea, window: ReadoutWindow): Readou
 async function buildFinishedReadoutWindow(
   area: EditionArea,
   window: ReadoutWindow,
-  options: { freshSource?: boolean } = {},
+  options: { freshSource?: boolean; sourceCache?: Map<string, Promise<ReadoutWindowPayload>> } = {},
 ): Promise<ReadoutWindowPayload> {
   const source = options.freshSource ? fetchFreshReadoutWindow : fetchReadoutWindow;
   const durableCanonical = await readDurableCanonicalEdition();
@@ -400,21 +400,27 @@ async function buildFinishedReadoutWindow(
     : readoutAttentionAnchor(editionDate);
   const attentionContextJson = JSON.stringify({ editionDate, attentionAnchor });
   const raw = async (rawArea: EditionArea, rawWindow: ReadoutWindow) => {
+    const key = JSON.stringify([rawArea, rawWindow, attentionContextJson]);
     try {
-      return await source(rawArea, rawWindow, "[]", attentionContextJson);
+      let pending = options.sourceCache?.get(key);
+      if (!pending) {
+        pending = source(rawArea, rawWindow, "[]", attentionContextJson);
+        options.sourceCache?.set(key, pending);
+      }
+      return await pending;
     } catch (error) {
       console.error("Readout raw evidence unavailable; serving canonical publication.", error);
       return unavailableRawPayload(rawArea, rawWindow);
     }
   };
-  const payload = await raw(area, window);
+  const payload = { ...await raw("All", window), area };
   // Raw responses may refresh evidence receipts only. They never supply a
   // published edition, history, or Regulatory Watch membership.
-  const rawToday = window === "today" ? payload : await raw(area, "today");
-  const rawAllToday = area === "All" ? rawToday : await raw("All", "today");
-  const rawAllWeek = window === "7d"
-    ? (area === "All" ? payload : await raw("All", "7d"))
-    : null;
+  // The All raw window already includes every canonical story's evidence.
+  // Specialty source rebuilds cannot add evidence for a different publication.
+  const rawToday = window === "today" ? payload : await raw("All", "today");
+  const rawAllToday = rawToday;
+  const rawAllWeek = window === "7d" ? payload : null;
   const canonicalCurrent = await withReadoutSelectionVersion(durableCanonical);
   const sourceSnapshots = canonicalSourceSnapshots(rawAllToday, rawAllWeek ?? rawAllToday);
   const hydratedCanonicalCurrent = hydrateCanonicalDisplayFields(canonicalCurrent, sourceSnapshots);
@@ -470,6 +476,9 @@ export async function getCachedReadoutWindow(
 }
 
 export async function warmReadoutWindowCache(options: { freshSource?: boolean } = {}) {
+  // One observation per window for the whole fan-out: never repeat the same
+  // expensive All source query for each of eight specialty projections.
+  const sourceCache = new Map<string, Promise<ReadoutWindowPayload>>();
   const requests = EDITION_AREAS.flatMap((area) => (["today", "7d"] as const).map((window) => ({ area, window })));
   const warmed: Array<{ area: EditionArea; window: ReadoutWindow; generatedAt: string | null; stale: boolean; error?: string }> = [];
 
@@ -477,7 +486,7 @@ export async function warmReadoutWindowCache(options: { freshSource?: boolean } 
     const batch = requests.slice(index, index + 4);
     const results = await Promise.all(batch.map(async ({ area, window }) => {
       try {
-        const payload = await buildFinishedReadoutWindow(area, window, options);
+        const payload = await buildFinishedReadoutWindow(area, window, { ...options, sourceCache });
         await persistFinishedWindow(area, window, payload);
         return { area, window, generatedAt: payload.generatedAt, stale: payload.stale === true };
       } catch (error) {

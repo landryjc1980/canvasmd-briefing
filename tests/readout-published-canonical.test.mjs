@@ -35,7 +35,7 @@ function loader(overrides = {}) {
 
 const load = loader({ "next/cache": { unstable_cache: (fn) => fn } });
 const { activeReadoutEditionDate } = load("app/briefing-preview/readoutRequest.ts");
-const { withReadoutSelectionVersion, getCachedReadoutWindow } = load("lib/readoutWindowServer.ts");
+const { withReadoutSelectionVersion, getCachedReadoutWindow, warmReadoutWindowCache } = load("lib/readoutWindowServer.ts");
 
 function edition(editionDate, developments, regulatoryCards = []) {
   return {
@@ -74,9 +74,13 @@ test("published Today and 7d windows project only durable canonical editions", a
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   process.env.SUPABASE_URL = "https://canonical.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+  const rawRequests = [];
   globalThis.fetch = async (url, init = {}) => {
     const value = decodeURIComponent(String(url));
-    if (value.includes("/functions/v1/briefing")) return Response.json({ ...raw, windowDays: JSON.parse(init.body).days });
+    if (value.includes("/functions/v1/briefing")) {
+      rawRequests.push(JSON.parse(init.body));
+      return Response.json({ ...raw, windowDays: JSON.parse(init.body).days });
+    }
     if ((init.method ?? "GET") === "GET") {
       if (value.includes("edition:v2:")) return Response.json([{ card: canonical }]);
       if (value.includes("kind=eq.edition")) return Response.json([{ card: canonical }, { card: prior }]);
@@ -91,6 +95,12 @@ test("published Today and 7d windows project only durable canonical editions", a
     const weekly = await getCachedReadoutWindow("GU", "7d");
     assert.deepEqual(weekly.editionHistory.map((snapshot) => snapshot.editionDate), [editionDate, priorDate]);
     assert.deepEqual(weekly.regulatoryCards.map((item) => item.id), ["regulatory:official-gu", "regulatory:prior-gu"]);
+    rawRequests.length = 0;
+    const warmed = await warmReadoutWindowCache({ freshSource: true });
+    assert.equal(warmed.length, 16);
+    assert.equal(warmed.filter(item => item.error || item.stale).length, 0);
+    assert.deepEqual(rawRequests.map(request => [request.area, request.days]).sort(), [["All", 1], ["All", 7]],
+      "all specialty projections share exactly two raw observations");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;
