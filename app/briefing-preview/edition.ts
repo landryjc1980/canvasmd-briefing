@@ -1,5 +1,6 @@
 import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutArchivedCardSummary, ReadoutBreakingCandidate, ReadoutRegulatoryCandidate } from "@/lib/types";
 import { editorialBelongsToArea, editorialStoryAreas, isSpecialtyArea } from "./storyMembership.js";
+import { readoutLeadFinding } from "../../lib/readoutLeadFinding.js";
 
 export const EDITION_AREAS = ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"] as const;
 export type EditionArea = (typeof EDITION_AREAS)[number];
@@ -548,6 +549,13 @@ function boundExcerpt(text: string): string {
 
 export function readoutFindingExcerpt(value: string): string {
   const text = cleanReadoutExcerpt(value);
+  // One paper must open with the same sentence on every surface. The engine already picks a
+  // lead sentence for window cards; archived editions only carry the full abstract, so the same
+  // picker runs here. The section join below remains the fallback for text the picker rejects.
+  const lead = readoutLeadFinding(text);
+  // A Lancet-style FINDINGS block can hand the picker an "INTERPRETATION: ..." sentence with its
+  // label still attached; a card lead never shows a section label.
+  if (lead) return lead.replace(/^[A-Z][A-Z ,&/-]{3,40}:\s*/, "");
   const sections: Array<{ name: string; body: string }> = [];
   const matches = [...text.matchAll(ABSTRACT_SECTION)];
   for (const [index, match] of matches.entries()) {

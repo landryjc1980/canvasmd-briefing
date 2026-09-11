@@ -332,12 +332,28 @@ test("Readout finding excerpts select results sections without inventing finding
   );
   assert.equal(
     readoutFindingExcerpt("BACKGROUND: Context. FINDINGS: Responses deepened. INTERPRETATION: Activity was durable. FUNDING: Sponsor."),
-    "Responses deepened. Activity was durable.",
+    "Activity was durable.",
   );
   assert.equal(readoutFindingExcerpt("Unstructured source prose stays intact."), "Unstructured source prose stays intact.");
   assert.equal(
     readoutFindingExcerpt("BACKGROUND: Context only. METHODS: Patients were enrolled."),
     "BACKGROUND: Context only. METHODS: Patients were enrolled.",
+  );
+});
+
+// Drift pin for lib/readoutLeadFinding.ts, a mirror of the engine's abstractFindings. These are
+// the exact sentences the engine chose for two real September 11 cards; if either changes here
+// without changing in canvasmd/_shared/briefingCore.ts, Today and 7 days will open differently.
+test("Readout cards lead with the same abstract sentence the engine picks", () => {
+  const review = "Revolutions in transplantation and targeted and immune therapies have transformed multiple myeloma from a disease with an associated survival of a few years into one for which functional cure is an emerging goal. This abundance of effective therapies has created clinical complexity. Here we provide a practical framework, anchored in trial evidence and informed by emerging biologic discoveries, for the navigation of treatment decisions across the disease spectrum. We outline how cytogenetic and genomic risk stratification, functional fitness, and measurable residual disease status individualize therapy in newly diagnosed disease, in which quadruplet induction therapy is now standard and the role of autologous transplantation is being reevaluated. Regarding relapse, we address the sequencing of B-cell maturation antigen-directed chimeric antigen receptor (CAR) T cells, bispecific antibodies, and antibody-drug conjugates, emphasizing T-cell fitness and multiantigen targeting to counter exhaustion and antigen escape.";
+  assert.equal(
+    readoutFindingExcerpt(review),
+    "We outline how cytogenetic and genomic risk stratification, functional fitness, and measurable residual disease status individualize therapy in newly diagnosed disease, in which quadruplet induction therapy is now standard and the role of autologous transplantation is being reevaluated.",
+  );
+  const structured = "IMPORTANCE: Geographic disparities in cancer clinical trial access are well described in the US.\nRESULTS: The study identified 436 bladder cancer trials across 713 US counties. A higher bladder cancer mortality rate was associated with lower trial rates (IRR, 0.80; 95% CI, 0.73-0.88).\nCONCLUSIONS AND RELEVANCE: In this cross-sectional study, most counties lacked trials.";
+  assert.equal(
+    readoutFindingExcerpt(structured),
+    "A higher bladder cancer mortality rate was associated with lower trial rates (IRR, 0.80; 95% CI, 0.73-0.88).",
   );
 });
 

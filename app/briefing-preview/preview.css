@@ -92,7 +92,7 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-development { margin-top: 14px; padding: 18px 18px 14px; border: 1px solid var(--er-line); border-radius: 14px; background: var(--er-surface); scroll-margin-top: 16px; }
 .er-kicker-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .er-kicker-row .er-kicker { flex: 0 0 auto; margin-bottom: 0; white-space: nowrap; }
-.er-kicker-source { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--er-muted); font-size: 13px; line-height: 1; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.er-kicker-source { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--er-muted); font-size: 13px; line-height: 1.35; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .er-development.has-kicker-source .er-source-headline > .er-source { display: none; }
 .er-kicker { margin-bottom: 8px; color: var(--er-accent); font-size: 10.5px; line-height: 1; text-transform: uppercase; font-weight: 700; letter-spacing: .1em; }
 .er-kicker b { font: inherit; color: inherit; }
