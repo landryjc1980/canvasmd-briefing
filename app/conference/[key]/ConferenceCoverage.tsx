@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import ReadoutArticleCard from "@/components/ReadoutArticleCard";
-import type { ConferenceClinicianShare, ConferenceWindowPayload } from "@/lib/conference";
-import { conferenceDateRange, conferenceStatusLabel, publicationDateLabel } from "@/lib/conference";
+import ReadoutVoice, { type ReadoutVoicePost } from "@/components/ReadoutVoice";
+import type { ConferenceClinicianShare, ConferencePublisherComment, ConferenceWindowPayload } from "@/lib/conference";
+import { conferenceDateRange, conferenceStatusLabel, parseConferencePublisherComments, publicationDateLabel } from "@/lib/conference";
 
-type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[] };
+type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[]; publisherComments: ConferencePublisherComment[] };
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -74,6 +76,7 @@ function coverageItem(value: unknown, section: "cards" | "articles" | "episodes"
     excerpt: text(source.excerpt) ?? text(source.description),
     publishedAt: text(source.pubDate) ?? text(source.published) ?? text(source.publishedAt) ?? text(source.occurredOn),
     clinicianShares: section === "reports" ? clinicianShares(source.clinicianShares) : [],
+    publisherComments: section === "reports" ? parseConferencePublisherComments(source.publisherComments) : [],
   };
 }
 
@@ -120,6 +123,31 @@ function ClinicianReceipts({ shares }: { shares: ConferenceClinicianShare[] }) {
   </div>;
 }
 
+function PublisherComments({ comments }: { comments: ConferencePublisherComment[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!comments.length) return null;
+  const lead = comments[0];
+  const leadIsLong = lead.text.length > 220;
+  const remaining = comments.slice(1);
+  const needsDisclosure = leadIsLong || remaining.length > 0;
+  const visible = expanded ? comments : [lead];
+  return <div className="er-convo conference-publisher-comments" aria-label="Publisher comments on X">
+    <p className="er-voices-label">Publisher comments on X</p>
+    {visible.map((comment, index) => {
+      const post: ReadoutVoicePost = {
+        name: comment.name,
+        avatar: comment.avatarUrl,
+        tweetUrl: comment.postUrl,
+        text: comment.text,
+      };
+      return <ReadoutVoice key={`${comment.sourceId}:${comment.postUrl}`} post={post} extra={index > 0} expanded={expanded} cleanText={(value) => value?.trim() ?? ""} />;
+    })}
+    {needsDisclosure && <button type="button" className="er-thread-toggle" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}>
+      {expanded ? "Show less" : remaining.length > 0 ? `Show ${remaining.length} more comment${remaining.length === 1 ? "" : "s"}` : "Show full comment"}
+    </button>}
+  </div>;
+}
+
 function ConferenceReportCard({ item }: { item: CoverageItem }) {
   const published = publicationDateLabel(item.publishedAt);
   return (
@@ -131,6 +159,7 @@ function ConferenceReportCard({ item }: { item: CoverageItem }) {
       date={published ? <p className="er-action-date"><time dateTime={item.publishedAt ?? undefined}>{published}</time></p> : undefined}
     >
       {item.excerpt && <div className="er-excerpt"><p className="er-finding">{item.excerpt}</p></div>}
+      <PublisherComments comments={item.publisherComments} />
       <ClinicianReceipts shares={item.clinicianShares} />
     </ReadoutArticleCard>
   );

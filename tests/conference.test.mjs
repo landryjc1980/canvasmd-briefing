@@ -80,6 +80,29 @@ test("conference reports render only validated clinician receipt attribution", (
   assert.match(coverageCss, /conference-clinician-more/);
 });
 
+test("conference reports accept only attributable publisher X comments and keep them separate from clinician receipts", () => {
+  assert.match(source, /publisherComments\?: ConferencePublisherComment\[\]/);
+  assert.match(source, /export type ConferencePublisherComment/);
+  assert.match(source, /export function parseConferencePublisherComments\(value: unknown\)/);
+  assert.match(source, /const sourceId = publisherCommentText\(comment\.sourceId\)/);
+  assert.match(source, /const postUrl = publisherCommentUrl\(comment\.postUrl\)/);
+  assert.match(source, /!sourceId \|\| !name \|\| !text \|\| !postUrl \|\| !postedAt/);
+  assert.match(coverage, /parseConferencePublisherComments\(source\.publisherComments\)/);
+  assert.match(coverage, /<PublisherComments comments=\{item\.publisherComments\}/);
+  assert.match(coverage, /<ClinicianReceipts shares=\{item\.clinicianShares\}/);
+  assert.match(coverage, /ReadoutVoice/);
+  assert.match(coverage, /Show full comment/);
+});
+
+test("publisher comment parser rejects unreceipted posts and preserves valid source URLs", () => {
+  const valid = [{ sourceId: "source-42", name: "SOHO", handle: "SOHO_Oncology", avatarUrl: "https://images.example/soho.png", text: "New report from the meeting.", postUrl: "https://x.com/SOHO_Oncology/status/123", postedAt: "2026-09-11T14:00:00Z" }];
+  assert.deepEqual(runtime.parseConferencePublisherComments(valid), valid);
+  assert.deepEqual(runtime.parseConferencePublisherComments([{ ...valid[0], postUrl: "javascript:alert(1)" }]), []);
+  assert.deepEqual(runtime.parseConferencePublisherComments([{ ...valid[0], sourceId: "" }]), []);
+  assert.deepEqual(runtime.parseConferencePublisherComments([{ ...valid[0], text: "" }]), []);
+  assert.deepEqual(runtime.parseConferencePublisherComments([{ ...valid[0], postedAt: "" }]), []);
+});
+
 test("conference page preserves existing cards, articles, and episode coverage with source links", () => {
   assert.match(coverage, /coverage\.cards/);
   assert.match(coverage, /coverage\.articles/);

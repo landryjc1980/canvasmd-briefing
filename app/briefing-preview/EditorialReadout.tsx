@@ -17,6 +17,7 @@ import {
 import AudioQuote from "@/components/AudioQuote";
 import DailyReadoutAudio from "@/components/DailyReadoutAudio";
 import ReadoutArticleCard from "@/components/ReadoutArticleCard";
+import ReadoutVoice from "@/components/ReadoutVoice";
 import { articleExpansion, articleSourceText, articleTextPreview, readoutRegulatoryCoverage, regulatoryApprovalSourceText, sourceLinkKey, sourceLinkLabel } from "@/lib/readoutPresentation";
 import {
   readoutWindowDays,
@@ -40,7 +41,6 @@ import {
   type EditorialEpisodeFeature,
   type EditionArea,
 } from "./edition";
-import { availableThreadParts } from "./threadParts";
 import ConferenceTeaser from "./ConferenceTeaser";
 import type { ConferenceMeeting } from "@/lib/conference";
 
@@ -218,13 +218,6 @@ function clinicianSurname(name: string): string {
   return parts[parts.length - 1] || name;
 }
 
-function clinicianInitials(name: string): string {
-  const cleaned = name.replace(/,?\s+(?:MD|PhD|DO)\b.*$/i, "").trim();
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
-}
-
 function xAvatars(article: BriefingArticle | null): string[] {
   const seen = new Set<string>();
   const photos: string[] = [];
@@ -321,40 +314,6 @@ function shareCommentaryLabel(sharedBy: number, authoredCount: number, available
   return commented > 0 ? `${shared} · ${commented} commented` : shared;
 }
 
-function Voice({ post, extra = false, expanded = false }: { post: BriefingSharer; extra?: boolean; expanded?: boolean }) {
-  const [threadOpen, setThreadOpen] = useState(false);
-  // A thread is only the ordered continuation entries supplied by evidence. Do
-  // not derive missing parts from a visible “1/4” convention or manufacture a
-  // status URL: an absent body or URL stays absent.
-  const thread = availableThreadParts(post.thread, post.tweetUrl, cleanClinicianText);
-  const availableThreadCount = thread.length + 1;
-  return (
-    <div className={`er-voice ${extra ? "er-voice-more" : ""}`}>
-      <div className="er-who">
-        {post.avatar
-          ? <img src={post.avatar} alt="" loading="lazy" decoding="async" />
-          : <span className="er-av" aria-hidden="true">{clinicianInitials(post.name)}</span>}
-        <div>
-          <b>{post.name}</b>
-        </div>
-      </div>
-      <p className="er-quote">{expanded || threadOpen ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
-      {threadOpen && thread.map((part, index) => {
-        return <div className="er-thread-part" key={part.id || `thread:${index}`}>
-          <p>{part.text}</p>
-          {part.tweetUrl && <a className="er-thread-source" href={part.tweetUrl} target="_blank" rel="noreferrer">View on X</a>}
-        </div>;
-      })}
-      {thread.length > 0 && (
-        <button type="button" className="er-thread-toggle" aria-expanded={threadOpen} onClick={() => setThreadOpen((open) => !open)}>
-          {threadOpen ? "Show less" : `Expand thread · ${availableThreadCount} posts`}
-        </button>
-      )}
-      {post.tweetUrl && <a className="er-xlink" href={post.tweetUrl} target="_blank" rel="noreferrer">View on X</a>}
-    </div>
-  );
-}
-
 function PhysicianVoices({
   article,
   sharedBy,
@@ -375,9 +334,9 @@ function PhysicianVoices({
   return (
     <div className={`er-convo ${posts.length === 1 ? "is-single" : ""}`}>
       <p className="er-voices-label">What clinicians are saying</p>
-      <Voice post={lead} expanded={expanded} />
+      <ReadoutVoice post={lead} expanded={expanded} cleanText={cleanClinicianText} />
       {rest.map((post, index) => (
-        <Voice post={post} extra expanded key={`${post.handle ?? post.name}-${index}`} />
+        <ReadoutVoice post={post} extra expanded cleanText={cleanClinicianText} key={`${post.handle ?? post.name}-${index}`} />
       ))}
       {expanded && loadingMore && <p className="er-no-commentary" role="status">Loading remaining comments...</p>}
       {expanded && loadFailed && <p className="er-no-commentary">The remaining comments could not be loaded.</p>}

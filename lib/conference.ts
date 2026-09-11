@@ -20,6 +20,7 @@ export type ConferenceReport = {
   publishedAt: string | null;
   sharedAt: string;
   clinicianShares?: ConferenceClinicianShare[];
+  publisherComments?: ConferencePublisherComment[];
 };
 
 export type ConferenceClinicianShare = {
@@ -31,6 +32,52 @@ export type ConferenceClinicianShare = {
   postUrl: string;
   postedAt: string;
 };
+
+/** An original publisher, newsroom, or organization X post tied to this exact report. */
+export type ConferencePublisherComment = {
+  sourceId: string;
+  name: string;
+  handle: string;
+  avatarUrl: string | null;
+  text: string;
+  postUrl: string;
+  postedAt: string;
+};
+
+function publisherCommentText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function publisherCommentUrl(value: unknown): string | null {
+  const url = publisherCommentText(value);
+  return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+/** Fails closed: a publisher caption must retain its source receipt and authored text. */
+export function parseConferencePublisherComments(value: unknown): ConferencePublisherComment[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const comment = item as Record<string, unknown>;
+    const sourceId = publisherCommentText(comment.sourceId);
+    const name = publisherCommentText(comment.name);
+    const text = publisherCommentText(comment.text);
+    const postUrl = publisherCommentUrl(comment.postUrl);
+    const postedAt = publisherCommentText(comment.postedAt);
+    if (!sourceId || !name || !text || !postUrl || !postedAt || seen.has(postUrl)) return [];
+    seen.add(postUrl);
+    return [{
+      sourceId,
+      name,
+      handle: publisherCommentText(comment.handle) ?? "",
+      avatarUrl: publisherCommentUrl(comment.avatarUrl),
+      text,
+      postUrl,
+      postedAt,
+    }];
+  });
+}
 
 export type ConferenceWindowPayload = {
   meeting: ConferenceMeeting | null;
