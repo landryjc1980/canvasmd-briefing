@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 
 // Resolve these pure Next.js modules in Node without changing their production imports.
@@ -56,4 +57,13 @@ test("hourly source types are not relabeled as major research papers", () => {
     assert.equal(item.publicationClass, classification);
     assert.equal(item.evidence, label);
   }
+});
+
+test("the public editor keeps unknown classification honest without leaking an internal placeholder", () => {
+  const renderer = readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
+  assert.match(renderer, /unknown: "Article"/);
+  assert.doesNotMatch(renderer, /Unclassified source/);
+  const item = breakingEditorialArticle(breaking("unknown-public-label", "unknown"), "All");
+  assert.equal(item.publicationClass, "unknown", "the neutral label does not promote the safety class to research");
+  assert.equal(item.evidence, "Article");
 });

@@ -410,7 +410,7 @@ function DevelopmentFinding({
 }
 
 function articleContentType(item: EditorialArticle): string {
-  if (item.publicationClass && item.publicationClass !== "research") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline", unknown: "Unclassified source" }[item.publicationClass];
+  if (item.publicationClass && item.publicationClass !== "research") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline", unknown: "Article" }[item.publicationClass];
   const hay = `${item.evidence} ${item.sourceAction ?? ""} ${item.journal}`;
   if (/approval/i.test(hay)) return "FDA approval";
   if (/safety|warning/i.test(hay)) return "FDA safety";
