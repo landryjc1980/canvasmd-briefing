@@ -40,6 +40,8 @@ import {
   type EditionArea,
 } from "./edition";
 import { availableThreadParts } from "./threadParts";
+import ConferenceTeaser from "./ConferenceTeaser";
+import type { ConferenceMeeting } from "@/lib/conference";
 
 const AREA_LABELS: Record<EditionArea, string> = {
   All: "All oncology",
@@ -802,7 +804,7 @@ function editionDateLabel(value: string | null | undefined) {
   }).format(parsed);
 }
 
-export default function EditorialReadout({ initialPayload }: { initialPayload: ReadoutWindowPayload }) {
+export default function EditorialReadout({ initialPayload, conferenceMeetings = [] }: { initialPayload: ReadoutWindowPayload; conferenceMeetings?: ConferenceMeeting[] }) {
   const [area, setArea] = useState<EditionArea>("All");
   const [readoutWindow, setReadoutWindow] = useState<ReadoutWindow>("today");
   const [requestedArea, setRequestedArea] = useState<EditionArea>("All");
@@ -1037,6 +1039,7 @@ export default function EditorialReadout({ initialPayload }: { initialPayload: R
             >{candidate === "today" ? "Today" : "7 days"}</button>)}
           </div>
         </div>
+        <ConferenceTeaser meetings={conferenceMeetings} area={area} />
         <div id="readout-window-panel" role="tabpanel" aria-labelledby={`readout-window-tab-${requestedWindow}`} aria-busy={loadingWindow} tabIndex={-1}>
         {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}

@@ -1,0 +1,42 @@
+.conference-page { min-height: 100vh; max-width: 720px; margin: 0 auto; padding: 0 0 56px; color: var(--er-ink); }
+.conference-masthead { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--er-line); }
+.conference-brand { color: var(--er-ink); font: 600 20px/1 Georgia, "Times New Roman", serif; text-decoration: none; }
+.conference-brand span { color: var(--er-accent); }
+.conference-back, .conference-footer a { min-height: 44px; display: inline-flex; align-items: center; color: var(--er-link); font-size: 13px; font-weight: 750; text-decoration: none; }
+.conference-back:hover, .conference-footer a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.conference-hero { padding: 48px 0 32px; border-bottom: 1px solid var(--er-line); }
+.conference-eyebrow { margin: 0 0 9px; color: var(--er-accent); font-size: 10px; font-weight: 800; letter-spacing: .13em; line-height: 1.2; text-transform: uppercase; }
+.conference-hero h1, .conference-empty h1 { max-width: 640px; margin: 0; font: 650 clamp(34px, 6vw, 52px)/1.04 Newsreader, Georgia, "Times New Roman", serif; letter-spacing: -.025em; }
+.conference-name { margin: 10px 0 0; color: var(--er-ink); font: 650 17px/1.35 Georgia, "Times New Roman", serif; }
+.conference-meta { margin: 15px 0 0; color: var(--er-muted); font-size: 15px; line-height: 1.45; }
+.conference-official-link { display: inline-flex; min-height: 44px; align-items: center; margin-top: 18px; color: var(--er-link); font-size: 13px; font-weight: 750; text-decoration: none; }
+.conference-official-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.conference-reports { padding-top: 30px; }
+.conference-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.conference-section-heading .conference-eyebrow { margin-bottom: 5px; }
+.conference-section-heading h2 { margin: 0; font: 650 25px/1.1 Newsreader, Georgia, "Times New Roman", serif; }
+.conference-section-heading > span { padding-bottom: 2px; color: var(--er-muted); font-size: 12px; font-weight: 650; }
+.conference-report-list { display: grid; gap: 12px; }
+.conference-report-card { padding: 20px; border: 1px solid var(--er-line); border-radius: 5px; background: var(--er-surface); }
+.conference-report-type { margin: 0 0 9px; color: var(--er-accent); font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.conference-report-card h2 { margin: 0; font: 650 22px/1.22 Newsreader, Georgia, "Times New Roman", serif; }
+.conference-report-card h2 a { color: inherit; text-decoration: none; }
+.conference-report-card h2 a:hover { color: var(--er-accent); }
+.conference-report-card h2 span { color: var(--er-accent); font-family: system-ui, sans-serif; font-size: .7em; vertical-align: .18em; }
+.conference-report-source { margin: 10px 0 0; color: var(--er-muted); font-size: 12px; line-height: 1.4; }
+.conference-report-source span { margin: 0 3px; }
+.conference-report-excerpt { margin: 13px 0 0; color: #484b58; font: 400 15px/1.52 Newsreader, Georgia, "Times New Roman", serif; }
+.conference-source-link { display: inline-flex; min-height: 44px; align-items: center; margin-top: 10px; color: var(--er-link); font-size: 13px; font-weight: 750; text-decoration: none; }
+.conference-source-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.conference-empty { padding: 54px 0; }
+.conference-empty > p:not(.conference-eyebrow) { max-width: 480px; margin: 15px 0 0; color: var(--er-muted); font-size: 15px; line-height: 1.5; }
+.conference-empty-inline { padding: 28px 20px; border: 1px solid var(--er-line); border-radius: 5px; background: var(--er-surface); }
+.conference-empty-inline > p { margin-top: 0 !important; }
+.conference-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.conference-actions a, .conference-actions button, .conference-empty button { min-height: 42px; box-sizing: border-box; padding: 0 14px; border: 1px solid var(--er-ink); border-radius: 4px; background: var(--er-ink); color: #fff; font: 700 13px/1 system-ui, sans-serif; text-decoration: none; cursor: pointer; }
+.conference-actions a { display: inline-flex; align-items: center; }
+.conference-actions button, .conference-empty button { background: transparent; color: var(--er-ink); }
+.conference-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--er-line); color: var(--er-muted); font-size: 12px; }
+.conference-footer span { text-align: right; }
+@media (max-width: 800px) { .conference-page { padding: 0 20px 44px; } .conference-hero { padding-top: 38px; } }
+@media (max-width: 480px) { .conference-masthead { min-height: 58px; } .conference-back { font-size: 12px; } .conference-hero h1, .conference-empty h1 { font-size: 36px; } .conference-report-card { padding: 17px; } .conference-report-card h2 { font-size: 20px; } .conference-footer { align-items: flex-start; flex-direction: column; gap: 0; } .conference-footer span { text-align: left; } }
