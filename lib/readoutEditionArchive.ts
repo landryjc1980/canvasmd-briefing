@@ -26,6 +26,10 @@ import {
   supabaseApiKeyHeaders,
   withReadoutSelectionVersion,
 } from "@/lib/readoutWindowServer";
+import {
+  assertReadoutCandidateBuildUnchanged,
+  refreshReadoutCandidatesForEdition,
+} from "@/lib/readoutCandidateRefresh";
 
 function supabaseServiceEnvironment() {
   const url = process.env.SUPABASE_URL;
@@ -155,12 +159,15 @@ async function buildCanonicalEdition(
   options: { editionDate?: string; prepublication?: boolean } = {},
 ): Promise<ReadoutEditionSnapshot> {
   const editionDate = options.editionDate ?? activeReadoutEditionDate(now);
+  const { url, key } = supabaseServiceEnvironment();
+  const candidateEnvironment = { url, headers: supabaseApiKeyHeaders(key) };
+  const candidateBuild = await refreshReadoutCandidatesForEdition(candidateEnvironment);
   const previousCanonical = await priorEditions(editionDate, []);
   const snapshots = await Promise.all(EDITION_AREAS.map(async (area) => {
-    const payload = options.prepublication
-      ? await fetchFreshReadoutWindowForPrepublication(area)
-      : await getCachedReadoutWindow(area, "today");
-    if (options.prepublication && payload.stale === true) {
+    // Every new canonical must consume the just-completed candidate build, not
+    // a one-hour source cache. Existing saved editions bypass this constructor.
+    const payload = await fetchFreshReadoutWindowForPrepublication(area);
+    if (payload.stale === true) {
       throw new Error(`Prepublication source is stale for ${area}.`);
     }
     const previousForArea = previousCanonical
@@ -170,7 +177,8 @@ async function buildCanonicalEdition(
   }));
   const canonical = canonicalReadoutEditionSnapshot(snapshots);
   if (!canonical) throw new Error("The canonical All edition could not be built.");
-  return withReadoutSelectionVersion(canonical);
+  await assertReadoutCandidateBuildUnchanged(candidateEnvironment, candidateBuild);
+  return withReadoutSelectionVersion({ ...canonical, candidateBuild });
 }
 
 /** Consolidate exact rows saved by the old per-specialty archive. This repairs

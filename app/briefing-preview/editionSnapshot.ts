@@ -28,6 +28,7 @@ export type ReadoutEditionSnapshot = {
   editionDate: string;
   generatedAt: string;
   selectionVersion?: string | null;
+  candidateBuild?: { runId: string; requestId: number; generatedAt: string };
   area: EditionArea;
   developments: ReadoutEditionDevelopment[];
   relevant: ReadoutEditionArticle[];
