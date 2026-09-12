@@ -263,15 +263,22 @@ function articleFromEditorial(item: EditorialArticle): BriefingArticle {
   };
 }
 
-function applyEvidenceOverlay(article: BriefingArticle | null, overlay: BriefingEvidenceOverlayItem | undefined): BriefingArticle | null {
+/** The edition window (since yesterday morning) is the count that earned the slot; use it on Today
+ * whenever the overlay carries it. Comments still come from the whole seven-day pool. */
+function usesEditionWindow(overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow): boolean {
+  return window === "today" && (overlay?.windowClinicianCount ?? 0) > 0;
+}
+
+function applyEvidenceOverlay(article: BriefingArticle | null, overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow = "today"): BriefingArticle | null {
   if (!article || !overlay) return article;
+  const windowed = usesEditionWindow(overlay, window);
   return {
     ...article,
-    kolSharers: overlay.kolSharers,
-    faces: overlay.faces,
+    kolSharers: windowed ? overlay.windowClinicianCount : overlay.kolSharers,
+    faces: windowed && overlay.windowFaces?.length ? overlay.windowFaces : overlay.faces,
     posts: overlay.posts,
-    sharerPeople: overlay.sharerPeople,
-    authoredClinicianCount: overlay.authoredClinicianCount ?? article.authoredClinicianCount,
+    sharerPeople: windowed && overlay.windowSharerPeople?.length ? overlay.windowSharerPeople : overlay.sharerPeople,
+    authoredClinicianCount: (windowed ? overlay.windowAuthoredClinicianCount : undefined) ?? overlay.authoredClinicianCount ?? article.authoredClinicianCount,
   };
 }
 
@@ -279,25 +286,27 @@ function articleWithLiveEvidence(
   item: EditorialArticle,
   briefs: BriefingData[],
   overlay: BriefingEvidenceOverlayItem | undefined,
+  window: ReadoutWindow = "today",
 ): BriefingArticle {
   const base = overlay ? findArticle(item, briefs) ?? articleFromEditorial(item) : articleFromEditorial(item);
-  return applyEvidenceOverlay(base, overlay) ?? articleFromEditorial(item);
+  return applyEvidenceOverlay(base, overlay, window) ?? articleFromEditorial(item);
 }
 
-function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; sharedBy: number }) {
+function PeerRow({ article, sharedBy, period = null }: { article: BriefingArticle | null; sharedBy: number; period?: string | null }) {
   const sharers = clinicianSharers(article).slice(0, sharedBy);
   if (!sharers.length && sharedBy <= 0) return null;
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
   const others = Math.max(0, sharedBy - named.length);
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
   const loadedComments = usefulPosts(article).length;
-  const availableComments = Math.max(loadedComments, article?.authoredClinicianCount ?? 0);
-  const proof = shareCommentaryLabel(sharedBy, article?.authoredClinicianCount ?? availableComments, availableComments);
+  const wrote = Math.max(loadedComments, article?.authoredClinicianCount ?? 0);
+  const breakdown = shareCommentaryLabel(sharedBy, wrote);
   return (
     <div className="er-peers">
       <FacePile article={article} count={sharedBy} />
       <div className="er-peer-copy">
-        <p className="er-proof-count">{proof}</p>
+        <p className="er-proof-count">Shared by {sharedBy} clinician{sharedBy === 1 ? "" : "s"}{period && <span className="er-since"> {period}</span>}</p>
+        {breakdown && <p className="er-breakdown">{breakdown}</p>}
         {named.length > 0 && (
           <p className="er-peers-who">
             <b>{surnames.join(", ")}</b>
@@ -309,10 +318,14 @@ function PeerRow({ article, sharedBy }: { article: BriefingArticle | null; share
   );
 }
 
-function shareCommentaryLabel(sharedBy: number, authoredCount: number, availableCount: number): string {
-  const shared = `Shared by ${sharedBy} clinician${sharedBy === 1 ? "" : "s"}`;
-  const commented = Math.max(authoredCount, availableCount);
-  return commented > 0 ? `${shared} · ${commented} commented` : shared;
+/** Who did what, under the count: clinicians who wrote in their own words versus those who
+ * reposted or shared the link. Reposts and bare links are not yet separated in the overlay. */
+function shareCommentaryLabel(sharedBy: number, wrote: number): string | null {
+  if (sharedBy <= 0) return null;
+  const own = Math.min(Math.max(wrote, 0), sharedBy);
+  const rest = sharedBy - own;
+  const parts = [own > 0 ? `${own} wrote about it` : null, rest > 0 ? `${rest} reposted or shared the link` : null].filter(Boolean);
+  return parts.join(" · ") || null;
 }
 
 function PhysicianVoices({
@@ -469,12 +482,14 @@ function ArticleDevelopment({
   overlays,
   compact = false,
   numbered = false,
+  window = "today",
 }: {
   item: EditorialArticle;
   briefs: BriefingData[];
   overlays: Map<string, BriefingEvidenceOverlayItem>;
   compact?: boolean;
   numbered?: boolean;
+  window?: ReadoutWindow;
 }) {
   const [open, setOpen] = useState(false);
   const [detailOverlay, setDetailOverlay] = useState<BriefingEvidenceOverlayItem | null>(null);
@@ -482,7 +497,8 @@ function ArticleDevelopment({
   const [detailLoadFailed, setDetailLoadFailed] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const overlay = detailOverlay ?? overlays.get(item.id);
-  const article = articleWithLiveEvidence(item, briefs, overlay);
+  const article = articleWithLiveEvidence(item, briefs, overlay, window);
+  const attentionPeriod = usesEditionWindow(overlay, window) ? "since yesterday morning" : window === "7d" ? "this week" : null;
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
@@ -559,7 +575,7 @@ function ArticleDevelopment({
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
-        ? <PeerRow article={article} sharedBy={sharedBy} />
+        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
     </ReadoutArticleCard>
@@ -691,25 +707,27 @@ function isEpisodeDevelopment(item: EditorialDevelopment): item is EditorialEpis
 function CompactDevelopment({
   item,
   overlays,
+  window = "today",
 }: {
   item: EditorialArticle;
   overlays: Map<string, BriefingEvidenceOverlayItem>;
+  window?: ReadoutWindow;
 }) {
-  return <ArticleDevelopment item={item} briefs={EMPTY_BRIEFS} overlays={overlays} compact />;
+  return <ArticleDevelopment item={item} briefs={EMPTY_BRIEFS} overlays={overlays} compact window={window} />;
 }
 
-function Development({ item, briefs, overlays, numbered = false }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem>; numbered?: boolean }) {
+function Development({ item, briefs, overlays, numbered = false, window = "today" }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem>; numbered?: boolean; window?: ReadoutWindow }) {
   return isEpisodeDevelopment(item)
     ? <EpisodeDevelopment item={item} briefs={briefs} overlays={overlays} numbered={numbered} />
-    : <ArticleDevelopment item={item} briefs={briefs} overlays={overlays} numbered={numbered} />;
+    : <ArticleDevelopment item={item} briefs={briefs} overlays={overlays} numbered={numbered} window={window} />;
 }
 
-function NumberedDevelopment({ item, briefs, overlays, position }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem>; position: number }) {
+function NumberedDevelopment({ item, briefs, overlays, position, window = "today" }: { item: EditorialDevelopment; briefs: BriefingData[]; overlays: Map<string, BriefingEvidenceOverlayItem>; position: number; window?: ReadoutWindow }) {
   const contentType = isEpisodeDevelopment(item) ? "Podcast" : articleContentType(item);
   return (
     <div className="er-numbered-development">
       <div className="er-story-order">{position} <span>·</span> {contentType}</div>
-      <Development item={item} briefs={briefs} overlays={overlays} numbered />
+      <Development item={item} briefs={briefs} overlays={overlays} numbered window={window} />
     </div>
   );
 }
@@ -1017,7 +1035,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">Specialty lead selected from the 72-hour Listen window.</p>}
         {loadError && <div className="er-load-error" role="alert"><p>The selected view could not load.</p><button type="button" onClick={retryLoad}>Try again</button></div>}
         {pageReady && <DailyReadoutAudio dates={audioDates} expectedVersions={audioVersions} />}
-        {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
+        {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} window={readoutWindow} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">
             <p>Nothing new cleared the bar in {AREA_LABELS[area]} today.</p>
             <button className="er-empty-history" type="button" onClick={() => chooseWindow("7d")}>See the last 7 days</button>
@@ -1029,7 +1047,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         <section className="er-added-since-morning" aria-label="Added since this morning">
           <h2>Added since this morning</h2>
           <div className="er-compact-list">{addedSinceMorning.map((item) => (
-            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
+            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} window={readoutWindow} />
           ))}</div>
         </section>
       )}
@@ -1039,7 +1057,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
             <h2>More from the last 7 days</h2><span>{moreOpen ? "Show less \u2212" : `Show ${moreFromSevenDays.length} +`}</span>
           </button>
           {moreOpen && <div className="er-compact-list">{moreFromSevenDays.map((item) => (
-            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
+            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} window={readoutWindow} />
           ))}</div>}
         </section>
       )}
@@ -1048,7 +1066,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         <section className="er-section er-relevant">
           <div className="er-section-title"><h2>More to read</h2></div>
           <div className="er-compact-list">{(alsoOpen || relevant.length === 1 ? relevant : relevant.slice(0, 1)).map((item) => (
-            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
+            <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} window={readoutWindow} />
           ))}</div>
           {relevant.length > 1 && <button className="er-more-toggle" type="button" onClick={() => setAlsoOpen((value) => !value)} aria-expanded={alsoOpen}>
             {alsoOpen ? "Show less" : `Show ${relevant.length - 1} more`}
@@ -1121,7 +1139,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
           </article>
         ))}
         {regulatoryArticles.map((item) => (
-          <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} />
+          <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} window={readoutWindow} />
         ))}
         {!windowPayload?.designationCards.length && !regulatoryArticles.length && <p className="er-regulatory-empty">{regulatoryCoverage.hasPublished
           ? `No additional ${area === "All" ? "oncology" : AREA_LABELS[area].toLowerCase()} approval, safety warning, or designation in this window.`

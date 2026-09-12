@@ -174,7 +174,8 @@ test("the 7-day tab reads exact daily editions and never quota-fills", () => {
   assert.match(preview, /const pageReady = !!windowPayload/);
   assert.doesNotMatch(preview, /setWindowPayload\(null\)/,
     "the current edition remains visible while another view loads");
-  assert.match(preview, /kolSharers: overlay\.kolSharers/, "the visible Shared by count comes from lifetime overlay evidence");
+  assert.match(preview, /kolSharers: windowed \? overlay\.windowClinicianCount : overlay\.kolSharers/,
+    "the visible Shared by count is the edition window on Today and the seven-day count otherwise (decided 2026-09-12)");
   assert.doesNotMatch(preview, /\[\.\.\.todayDevelopments, \.\.\.SPECIALTY_FALLBACKS\]/);
   assert.doesNotMatch(preview, /archivedEditorialArticle/,
     "legacy shared-link archive cards no longer stand in for displayed morning editions");
