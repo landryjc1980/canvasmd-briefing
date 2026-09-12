@@ -55,7 +55,7 @@ test("actual collapsed research card retains avatars and clinician voices withou
   assert.match(html, /Shared by 3 clinicians/);
   assert.match(html, /What clinicians are saying/);
   assert.match(html, /A useful discussion of the study methods and limitations/);
-  assert.match(html, /er-sr-only">Published <\/span><time dateTime="[^"]+" title="Published [A-Z][a-z]+ \d{1,2}, \d{4}">\d+[smhdwy]|\d+mo<\/time>/);
+  assert.doesNotMatch(html, /er-action-date/, "a collapsed daily-edition card carries no date stamp");
   assert.doesNotMatch(html, /Edition attention|er-overall-evidence|Clinician evidence|published Sep/);
 });
 

@@ -670,7 +670,7 @@ test("cards use source-backed excerpts and visually separate the source from the
 test("expanding a paper replaces the concise finding with the full source abstract", () => {
   assert.match(preview, /expanded\s*\? cleanReadoutExcerpt\(expandedText \|\| text\)/);
   assert.match(preview, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
-  assert.match(preview, /: articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(rawSourceText\)\)/);
+  assert.match(preview, /: articleSourceText\(readoutFindingExcerpt\(item\.finding \|\| rawSourceText\), cleanReadoutExcerpt\(rawSourceText\)\)/);
   assert.match(preview, /expandedText=\{source\.full\}/);
 });
 
@@ -913,7 +913,7 @@ test("a development already leading a section is removed from Also Relevant by s
 });
 
 test("cards use explicit previews and meaningful disclosure at every viewport", () => {
-  assert.match(preview, /articleTextPreview\(cleanReadoutExcerpt\(text\)\)/);
+  assert.match(preview, /articleTextPreview\(cleanReadoutExcerpt\(text\), LEAD_SENTENCE_CHARS\)/);
   assert.match(preview, /expansion\.canExpand \|\| hasMoreLinks/);
   assert.match(preview, /Full source excerpt/);
   assert.match(preview, /function SourceHeadline/);

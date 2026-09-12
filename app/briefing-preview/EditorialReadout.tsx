@@ -40,10 +40,10 @@ import {
   type EditorialDevelopment,
   type EditorialEpisodeFeature,
   type EditionArea,
+  readoutFindingExcerpt,
 } from "./edition";
 import ConferenceTeaser from "./ConferenceTeaser";
 import type { ConferenceMeeting } from "@/lib/conference";
-import { timeAgoLabel } from "@/lib/timeAgo";
 
 const AREA_LABELS: Record<EditionArea, string> = {
   All: "All oncology",
@@ -345,6 +345,9 @@ function PhysicianVoices({
   );
 }
 
+// One complete lead sentence can run long; clipping it mid-sentence reads as broken.
+const LEAD_SENTENCE_CHARS = 600;
+
 function DevelopmentFinding({
   text,
   expandedText,
@@ -358,7 +361,7 @@ function DevelopmentFinding({
 }) {
   const finding = expanded
     ? cleanReadoutExcerpt(expandedText || text)
-    : preservePreview ? cleanReadoutExcerpt(text) : articleTextPreview(cleanReadoutExcerpt(text));
+    : preservePreview ? cleanReadoutExcerpt(text) : articleTextPreview(cleanReadoutExcerpt(text), LEAD_SENTENCE_CHARS);
 
   if (!finding) return null;
   return (
@@ -488,7 +491,6 @@ function ArticleDevelopment({
   // disclosure; the full date is kept for assistive tech and the hover title.
   const dateWord = isResearch ? "Published" : "Action date";
   const fullDate = editionDateLabel(item.occurredOn);
-  const dateStamp = timeAgoLabel(item.occurredOn);
   const authoredCount = usefulPosts(article).length;
   const availableComments = Math.max(authoredCount, article?.authoredClinicianCount ?? 0);
   // FDA paragraph boundaries select the source preview, so retain them until that
@@ -503,7 +505,9 @@ function ArticleDevelopment({
           full: cleanReadoutExcerpt(approvalSource.full),
         };
       })()
-    : articleSourceText(cleanReadoutExcerpt(item.finding), cleanReadoutExcerpt(rawSourceText));
+    // Every card opens with one lead sentence, whichever path built it. The picker is a no-op on
+    // a finding that is already a single sentence, and prevents a full abstract from leaking in.
+    : articleSourceText(readoutFindingExcerpt(item.finding || rawSourceText), cleanReadoutExcerpt(rawSourceText));
   const expansion = articleExpansion(
     source,
     usefulPosts(article).map((post) => post.text ?? ""),
@@ -541,20 +545,17 @@ function ArticleDevelopment({
           <span className="er-kicker-source">{item.journal}</span>
         </div>
       }
-      footer={(dateStamp || !isResearch || canDisclose) ? (
+      footer={canDisclose ? (
         <div className="er-foot">
-          {dateStamp ? (
-            <p className="er-action-date"><span className="er-sr-only">{dateWord} </span><time dateTime={item.occurredOn ?? undefined} title={fullDate ? `${dateWord} ${fullDate}` : undefined}>{dateStamp}</time></p>
-          ) : !isResearch ? (
-            <p className="er-action-date">Date unavailable</p>
-          ) : <span />}
-          {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
+          <span />
+          <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />
         </div>
       ) : undefined}
     >
       {source.preview || source.full
         ? <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
         : <div className="er-excerpt"><p className="er-finding er-finding-missing">No summary is available from {item.journal || "the publisher"} yet.</p></div>}
+      {open && fullDate && <p className="er-action-date">{dateWord}: <time dateTime={item.occurredOn ?? undefined} title={`${dateWord} ${fullDate}`}>{fullDate}</time></p>}
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay

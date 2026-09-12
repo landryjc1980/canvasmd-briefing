@@ -211,7 +211,7 @@ test("web audio only exposes published playback fields through the reader gate",
   assert.match(card, /aria-label="Oncology Mornings"/);
   assert.match(card, /editions\[0\]/);
   assert.match(card, /aria-label="Audio edition"/);
-  assert.match(card, /Recorded edition as of/);
+  assert.match(card, /Recorded \{new Intl\.DateTimeFormat/);
   assert.match(card, /<summary><span>Chapters<\/span>/);
   assert.match(card, /seekRequest=\{seek\}/);
   assert.match(card, /window\.setInterval\(refresh, 60_000\)/);
