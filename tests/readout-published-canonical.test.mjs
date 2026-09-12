@@ -35,7 +35,43 @@ function loader(overrides = {}) {
 
 const load = loader({ "next/cache": { unstable_cache: (fn) => fn } });
 const { activeReadoutEditionDate } = load("app/briefing-preview/readoutRequest.ts");
-const { withReadoutSelectionVersion, getCachedReadoutWindow, warmReadoutWindowCache } = load("lib/readoutWindowServer.ts");
+const { withReadoutSelectionVersion, getCachedReadoutWindow, warmReadoutWindowCache, fetchFreshReadoutWindowForPrepublication } = load("lib/readoutWindowServer.ts");
+
+test("morning publisher preparation requires the matching service receipt and never caches or falls back", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalUrl = process.env.SUPABASE_URL, originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = "https://preparation.test";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_test";
+  const candidateBuild = { runId: "morning-run", generatedAt: "2026-09-13T09:00:00Z" };
+  const anchor = { kind: "edition", editionDate: "2026-09-13", startAt: "2026-09-12T10:00:00Z", asOf: "2026-09-13T09:00:00Z" };
+  const calls = [];
+  let variant = "valid";
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), init, body: JSON.parse(init.body) });
+    assert.equal(init.headers.apikey, "sb_secret_test");
+    if (variant === "failed") return new Response("publisher preparation unavailable", { status: 503 });
+    return Response.json({ cards: [], sourcePreparation: variant === "missing" ? undefined : {
+      version: 1, dryRun: variant === "dry", candidateBuild: variant === "mismatch" ? { ...candidateBuild, runId: "old-run" } : candidateBuild,
+    } });
+  };
+  try {
+    await fetchFreshReadoutWindowForPrepublication("All", "2026-09-13", anchor, { candidateBuild });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.mode, "readout-source-prepare");
+    assert.deepEqual(calls[0].body.candidateBuild, candidateBuild);
+    assert.equal(calls[0].init.cache, "no-store");
+    for (variant of ["missing", "mismatch", "dry", "failed"]) {
+      await assert.rejects(fetchFreshReadoutWindowForPrepublication("All", "2026-09-13", anchor, { candidateBuild }), /preparation/);
+    }
+    assert.equal(calls.length, 5, "failures never read stale source cache or write a reader cache");
+    await assert.rejects(fetchFreshReadoutWindowForPrepublication("GU", "2026-09-13", anchor, { candidateBuild }), /canonical All/);
+    assert.equal(calls.length, 5);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  }
+});
 
 function edition(editionDate, developments, regulatoryCards = []) {
   return {

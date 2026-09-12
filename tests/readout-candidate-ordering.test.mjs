@@ -71,10 +71,11 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
       readoutEditionForArea: (snapshot) => snapshot,
     },
     "@/lib/readoutWindowServer": {
-      fetchFreshReadoutWindowForPrepublication: async (area, editionDate, attentionAnchor) => {
+      fetchFreshReadoutWindowForPrepublication: async (area, editionDate, attentionAnchor, options) => {
         calls.push(["fresh", area]);
         assert.equal(refreshed, true, "fresh source reads must wait for candidate refresh");
         assert.deepEqual(attentionAnchor, readoutAttentionAnchor(editionDate));
+        assert.deepEqual(options.candidateBuild, candidateBuild, "publisher preparation must use the just-completed candidate build");
         return { ...freshPayload, selectionAudit: area === "All" ? { scope: "source-admitted-candidates", papers: [] } : undefined, attentionWindow: attentionMismatch ? null : {
           startAt: attentionAnchor.startAt, editionDate, timeZone: attentionAnchor.timeZone, kind: "edition",
         } };

@@ -590,10 +590,20 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     : [];
   const clinicianRank = card.rankTrace?.find((entry) => entry.input === "clinicianSharers")?.value ?? 0;
   const supportLinks = card.support?.links ?? [];
-  const articleIds = supportLinks
-    .filter((link) => link.kind === "article" || link.kind === "paper")
-    .map((link) => link.id)
-    .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const cardWithArticleIds = card as unknown as { articleIds?: unknown };
+  const cardHasArticleIds = Object.prototype.hasOwnProperty.call(card, "articleIds");
+  const explicitArticleIds = Array.isArray(cardWithArticleIds.articleIds)
+    ? cardWithArticleIds.articleIds
+      .filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+    : [];
+  // Grouped cards carry their full evidence set explicitly. Legacy cards did not, so retain
+  // the support-link reconstruction only when the property is absent; explicit [] is authoritative.
+  const articleIds = cardHasArticleIds
+    ? [...new Set(explicitArticleIds)]
+    : supportLinks
+      .filter((link) => link.kind === "article" || link.kind === "paper")
+      .map((link) => link.id)
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
   const primarySource = supportLinks.find((link) => link.relationshipType === "primary_source");
   const primaryDescription = primarySource?.description;
   const sourceFinding = card.sourceExcerpt || primaryDescription || card.excerpt || "";

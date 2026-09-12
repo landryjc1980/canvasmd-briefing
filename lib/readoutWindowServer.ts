@@ -112,8 +112,26 @@ export async function fetchFreshReadoutWindowForPrepublication(
   area: EditionArea,
   editionDate: string,
   attentionAnchor: ReadoutAttentionAnchor,
-  options: { includeSelectionAudit?: boolean; signal?: AbortSignal } = {},
+  options: { includeSelectionAudit?: boolean; signal?: AbortSignal; candidateBuild?: { runId: string; generatedAt: string } } = {},
 ): Promise<ReadoutWindowPayload> {
+  if (options.candidateBuild) {
+    if (area !== "All") throw new Error("Publisher preparation requires the canonical All source pool.");
+    const { url, key } = supabaseServiceEnvironment();
+    const response = await fetch(process.env.BRIEFING_FUNCTION_URL ?? `${url}/functions/v1/briefing`, {
+      method: "POST", headers: { "content-type": "application/json", ...supabaseApiKeyHeaders(key) },
+      body: JSON.stringify({ mode: "readout-source-prepare", area, days: 1, editionDate, attentionAnchor,
+        candidateBuild: options.candidateBuild }), cache: "no-store", signal: options.signal,
+    });
+    if (!response.ok) throw new Error(`Readout publisher preparation returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+    const payload = await response.json() as ReadoutWindowPayload & { sourcePreparation?: { version: number; dryRun: boolean; candidateBuild: { runId: string; generatedAt: string } } };
+    if (payload.sourcePreparation?.version !== 1 || payload.sourcePreparation.dryRun ||
+        payload.sourcePreparation.candidateBuild.runId !== options.candidateBuild.runId ||
+        payload.sourcePreparation.candidateBuild.generatedAt !== options.candidateBuild.generatedAt) {
+      throw new Error("Readout publisher preparation receipt is missing or mismatched.");
+    }
+    // This private prepublication response never enters a reader cache or stale fallback.
+    return payload;
+  }
   return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor, includeSelectionAudit: area === "All" && options.includeSelectionAudit === true }), options.signal);
 }
 

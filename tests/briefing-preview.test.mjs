@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { registerHooks } from "node:module";
 import { ARCHIVED_LISTEN_MEDIA, FEATURED_EPISODES, archivedEditorialArticle, breakingEditorialArticle, canonicalEditorialUrl, cleanClinicianText, cleanReadoutExcerpt, editorialBelongsToArea, editorialScopeLabel, editorialStoryAreas, listenForArea, readoutFindingExcerpt, readoutFocusLabel, regulatoryEditorialArticle, regulatoryWatchArticles, relatedCoverageLinks, sameEditorialArticle, sameEditorialDevelopment, visibleForArea } from "../app/briefing-preview/edition.ts";
 import {
   canonicalReadoutEditionSnapshot,
@@ -9,6 +10,18 @@ import {
 } from "../app/briefing-preview/editionHistory.ts";
 import { archiveCardForArticle } from "../app/archiveCard.ts";
 import { activeReadoutEditionDate, hasFrozenPrepublishedEdition, hasScheduledReadoutSourceRun, prepublicationEditionDate, readoutWindowKeyboardTarget, scheduledReadoutSourceRunId } from "../app/briefing-preview/readoutRequest.ts";
+
+// editionSnapshot uses extensionless local imports that Node's TypeScript runner does not resolve.
+registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier.startsWith("@/")) {
+    return nextResolve(new URL(`../${specifier.slice(2)}.ts`, import.meta.url).href, context);
+  }
+  if (context.parentURL?.includes("/app/briefing-preview/") && ["./edition", "./readoutRequest"].includes(specifier)) {
+    return nextResolve(`${specifier}.ts`, context);
+  }
+  return nextResolve(specifier, context);
+} });
+const { buildReadoutEditionSnapshot } = await import("../app/briefing-preview/editionSnapshot.ts");
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
@@ -382,6 +395,55 @@ test("archived and breaking papers retain reliable publication dates", () => {
       totalSharers: 6, lastSharedAt: "2026-08-29T15:00:00Z", recentClinicians: 6, previousClinicians: 0 },
   }, "GU");
   assert.equal(breaking.occurredOn, "2026-08-29");
+});
+
+test("archived grouped cards preserve their explicit evidence IDs", () => {
+  const supportId = "11111111-1111-1111-1111-111111111111";
+  const groupedIds = [
+    "22222222-2222-2222-2222-222222222222",
+    "33333333-3333-3333-3333-333333333333",
+    "22222222-2222-2222-2222-222222222222",
+    "not-an-article-id",
+  ];
+  const card = {
+    id: "paper:grouped", kind: "paper", anchorId: "grouped", headline: "Grouped papers", why: "",
+    sourceLabel: "Journal", url: "https://example.com/grouped", excerpt: null, excerptVerbatim: false,
+    drugTags: [], nct: null, doi: null, eventId: null, siblings: [], rankTrace: [], rankTotal: 30, counts: {},
+    articleIds: groupedIds,
+    support: { clinicianPosts: [], publisherPosts: [], otherPosts: [], links: [{
+      id: supportId, kind: "paper", title: "Only one linked paper", url: "https://example.com/linked",
+      sourceLabel: "Journal", relationshipType: "primary_source", occurredAt: null,
+    }] },
+  };
+  const archived = archivedEditorialArticle({
+    area: "GU", card, evidence: {}, firstSeen: "2026-09-12T12:00:00Z", lastSeen: "2026-09-12T12:00:00Z",
+  });
+  assert.deepEqual(archived.articleIds, groupedIds.slice(0, 2),
+    "explicit grouped IDs are validated and deduplicated without rebuilding from support links");
+
+  const snapshot = buildReadoutEditionSnapshot("All", {
+    generatedAt: "2026-09-12T12:00:00Z", windowDays: 1, area: "All", cards: [], moreCards: [{
+      area: "GU", card, evidence: {}, firstSeen: "2026-09-12T12:00:00Z", lastSeen: "2026-09-12T12:00:00Z",
+    }], episodes: [], regulatoryCards: [], breakingCards: [], designationCards: [], overlays: [], candidateGeneratedAt: null,
+  }, new Date("2026-09-12T12:00:00Z"));
+  const canonical = canonicalReadoutEditionSnapshot([snapshot]);
+  const canonicalArticle = canonical?.relevant.find(({ article }) => article.id === archived.id)?.article;
+  assert.deepEqual(canonicalArticle?.articleIds, groupedIds.slice(0, 2),
+    "canonical edition assembly retains every grouped evidence ID");
+  assert.match(preview, /articleIds: item\.articleIds \?\? \[\],[\s\S]*?cards: \[card\]/,
+    "the evidence-overlay request forwards every canonical article ID");
+
+  const explicitEmpty = archivedEditorialArticle({
+    area: "GU", card: { ...card, articleIds: [] }, evidence: {},
+    firstSeen: "2026-09-12T12:00:00Z", lastSeen: "2026-09-12T12:00:00Z",
+  });
+  assert.deepEqual(explicitEmpty.articleIds, [], "an explicit empty evidence set is authoritative");
+
+  const legacy = archivedEditorialArticle({
+    area: "GU", card: (() => { const { articleIds, ...legacyCard } = card; return legacyCard; })(), evidence: {},
+    firstSeen: "2026-09-12T12:00:00Z", lastSeen: "2026-09-12T12:00:00Z",
+  });
+  assert.deepEqual(legacy.articleIds, [supportId], "legacy cards still derive valid article IDs from support links");
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
