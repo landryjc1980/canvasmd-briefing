@@ -379,14 +379,15 @@ function PublisherPostLine({ posts, originals }: { posts: ReadoutPublisherPost[]
       </p>
     );
   }
-  // No journal post in our graph: link the post the panel actually reposted.
+  // No journal post in our graph: link the post the panel actually reposted. No count here:
+  // the breakdown above already says how many reposted, in the edition window and identity-
+  // gated, and a second, differently scoped number beside it would not reconcile.
   const original = (originals ?? [])[0];
   if (!original) return null;
   const who = original.name || (original.handle ? `@${original.handle}` : null);
   return (
     <p className="er-publisher-post">
       <a href={original.tweetUrl} target="_blank" rel="noreferrer">{who ? `${who}’s post on X` : "Original post on X"}</a>
-      {original.repostedBy > 1 && <span className="er-publisher-reach"> · reposted by {original.repostedBy} clinicians</span>}
     </p>
   );
 }

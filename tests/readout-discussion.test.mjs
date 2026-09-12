@@ -33,7 +33,7 @@ test("the journal's own post is linked on the card with its reach, never counted
   const code = read("app/briefing-preview/EditorialReadout.tsx");
   assert.match(code, /function PublisherPostLine\(\{ posts, originals \}/);
   assert.match(code, /"Original post on X"/, "with no journal post in our graph, the reposted post is linked by id");
-  assert.match(code, /reposted by \{original\.repostedBy\} clinicians/);
+  assert.doesNotMatch(code, /reposted by \{original\.repostedBy\}/, "no second, differently scoped repost count beside the breakdown");
   assert.match(code, /&rsquo;s post on X<\/a>/);
   assert.match(code, /compactCount\(post\.views\)\} views/);
   assert.match(code, /publisherPosts=\{discussion\?\.publisherPosts\}/);
