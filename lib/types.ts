@@ -705,12 +705,22 @@ export type ReadoutPublisherPost = {
   retweets: number;
   quotes: number;
 };
+// A post the panel reposted that we hold no row for (the journal's tweet we missed, an
+// author's announcement); linkable by id, named when the poster is known.
+export type ReadoutOriginalPost = {
+  postId: string;
+  handle: string | null;
+  name: string | null;
+  tweetUrl: string;
+  repostedBy: number;
+};
 export type ReadoutDiscussionArticle = {
   articleId: string;
   replyCount: number;
   clinicianReplyCount: number;
   quoted: ReadoutDiscussionReply[];
   publisherPosts?: ReadoutPublisherPost[];
+  originalPosts?: ReadoutOriginalPost[];
 };
 export type ReadoutDiscussion = {
   generatedAt: string;

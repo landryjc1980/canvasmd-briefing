@@ -3,7 +3,7 @@ import { activeReadoutEditionDate, READOUT_WINDOWS, readoutWindowKeyboardTarget 
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
-import type { ReadoutDiscussion, ReadoutDiscussionArticle, ReadoutPublisherPost } from "@/lib/types";
+import type { ReadoutDiscussion, ReadoutDiscussionArticle, ReadoutOriginalPost, ReadoutPublisherPost } from "@/lib/types";
 import {
   isReadoutEditionSnapshot,
   liveListenBriefs,
@@ -86,6 +86,7 @@ function loadDiscussion(articleIds: string[]): Promise<ReadoutDiscussionArticle 
       clinicianReplyCount: articles.reduce((sum, article) => sum + (article.clinicianReplyCount ?? 0), 0),
       quoted: articles.flatMap((article) => article.quoted ?? []),
       publisherPosts: articles.flatMap((article) => article.publisherPosts ?? []).sort((a, b) => b.views - a.views),
+      originalPosts: articles.flatMap((article) => article.originalPosts ?? []).sort((a, b) => b.repostedBy - a.repostedBy),
     };
   }).catch(() => {
     discussionCache.delete(key);
@@ -366,22 +367,33 @@ function compactCount(value: number): string {
 
 /** The journal's own post, linked on every card that has one: reach is shown, attention is not
  * claimed (the journal posts every paper it publishes). */
-function PublisherPostLine({ posts }: { posts: ReadoutPublisherPost[] | undefined }) {
+function PublisherPostLine({ posts, originals }: { posts: ReadoutPublisherPost[] | undefined; originals?: ReadoutOriginalPost[] }) {
   const post = (posts ?? []).find((candidate) => candidate.tweetUrl);
-  if (!post) return null;
-  const who = post.name || (post.handle ? `@${post.handle}` : "The journal");
+  if (post) {
+    const who = post.name || (post.handle ? `@${post.handle}` : "The journal");
+    return (
+      <p className="er-publisher-post">
+        <a href={post.tweetUrl ?? undefined} target="_blank" rel="noreferrer">{who}&rsquo;s post on X</a>
+        {post.views > 0 && <span className="er-publisher-reach"> · {compactCount(post.views)} views</span>}
+        {post.replies > 0 && <span className="er-publisher-reach"> · {post.replies} repl{post.replies === 1 ? "y" : "ies"}</span>}
+      </p>
+    );
+  }
+  // No journal post in our graph: link the post the panel actually reposted.
+  const original = (originals ?? [])[0];
+  if (!original) return null;
+  const who = original.name || (original.handle ? `@${original.handle}` : null);
   return (
     <p className="er-publisher-post">
-      <a href={post.tweetUrl ?? undefined} target="_blank" rel="noreferrer">{who}&rsquo;s post on X</a>
-      {post.views > 0 && <span className="er-publisher-reach"> · {compactCount(post.views)} views</span>}
-      {post.replies > 0 && <span className="er-publisher-reach"> · {post.replies} repl{post.replies === 1 ? "y" : "ies"}</span>}
+      <a href={original.tweetUrl} target="_blank" rel="noreferrer">{who ? `${who}’s post on X` : "Original post on X"}</a>
+      {original.repostedBy > 1 && <span className="er-publisher-reach"> · reposted by {original.repostedBy} clinicians</span>}
     </p>
   );
 }
 
-function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianReplies = 0, publisherPosts }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replies?: number; clinicianReplies?: number; publisherPosts?: ReadoutPublisherPost[] }) {
+function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianReplies = 0, publisherPosts, originalPosts }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replies?: number; clinicianReplies?: number; publisherPosts?: ReadoutPublisherPost[]; originalPosts?: ReadoutOriginalPost[] }) {
   const sharers = clinicianSharers(article).slice(0, sharedBy);
-  if (!sharers.length && sharedBy <= 0) return publisherPosts?.length ? <div className="er-peers"><div className="er-peer-copy"><PublisherPostLine posts={publisherPosts} /></div></div> : null;
+  if (!sharers.length && sharedBy <= 0) return publisherPosts?.length || originalPosts?.length ? <div className="er-peers"><div className="er-peer-copy"><PublisherPostLine posts={publisherPosts} originals={originalPosts} /></div></div> : null;
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
   const others = Math.max(0, sharedBy - named.length);
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
@@ -400,7 +412,7 @@ function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianRepli
             {others > 0 ? ` and ${others} other clinician${others === 1 ? "" : "s"}` : named.length === 1 ? "" : null}
           </p>
         )}
-        <PublisherPostLine posts={publisherPosts} />
+        <PublisherPostLine posts={publisherPosts} originals={originalPosts} />
       </div>
     </div>
   );
@@ -716,7 +728,7 @@ function ArticleDevelopment({
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
-        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replies={discussion?.replyCount ?? 0} clinicianReplies={discussion?.clinicianReplyCount ?? 0} publisherPosts={discussion?.publisherPosts} />
+        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replies={discussion?.replyCount ?? 0} clinicianReplies={discussion?.clinicianReplyCount ?? 0} publisherPosts={discussion?.publisherPosts} originalPosts={discussion?.originalPosts} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} discussion={discussion} />}
     </ReadoutArticleCard>
