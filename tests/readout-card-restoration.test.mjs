@@ -42,7 +42,7 @@ const overlay = {
   id: item.id, kolSharers: 3, authoredClinicianCount: 1,
   faces: ["https://example.org/clinician-avatar.jpg"],
   sharerPeople: [{ name: "Alex Rivera", handle: "arivera", avatar: "https://example.org/clinician-avatar.jpg", tweetUrl: "https://x.com/arivera/status/123" }],
-  posts: [{ name: "Alex Rivera", handle: "arivera", avatar: "https://example.org/clinician-avatar.jpg", text: "A useful discussion of the study methods and limitations.", sourceLane: "clinician", tweetUrl: "https://x.com/arivera/status/123" }],
+  posts: [{ name: "Alex Rivera", handle: "arivera", avatar: "https://example.org/clinician-avatar.jpg", text: "A useful discussion of the regression fixture's methods, its limitations, and what it changes for practice.", sourceLane: "clinician", tweetUrl: "https://x.com/arivera/status/123" }],
 };
 export function restoredCardHtml(observation = overlay) {
   return renderToStaticMarkup(React.createElement(ArticleDevelopment, { item, briefs: [], overlays: new Map([[item.id, observation]]), numbered: true }));

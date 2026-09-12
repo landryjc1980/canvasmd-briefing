@@ -29,6 +29,34 @@ test("replies join the card as clinician comments with whom they answered, never
   assert.match(code, /const article = withDiscussion\(articleWithLiveEvidence\(item, briefs, overlay, window\), discussion\);/);
 });
 
+test("the journal's own post is linked on the card with its reach, never counted as attention", () => {
+  const code = read("app/briefing-preview/EditorialReadout.tsx");
+  assert.match(code, /function PublisherPostLine\(\{ posts \}/);
+  assert.match(code, /&rsquo;s post on X<\/a>/);
+  assert.match(code, /compactCount\(post\.views\)\} views/);
+  assert.match(code, /publisherPosts=\{discussion\?\.publisherPosts\}/);
+  assert.doesNotMatch(code, /kolSharers[^\n]*publisherPosts/, "the journal's post never adds to the clinician count");
+  const types = read("lib/types.ts");
+  assert.match(types, /export type ReadoutPublisherPost = \{/);
+});
+
+test("a comment needs six own words and a reference to the paper; a reply needs only the words", () => {
+  const code = read("app/briefing-preview/EditorialReadout.tsx");
+  assert.match(code, /const MIN_OWN_WORDS = 6;/);
+  assert.match(code, /if \(own\.length < MIN_OWN_WORDS\) return false;/);
+  assert.match(code, /return kind === "reply" \|\| all\.length - own\.length >= 1;/);
+  assert.match(code, /isSubstantiveClinicianText\(text, sourceTitle, post\.replyTo \? "reply" : "post"\)/);
+  assert.match(code, /word\.length > 2 \|\| \/\\d\/\.test\(word\)/, "numbers count as words in a clinical comment");
+});
+
+test("a registered trial number links to ClinicalTrials.gov in the sources", () => {
+  const code = read("app/briefing-preview/EditorialReadout.tsx");
+  assert.match(code, /\/\\bNCT\\d\{8\}\\b\/gi/);
+  assert.match(code, /https:\/\/clinicaltrials\.gov\/study\/\$\{id\}/);
+  assert.match(code, /\.\.\.trials\.map\(\(link\) => \(\{ role: "Trial registry", link \}\)\)/);
+  assert.match(code, /links\.related\.length \+ links\.trials\.length > 0/, "a trial link alone is enough to open the sources disclosure");
+});
+
 test("a quoted reply shows whom it answered above the quote", () => {
   const voice = read("components/ReadoutVoice.tsx");
   assert.match(voice, /replyTo\?: \{ handle: string \| null; name: string \| null \} \| null;/);

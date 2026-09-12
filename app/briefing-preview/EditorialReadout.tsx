@@ -3,7 +3,7 @@ import { activeReadoutEditionDate, READOUT_WINDOWS, readoutWindowKeyboardTarget 
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
-import type { ReadoutDiscussion, ReadoutDiscussionArticle } from "@/lib/types";
+import type { ReadoutDiscussion, ReadoutDiscussionArticle, ReadoutPublisherPost } from "@/lib/types";
 import {
   isReadoutEditionSnapshot,
   liveListenBriefs,
@@ -85,6 +85,7 @@ function loadDiscussion(articleIds: string[]): Promise<ReadoutDiscussionArticle 
       replyCount: articles.reduce((sum, article) => sum + (article.replyCount ?? 0), 0),
       clinicianReplyCount: articles.reduce((sum, article) => sum + (article.clinicianReplyCount ?? 0), 0),
       quoted: articles.flatMap((article) => article.quoted ?? []),
+      publisherPosts: articles.flatMap((article) => article.publisherPosts ?? []).sort((a, b) => b.views - a.views),
     };
   }).catch(() => {
     discussionCache.delete(key);
@@ -188,20 +189,27 @@ function usefulPosts(article: BriefingArticle | null): BriefingSharer[] {
       ...(post.thread ?? []),
     ]
       .map((candidate) => ({ ...candidate, text: cleanClinicianText(candidate.text) }))
-      .find(({ text }) => isSubstantiveClinicianText(text, sourceTitle));
+      .find(({ text }) => isSubstantiveClinicianText(text, sourceTitle, post.replyTo ? "reply" : "post"));
     if (!receipt?.text) return [];
     seen.add(key);
     return [{ ...post, text: receipt.text, tweetUrl: receipt.tweetUrl ?? post.tweetUrl }];
   });
 }
 
-function isSubstantiveClinicianText(text: string | null | undefined, sourceTitle: string): boolean {
+// Spec §7: a comment needs at least six of the clinician's own words that are not the paper's
+// title, and must reference the paper (its terms or the journal). A reply sits under a post
+// about the paper already, so it only needs the six own words. Nods and plugs fail both.
+const MIN_OWN_WORDS = 6;
+
+function isSubstantiveClinicianText(text: string | null | undefined, sourceTitle: string, kind: "post" | "reply" = "post"): boolean {
   const value = text?.trim() ?? "";
-  return Boolean(
-    value
-    && words(value).length >= 3
-    && !isTitleOnlyShare(value, sourceTitle),
-  );
+  if (!value) return false;
+  const titleWords = new Set(words(sourceTitle));
+  const all = words(value);
+  const own = all.filter((word) => !titleWords.has(word));
+  if (own.length < MIN_OWN_WORDS) return false;
+  if (isTitleOnlyShare(value, sourceTitle)) return false;
+  return kind === "reply" || all.length - own.length >= 1;
 }
 
 type NamedSharer = {
@@ -255,7 +263,8 @@ function words(value: string): string[] {
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .split(/\s+/)
-    .filter((word) => word.length > 2);
+    // Numbers are substance in a clinical comment ("17% vs 11%"); short function words are not.
+    .filter((word) => word.length > 2 || /\d/.test(word));
 }
 
 function isTitleOnlyShare(text: string, title: string): boolean {
@@ -348,9 +357,31 @@ function articleWithLiveEvidence(
   return applyEvidenceOverlay(base, overlay, window) ?? articleFromEditorial(item);
 }
 
-function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianReplies = 0 }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replies?: number; clinicianReplies?: number }) {
+/** "2.8K" for reach figures; exact under a thousand. */
+function compactCount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`;
+  return String(value);
+}
+
+/** The journal's own post, linked on every card that has one: reach is shown, attention is not
+ * claimed (the journal posts every paper it publishes). */
+function PublisherPostLine({ posts }: { posts: ReadoutPublisherPost[] | undefined }) {
+  const post = (posts ?? []).find((candidate) => candidate.tweetUrl);
+  if (!post) return null;
+  const who = post.name || (post.handle ? `@${post.handle}` : "The journal");
+  return (
+    <p className="er-publisher-post">
+      <a href={post.tweetUrl ?? undefined} target="_blank" rel="noreferrer">{who}&rsquo;s post on X</a>
+      {post.views > 0 && <span className="er-publisher-reach"> · {compactCount(post.views)} views</span>}
+      {post.replies > 0 && <span className="er-publisher-reach"> · {post.replies} repl{post.replies === 1 ? "y" : "ies"}</span>}
+    </p>
+  );
+}
+
+function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianReplies = 0, publisherPosts }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replies?: number; clinicianReplies?: number; publisherPosts?: ReadoutPublisherPost[] }) {
   const sharers = clinicianSharers(article).slice(0, sharedBy);
-  if (!sharers.length && sharedBy <= 0) return null;
+  if (!sharers.length && sharedBy <= 0) return publisherPosts?.length ? <div className="er-peers"><div className="er-peer-copy"><PublisherPostLine posts={publisherPosts} /></div></div> : null;
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
   const others = Math.max(0, sharedBy - named.length);
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
@@ -369,6 +400,7 @@ function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianRepli
             {others > 0 ? ` and ${others} other clinician${others === 1 ? "" : "s"}` : named.length === 1 ? "" : null}
           </p>
         )}
+        <PublisherPostLine posts={publisherPosts} />
       </div>
     </div>
   );
@@ -496,20 +528,37 @@ function validSupportLinks(links: HeroSupportLink[] | undefined, primaryUrl: str
   });
 }
 
+/** Spec §10: a registered trial number in the paper's text links to ClinicalTrials.gov. */
+function trialRegistryLinks(item: EditorialArticle): HeroSupportLink[] {
+  const hay = [item.title, item.finding, item.sourceExcerpt].filter(Boolean).join(" ");
+  const ids = [...new Set((hay.match(/\bNCT\d{8}\b/gi) ?? []).map((id) => id.toUpperCase()))].slice(0, 3);
+  return ids.map((id) => ({
+    kind: "article" as const,
+    id: `trial:${id}`,
+    title: `ClinicalTrials.gov ${id}`,
+    url: `https://clinicaltrials.gov/study/${id}`,
+    sourceLabel: `ClinicalTrials.gov ${id}`,
+    relationshipType: "trial_registry",
+    occurredAt: null,
+  }));
+}
+
 function attachedSources(item: EditorialArticle, primaryUrl: string) {
   const primarySources = validSupportLinks(item.primarySources, primaryUrl);
   const supportingEvidence = validSupportLinks(item.supportingEvidence, primaryUrl);
   const relatedLinks = relatedCoverageLinks(item.relatedCoverage, primaryUrl, item.title);
   const relatedEpisodes = relatedLinks.filter((link) => link.kind === "episode").slice(0, 1);
   const related = relatedLinks.filter((link) => link.kind !== "episode").slice(0, 4);
-  return { primarySources, supportingEvidence, related, relatedEpisodes };
+  const trials = trialRegistryLinks(item);
+  return { primarySources, supportingEvidence, related, relatedEpisodes, trials };
 }
 
 function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle; primaryUrl: string; expanded: boolean }) {
-  const { primarySources, supportingEvidence, related } = attachedSources(item, primaryUrl);
-  if (!primarySources.length && !supportingEvidence.length && !related.length) return null;
+  const { primarySources, supportingEvidence, related, trials } = attachedSources(item, primaryUrl);
+  if (!primarySources.length && !supportingEvidence.length && !related.length && !trials.length) return null;
   if (!expanded) return null;
   const rows = [
+    ...trials.map((link) => ({ role: "Trial registry", link })),
     ...primarySources.map((link) => ({ role: "Anchor", link })),
     ...supportingEvidence.map((link) => ({ role: "Supporting study", link })),
     ...related.map((link) => ({ role: "Related coverage", link })),
@@ -623,7 +672,7 @@ function ArticleDevelopment({
     contentType === "FDA approval",
   );
   const links = attachedSources(item, href);
-  const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length > 0;
+  const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length + links.trials.length > 0;
   const canDisclose = expansion.canExpand || hasMoreLinks;
   const sourceLabel = item.sourceExcerpt || item.findingSource === "source" ? "Full source excerpt" : "Full summary";
   const disclosureLabel = [expansion.canExpand ? expansion.label.replace("Full source excerpt", sourceLabel) : null, hasMoreLinks ? "Sources and related coverage" : null].filter(Boolean).join(" · ");
@@ -667,7 +716,7 @@ function ArticleDevelopment({
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
-        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replies={discussion?.replyCount ?? 0} clinicianReplies={discussion?.clinicianReplyCount ?? 0} />
+        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replies={discussion?.replyCount ?? 0} clinicianReplies={discussion?.clinicianReplyCount ?? 0} publisherPosts={discussion?.publisherPosts} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} discussion={discussion} />}
     </ReadoutArticleCard>

@@ -691,11 +691,26 @@ export type ReadoutDiscussionReply = {
   rootKind: string;
   rootHandle: string | null;
 };
+// The journal's own post about the paper: a link and its reach, never attention.
+export type ReadoutPublisherPost = {
+  postId: string;
+  handle: string | null;
+  name: string | null;
+  avatar: string | null;
+  tweetUrl: string | null;
+  postedAt: string | null;
+  views: number;
+  likes: number;
+  replies: number;
+  retweets: number;
+  quotes: number;
+};
 export type ReadoutDiscussionArticle = {
   articleId: string;
   replyCount: number;
   clinicianReplyCount: number;
   quoted: ReadoutDiscussionReply[];
+  publisherPosts?: ReadoutPublisherPost[];
 };
 export type ReadoutDiscussion = {
   generatedAt: string;
