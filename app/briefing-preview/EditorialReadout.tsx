@@ -348,7 +348,7 @@ function articleWithLiveEvidence(
   return applyEvidenceOverlay(base, overlay, window) ?? articleFromEditorial(item);
 }
 
-function PeerRow({ article, sharedBy, period = null, replied = 0 }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replied?: number }) {
+function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianReplies = 0 }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replies?: number; clinicianReplies?: number }) {
   const sharers = clinicianSharers(article).slice(0, sharedBy);
   if (!sharers.length && sharedBy <= 0) return null;
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
@@ -356,7 +356,7 @@ function PeerRow({ article, sharedBy, period = null, replied = 0 }: { article: B
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
   const loadedComments = usefulPosts(article).filter((post) => !post.replyTo).length;
   const wrote = Math.max(loadedComments, article?.authoredClinicianCount ?? 0);
-  const breakdown = shareCommentaryLabel(sharedBy, wrote, replied);
+  const breakdown = shareCommentaryLabel(sharedBy, wrote, replies, clinicianReplies);
   return (
     <div className="er-peers">
       <FacePile article={article} count={sharedBy} />
@@ -378,14 +378,18 @@ function PeerRow({ article, sharedBy, period = null, replied = 0 }: { article: B
  * reposted or shared the link, plus clinicians who replied under a post about the paper.
  * Replies are engagement, not shares: they never add to the count above. Reposts and bare
  * links are not yet separated in the overlay. */
-function shareCommentaryLabel(sharedBy: number, wrote: number, replied = 0): string | null {
+function shareCommentaryLabel(sharedBy: number, wrote: number, replies = 0, clinicianReplies = 0): string | null {
   if (sharedBy <= 0) return null;
   const own = Math.min(Math.max(wrote, 0), sharedBy);
   const rest = sharedBy - own;
+  const total = Math.max(replies, clinicianReplies, 0);
+  const clinicians = Math.min(Math.max(clinicianReplies, 0), total);
   const parts = [
     own > 0 ? `${own} wrote about it` : null,
     rest > 0 ? `${rest} reposted or shared the link` : null,
-    replied > 0 ? `${replied} replied` : null,
+    total > 0
+      ? `${total} repl${total === 1 ? "y" : "ies"}${clinicians > 0 ? `, ${clinicians} from clinician${clinicians === 1 ? "" : "s"}` : ""}`
+      : null,
   ].filter(Boolean);
   return parts.join(" · ") || null;
 }
@@ -663,7 +667,7 @@ function ArticleDevelopment({
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
-        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replied={discussion?.clinicianReplyCount ?? 0} />
+        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replies={discussion?.replyCount ?? 0} clinicianReplies={discussion?.clinicianReplyCount ?? 0} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
       {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} discussion={discussion} />}
     </ReadoutArticleCard>

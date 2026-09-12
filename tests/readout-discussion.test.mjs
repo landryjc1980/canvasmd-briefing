@@ -22,8 +22,8 @@ test("replies join the card as clinician comments with whom they answered, never
   assert.match(code, /sourceLane: "clinician" as const,\s*replyTo: reply\.replyTo,/, "a quoted reply is a clinician post that remembers its target");
   assert.match(code, /posts: \[\.\.\.\(article\.posts \?\? \[\]\), \.\.\.replies\]/, "replies extend the comment pool; kolSharers is untouched");
   assert.doesNotMatch(code, /kolSharers: [^\n]*discussion/, "replies never change the clinician count");
-  assert.match(code, /replied > 0 \? `\$\{replied\} replied` : null/, "the breakdown names how many clinicians replied");
-  assert.match(code, /replied=\{discussion\?\.clinicianReplyCount \?\? 0\}/);
+  assert.match(code, /`\$\{total\} repl\$\{total === 1 \? "y" : "ies"\}\$\{clinicians > 0 \? `, \$\{clinicians\} from clinician/, "the collapsed line shows every reply, and how many came from clinicians");
+  assert.match(code, /replies=\{discussion\?\.replyCount \?\? 0\} clinicianReplies=\{discussion\?\.clinicianReplyCount \?\? 0\}/);
   assert.match(code, /usefulPosts\(article\)\.filter\(\(post\) => !post\.replyTo\)\.length/, "'wrote about it' counts authored posts, not replies");
   assert.match(code, /from outside the panel, counted not quoted/);
   assert.match(code, /const article = withDiscussion\(articleWithLiveEvidence\(item, briefs, overlay, window\), discussion\);/);
