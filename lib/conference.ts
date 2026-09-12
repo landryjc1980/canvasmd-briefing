@@ -106,6 +106,12 @@ export type ConferenceWindowPayload = {
 
 export type ConferencePhase = "upcoming" | "live" | "recent" | "past";
 
+export type ConferenceDirectorySections = {
+  live: ConferenceMeeting[];
+  upcoming: ConferenceMeeting[];
+  past: ConferenceMeeting[];
+};
+
 const DAY_MS = 86_400_000;
 
 function dateAtNoon(value: string): number | null {
@@ -146,27 +152,49 @@ export function conferenceHref(meeting: Pick<ConferenceMeeting, "key" | "year">)
   return `/conference/${encodeURIComponent(meeting.key)}${year}`;
 }
 
-function appliesToArea(meeting: ConferenceMeeting, area: string): boolean {
+export function conferenceAppliesToArea(meeting: ConferenceMeeting, area: string): boolean {
   if (area === "All") return true;
   const focus = Array.isArray(meeting.tumorFocus) ? meeting.tumorFocus : meeting.tumorFocus ? [meeting.tumorFocus] : [];
   return focus.some((value) => /^(general|all oncology)$/i.test(value) || value.localeCompare(area, undefined, { sensitivity: "accent" }) === 0);
 }
 
-/** A live meeting outranks a near-term meeting; past-recent coverage remains useful after close. */
-export function selectConference(meetings: ConferenceMeeting[], area: string, now = new Date()): ConferenceMeeting | null {
+function compareConferenceMeetings(left: ConferenceMeeting, right: ConferenceMeeting, leftPhase: ConferencePhase, rightPhase: ConferencePhase): number {
+  const rank: Record<ConferencePhase, number> = { live: 0, upcoming: 1, recent: 2, past: 3 };
+  const phaseOrder = rank[leftPhase] - rank[rightPhase];
+  if (phaseOrder) return phaseOrder;
+  if (leftPhase === "recent" || leftPhase === "past") return right.endDate.localeCompare(left.endDate);
+  return left.startDate.localeCompare(right.startDate);
+}
+
+/** Home promotion retains the existing two-days-before/seven-after window for every matching meeting. */
+export function selectConferenceTeasers(meetings: ConferenceMeeting[], area: string, now = new Date()): ConferenceMeeting[] {
   const ranked = meetings
-    .filter((meeting) => appliesToArea(meeting, area))
+    .filter((meeting) => conferenceAppliesToArea(meeting, area))
     .filter((meeting) => conferenceIsEligible(meeting, now))
     .map((meeting) => ({ meeting, phase: conferencePhase(meeting, now) }))
     .filter(({ phase }) => phase !== "past")
-    .sort((left, right) => {
-      const rank: Record<ConferencePhase, number> = { live: 0, upcoming: 1, recent: 2, past: 3 };
-      const phaseOrder = rank[left.phase] - rank[right.phase];
-      if (phaseOrder) return phaseOrder;
-      if (left.phase === "recent") return right.meeting.endDate.localeCompare(left.meeting.endDate);
-      return left.meeting.startDate.localeCompare(right.meeting.startDate);
-    });
-  return ranked[0]?.meeting ?? null;
+    .sort((left, right) => compareConferenceMeetings(left.meeting, right.meeting, left.phase, right.phase));
+  return ranked.map(({ meeting }) => meeting);
+}
+
+/** A live meeting outranks a near-term meeting; past-recent coverage remains useful after close. */
+export function selectConference(meetings: ConferenceMeeting[], area: string, now = new Date()): ConferenceMeeting | null {
+  return selectConferenceTeasers(meetings, area, now)[0] ?? null;
+}
+
+/** The directory is unbounded by the home promotion window so older coverage remains findable. */
+export function conferenceDirectorySections(meetings: ConferenceMeeting[], now = new Date()): ConferenceDirectorySections {
+  const sections: ConferenceDirectorySections = { live: [], upcoming: [], past: [] };
+  for (const meeting of meetings) {
+    const phase = conferencePhase(meeting, now);
+    if (phase === "live") sections.live.push(meeting);
+    else if (phase === "upcoming") sections.upcoming.push(meeting);
+    else sections.past.push(meeting);
+  }
+  sections.live.sort((left, right) => compareConferenceMeetings(left, right, "live", "live"));
+  sections.upcoming.sort((left, right) => compareConferenceMeetings(left, right, "upcoming", "upcoming"));
+  sections.past.sort((left, right) => compareConferenceMeetings(left, right, "past", "past"));
+  return sections;
 }
 
 export function conferenceDateRange(meeting: Pick<ConferenceMeeting, "startDate" | "endDate">): string {

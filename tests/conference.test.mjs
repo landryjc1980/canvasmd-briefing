@@ -11,15 +11,18 @@ const page = fs.readFileSync(new URL("../app/conference/[key]/page.tsx", import.
 const coverage = fs.readFileSync(new URL("../app/conference/[key]/ConferenceCoverage.tsx", import.meta.url), "utf8");
 const readoutCard = fs.readFileSync(new URL("../components/ReadoutArticleCard.tsx", import.meta.url), "utf8");
 const teaser = fs.readFileSync(new URL("../app/briefing-preview/ConferenceTeaser.tsx", import.meta.url), "utf8");
+const directory = fs.readFileSync(new URL("../app/conferences/page.tsx", import.meta.url), "utf8");
 const coverageCss = fs.readFileSync(new URL("../app/conference/[key]/conference.css", import.meta.url), "utf8");
 const server = fs.readFileSync(new URL("../lib/conferenceServer.ts", import.meta.url), "utf8");
 const runtime = await import(`data:text/javascript;base64,${Buffer.from(ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText).toString("base64")}`);
 
-test("conference selection gives a live meeting precedence over a nearby meeting and respects specialty", () => {
-  assert.match(source, /rank: Record<ConferencePhase, number> = \{ live: 0, upcoming: 1, recent: 2, past: 3 \}/);
-  assert.match(source, /filter\(\(meeting\) => appliesToArea\(meeting, area\)\)/);
+test("conference teaser selection retains every eligible matching meeting in the existing home window", () => {
+  assert.match(source, /export function selectConferenceTeasers/);
+  assert.match(source, /return ranked\.map\(\(\{ meeting \}\) => meeting\)/);
+  assert.doesNotMatch(source, /nonLive\.slice/);
+  assert.match(source, /conferenceAppliesToArea\(meeting, area\)/);
   assert.match(source, /start - 2 \* DAY_MS/);
   assert.match(source, /end \+ 7 \* DAY_MS/);
 });
@@ -33,6 +36,34 @@ test("conference selection picks live SOHO for All and Heme while Lung receives 
   assert.equal(runtime.selectConference([soho, wclc], "Lung", now)?.key, "wclc");
   assert.equal(runtime.selectConference([soho, wclc], "All", new Date("2026-09-16T16:00:00Z"))?.key, "wclc");
   assert.equal(runtime.conferenceHref(soho), "/conference/soho?year=2026");
+});
+
+test("conference teaser selection shows overlapping live SOHO and WCLC rows for All while specialty remains scoped", () => {
+  const now = new Date("2026-09-12T16:00:00Z");
+  const soho = { key: "soho", name: "SOHO", shortName: "SOHO 2026", society: null, location: "Houston", startDate: "2026-09-09", endDate: "2026-09-12", tumorFocus: "Heme", sourceUrl: null, year: 2026 };
+  const wclc = { key: "wclc", name: "WCLC", shortName: "WCLC 2026", society: null, location: "Seoul", startDate: "2026-09-12", endDate: "2026-09-15", tumorFocus: ["Lung"], sourceUrl: null, year: 2026 };
+  const upcoming = { ...wclc, key: "esmo", shortName: "ESMO 2026", startDate: "2026-09-13", endDate: "2026-09-16", tumorFocus: "Lung" };
+  const secondUpcoming = { ...upcoming, key: "asco", shortName: "ASCO 2026", startDate: "2026-09-14", endDate: "2026-09-17" };
+  assert.deepEqual(runtime.selectConferenceTeasers([secondUpcoming, upcoming, wclc, soho], "All", now).map((meeting) => meeting.key), ["soho", "wclc", "esmo", "asco"]);
+  assert.deepEqual(runtime.selectConferenceTeasers([upcoming, wclc, soho], "Lung", now).map((meeting) => meeting.key), ["wclc", "esmo"]);
+  assert.deepEqual(runtime.selectConferenceTeasers([upcoming, wclc, soho], "Heme", now).map((meeting) => meeting.key), ["soho"]);
+});
+
+test("conference directory groups live, upcoming, and older coverage without the home window", () => {
+  const now = new Date("2026-09-12T16:00:00Z");
+  const live = { key: "soho", name: "SOHO", shortName: "SOHO 2026", society: null, location: "Houston", startDate: "2026-09-09", endDate: "2026-09-12", tumorFocus: "Heme", sourceUrl: null, year: 2026 };
+  const upcoming = { ...live, key: "asmo", shortName: "ASMO 2026", startDate: "2026-10-01", endDate: "2026-10-04" };
+  const past = { ...live, key: "asco", shortName: "ASCO 2026", startDate: "2026-06-01", endDate: "2026-06-04" };
+  const sections = runtime.conferenceDirectorySections([past, upcoming, live], now);
+  assert.deepEqual(sections.live.map((meeting) => meeting.key), ["soho"]);
+  assert.deepEqual(sections.upcoming.map((meeting) => meeting.key), ["asmo"]);
+  assert.deepEqual(sections.past.map((meeting) => meeting.key), ["asco"]);
+  assert.match(directory, /getCachedConferenceList\(\)/);
+  assert.match(directory, /title="Live now"/);
+  assert.match(directory, /title="Upcoming"/);
+  assert.match(directory, /title="Past coverage"/);
+  assert.match(directory, /Couldn’t load the conference calendar/);
+  assert.match(directory, /conference-directory-row-specialty/);
 });
 
 test("conference promotion starts two Eastern calendar days before opening and includes the full final day", () => {
@@ -133,7 +164,9 @@ test("conference detail uses the meeting short name, full name, status, and date
   assert.match(source, /\$\{startMonth\} \$\{start\.getUTCDate\(\)\}–\$\{end\.getUTCDate\(\)\}, \$\{year\}/);
 });
 
-test("the Readout teaser follows the selected specialty and uses working conference links", () => {
-  assert.match(teaser, /selectConference\(meetings, area\)/);
+test("the Readout teaser follows the selected specialty, exposes all conferences, and uses working meeting links", () => {
+  assert.match(teaser, /selectConferenceTeasers\(meetings, area\)/);
+  assert.match(teaser, /href="\/conferences"/);
+  assert.doesNotMatch(teaser, /From the meeting floor/);
   assert.match(teaser, /href=\{conferenceHref\(meeting\)\}/);
 });
