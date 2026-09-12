@@ -55,6 +55,7 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
         ...savedEdition(editionDate), area, generatedAt: now.toISOString(), selectionVersion: undefined,
       }),
       mergeReadoutEditionSnapshot: (snapshot) => snapshot,
+      preparedMorningReadoutPayload: (payload) => payload,
       appearedInMorningEdition: () => false,
     },
     "@/app/briefing-preview/readoutRequest": {

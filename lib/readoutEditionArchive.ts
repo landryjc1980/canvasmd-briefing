@@ -6,6 +6,7 @@ import {
   appearedInMorningEdition,
   isReadoutEditionSnapshot,
   mergeReadoutEditionSnapshot,
+  preparedMorningReadoutPayload,
   type ReadoutEditionSnapshot,
 } from "@/app/briefing-preview/editionSnapshot";
 import {
@@ -205,11 +206,14 @@ async function buildCanonicalEdition(
       payload.attentionWindow.editionDate !== editionDate || payload.attentionWindow.kind !== "edition") {
     throw new Error("Prepublication All source attention window is missing or mismatched.");
   }
+  const sourceReadyIds = new Set<string>((selectionAudit as { papers?: { id: string; sourcePreparation?: { leadReady?: boolean } }[] } | null)
+    ?.papers?.filter((paper) => paper.sourcePreparation?.leadReady === true).map((paper) => paper.id) ?? []);
+  const morningPayload = preparedMorningReadoutPayload(payload, previousCanonical, sourceReadyIds);
   const snapshots = EDITION_AREAS.map((area) => {
     const previousForArea = previousCanonical
       .map((snapshot) => readoutEditionForArea(snapshot, area))
       .filter((snapshot): snapshot is ReadoutEditionSnapshot => !!snapshot);
-    return { ...buildReadoutEditionSnapshot(area, payload, now, previousForArea, editionDate), attentionAnchor };
+    return { ...buildReadoutEditionSnapshot(area, morningPayload, now, previousForArea, editionDate), attentionAnchor };
   });
   const canonical = canonicalReadoutEditionSnapshot(snapshots);
   if (!canonical) throw new Error("The canonical All edition could not be built.");

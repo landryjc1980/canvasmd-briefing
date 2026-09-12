@@ -37,7 +37,7 @@ function loader(overrides = {}) {
 const load = loader({ "next/cache": { unstable_cache: (fn) => fn } });
 const { attentionWindowForPayload, attentionOverlayMatches, attentionSinceLabel, attentionExactStart, publicationSourceLabel } = load("lib/readoutAttentionPresentation.ts");
 const { activeReadoutEditionDate } = load("app/briefing-preview/readoutRequest.ts");
-const { buildReadoutEditionSnapshot, mergeReadoutEditionSnapshot, sevenDayEditionDevelopments } = load("app/briefing-preview/editionSnapshot.ts");
+const { buildReadoutEditionSnapshot, preparedMorningReadoutPayload, mergeReadoutEditionSnapshot, sevenDayEditionDevelopments } = load("app/briefing-preview/editionSnapshot.ts");
 const { readoutEditionForArea, readoutEditionHistoryIncludingCurrent } = load("app/briefing-preview/editionHistory.ts");
 const { withReadoutSelectionVersion, getCachedReadoutWindow } = load("lib/readoutWindowServer.ts");
 
@@ -55,6 +55,30 @@ const card = (id, count = 3) => ({ area: "GU", firstSeen: "2026-09-11T09:00:00Z"
 const breaking = (id) => ({ id: `breaking:${id}`, kind: "paper", publicationClass: "research", headline: `Oncology source ${id}`,
   sourceLabel: "Journal", url: `https://example.org/${id}`, doi: null, pmid: null, pubDate: null, areas: ["GU"], articleIds: [id],
   excerpt: null, metrics: { totalSharers: 6, clinicians: 0, recentClinicians: 6, previousClinicians: 0 } });
+
+test("prior morning papers cannot consume lead slots before the prepared remainder is considered", () => {
+  const rankedCard = (id, rank) => { const item = card(id); item.card.rankTotal = rank; return item; };
+  const oldA = rankedCard("old-a", 100), oldB = rankedCard("old-b", 90);
+  const previous = buildReadoutEditionSnapshot("All", payload({ cards: [oldA, oldB] }), new Date("2026-09-10T10:00:00Z"), [], "2026-09-10");
+  const incomplete = rankedCard("incomplete", 85), nextA = rankedCard("next-a", 80), nextB = rankedCard("next-b", 70), extra = rankedCard("extra", 60);
+  const input = payload({ cards: [oldA, oldB], moreCards: [incomplete, nextA, nextB, extra] });
+  const prepared = preparedMorningReadoutPayload(input, [previous], new Set(["archive-next-a", "archive-next-b", "archive-extra"]));
+  const edition = buildReadoutEditionSnapshot("All", prepared, new Date("2026-09-11T10:00:00Z"), [previous], date);
+  assert.deepEqual(edition.developments.map(({ development }) => development.id), ["archive-next-a", "archive-next-b"]);
+  assert.deepEqual(edition.relevant.map(({ article }) => article.id), ["archive-incomplete", "archive-extra"]);
+  assert.deepEqual(input.cards.map(({ card }) => card.id), ["old-a", "old-b"], "existing payloads are not mutated");
+});
+
+test("prepared lead selection keeps preprints in the remainder and respects the five-story and specialty caps", () => {
+  const pool = Array.from({ length: 8 }, (_, i) => {
+    const item = card(`new-${i}`); item.area = ["GU", "GU", "GU", "Heme", "Heme", "Lung", "GI", "Breast"][i];
+    item.card.rankTotal = 100 - i; return item;
+  });
+  pool[0].card.publicationClass = "preprint";
+  const prepared = preparedMorningReadoutPayload(payload({ moreCards: pool }), [], new Set(pool.map(({ card }) => `archive-${card.id}`)));
+  assert.deepEqual(prepared.cards.map(({ card }) => card.id), ["new-1", "new-2", "new-3", "new-4", "new-5"]);
+  assert.deepEqual(prepared.moreCards.map(({ card }) => card.id), ["new-0", "new-6", "new-7"]);
+});
 
 test("5 AM preparation and 6 AM publication share one immutable preceding-day start", () => {
   assert.deepEqual(anchor, { version: 1, timeZone: "America/New_York", startAt: "2026-09-10T09:00:00.000Z", sevenDayStartAt: "2026-09-04T09:00:00.000Z" });

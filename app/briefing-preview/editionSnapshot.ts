@@ -172,6 +172,32 @@ function appearedInAnyEarlierEdition(item: EditorialArticle, history: ReadoutEdi
     snapshot.relevant.some((entry) => sameMorningStory(item, entry.article)));
 }
 
+/** Seat the prepared morning pool after history exclusions, before applying caps. */
+export function preparedMorningReadoutPayload(
+  payload: ReadoutWindowPayload,
+  previousEditions: ReadoutEditionSnapshot[],
+  sourceReadyIds: ReadonlySet<string>,
+): ReadoutWindowPayload {
+  const alreadyReady = new Set((payload.cards ?? []).map(({ card }) => `archive-${card.id}`));
+  const seen = new Set<string>();
+  const ranked = [...(payload.cards ?? []), ...(payload.moreCards ?? [])]
+    .filter(({ card }) => !seen.has(card.id) && !!seen.add(card.id))
+    .filter((item) => !appearedInMorningEdition(archivedEditorialArticle(item), previousEditions))
+    .sort((a, b) => (b.card.rankTotal ?? 0) - (a.card.rankTotal ?? 0)
+      || b.firstSeen.localeCompare(a.firstSeen) || a.card.id.localeCompare(b.card.id));
+  const counts = new Map<string, number>();
+  const cards = ranked.filter((item) => {
+    const id = `archive-${item.card.id}`;
+    if ((!alreadyReady.has(id) && !sourceReadyIds.has(id)) ||
+        isPreprintEditorialArticle(archivedEditorialArticle(item))) return false;
+    if ((counts.get(item.area) ?? 0) >= 2) return false;
+    counts.set(item.area, (counts.get(item.area) ?? 0) + 1);
+    return true;
+  }).slice(0, 5);
+  const selected = new Set(cards.map(({ card }) => card.id));
+  return { ...payload, cards, moreCards: ranked.filter(({ card }) => !selected.has(card.id)) };
+}
+
 export function buildReadoutEditionSnapshot(
   area: EditionArea,
   payload: ReadoutWindowPayload,

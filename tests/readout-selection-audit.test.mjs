@@ -11,7 +11,7 @@ function harness({ auditValue = audit, auditStatus = 201, abortAfterAudit = fals
   const mocks = {
     "server-only": {},
     "@/app/briefing-preview/edition": { EDITION_AREAS: ["All"], archivedEditorialArticle: (x) => ({ id: x.id }) },
-    "@/app/briefing-preview/editionSnapshot": { buildReadoutEditionSnapshot: () => snapshot, appearedInMorningEdition: () => false, isReadoutEditionSnapshot: (x) => !!x?.schemaVersion, mergeReadoutEditionSnapshot: () => snapshot },
+    "@/app/briefing-preview/editionSnapshot": { preparedMorningReadoutPayload: (payload) => payload, buildReadoutEditionSnapshot: () => snapshot, appearedInMorningEdition: () => false, isReadoutEditionSnapshot: (x) => !!x?.schemaVersion, mergeReadoutEditionSnapshot: () => snapshot },
     "@/app/briefing-preview/readoutRequest": { activeReadoutEditionDate: () => "2026-09-11", etEditionDate: () => "2026-09-11", etEditionHour: () => 5, hasFrozenPrepublishedEdition: () => false, hasScheduledReadoutSourceRun: () => true, prepublicationEditionDate: () => "2026-09-11", scheduledReadoutSourceRunId: () => "run" },
     "@/app/briefing-preview/editionHistory": { canonicalReadoutEditionSnapshot: () => snapshot, readoutEditionForArea: () => snapshot },
     "@/lib/readoutWindowServer": { fetchFreshReadoutWindowForPrepublication: async (_a, _d, _anchor, o) => ({ stale: false, attentionWindow: { startAt: "x", editionDate: "2026-09-11", kind: "edition" }, selectionAudit: o.includeSelectionAudit ? auditValue : undefined, cards: [{ id: "archive-a" }], moreCards: [] }), fetchFreshReadoutWindowForInsertions: async () => ({}), supabaseApiKeyHeaders: () => ({ apikey: "k" }), withReadoutSelectionVersion: async (x) => x },
