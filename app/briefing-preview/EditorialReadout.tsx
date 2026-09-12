@@ -240,7 +240,7 @@ function FacePile({ article, count }: { article: BriefingArticle | null; count: 
   const overflow = Math.max(0, count - visible.length);
   return (
     <span className="er-faces" aria-hidden="true">
-      {visible.map((src) => <img src={src} alt="" loading="lazy" decoding="async" key={src} />)}
+      {visible.map((src) => <img src={src} alt="" loading="lazy" decoding="async" key={src} onError={(event) => { event.currentTarget.style.display = "none"; }} />)}
       {overflow > 0 && <span className="er-av-more">+{overflow}</span>}
     </span>
   );
@@ -371,6 +371,8 @@ function DevelopmentFinding({
 }
 
 function articleContentType(item: EditorialArticle): string {
+  // NEJM encodes the article form in the DOI suffix: NEJMc is Correspondence.
+  if (/10\.1056\/NEJMc\d/i.test(item.url)) return "Correspondence";
   if (item.publicationClass && item.publicationClass !== "research") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline", unknown: "Article" }[item.publicationClass];
   const hay = `${item.evidence} ${item.sourceAction ?? ""} ${item.journal}`;
   if (/approval/i.test(hay)) return "FDA approval";
@@ -539,7 +541,7 @@ function ArticleDevelopment({
           <span className="er-kicker-source">{item.journal}</span>
         </div>
       }
-      footer={
+      footer={(dateStamp || !isResearch || canDisclose) ? (
         <div className="er-foot">
           {dateStamp ? (
             <p className="er-action-date"><span className="er-sr-only">{dateWord} </span><time dateTime={item.occurredOn ?? undefined} title={fullDate ? `${dateWord} ${fullDate}` : undefined}>{dateStamp}</time></p>
@@ -548,9 +550,11 @@ function ArticleDevelopment({
           ) : <span />}
           {canDisclose && <Disclose open={open} label={disclosureLabel} onToggle={toggleDisclosure} />}
         </div>
-      }
+      ) : undefined}
     >
-      <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
+      {source.preview || source.full
+        ? <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
+        : <div className="er-excerpt"><p className="er-finding er-finding-missing">No summary is available from {item.journal || "the publisher"} yet.</p></div>}
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay

@@ -114,7 +114,7 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-source-headline.is-compact .er-source-title { font-size: 19px; }
 .er-excerpt { margin: 10px 0 0; color: var(--er-ink); }
 .er-finding { margin: 0; color: var(--er-ink); font: italic 400 16px/1.4 Newsreader, Georgia, "Times New Roman", serif; }
-.er-development.is-collapsible:not(.is-open) .er-finding { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.er-finding-missing { color: var(--er-muted); font-style: italic; }
 .er-development.is-open .er-finding { font-style: normal; font-size: 15.5px; line-height: 1.5; }
 .er-provenance { display: block; margin-bottom: 5px; color: var(--er-faint); font: 600 10.5px/1.2 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 .er-finding-toggle { display: none; }
@@ -177,7 +177,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 @media (min-width: 760px) {
   .er-source-title { font-size: 24px; }
   .er-finding { font-size: 17px; }
-  .er-development.is-collapsible:not(.is-open) .er-finding,
   .er-development.is-collapsible:not(.is-open) .er-source-title { -webkit-line-clamp: 2; }
 }
 .er-xlink:hover { text-decoration: underline; }

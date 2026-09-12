@@ -38,7 +38,7 @@ export default function ReadoutVoice({
     <div className={`er-voice ${extra ? "er-voice-more" : ""}`}>
       <div className="er-who" aria-hidden="true">
         {post.avatar
-          ? <img src={post.avatar} alt="" loading="lazy" decoding="async" />
+          ? <img src={post.avatar} alt="" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.style.display = "none"; }} />
           : <span className="er-av">{initials(post.name)}</span>}
       </div>
       <div className="er-voice-body">
