@@ -17,7 +17,13 @@ export async function GET(req: NextRequest) {
   try {
     job = await startReadoutPipelineJob("readout-prearchive", readoutTriggerKind(req));
     const prepublication = await job.stage("prepublish-canonical", async (signal) => { if (signal.aborted) throw new Error("Prepublication aborted before canonical work."); const result = await prepublishCurrentReadoutEdition(new Date(), signal); if (signal.aborted) throw new Error("Prepublication aborted after canonical work."); return result; });
-    await job.succeed({ prepublication });
+    // DST guard invocations outside 05:00 ET are expected scheduler no-ops, not
+    // evidence that the required morning canonical selection completed.
+    if (prepublication.skipped === "outside-5am-et") {
+      await job.skip({ prepublication });
+    } else {
+      await job.succeed({ prepublication });
+    }
     return NextResponse.json({ ok: true, prepublication });
   } catch (error: any) {
     try { await job?.fail(error); } catch (loggingError) { console.error("Readout prearchive failure could not be logged.", loggingError); }
