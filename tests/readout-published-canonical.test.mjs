@@ -58,6 +58,7 @@ test("morning publisher preparation requires the matching service receipt and ne
     await fetchFreshReadoutWindowForPrepublication("All", "2026-09-13", anchor, { candidateBuild });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].body.mode, "readout-source-prepare");
+    assert.equal(calls[0].body.repair, undefined, "ordinary morning requests cannot opt into saved-edition repair");
     assert.deepEqual(calls[0].body.candidateBuild, candidateBuild);
     assert.equal(calls[0].init.cache, "no-store");
     for (variant of ["missing", "mismatch", "dry", "failed"]) {
@@ -66,6 +67,9 @@ test("morning publisher preparation requires the matching service receipt and ne
     assert.equal(calls.length, 5, "failures never read stale source cache or write a reader cache");
     await assert.rejects(fetchFreshReadoutWindowForPrepublication("GU", "2026-09-13", anchor, { candidateBuild }), /canonical All/);
     assert.equal(calls.length, 5);
+    variant = "valid";
+    await fetchFreshReadoutWindowForPrepublication("All", "2026-09-13", anchor, { candidateBuild, repair: true });
+    assert.equal(calls[5].body.repair, true, "explicit private repair forwards its intent");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;

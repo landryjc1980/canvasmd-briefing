@@ -112,7 +112,7 @@ export async function fetchFreshReadoutWindowForPrepublication(
   area: EditionArea,
   editionDate: string,
   attentionAnchor: ReadoutAttentionAnchor,
-  options: { includeSelectionAudit?: boolean; signal?: AbortSignal; candidateBuild?: { runId: string; generatedAt: string } } = {},
+  options: { includeSelectionAudit?: boolean; signal?: AbortSignal; candidateBuild?: { runId: string; generatedAt: string }; repair?: boolean } = {},
 ): Promise<ReadoutWindowPayload> {
   if (options.candidateBuild) {
     if (area !== "All") throw new Error("Publisher preparation requires the canonical All source pool.");
@@ -120,7 +120,7 @@ export async function fetchFreshReadoutWindowForPrepublication(
     const response = await fetch(process.env.BRIEFING_FUNCTION_URL ?? `${url}/functions/v1/briefing`, {
       method: "POST", headers: { "content-type": "application/json", ...supabaseApiKeyHeaders(key) },
       body: JSON.stringify({ mode: "readout-source-prepare", area, days: 1, editionDate, attentionAnchor,
-        candidateBuild: options.candidateBuild }), cache: "no-store", signal: options.signal,
+        candidateBuild: options.candidateBuild, ...(options.repair === true ? { repair: true } : {}) }), cache: "no-store", signal: options.signal,
     });
     if (!response.ok) throw new Error(`Readout publisher preparation returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
     const payload = await response.json() as ReadoutWindowPayload & { sourcePreparation?: { version: number; dryRun: boolean; candidateBuild: { runId: string; generatedAt: string } } };

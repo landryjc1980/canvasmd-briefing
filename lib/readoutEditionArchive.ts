@@ -197,7 +197,7 @@ async function buildCanonicalEdition(
   const previousCanonical = await priorEditions(editionDate, []);
   // A complete All response is the single admitted supply. Specialty editions are
   // projected locally with the same membership and history rules as before.
-  const payload = await fetchFreshReadoutWindowForPrepublication("All", editionDate, attentionAnchor, { includeSelectionAudit: true, signal: options.signal, candidateBuild });
+  const payload = await fetchFreshReadoutWindowForPrepublication("All", editionDate, attentionAnchor, { includeSelectionAudit: true, signal: options.signal, candidateBuild, repair: options.captureKind === "repair" });
   const selectionAudit: unknown = (payload as any).selectionAudit ?? null;
   const selectionAuditCards: unknown[] = [...(payload.cards ?? []), ...(payload.moreCards ?? [])];
   if (payload.stale === true) throw new Error("Prepublication All source is stale.");
