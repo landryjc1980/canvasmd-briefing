@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { SPECIALTY_AREAS, assertCompleteSpecialtyBatch, compareSpecialtyOutput, specialtyComparisonStatus, stableJson } from "../lib/readoutSpecialtyComparison.mjs";
 import { createSpecialtyTransport } from "../lib/readoutSpecialtyTransport.mjs";
-import { specialtyClock } from "../lib/readoutSpecialtyShadow.mjs";
+import { specialtyClock, specialtyShadowInvocation } from "../lib/readoutSpecialtyShadow.mjs";
 
 const expected = { sourceRunId: "scheduled-2026091306", engineSha: "abc", builtAt: "2026-09-13T08:20:00.000Z" };
 const batch = () => SPECIALTY_AREAS.map(area => ({ area, data: { area, generatedAt: expected.builtAt, build: { sha: expected.engineSha, sourceRunId: expected.sourceRunId, dirty: false } } }));
@@ -35,6 +35,22 @@ test("a successful build cannot label stale or differing legacy observations a p
   rows[0].comparison.sameCycle = false;
   rows[0].comparison.status = "legacy_stale";
   assert.equal(specialtyComparisonStatus(rows), "incomplete_legacy");
+});
+test("shadow runs after recovery with a stable single-use identity for an explicitly configured off-hours canary", () => {
+  const canaryId = "c5008845-c72a-42ea-b054-3b781235c22a";
+  const invocation = now => specialtyShadowInvocation({ now: new Date(now), owner: "owner", canaryId, canaryUntil: "2026-09-12T15:50:00Z", scheduledDates: ["2026-09-13", "2026-12-13"] });
+  assert.equal(specialtyShadowInvocation({ now: new Date("2026-09-13T08:20:00Z"), owner: "owner" }), null);
+  assert.equal(invocation("2026-09-13T09:00:00Z").sourceRunId, "scheduled-2026091306");
+  assert.equal(invocation("2026-12-13T10:00:00Z").sourceRunId, "scheduled-2026121306");
+  assert.equal(specialtyShadowInvocation({ now: new Date("2026-09-15T09:00:00Z"), scheduledDates: ["2026-09-13", "2026-09-14"] }), null, "dates beyond the approved comparisons cannot start a scheduled build");
+  const first = invocation("2026-09-12T15:30:00Z"), later = invocation("2026-09-12T15:40:00Z");
+  assert.deepEqual(first, later, "one configured canary keeps the same identity across retries");
+  assert.deepEqual(first, { manual: true, canary: true, sourceRunId: `canary-${canaryId}` });
+  assert.equal(invocation("2026-09-12T15:50:00Z"), null, "expiry prevents a delayed invocation from consuming an unused canary");
+  assert.equal(invocation("2026-09-15T10:00:00Z"), null, "leftover canary configuration cannot authorize a later date");
+  assert.throws(() => specialtyShadowInvocation({ now: new Date("2026-09-12T15:30:00Z"), canaryId }), /explicit expiry/);
+  assert.throws(() => specialtyShadowInvocation({ now: new Date("2026-09-12T15:30:00Z"), canaryId, canaryUntil: "2026-09-12T18:00:00Z" }), /exceeds 30/);
+  assert.throws(() => specialtyShadowInvocation({ now: new Date("2026-09-12T15:30:00Z"), canaryId: "invalid" }), /Invalid/);
 });
 test("shadow transport blocks mutations and caches only exact reads including ranges", async () => {
   let calls = 0;

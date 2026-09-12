@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { readoutTriggerKind, startReadoutPipelineJob } from "@/lib/readoutPipelineJob";
-import { runSpecialtyShadow, specialtyClock } from "@/lib/readoutSpecialtyShadow.mjs";
+import { runSpecialtyShadow, specialtyShadowInvocation } from "@/lib/readoutSpecialtyShadow.mjs";
 import engineInfo from "@/lib/generated/specialtyBriefingBuilder.manifest.json";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +15,13 @@ export async function GET(req: NextRequest) {
   // Activation follows full-run approval and the measured canary; deploying the
   // endpoint alone cannot start provider work through a scheduled invocation.
   if (process.env.READOUT_SPECIALTY_SHADOW_ENABLED !== "1") return NextResponse.json({ ok: true, skipped: "shadow-not-activated", webSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null, engineSha: engineInfo.backendSha, nodeVersion: process.version });
-  const now = new Date(), clock = specialtyClock(now), manual = req.nextUrl.searchParams.get("manual") === "1";
-  if (!manual && clock.hour !== 4) return NextResponse.json({ ok: true, skipped: "outside-4am-et" });
+  const now = new Date(), owner = crypto.randomUUID();
+  const invocation = specialtyShadowInvocation({ now, owner, manual: req.nextUrl.searchParams.get("manual") === "1", canaryId: process.env.READOUT_SPECIALTY_SHADOW_CANARY_ID, canaryUntil: process.env.READOUT_SPECIALTY_SHADOW_CANARY_UNTIL, scheduledDates: (process.env.READOUT_SPECIALTY_SHADOW_DATES ?? "").split(",").map(value => value.trim()).filter(Boolean) });
+  if (!invocation) return NextResponse.json({ ok: true, skipped: "outside-approved-shadow-window" });
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return NextResponse.json({ ok: false, error: "Missing service environment." }, { status: 500 });
   const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: (input, init = {}) => fetch(input, { ...init, signal: AbortSignal.timeout(8_000), cache: "no-store" }) } });
-  const owner = crypto.randomUUID(), leaseName = "readout-specialty-batch";
+  const leaseName = "readout-specialty-batch";
   let job, owned = false;
   try {
     const lease = await db.rpc("acquire_ops_job_lease", { p_job_name: leaseName, p_lease_owner: owner, p_ttl_seconds: 330 });
@@ -29,11 +30,14 @@ export async function GET(req: NextRequest) {
     owned = true;
     const expired = await db.from("readout_specialty_source_runs").update({ status: "failed", finished_at: now.toISOString(), summary: { error: "Previous Node job exceeded its deadline." } }).eq("status", "running").lt("deadline_at", now.toISOString());
     if (expired.error) throw expired.error;
-    const sourceRunId = manual ? `manual-${clock.sourceRunId}-${owner}` : clock.sourceRunId;
-    const existing = await db.from("readout_specialty_source_runs").select("id,status").eq("mode", "shadow").eq("source_run_id", sourceRunId).in("status", ["running", "succeeded"]).maybeSingle();
+    const { sourceRunId, manual, canary } = invocation;
+    const existingQuery = db.from("readout_specialty_source_runs").select("id,status").eq("mode", "shadow").eq("source_run_id", sourceRunId);
+    // A canary id is single-use even if its attempt fails. An operator can set
+    // a new id after investigating a failure; cron cannot silently repeat it.
+    const existing = await (canary ? existingQuery : existingQuery.in("status", ["running", "succeeded"])).maybeSingle();
     if (existing.error) throw existing.error;
     if (existing.data) return NextResponse.json({ ok: true, skipped: "cycle-already-built", runId: existing.data.id });
-    job = await startReadoutPipelineJob("readout-specialty-shadow", readoutTriggerKind(req, manual), { details: { sourceRunId, engineSha: engineInfo.backendSha }, deadlineMs: 275_000 });
+    job = await startReadoutPipelineJob("readout-specialty-shadow", readoutTriggerKind(req, manual), { details: { sourceRunId, canary, engineSha: engineInfo.backendSha }, deadlineMs: 275_000 });
     const summary = await runSpecialtyShadow({ url, key, engineInfo, job, sourceRunId, now });
     await job.succeed(summary);
     return NextResponse.json({ ok: true, runId: job.id, ...summary });
