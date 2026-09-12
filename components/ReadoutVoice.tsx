@@ -10,7 +10,16 @@ export type ReadoutVoicePost = {
   tweetUrl: string | null;
   text: string | null;
   thread?: ThreadPart[];
+  // A reply under a post about the paper: whom it answered (a journal account or a clinician).
+  replyTo?: { handle: string | null; name: string | null } | null;
 };
+
+function replyTargetLabel(replyTo: ReadoutVoicePost["replyTo"]): string | null {
+  if (!replyTo) return null;
+  const name = replyTo.name?.trim();
+  const handle = replyTo.handle?.replace(/^@/, "").trim();
+  return name || (handle ? `@${handle}` : null);
+}
 
 function initials(name: string): string {
   const cleaned = name.replace(/,?\s+(?:MD|PhD|DO)\b.*$/i, "").trim();
@@ -42,6 +51,7 @@ export default function ReadoutVoice({
           : <span className="er-av">{initials(post.name)}</span>}
       </div>
       <div className="er-voice-body">
+        {replyTargetLabel(post.replyTo) && <p className="er-reply-to">Replying to {replyTargetLabel(post.replyTo)}</p>}
         <p className="er-quote"><b className="er-quote-name">{post.name}</b> · {expanded || threadOpen ? post.text : articleTextPreview(post.text ?? "", 220)}</p>
       {threadOpen && thread.map((part, index) => (
         <div className="er-thread-part" key={part.id || `thread:${index}`}>

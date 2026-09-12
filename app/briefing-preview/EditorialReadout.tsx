@@ -3,6 +3,7 @@ import { activeReadoutEditionDate, READOUT_WINDOWS, readoutWindowKeyboardTarget 
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
+import type { ReadoutDiscussion, ReadoutDiscussionArticle } from "@/lib/types";
 import {
   isReadoutEditionSnapshot,
   liveListenBriefs,
@@ -59,6 +60,61 @@ const AREA_LABELS: Record<EditionArea, string> = {
 const SHARER_PREVIEW_LIMIT = 3;
 const EMPTY_BRIEFS: BriefingData[] = [];
 const fullOverlayCache = new Map<string, Promise<BriefingEvidenceOverlayItem | null>>();
+const discussionCache = new Map<string, Promise<ReadoutDiscussionArticle | null>>();
+
+/** The replies under every post about this card's paper(s), merged across the card's article ids.
+ * Counted for everyone; quoted only for clinicians we can identify (retention policy applies). */
+function loadDiscussion(articleIds: string[]): Promise<ReadoutDiscussionArticle | null> {
+  const ids = [...new Set(articleIds)].sort();
+  const key = ids.join(",");
+  if (!key) return Promise.resolve(null);
+  const cached = discussionCache.get(key);
+  if (cached) return cached;
+  const request = fetch("/api/readout-discussion", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ articleIds: ids }),
+    cache: "no-store",
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Discussion returned ${response.status}.`);
+    const payload = await response.json() as ReadoutDiscussion;
+    const articles = Array.isArray(payload.articles) ? payload.articles : [];
+    if (!articles.length) return null;
+    return {
+      articleId: key,
+      replyCount: articles.reduce((sum, article) => sum + (article.replyCount ?? 0), 0),
+      clinicianReplyCount: articles.reduce((sum, article) => sum + (article.clinicianReplyCount ?? 0), 0),
+      quoted: articles.flatMap((article) => article.quoted ?? []),
+    };
+  }).catch(() => {
+    discussionCache.delete(key);
+    return null;
+  });
+  discussionCache.set(key, request);
+  return request;
+}
+
+/** Quoted replies join the card's comment pool as clinician posts, so the comment picker
+ * (usefulPosts) and the voices list treat a substantive reply like any other comment. */
+function withDiscussion(article: BriefingArticle | null, discussion: ReadoutDiscussionArticle | null): BriefingArticle | null {
+  if (!article || !discussion?.quoted.length) return article;
+  const seen = new Set((article.posts ?? []).map((post) => post.tweetUrl).filter(Boolean));
+  const replies: BriefingSharer[] = discussion.quoted
+    .filter((reply) => !reply.tweetUrl || !seen.has(reply.tweetUrl))
+    .map((reply) => ({
+      name: reply.name,
+      handle: reply.handle,
+      avatar: reply.avatar,
+      tweetUrl: reply.tweetUrl,
+      text: reply.text,
+      likes: reply.likes,
+      retweets: reply.retweets,
+      views: reply.views,
+      sourceLane: "clinician" as const,
+      replyTo: reply.replyTo,
+    }));
+  return replies.length ? { ...article, posts: [...(article.posts ?? []), ...replies] } : article;
+}
 
 function loadFullEvidenceOverlay(item: EditorialDevelopment): Promise<BriefingEvidenceOverlayItem | null> {
   const cached = fullOverlayCache.get(item.id);
@@ -292,15 +348,15 @@ function articleWithLiveEvidence(
   return applyEvidenceOverlay(base, overlay, window) ?? articleFromEditorial(item);
 }
 
-function PeerRow({ article, sharedBy, period = null }: { article: BriefingArticle | null; sharedBy: number; period?: string | null }) {
+function PeerRow({ article, sharedBy, period = null, replied = 0 }: { article: BriefingArticle | null; sharedBy: number; period?: string | null; replied?: number }) {
   const sharers = clinicianSharers(article).slice(0, sharedBy);
   if (!sharers.length && sharedBy <= 0) return null;
   const named = sharers.slice(0, SHARER_PREVIEW_LIMIT);
   const others = Math.max(0, sharedBy - named.length);
   const surnames = named.map((sharer) => clinicianSurname(sharer.name));
-  const loadedComments = usefulPosts(article).length;
+  const loadedComments = usefulPosts(article).filter((post) => !post.replyTo).length;
   const wrote = Math.max(loadedComments, article?.authoredClinicianCount ?? 0);
-  const breakdown = shareCommentaryLabel(sharedBy, wrote);
+  const breakdown = shareCommentaryLabel(sharedBy, wrote, replied);
   return (
     <div className="er-peers">
       <FacePile article={article} count={sharedBy} />
@@ -319,13 +375,32 @@ function PeerRow({ article, sharedBy, period = null }: { article: BriefingArticl
 }
 
 /** Who did what, under the count: clinicians who wrote in their own words versus those who
- * reposted or shared the link. Reposts and bare links are not yet separated in the overlay. */
-function shareCommentaryLabel(sharedBy: number, wrote: number): string | null {
+ * reposted or shared the link, plus clinicians who replied under a post about the paper.
+ * Replies are engagement, not shares: they never add to the count above. Reposts and bare
+ * links are not yet separated in the overlay. */
+function shareCommentaryLabel(sharedBy: number, wrote: number, replied = 0): string | null {
   if (sharedBy <= 0) return null;
   const own = Math.min(Math.max(wrote, 0), sharedBy);
   const rest = sharedBy - own;
-  const parts = [own > 0 ? `${own} wrote about it` : null, rest > 0 ? `${rest} reposted or shared the link` : null].filter(Boolean);
+  const parts = [
+    own > 0 ? `${own} wrote about it` : null,
+    rest > 0 ? `${rest} reposted or shared the link` : null,
+    replied > 0 ? `${replied} replied` : null,
+  ].filter(Boolean);
   return parts.join(" · ") || null;
+}
+
+/** "14 replies under posts about this paper · 9 from clinicians we can identify · 5 from outside the panel". */
+function discussionNote(discussion: ReadoutDiscussionArticle | null | undefined): string | null {
+  if (!discussion || discussion.replyCount <= 0) return null;
+  const total = discussion.replyCount;
+  const clinicians = Math.min(discussion.clinicianReplyCount, total);
+  const outside = total - clinicians;
+  return [
+    `${total} repl${total === 1 ? "y" : "ies"} under posts about this paper`,
+    clinicians > 0 ? `${clinicians} from clinician${clinicians === 1 ? "" : "s"} we can identify` : null,
+    outside > 0 ? `${outside} from outside the panel, counted not quoted` : null,
+  ].filter(Boolean).join(" · ");
 }
 
 function PhysicianVoices({
@@ -334,15 +409,18 @@ function PhysicianVoices({
   expanded,
   loadingMore = false,
   loadFailed = false,
+  discussion = null,
 }: {
   article: BriefingArticle | null;
   sharedBy: number;
   expanded: boolean;
   loadingMore?: boolean;
   loadFailed?: boolean;
+  discussion?: ReadoutDiscussionArticle | null;
 }) {
   const posts = usefulPosts(article);
-  if (!posts.length) return null;
+  const note = expanded ? discussionNote(discussion) : null;
+  if (!posts.length) return note ? <p className="er-discussion-note">{note}</p> : null;
   const lead = posts[0];
   const rest = expanded ? posts.slice(1) : [];
   return (
@@ -352,6 +430,7 @@ function PhysicianVoices({
       {rest.map((post, index) => (
         <ReadoutVoice post={post} extra expanded cleanText={cleanClinicianText} key={`${post.handle ?? post.name}-${index}`} />
       ))}
+      {note && <p className="er-discussion-note">{note}</p>}
       {expanded && loadingMore && <p className="er-no-commentary" role="status">Loading remaining comments...</p>}
       {expanded && loadFailed && <p className="er-no-commentary">The remaining comments could not be loaded.</p>}
     </div>
@@ -497,7 +576,16 @@ function ArticleDevelopment({
   const [detailLoadFailed, setDetailLoadFailed] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const overlay = detailOverlay ?? overlays.get(item.id);
-  const article = articleWithLiveEvidence(item, briefs, overlay, window);
+  // Replies under posts about the paper: fetched once per card from the overlay's article ids.
+  const [discussion, setDiscussion] = useState<ReadoutDiscussionArticle | null>(null);
+  const discussionKey = [...new Set(overlay?.articleIds ?? item.articleIds ?? [])].sort().join(",");
+  useEffect(() => {
+    if (!discussionKey) return;
+    let cancelled = false;
+    loadDiscussion(discussionKey.split(",")).then((result) => { if (!cancelled) setDiscussion(result); });
+    return () => { cancelled = true; };
+  }, [discussionKey]);
+  const article = withDiscussion(articleWithLiveEvidence(item, briefs, overlay, window), discussion);
   const attentionPeriod = usesEditionWindow(overlay, window) ? "since yesterday morning" : window === "7d" ? "this week" : null;
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
@@ -575,9 +663,9 @@ function ArticleDevelopment({
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />
       {overlay
-        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} />
+        ? <PeerRow article={article} sharedBy={sharedBy} period={attentionPeriod} replied={discussion?.clinicianReplyCount ?? 0} />
         : <p className="er-peers-pending">Updating clinician evidence...</p>}
-      {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} />}
+      {overlay && <PhysicianVoices article={article} sharedBy={sharedBy} expanded={open} loadingMore={loadingDetails} loadFailed={detailLoadFailed} discussion={discussion} />}
     </ReadoutArticleCard>
   );
 }

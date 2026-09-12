@@ -479,6 +479,8 @@ export type BriefingSharer = {
     tweetUrl: string | null;
   }[]; // classic reposts grouped under this authored/quote post
   sourceLane?: "clinician" | "publisher" | "other"; // lane follows this post's author
+  // ADDITIVE — a reply under a post about the paper (journal or clinician thread), with whom it answered
+  replyTo?: { handle: string | null; name: string | null } | null;
   original?: {
     name: string;
     handle: string | null;
@@ -670,6 +672,35 @@ export type BriefingEvidenceOverlayItem = {
 export type BriefingEvidenceOverlay = {
   generatedAt: string;
   overlays: BriefingEvidenceOverlayItem[];
+};
+
+// The replies under posts about a paper (readout-discussion): counted for everyone,
+// quoted only for clinicians we can identify whose text the retention policy kept.
+export type ReadoutDiscussionReply = {
+  id: string;
+  tweetUrl: string | null;
+  name: string;
+  handle: string | null;
+  avatar: string | null;
+  text: string;
+  postedAt: string | null;
+  likes: number;
+  retweets: number;
+  views: number;
+  replyTo: { handle: string | null; name: string | null } | null;
+  rootKind: string;
+  rootHandle: string | null;
+};
+export type ReadoutDiscussionArticle = {
+  articleId: string;
+  replyCount: number;
+  clinicianReplyCount: number;
+  quoted: ReadoutDiscussionReply[];
+};
+export type ReadoutDiscussion = {
+  generatedAt: string;
+  since: string;
+  articles: ReadoutDiscussionArticle[];
 };
 
 export type ReadoutArchivedCard = {
