@@ -1,6 +1,14 @@
 {
   "crons": [
     {
+      "path": "/api/readout-specialty-shadow",
+      "schedule": "20 8 * * *"
+    },
+    {
+      "path": "/api/readout-specialty-shadow",
+      "schedule": "20 9 * * *"
+    },
+    {
       "path": "/api/readout-cache",
       "schedule": "50 * * * *"
     },

@@ -27,7 +27,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   return withTimeout(response.json() as Promise<T>, LOG_TIMEOUT_MS, controller);
 }
 export function readoutTriggerKind(req: { headers: Headers }, manual = false): TriggerKind { if (manual) return "manual"; return req.headers.has("x-vercel-cron-schedule") || /vercel-cron/i.test(req.headers.get("user-agent") ?? "") ? "scheduled" : "manual"; }
-export type ReadoutPipelineJob = { stage<T>(stage: string, work: (signal: AbortSignal) => Promise<T>, options?: { details?: Json; deadlineMs?: number }): Promise<T>; succeed(details?: Json): Promise<void>; skip(details?: Json): Promise<void>; fail(error: unknown, details?: Json): Promise<void>; };
+export type ReadoutPipelineJob = { readonly id: string; stage<T>(stage: string, work: (signal: AbortSignal) => Promise<T>, options?: { details?: Json; deadlineMs?: number }): Promise<T>; succeed(details?: Json): Promise<void>; skip(details?: Json): Promise<void>; fail(error: unknown, details?: Json): Promise<void>; };
 
 export async function startReadoutPipelineJob(jobName: string, triggerKind: TriggerKind, options: { deadlineMs?: number; details?: Json } = {}): Promise<ReadoutPipelineJob> {
   const startedAt = new Date(), deadlineAt = new Date(startedAt.getTime() + (options.deadlineMs ?? 270_000));
@@ -35,6 +35,7 @@ export async function startReadoutPipelineJob(jobName: string, triggerKind: Trig
   if (!run?.id) throw new Error("Readout job logging did not return a run id.");
   const updateRun = async (values: Json): Promise<void> => { await request<void>(`pipeline_job_runs?id=eq.${encodeURIComponent(run.id)}`, { method: "PATCH", headers: { prefer: "return=minimal" }, body: JSON.stringify(values) }); };
   return {
+    id: run.id,
     async stage<T>(stage: string, work: (signal: AbortSignal) => Promise<T>, options: { details?: Json; deadlineMs?: number } = {}): Promise<T> {
       const now = Date.now(), remaining = deadlineAt.getTime() - now, stageMs = Math.min(options.deadlineMs ?? remaining, remaining);
       if (stageMs <= 0) throw new Error("Readout job deadline exceeded before stage start.");

@@ -1,0 +1,76 @@
+{
+  "backendSha": "5839dca9c376b958c96fd14a171bf0d91ad9e51f",
+  "dirty": false,
+  "engineSha256": "63816feab18611a5b6ae19d47e39d08283a9ca6e93578780f228032a1adbd4a8",
+  "bundleSha256": "23fe31228662511c64f9607a8d946e2f79d774c9169d9663370f336eb17513dd",
+  "inputs": [
+    {
+      "path": "supabase/functions/_shared/anchoredDevelopments.ts",
+      "sha256": "c7210fbbe6c9235454193f57a2357d23158c3267375a91a4124eb66c11998268"
+    },
+    {
+      "path": "supabase/functions/_shared/articleExcerptQuality.ts",
+      "sha256": "e9efd945a1729362df265f1411081f16088556839a5332a9474df79f8e8c1cf7"
+    },
+    {
+      "path": "supabase/functions/_shared/briefingCore.ts",
+      "sha256": "728387e1806eaf9b9fff8f63a51167ebe49f307fbaeeae2e3878203f794fa32d"
+    },
+    {
+      "path": "supabase/functions/_shared/clinicianEvidence.ts",
+      "sha256": "62cda1510d9fcdb4e4830a97197371b9bc8a8fa3200a28b2b5210eb96e117f98"
+    },
+    {
+      "path": "supabase/functions/_shared/dailyConversation.ts",
+      "sha256": "a33ef498cb6cf4692ac27dfea82d5f11d7b1a00f1a08914671c7d7a89502fdc4"
+    },
+    {
+      "path": "supabase/functions/_shared/focusScope.ts",
+      "sha256": "b36ec35d0be5bb2bdfa708b003750c2903215dff54e3c821fbc484d8a66b0b1b"
+    },
+    {
+      "path": "supabase/functions/_shared/heroCards.ts",
+      "sha256": "36fe691022eab4054420d6b86fbb372a131c0ea682009627d409874614ce1f9c"
+    },
+    {
+      "path": "supabase/functions/_shared/publisherAbstract.ts",
+      "sha256": "fa5980e32050179bfb1b4158061edbc0071f16c139fdf6e63588a01405a8ff56"
+    },
+    {
+      "path": "supabase/functions/_shared/readoutAudioAdmission.ts",
+      "sha256": "a6f2f91b68131b7a0b41628b5a570af2be86b4093281df2c87aaba93501cc12b"
+    },
+    {
+      "path": "supabase/functions/_shared/readoutAudioNarration.ts",
+      "sha256": "472d3956ae554b05962f416871b69a2fd8f0e60d17bcc99c4cc769a6cefdbb52"
+    },
+    {
+      "path": "supabase/functions/_shared/readoutTruth.ts",
+      "sha256": "52c484479fe3091866cb547490afb65542c356d1915f27bcd5a90489b7d8e4ef"
+    },
+    {
+      "path": "supabase/functions/_shared/readoutWatch.ts",
+      "sha256": "6fac057235149dfb0d3f59f433cbcf9bd65e6f623f8d370a0f6128318761acfd"
+    },
+    {
+      "path": "supabase/functions/_shared/specialtyBriefingBuilder.ts",
+      "sha256": "e11a11b698e9f78237beae2a74dd675bdc4465d75fa487c5e7caa1ca91496cfc"
+    },
+    {
+      "path": "supabase/functions/_shared/storySupport.ts",
+      "sha256": "2c2d5cdc39d415887c1266499fed7fbd25f7f2086f7af27fb4d6d6d7b06a43c9"
+    },
+    {
+      "path": "supabase/functions/_shared/trialIdentity.ts",
+      "sha256": "9519795f6894baf3e49bbfef0904810d52fef334650b1743a0faf0dd4c8215ea"
+    },
+    {
+      "path": "supabase/functions/_shared/urlIdentity.ts",
+      "sha256": "3f79d57436d012b8c387f099b24f538717980e83ff685e9f308e97b2bac47eb8"
+    },
+    {
+      "path": "supabase/functions/_shared/xEvidence.ts",
+      "sha256": "edbff661d4047e8304c135878c8d4e026fd66678fca6370ef667647550fa9bf4"
+    }
+  ]
+}
