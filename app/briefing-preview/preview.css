@@ -306,6 +306,10 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
   .er-loading-card { min-height: 190px; padding: 20px 18px; }
   .er-source-title { font-size: 19px; }
   .er-source-headline.is-compact .er-source-title { font-size: 19px; }
+  /* Phones: the publisher gets its own line above the title instead of fighting the kicker for one row. */
+  .er-kicker-row { flex-direction: column; align-items: flex-start; gap: 5px; margin-bottom: 8px; }
+  .er-kicker-row .er-kicker { white-space: normal; overflow: visible; }
+  .er-kicker-source { flex: none; width: 100%; text-align: left; white-space: normal; overflow: visible; }
   .er-finding { font-size: 14px; }
   .er-finding-toggle { min-height: 44px; margin-bottom: 7px; }
   .er-disclose { min-height: 44px; }
