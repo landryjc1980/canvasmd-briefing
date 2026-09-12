@@ -185,13 +185,10 @@ export function preparedMorningReadoutPayload(
     .filter((item) => !appearedInMorningEdition(archivedEditorialArticle(item), previousEditions))
     .sort((a, b) => (b.card.rankTotal ?? 0) - (a.card.rankTotal ?? 0)
       || b.firstSeen.localeCompare(a.firstSeen) || a.card.id.localeCompare(b.card.id));
-  const counts = new Map<string, number>();
   const cards = ranked.filter((item) => {
     const id = `archive-${item.card.id}`;
     if ((!alreadyReady.has(id) && !sourceReadyIds.has(id)) ||
         isPreprintEditorialArticle(archivedEditorialArticle(item))) return false;
-    if ((counts.get(item.area) ?? 0) >= 2) return false;
-    counts.set(item.area, (counts.get(item.area) ?? 0) + 1);
     return true;
   }).slice(0, 5);
   const selected = new Set(cards.map(({ card }) => card.id));

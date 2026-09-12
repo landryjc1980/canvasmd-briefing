@@ -64,14 +64,14 @@ test("prior morning papers cannot consume lead slots before the prepared remaind
   const input = payload({ cards: [oldA, oldB], moreCards: [incomplete, nextA, nextB, extra] });
   const prepared = preparedMorningReadoutPayload(input, [previous], new Set(["archive-next-a", "archive-next-b", "archive-extra"]));
   const edition = buildReadoutEditionSnapshot("All", prepared, new Date("2026-09-11T10:00:00Z"), [previous], date);
-  assert.deepEqual(edition.developments.map(({ development }) => development.id), ["archive-next-a", "archive-next-b"]);
-  assert.deepEqual(edition.relevant.map(({ article }) => article.id), ["archive-incomplete", "archive-extra"]);
+  assert.deepEqual(edition.developments.map(({ development }) => development.id), ["archive-next-a", "archive-next-b", "archive-extra"]);
+  assert.deepEqual(edition.relevant.map(({ article }) => article.id), ["archive-incomplete"]);
   assert.deepEqual(input.cards.map(({ card }) => card.id), ["old-a", "old-b"], "existing payloads are not mutated");
 });
 
-test("prepared lead selection keeps preprints in the remainder and respects the five-story and specialty caps", () => {
+test("prepared lead selection keeps preprints in the remainder and fills five globally ranked leads", () => {
   const pool = Array.from({ length: 8 }, (_, i) => {
-    const item = card(`new-${i}`); item.area = ["GU", "GU", "GU", "Heme", "Heme", "Lung", "GI", "Breast"][i];
+    const item = card(`new-${i}`); item.area = i < 6 ? "Heme" : "GU";
     item.card.rankTotal = 100 - i; return item;
   });
   pool[0].card.publicationClass = "preprint";
