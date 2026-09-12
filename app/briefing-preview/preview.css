@@ -119,7 +119,6 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
 .er-finding { margin: 0; color: var(--er-ink); font: italic 400 16px/1.4 Newsreader, Georgia, "Times New Roman", serif; }
 .er-finding-missing { color: var(--er-muted); font-style: italic; }
 .er-development.is-open .er-finding { font-style: normal; font-size: 15.5px; line-height: 1.5; }
-.er-provenance { display: block; margin-bottom: 5px; color: var(--er-faint); font: 600 10.5px/1.2 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 .er-finding-toggle { display: none; }
 .er-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 4px; border-top: 1px solid var(--er-line); }
 .er-foot .er-action-date { margin: 0; color: var(--er-muted); font-size: 13px; line-height: 1.3; white-space: nowrap; }

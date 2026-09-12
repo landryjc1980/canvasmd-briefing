@@ -20,6 +20,8 @@ const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.ts
 const archivePage = fs.readFileSync(new URL("../app/r/[slug]/page.tsx", import.meta.url), "utf8");
 const heroPost = fs.readFileSync(new URL("../app/heroPost.ts", import.meta.url), "utf8");
 const editorial = fs.readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
+const readoutArticleCard = fs.readFileSync(new URL("../components/ReadoutArticleCard.tsx", import.meta.url), "utf8");
+const readoutSourceHeadline = fs.readFileSync(new URL("../components/ReadoutSourceHeadline.tsx", import.meta.url), "utf8");
 const nativeEdition = fs.readFileSync(canvasmdFile("components/readout/EditionView.tsx"), "utf8");
 
 function loadExportedFunction(source, name) {
@@ -78,7 +80,11 @@ test("hero podcast playback uses the retained enclosure while the headline keeps
   assert.match(webHero, /audioUrl=\{ev\.playback\.audioUrl\}/);
   assert.match(webHero, /c\.url \? <a href=\{c\.url\}/);
   assert.doesNotMatch(webHero, /audioUrl=\{c\.url\}/);
-  assert.match(nativeHero, /audioUrl: receipt\.audioUrl/);
+  // Native now resolves playback through useReadoutEpisodePlayback (which fetches the
+  // retained enclosure by episode id, including any cached download) instead of wiring
+  // audioUrl straight through — but it still refuses to play without a retained audioUrl.
+  assert.match(nativeHero, /if \(!receipt\?\.audioUrl \|\| !receipt\.episodeId\) return;/);
+  assert.match(nativeHero, /playReadoutEpisode\(receipt\.episodeId/);
   assert.match(nativeHero, /c\.url \? \(/);
   assert.doesNotMatch(nativeHero, /audioUrl: c\.url/);
 });
@@ -173,9 +179,18 @@ test("paper renderers keep source and classification parity", () => {
   assert.match(editorial, /function articleContentType/);
   assert.match(editorial, /item\.publicationClass/);
   assert.match(editorial, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
-  assert.match(editorial, /: articleSourceText\(cleanReadoutExcerpt\(item\.finding\), cleanReadoutExcerpt\(rawSourceText\)\)/);
+  // "Readout cards: stop the mobile overflow ... one lead sentence on every path" (7321e6d)
+  // switched the finding side of this call to readoutFindingExcerpt, which trims to one
+  // lead sentence and falls back to rawSourceText when item.finding is empty.
+  assert.match(editorial, /: articleSourceText\(readoutFindingExcerpt\(item\.finding \|\| rawSourceText\), cleanReadoutExcerpt\(rawSourceText\)\)/);
   assert.match(editorial, /expandedText=\{source\.full\}/);
-  assert.match(editorial, /<SourceHeadline href=\{href\}/);
+  // SourceHeadline was extracted into the shared ReadoutArticleCard/ReadoutSourceHeadline
+  // components (source name + a linked headline over the source's own href), which every
+  // card in EditorialReadout renders through.
+  assert.match(editorial, /<ReadoutArticleCard[\s\S]{0,200}href=\{href\}/);
+  assert.match(readoutArticleCard, /<ReadoutSourceHeadline href=\{href\} source=\{source\} title=\{title\}/);
+  assert.match(readoutSourceHeadline, /<span className="er-source">\{source\}<\/span>/);
+  assert.match(readoutSourceHeadline, /<a href=\{href\}[^>]*>\{title\}<\/a>/);
   assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);
   assert.doesNotMatch(nativeSections, /hasSources = [^\n]+\|\| !!a\.url/);
   assert.doesNotMatch(nativeStoryEvidence, /publishers=\{p\.publishers\}/);

@@ -71,7 +71,9 @@ export function MorningsAudioCard({ edition, editions, onEditionChange, expected
   const visibleChapters = chapters.filter((chapter) => chapter.depth !== 1 || !hasListenParent || listenOpen);
   // An edition note is the narrator's omission notice, not a story: it reads as a footnote under
   // the chapter list rather than as a chapter of its own.
-  const isEditionNote = (chapter: ReadoutAudioChapter) => /^edition note$/i.test(chapter.headline.trim());
+  // `chapters` has already run through morningsPlayableChapters, which normalizes a legacy
+  // "edition note" headline to the plural "Edition notes" — match both forms here.
+  const isEditionNote = (chapter: ReadoutAudioChapter) => /^edition notes?$/i.test(chapter.headline.trim());
   const chapterRows = visibleChapters.filter((chapter) => !isEditionNote(chapter));
   const editionNotes = chapters.filter(isEditionNote).map((chapter) => chapter.summary?.trim()).filter((note): note is string => !!note);
   const activeChapter = [...chapters].reverse().find((chapter) => position >= chapter.startSeconds) ?? chapters[0];

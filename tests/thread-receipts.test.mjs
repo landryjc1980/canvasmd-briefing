@@ -10,6 +10,7 @@ const nativeCard = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"),
 const nativeVm = fs.readFileSync(canvasmdFile("components/readout/vm.ts"), "utf8");
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const editorialReadout = fs.readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
+const readoutVoice = fs.readFileSync(new URL("../components/ReadoutVoice.tsx", import.meta.url), "utf8");
 const threadPartsSource = fs.readFileSync(new URL("../app/briefing-preview/threadParts.ts", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
 const nativeHero = fs.readFileSync(canvasmdFile("components/readout/HeroCards.tsx"), "utf8");
@@ -42,14 +43,18 @@ Function("exports", "module", ts.transpileModule(threadPartsSource, {
 const { availableThreadParts } = threadPartsModule.exports;
 
 test("the canonical Readout expands only supplied thread continuations per comment", () => {
-  assert.match(editorialReadout, /Expand thread · \$\{availableThreadCount\} posts/);
-  assert.match(editorialReadout, /availableThreadParts\(post\.thread, post\.tweetUrl, cleanClinicianText\)/);
-  assert.match(editorialReadout, /part\.tweetUrl && <a className="er-thread-source"/);
-  assert.match(editorialReadout, /aria-expanded=\{threadOpen\}/);
-  assert.match(editorialReadout, /expanded \|\| threadOpen/);
-  assert.match(editorialReadout, /className="er-thread-source"/);
-  assert.doesNotMatch(editorialReadout, /Show full thread/);
-  assert.doesNotMatch(editorialReadout, /index \+ 2/);
+  // The thread-continuation UI now lives in the shared ReadoutVoice component (used by
+  // every EditorialReadout comment), not inlined in EditorialReadout.tsx itself.
+  assert.match(editorialReadout, /import ReadoutVoice from "@\/components\/ReadoutVoice"/);
+  assert.match(editorialReadout, /<ReadoutVoice post=\{lead\} expanded=\{expanded\} cleanText=\{cleanClinicianText\}/);
+  assert.match(readoutVoice, /Expand thread · \$\{availableThreadCount\} posts/);
+  assert.match(readoutVoice, /availableThreadParts\(post\.thread, post\.tweetUrl, cleanText\)/);
+  assert.match(readoutVoice, /part\.tweetUrl && <a className="er-thread-source"/);
+  assert.match(readoutVoice, /aria-expanded=\{threadOpen\}/);
+  assert.match(readoutVoice, /expanded \|\| threadOpen/);
+  assert.match(readoutVoice, /className="er-thread-source"/);
+  assert.doesNotMatch(readoutVoice, /Show full thread/);
+  assert.doesNotMatch(readoutVoice, /index \+ 2/);
 });
 
 test("thread normalization orders stored reverse children without inventing parts or URLs", () => {
@@ -76,7 +81,9 @@ test("podcast stories expose a play icon before their listen action", () => {
   assert.match(webAudio, /controlLabel/);
   assert.match(webAudio, /aria-label={`\$\{playing \? "Pause" : "Play"\}/);
   assert.match(nativeHero, /name="play\.circle\.fill"/);
-  assert.match(nativeHero, />Listen @ /);
+  // Native now shows a loading state while the episode is buffering, so the "Listen @ …"
+  // copy sits behind a ternary instead of appearing right after the JSX tag.
+  assert.match(nativeHero, /`Listen @ \$\{/);
 });
 
 test("native source drawers card every receipt type and contain repost text", () => {

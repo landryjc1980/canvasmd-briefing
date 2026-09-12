@@ -115,10 +115,16 @@ test("actual card rendering uses Mornings brand, recorded date and immutable aud
 });
 
 test("card starts chapters collapsed with nested Listen disclosure and retains provenance", () => {
-  const html = render();
+  // "Oncology Mornings: chapters as a timeline rail" (fffdc65) dropped the old producer-blurb
+  // paragraph (which used to carry a written-only disclosure via edition.summary) in favor of
+  // a leaner "N chapters · duration" header, and moved any omission notice — an "Edition note"
+  // chapter — into a footnote beside the recorded-at line instead.
+  const note = { headline: "Edition note", summary: "Written-only items remain in the Readout.", startSeconds: 6 };
+  const html = render({ chapters: [intro, note, listen, topic, emptyReg, receipts] });
   assert.match(html, /<details class="er-audio-chapters">/);
   assert.match(html, /aria-expanded="false" aria-label="Expand Listen episodes"/);
-  assert.match(html, /Recorded edition as of/);
+  // The old vague "Recorded edition as of" copy is now an explicit formatted timestamp.
+  assert.match(html, /<span>Recorded [^<]+\.<\/span>/);
   assert.match(html, /Written-only items remain in the Readout/);
   assert.doesNotMatch(html, /Recorded source episode title/);
 });

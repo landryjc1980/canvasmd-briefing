@@ -5,6 +5,12 @@ import { registerHooks } from "node:module";
 
 // Resolve these pure Next.js modules in Node without changing their production imports.
 registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier.startsWith("@/")) {
+    // Mirror tsconfig's "@/*" -> "./*" path alias, which Node's own resolver
+    // does not understand (it otherwise treats "@/lib" as a package name).
+    const target = new URL(`../${specifier.slice(2)}.ts`, import.meta.url);
+    return nextResolve(target.href, context);
+  }
   if (context.parentURL?.includes("/app/briefing-preview/") && ["./edition", "./readoutRequest"].includes(specifier)) {
     return nextResolve(`${specifier}.ts`, context);
   }

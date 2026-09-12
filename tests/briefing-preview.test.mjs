@@ -25,6 +25,9 @@ const { buildReadoutEditionSnapshot } = await import("../app/briefing-preview/ed
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
+const readoutVoice = read("components/ReadoutVoice.tsx");
+const readoutArticleCard = read("components/ReadoutArticleCard.tsx");
+const readoutSourceHeadline = read("components/ReadoutSourceHeadline.tsx");
 
 test("clinician commentary cards show names without redundant X handles", () => {
   assert.doesNotMatch(preview, /post\.handle\.replace/);
@@ -62,17 +65,26 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
     "the collapsed card keeps one preview while the expansion renders every remaining comment");
   assert.doesNotMatch(preview, /previewPosts|posts\.slice\(0, 2\)/);
   assert.match(preview, /articleExpansion\(\s*source,\s*usefulPosts\(article\)\.map/);
-  assert.match(preview, /expanded \? post\.text : articleTextPreview\(post\.text \?\? "", 220\)/);
+  // The per-comment preview/expand toggle now lives in the shared ReadoutVoice component
+  // ("Readout cards: the replies under posts about the paper"), where an open thread
+  // also reveals the full text.
+  assert.match(readoutVoice, /expanded \|\| threadOpen \? post\.text : articleTextPreview\(post\.text \?\? "", 220\)/);
   assert.match(preview, /post\.tweetUrl/);
   assert.match(preview, /article\?\.faces/);
   assert.match(preview, /function xAvatars/);
   assert.doesNotMatch(preview, /Promise\.allSettled/);
   assert.match(preview, /const sharedBy = article\?\.kolSharers \?\? item\.sharedBy/);
   assert.match(preview, /function shareCommentaryLabel/);
-  assert.match(preview, /article\?\.authoredClinicianCount \?\? availableComments/,
+  // "Readout cards: the count that earned the slot, with its period and a breakdown" (373cfb4)
+  // replaced the plain "N commented" tally with a `wrote` count fed by authoredClinicianCount,
+  // and a fuller breakdown of who wrote, who only reposted, and how many replies came in.
+  assert.match(preview, /const wrote = Math\.max\(loadedComments, article\?\.authoredClinicianCount \?\? 0\)/,
     "the compact card keeps the total commenter count separate from available receipts");
-  assert.match(preview, /\$\{shared\} · \$\{commented\} commented/);
-  assert.match(preview, /Shared by \$\{sharedBy\} clinician/);
+  assert.match(preview, /\$\{own\} wrote about it/);
+  assert.match(preview, /\$\{rest\} reposted or shared the link/);
+  // Same commit (373cfb4) moved this from a template literal to inline JSX so the row
+  // could also show the period the count covers ("since yesterday morning", "this week").
+  assert.match(preview, /Shared by \{sharedBy\} clinician\{sharedBy === 1 \? "" : "s"\}\{period &&/);
   assert.match(preview, /function clinicianSharers/);
   assert.match(preview, /post\.repostedBy/);
   assert.match(preview, /engagementScore/);
@@ -110,15 +122,21 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
 test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   assert.doesNotMatch(preview, /<h3>\{item\.takeaway\}<\/h3>/);
   assert.doesNotMatch(preview, /<h3>\{item\.hook\}<\/h3>/);
-  assert.match(preview, /function SourceHeadline/);
-  assert.match(preview, /<SourceHeadline href=\{href\} source=\{item\.journal\} title=\{displayReadoutTitle\(article\?\.title \|\| item\.title\)\} compact=\{compact\} \/>/);
+  // SourceHeadline is now the shared ReadoutArticleCard/ReadoutSourceHeadline pair; every
+  // development renders its frozen title and source through that path, not an inline h3.
+  assert.match(readoutArticleCard, /function ReadoutArticleCard/);
+  assert.match(preview, /<ReadoutArticleCard[\s\S]{0,200}href=\{href\}\s+source=\{item\.journal\}\s+title=\{displayReadoutTitle\(article\?\.title \|\| item\.title\)\}\s+compact=\{compact\}/);
+  assert.match(readoutSourceHeadline, /<a href=\{href\}[^>]*>\{title\}<\/a>/);
   assert.match(preview, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
   assert.match(preview, /<DevelopmentFinding text=\{source\.preview\} expandedText=\{source\.full\} expanded=\{open\}/);
   assert.doesNotMatch(preview, /<strong>Key takeaway:<\/strong>/);
-  assert.match(preview, /kolSharers: overlay\.kolSharers/);
-  assert.match(preview, /faces: overlay\.faces/);
+  // "Readout cards: the count that earned the slot, with its period and a breakdown" (373cfb4)
+  // scoped Today's counts to the edition window when the overlay carries one; the fallback
+  // remains the same overlay-sourced fields, never anything read back off the frozen item.
+  assert.match(preview, /kolSharers: windowed \? overlay\.windowClinicianCount : overlay\.kolSharers/);
+  assert.match(preview, /faces: windowed && overlay\.windowFaces\?\.length \? overlay\.windowFaces : overlay\.faces/);
   assert.match(preview, /posts: overlay\.posts/);
-  assert.match(preview, /sharerPeople: overlay\.sharerPeople/);
+  assert.match(preview, /sharerPeople: windowed && overlay\.windowSharerPeople\?\.length \? overlay\.windowSharerPeople : overlay\.sharerPeople/);
   assert.doesNotMatch(preview, /setWorth|setRelevant|setCurrentWorth/);
   assert.match(briefingRoute, /export async function POST/);
   assert.match(briefingRoute, /body\?\.mode !== "evidence-overlay"/);
@@ -570,7 +588,9 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.doesNotMatch(readoutServer, /fetchFinishedReadoutWindow/,
     "durable-edition validation runs outside the framework data cache on every reader request");
   assert.match(readoutServer, /const finished = await readFinishedWindow\(area, window\)/);
-  assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload\)/,
+  // Codex's shadow work threaded an AbortSignal through the scheduled warmer's persistence
+  // call (warmReadoutWindowCache), so the 4-arg form is now the one that runs per window.
+  assert.match(readoutServer, /await persistFinishedWindow\(area, window, payload, options\.signal\)/,
     "the scheduled warmer writes all finished views before readers request them");
   assert.doesNotMatch(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
     "published comments remain available to guests in the bounded saved edition");
@@ -589,8 +609,11 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "a finished v5 row from before revisions is rebuilt rather than remaining indefinitely accepted");
   assert.match(readoutServer, /sameSelectionMembership\(value, durable\)/,
     "a persisted reader selection must retain the durable membership");
-  assert.match(readoutServer, /sourceDisplayRepair\(entry\.development, sourceDevelopments\.get\(entry\.development\.id\), PAPER_DISPLAY_FIELDS\)/,
-    "source repairs are field-only and matched by the frozen story id");
+  // "Preserve reviewed FDA source aliases across readers" (ed47af7) widened the match from a
+  // plain id lookup to repairedSourceFor, which also matches by regulatory identity so an
+  // aliased FDA source can still be found.
+  assert.match(readoutServer, /sourceDisplayRepair\(entry\.development, repairedSourceFor\(entry\.development\), PAPER_DISPLAY_FIELDS\)/,
+    "source repairs are field-only and matched by the frozen story id or its regulatory identity");
   assert.match(readoutServer, /tags: \[READOUT_WINDOW_CACHE_TAG\]/);
   assert.match(readoutServer, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(readoutServer, /SUPABASE_ANON_KEY/);
@@ -604,15 +627,17 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "a successful source read is not replaced by an older payload when persistence fails");
   assert.match(readoutServer, /readLastGoodWindow/);
   assert.match(readoutServer, /return \{ \.\.\.fallback, stale: true \}/);
-  assert.match(readoutServer, /try \{[\s\S]*?buildFinishedReadoutWindow\(area, window\)[\s\S]*?persistFinishedWindow\(area, window, payload\)[\s\S]*?catch \(error\)/,
+  assert.match(readoutServer, /try \{[\s\S]*?buildFinishedReadoutWindow\(area, window,[\s\S]*?persistFinishedWindow\(area, window, payload, options\.signal\)[\s\S]*?catch \(error\)/,
     "one failed area is recorded without aborting the remaining cache warm");
   const postRoute = briefingRoute.slice(briefingRoute.indexOf("export async function POST"));
   assert.match(postRoute, /const key = process\.env\.SUPABASE_SERVICE_ROLE_KEY/,
     "server-only Readout modes authenticate to the edge function with the service credential");
   assert.doesNotMatch(postRoute, /SUPABASE_ANON_KEY/);
+  // "Instrument Readout rollover and persist private selection receipts" (5f9fcbc) wrapped
+  // both calls in an abortable job.stage pipeline, so each now carries a signal.
   assert.match(readoutCacheRoute, /revalidateTag\(READOUT_WINDOW_CACHE_TAG\)/);
-  assert.match(readoutCacheRoute, /warmReadoutWindowCache\(\)/);
-  assert.match(readoutCacheRoute, /mergeCurrentReadoutEditionInsertions\(\)/);
+  assert.match(readoutCacheRoute, /warmReadoutWindowCache\(refreshOnly \? \{ freshSource: true, signal \} : \{ signal \}\)/);
+  assert.match(readoutCacheRoute, /mergeCurrentReadoutEditionInsertions\(new Date\(\), signal\)/);
   assert.match(readoutCacheRoute, /if \(edition\.changed\)/,
     "an inserted midday card is included in the recached payload served to the next reader");
   assert.match(vercelConfig, /"\/api\/readout-cache"/);
@@ -765,8 +790,12 @@ test("regulatory developments keep the regulator primary and the trial explicitl
 test("only the primary development stack is numbered as a finite edition", () => {
   assert.match(preview, /worth\.map\(\(item, index\) => <NumberedDevelopment[^>]*position=\{index \+ 1\}/);
   assert.match(preview, /className="er-story-order">\{position\} <span>·<\/span> \{contentType\}/);
-  assert.match(preview, /<Development item=\{item\} briefs=\{briefs\} overlays=\{overlays\} numbered \/>/);
-  assert.match(preview, /\{editorialScopeLabel\(item\)\}\{numbered \? "" : ` · \$\{contentType\}`\}/);
+  // "Move Readout numbering above cards" (20bb34b) also threaded the active window down so
+  // the lead's windowed evidence overlay can be applied.
+  assert.match(preview, /<Development item=\{item\} briefs=\{briefs\} overlays=\{overlays\} numbered window=\{window\} \/>/);
+  // "Complete Readout canonical publication contract" (e5da119) inserted a PRECLINICAL
+  // tag between the scope label and the content-type suffix.
+  assert.match(preview, /\{editorialScopeLabel\(item\)\}\{item\.studySetting === "preclinical" \? " · PRECLINICAL" : ""\}\{numbered \? "" : ` · \$\{contentType\}`\}/);
   assert.doesNotMatch(previewCss, /\.er-numbered-development \{[^}]*border-top/);
   assert.match(previewCss, /\.er-numbered-development > \.er-development \{[^}]*margin-top: 7px/);
   assert.doesNotMatch(preview, /<CompactDevelopment[^>]*position=/);
@@ -917,9 +946,10 @@ test("cards use explicit previews and meaningful disclosure at every viewport", 
   assert.match(preview, /articleTextPreview\(cleanReadoutExcerpt\(text\), LEAD_SENTENCE_CHARS\)/);
   assert.match(preview, /expansion\.canExpand \|\| hasMoreLinks/);
   assert.match(preview, /Full source excerpt/);
-  assert.match(preview, /function SourceHeadline/);
-  assert.match(preview, /er-source-headline/);
-  assert.match(preview, /rel="noreferrer">\{title\}<\/a>/);
+  // SourceHeadline lives in the shared ReadoutArticleCard/ReadoutSourceHeadline components now.
+  assert.match(readoutArticleCard, /function ReadoutArticleCard/);
+  assert.match(readoutArticleCard, /er-source-headline/);
+  assert.match(readoutSourceHeadline, /rel="noreferrer">\{title\}<\/a>/);
   assert.doesNotMatch(preview, /↗/);
   assert.doesNotMatch(preview, /er-provenance|From the source/);
   assert.doesNotMatch(previewCss, /\.er-provenance/);
@@ -937,7 +967,7 @@ test("cards use explicit previews and meaningful disclosure at every viewport", 
 test("briefing cards use source identity as the headline and a warmer reading surface", () => {
   assert.match(preview, /function articleContentType/);
   assert.match(preview, /<b>Podcast<\/b>/);
-  assert.match(preview, /<SourceHeadline href=\{sourceHref\} source=\{episode\?\.show \|\| item\.show\} title=\{episode\?\.title \|\| item\.title\} \/>/);
+  assert.match(preview, /<ReadoutArticleCard[\s\S]{0,120}href=\{sourceHref\}\s+source=\{episode\?\.show \|\| item\.show\}\s+title=\{episode\?\.title \|\| item\.title\}/);
   assert.match(previewCss, /--er-paper: #F7F6F2/);
   assert.match(previewCss, /--er-soft: #fbfaf7/);
 });
@@ -1065,7 +1095,9 @@ test("specialty filters are lenses on the same earned briefing", () => {
   for (const area of ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"]) {
     assert.match(edition, new RegExp(`\\b${area}\\b`));
   }
-  assert.match(edition, /area === "All" \? items : items\.filter/);
+  // The "All" special-case now lives inside editorialBelongsToArea itself (storyMembership.js),
+  // so every area filter — including "All" — routes through one filter(...) call.
+  assert.match(edition, /items\.filter\(\(item\) => editorialBelongsToArea\(item, area\)\)/);
   assert.match(edition, /SPECIALTY_FALLBACKS/);
   // A quiet specialty day stays quiet (72h rescue removed 2026-08-29): the honest empty
   // state names the area and routes to the 7-day view rather than widening the window.
