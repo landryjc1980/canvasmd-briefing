@@ -7,6 +7,9 @@ import { resolveHeroPost, publicTitleOf } from "@/app/heroPost";
 import { idFromSlug } from "@/lib/postId";
 
 export const runtime = "edge";
+// A SQUARE mark, not a wide banner. Messages, X and Slack render a wide image as a hero with
+// the page title printed under it, so the headline appeared twice. A square image renders as a
+// thumbnail beside the title: one headline, ours in text (John, 2026-09-14).
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "CanvasMD";
@@ -37,19 +40,23 @@ export default async function Image({ params }: { params: { slug: string } }) {
     ? publicTitleOf(post.card.kind, post.card.headline, area)
     : "CanvasMD — daily oncology intelligence";
 
+  void title;
+  // The image slot is the CanvasMD mark, not the headline: Messages, X and Slack print the page
+  // title as text under the image, so a headline in the image showed twice (John, 2026-09-14).
+  void title;
+  const markBytes = await fetch(new URL("./canvasmd-mark.png", import.meta.url)).then((r) => r.arrayBuffer());
+  const mark = `data:image/png;base64,${btoa(String.fromCharCode(...new Uint8Array(markBytes)))}`;
   return new ImageResponse(
     (
-      <div style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", background: "#0D1017", color: "#fff", padding: "64px 72px", justifyContent: "space-between", fontFamily: "sans-serif" }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <div style={{ width: 46, height: 8, background: accent, borderRadius: 4, display: "flex" }} />
-            <div style={{ fontSize: 25, letterSpacing: 6, color: accent, marginLeft: 18, display: "flex" }}>{kicker}</div>
+      <div style={{ height: "100%", width: "100%", display: "flex", alignItems: "center", background: "#0D1017", color: "#fff", padding: "0 96px", fontFamily: "system-ui, sans-serif" }}>
+        <img src={mark} width={260} height={260} style={{ borderRadius: 56, display: "flex" }} />
+        <div style={{ display: "flex", flexDirection: "column", marginLeft: 72 }}>
+          <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: -3, display: "flex" }}>CanvasMD</div>
+          <div style={{ display: "flex", alignItems: "center", marginTop: 22 }}>
+            <div style={{ width: 40, height: 8, background: accent, borderRadius: 4, display: "flex" }} />
+            <div style={{ fontSize: 26, letterSpacing: 6, color: accent, marginLeft: 16, display: "flex" }}>{kicker}</div>
+            <div style={{ fontSize: 26, color: "#8b9096", marginLeft: 28, display: "flex" }}>{AREA_LABELS[area] ?? "Oncology"}</div>
           </div>
-          <div style={{ fontSize: 60, lineHeight: 1.12, marginTop: 36, fontWeight: 600, letterSpacing: -1, display: "flex", maxWidth: 1010 }}>{clip(title, 135)}</div>
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: -0.5, display: "flex" }}>CanvasMD</div>
-          <div style={{ fontSize: 20, color: "#8b9096", display: "flex" }}>{AREA_LABELS[area] ?? "Oncology"}</div>
         </div>
       </div>
     ),
