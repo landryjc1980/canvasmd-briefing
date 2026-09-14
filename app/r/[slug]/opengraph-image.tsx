@@ -29,9 +29,18 @@ export default async function Image({ params }: { params: { slug: string } }) {
   const kicker = post ? (KICKERS[post.card.kind] ?? post.card.kind.toUpperCase()) : "THE READOUT";
   // ⚠️ A thread card's headline is a clinician's VERBATIM post — never unfurl it (publicTitleOf
   // swaps in a neutral edition line; same policy as the page + metadata).
-  const title = post
-    ? publicTitleOf(post.card.kind, post.card.headline, area)
-    : "The Readout — daily oncology intelligence";
+  // The headline is NOT drawn here. Messages, X and Slack print the page title as text
+  // directly under the image, so a headline in the image showed twice (John, 2026-09-14).
+  // The image carries the kicker, the source (journal or show), the area and the brand;
+  // a thread card names no source (the source would be the clinician).
+  const source = post && post.card.kind !== "thread" ? (post.card.sourceLabel || "").trim() : "";
+  const line = post
+    ? (post.card.kind === "paper" ? "A paper oncology clinicians are sharing"
+      : post.card.kind === "episode" ? "An episode oncology clinicians are discussing"
+      : post.card.kind === "event" ? "A regulatory action oncology clinicians are discussing"
+      : "What oncology clinicians are discussing")
+    : "Daily oncology intelligence";
+  void publicTitleOf;
 
   return new ImageResponse(
     (
@@ -41,7 +50,8 @@ export default async function Image({ params }: { params: { slug: string } }) {
             <div style={{ width: 46, height: 8, background: accent, borderRadius: 4, display: "flex" }} />
             <div style={{ fontSize: 25, letterSpacing: 6, color: accent, marginLeft: 18, display: "flex" }}>{kicker}</div>
           </div>
-          <div style={{ fontSize: 60, lineHeight: 1.12, marginTop: 36, fontWeight: 600, letterSpacing: -1, display: "flex", maxWidth: 1010 }}>{clip(title, 135)}</div>
+          {source ? <div style={{ fontSize: 56, lineHeight: 1.12, marginTop: 40, fontWeight: 600, letterSpacing: -1, display: "flex", maxWidth: 1010 }}>{clip(source, 60)}</div> : null}
+          <div style={{ fontSize: 30, lineHeight: 1.3, marginTop: source ? 18 : 40, color: "#c7ccd3", display: "flex", maxWidth: 1010 }}>{line}</div>
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
