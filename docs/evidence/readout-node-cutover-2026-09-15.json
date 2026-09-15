@@ -1,0 +1,356 @@
+{
+  "preparedAt": "2026-09-15",
+  "status": "evidence-awaiting-explicit-acceptance",
+  "historicalReviews": {
+    "2026-09-13": "unresolved-live-input-comparison",
+    "2026-09-14": "unresolved-live-input-comparison"
+  },
+  "engineModified": false,
+  "replays": [
+    {
+      "name": "retained-full-prose",
+      "nodeAdapter": {
+        "checkedAt": "2026-09-15T13:50:01.686Z",
+        "inputDirectory": "/private/tmp/readout-specialty-node-20260912/canary-3",
+        "inputSha256": "c20d3c965a86cb7c3dd79027152748baa30fb1581b61a71b17030e52613cdad8",
+        "capturedAt": "2026-09-12T15:23:39.150Z",
+        "proseMode": "live",
+        "engineSha": "5839dca9c376b958c96fd14a171bf0d91ad9e51f",
+        "engineInputSha256": "63816feab18611a5b6ae19d47e39d08283a9ca6e93578780f228032a1adbd4a8",
+        "networkAllowed": false,
+        "actualDatabaseWrites": 0,
+        "providerCalls": 0,
+        "historicalReviewStatusChanged": false,
+        "fixtureCount": 493,
+        "usedFixtures": 493,
+        "missing": [],
+        "reports": [
+          {
+            "mode": "shadow",
+            "areas": [
+              {
+                "area": "GU",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "d850c517b866d651f34a5720cfed45749d6b65768e6b0c56a93f6f74545d5dc8"
+              },
+              {
+                "area": "Breast",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "b94eca3b166b11debb6cb970346b6a75afe9408d483badae7933cd4709e1e4ec"
+              },
+              {
+                "area": "Lung",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "3a39d5867f046eae05b9e51a9b25308b6e17aedd0cc710839f2bd5a8dc037190"
+              },
+              {
+                "area": "GI",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "65fd32f6acf464385c2c9d5eb66f4a05d7556731a11e8cabfffe052655e776b7"
+              },
+              {
+                "area": "Heme",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "754ad1d10c2e0ecc9206399723ca5b8584c1ef564cd64dc13415da65030bb112"
+              },
+              {
+                "area": "Gyn",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "8ec868e3dadb8c1e178f7a9a881584cc7e0b96f2dd90e92930b83a41c530e4c8"
+              },
+              {
+                "area": "Skin",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "df6008cc21b8c1f63120f5f252d9202f4da69b068670de563fd465538cd8a1a9"
+              }
+            ],
+            "privateReceiptWritesIntercepted": 9
+          },
+          {
+            "mode": "publish",
+            "areas": [
+              {
+                "area": "GU",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "d850c517b866d651f34a5720cfed45749d6b65768e6b0c56a93f6f74545d5dc8"
+              },
+              {
+                "area": "Breast",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "b94eca3b166b11debb6cb970346b6a75afe9408d483badae7933cd4709e1e4ec"
+              },
+              {
+                "area": "Lung",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "3a39d5867f046eae05b9e51a9b25308b6e17aedd0cc710839f2bd5a8dc037190"
+              },
+              {
+                "area": "GI",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "65fd32f6acf464385c2c9d5eb66f4a05d7556731a11e8cabfffe052655e776b7"
+              },
+              {
+                "area": "Heme",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "754ad1d10c2e0ecc9206399723ca5b8584c1ef564cd64dc13415da65030bb112"
+              },
+              {
+                "area": "Gyn",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "8ec868e3dadb8c1e178f7a9a881584cc7e0b96f2dd90e92930b83a41c530e4c8"
+              },
+              {
+                "area": "Skin",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "df6008cc21b8c1f63120f5f252d9202f4da69b068670de563fd465538cd8a1a9"
+              }
+            ],
+            "privateReceiptWritesIntercepted": 8
+          }
+        ],
+        "ok": true
+      },
+      "preExtractionEdge": {
+        "baselineSha": "6764a86afc758e0e4d8d83d43fb94819bbe61d24",
+        "nodeEngineSha": "5839dca9c376b958c96fd14a171bf0d91ad9e51f",
+        "builtAt": "2026-09-12T15:23:39.150Z",
+        "proseMode": "live",
+        "ok": true,
+        "fixtureCount": 493,
+        "usedFixtures": 486,
+        "missing": [],
+        "areas": [
+          {
+            "area": "GU",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "d850c517b866d651f34a5720cfed45749d6b65768e6b0c56a93f6f74545d5dc8",
+            "baselineHash": "d850c517b866d651f34a5720cfed45749d6b65768e6b0c56a93f6f74545d5dc8"
+          },
+          {
+            "area": "Breast",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "b94eca3b166b11debb6cb970346b6a75afe9408d483badae7933cd4709e1e4ec",
+            "baselineHash": "b94eca3b166b11debb6cb970346b6a75afe9408d483badae7933cd4709e1e4ec"
+          },
+          {
+            "area": "Lung",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "3a39d5867f046eae05b9e51a9b25308b6e17aedd0cc710839f2bd5a8dc037190",
+            "baselineHash": "3a39d5867f046eae05b9e51a9b25308b6e17aedd0cc710839f2bd5a8dc037190"
+          },
+          {
+            "area": "GI",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "65fd32f6acf464385c2c9d5eb66f4a05d7556731a11e8cabfffe052655e776b7",
+            "baselineHash": "65fd32f6acf464385c2c9d5eb66f4a05d7556731a11e8cabfffe052655e776b7"
+          },
+          {
+            "area": "Heme",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "754ad1d10c2e0ecc9206399723ca5b8584c1ef564cd64dc13415da65030bb112",
+            "baselineHash": "754ad1d10c2e0ecc9206399723ca5b8584c1ef564cd64dc13415da65030bb112"
+          },
+          {
+            "area": "Gyn",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "8ec868e3dadb8c1e178f7a9a881584cc7e0b96f2dd90e92930b83a41c530e4c8",
+            "baselineHash": "8ec868e3dadb8c1e178f7a9a881584cc7e0b96f2dd90e92930b83a41c530e4c8"
+          },
+          {
+            "area": "Skin",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "df6008cc21b8c1f63120f5f252d9202f4da69b068670de563fd465538cd8a1a9",
+            "baselineHash": "df6008cc21b8c1f63120f5f252d9202f4da69b068670de563fd465538cd8a1a9"
+          }
+        ]
+      },
+      "reportSha256": {
+        "node": "e512b95868e76023092f8fb5c81a06aea8fb83e9d3235afd2b65dd8179d2532e",
+        "edge": "d0c1c8e99a39f24b9465384526efebe54c3de0d175026a9f7dc0a1b249b4312d"
+      }
+    },
+    {
+      "name": "current-provider-free",
+      "nodeAdapter": {
+        "checkedAt": "2026-09-15T13:59:49.797Z",
+        "inputDirectory": "/private/tmp/readout-node-current-capture-20260915",
+        "inputSha256": "9efb7876cf638f0ee72d209783e9ae5032bbb49efc12f47f7938b5c46397697b",
+        "capturedAt": "2026-09-15T13:56:23.776Z",
+        "proseMode": "capture_only",
+        "engineSha": "5839dca9c376b958c96fd14a171bf0d91ad9e51f",
+        "engineInputSha256": "63816feab18611a5b6ae19d47e39d08283a9ca6e93578780f228032a1adbd4a8",
+        "networkAllowed": false,
+        "actualDatabaseWrites": 0,
+        "providerCalls": 0,
+        "historicalReviewStatusChanged": false,
+        "fixtureCount": 462,
+        "usedFixtures": 462,
+        "missing": [],
+        "reports": [
+          {
+            "mode": "shadow",
+            "areas": [
+              {
+                "area": "GU",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "76a5c575dca678b8d2389136b863c1ac43f825e9cbb4f0f93f4a8ad17f5837f4"
+              },
+              {
+                "area": "Breast",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "b9ccf0bc727bb2e8c831e8e06f022d1abe61f7549172f198b9af1ae8ad62f697"
+              },
+              {
+                "area": "Lung",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "4731c6beea5c0cc467ad3b104f71c7a5b0d7d4e9b166071065d38f55adb97536"
+              },
+              {
+                "area": "GI",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "058dab47c1fbcdef7067cf05173ce999237b5a3a2f3459f4efbcdf2c9f66f6d9"
+              },
+              {
+                "area": "Heme",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "dc9964cf5f800808a487c797a6bce0d5e5073db5105f451ce7d301db8455aa32"
+              },
+              {
+                "area": "Gyn",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "b6b4e57eb99e470e43531df2fe39b9d518836548fe548f3d4d7757bd5a7955c7"
+              },
+              {
+                "area": "Skin",
+                "equal": true,
+                "effectsEqual": true,
+                "nodeHash": "e3d41279681328922f076b283fdbb1099c6dd10f818c0cbf5282790e4742a2db"
+              }
+            ],
+            "privateReceiptWritesIntercepted": 9
+          }
+        ],
+        "ok": true
+      },
+      "preExtractionEdge": {
+        "baselineSha": "6764a86afc758e0e4d8d83d43fb94819bbe61d24",
+        "nodeEngineSha": "5839dca9c376b958c96fd14a171bf0d91ad9e51f",
+        "builtAt": "2026-09-15T13:56:23.776Z",
+        "proseMode": "capture_only",
+        "ok": true,
+        "fixtureCount": 462,
+        "usedFixtures": 456,
+        "missing": [],
+        "areas": [
+          {
+            "area": "GU",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "76a5c575dca678b8d2389136b863c1ac43f825e9cbb4f0f93f4a8ad17f5837f4",
+            "baselineHash": "76a5c575dca678b8d2389136b863c1ac43f825e9cbb4f0f93f4a8ad17f5837f4"
+          },
+          {
+            "area": "Breast",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "b9ccf0bc727bb2e8c831e8e06f022d1abe61f7549172f198b9af1ae8ad62f697",
+            "baselineHash": "b9ccf0bc727bb2e8c831e8e06f022d1abe61f7549172f198b9af1ae8ad62f697"
+          },
+          {
+            "area": "Lung",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "4731c6beea5c0cc467ad3b104f71c7a5b0d7d4e9b166071065d38f55adb97536",
+            "baselineHash": "4731c6beea5c0cc467ad3b104f71c7a5b0d7d4e9b166071065d38f55adb97536"
+          },
+          {
+            "area": "GI",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "058dab47c1fbcdef7067cf05173ce999237b5a3a2f3459f4efbcdf2c9f66f6d9",
+            "baselineHash": "058dab47c1fbcdef7067cf05173ce999237b5a3a2f3459f4efbcdf2c9f66f6d9"
+          },
+          {
+            "area": "Heme",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "dc9964cf5f800808a487c797a6bce0d5e5073db5105f451ce7d301db8455aa32",
+            "baselineHash": "dc9964cf5f800808a487c797a6bce0d5e5073db5105f451ce7d301db8455aa32"
+          },
+          {
+            "area": "Gyn",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "b6b4e57eb99e470e43531df2fe39b9d518836548fe548f3d4d7757bd5a7955c7",
+            "baselineHash": "b6b4e57eb99e470e43531df2fe39b9d518836548fe548f3d4d7757bd5a7955c7"
+          },
+          {
+            "area": "Skin",
+            "equal": true,
+            "effectsEqual": true,
+            "changedFields": [],
+            "nodeHash": "e3d41279681328922f076b283fdbb1099c6dd10f818c0cbf5282790e4742a2db",
+            "baselineHash": "e3d41279681328922f076b283fdbb1099c6dd10f818c0cbf5282790e4742a2db"
+          }
+        ]
+      },
+      "reportSha256": {
+        "node": "9986186915aa1106fd7ca975b6576aef746aafce1ec7109a21bcd824f00f88c6",
+        "edge": "e6dd375290e83ec7c40f607edf64fd054f64830e4f525e1fa577f4322d8ae41f"
+      }
+    }
+  ],
+  "databaseVerification": {
+    "engine": "isolated Supabase PostgreSQL 17.6.1.121 and PGlite",
+    "negativeAndSuccessFixture": "passed",
+    "retainedSevenOutputs": "passed",
+    "retainedTraceEvents": 119,
+    "fixtureCycleRebased": true,
+    "migrationSha256": "fbf261ca13a3d3768cf8c7c54d094adf4868f2edf2379a6f68fe54eed35745fe",
+    "productionMigrationVersion": "20260915141505",
+    "productionControlEnabled": false,
+    "productionPublishRuns": 0,
+    "legacyEdgeCronsActive": 9,
+    "publicRolesCanExecute": false
+  }
+}

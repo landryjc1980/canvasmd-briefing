@@ -109,13 +109,16 @@ for (const area of diagnosisArea ? [diagnosisArea] : SPECIALTY_AREAS) {
   const left = comparableSpecialty(output.data), right = comparableSpecialty(baseline);
   const changedFields = [...new Set([...Object.keys(left), ...Object.keys(right)])].filter(key => stableJson(left[key]) !== stableJson(right[key]));
   const areaWrites = writes.slice(writesStart);
-  const ledger = areaWrites.filter(row => row.path === "/rest/v1/trial_story_ledger").flatMap(row => Array.isArray(row.body) ? row.body : [row.body]);
+  // PostgREST adds ?columns= for an array insert; compare the table pathname
+  // so those real legacy writes are included in the deferred-effect check.
+  const ledger = areaWrites.filter(row => row.method === "POST" && new URL(row.path, "https://replay.invalid").pathname === "/rest/v1/trial_story_ledger").flatMap(row => Array.isArray(row.body) ? row.body : [row.body]);
   const pools = areaWrites.filter(row => row.method === "POST" && row.path === "/rest/v1/briefing_hero_pool").flatMap(row => Array.isArray(row.body) ? row.body : [row.body]);
   const deletes = areaWrites.filter(row => row.method === "DELETE").map(row => { const url = new URL(row.path, "https://replay.invalid"); return { area: url.searchParams.get("area").replace(/^eq\./, ""), generatedAt: url.searchParams.get("generated_at").replace(/^eq\./, "") }; });
   const effectsEqual = stableJson(ledger) === stableJson(output.effects.trialLedgerInserts) && stableJson(pools) === stableJson(output.effects.heroPoolInserts) && stableJson(deletes) === stableJson(output.effects.heroPoolDeletes);
   const result = { area, equal: changedFields.length === 0, effectsEqual, changedFields, nodeHash: contentHash(left), baselineHash: contentHash(right) };
   results.push(result);
   await writeFile(path.join(directory, `baseline-${area}.json`), JSON.stringify(baseline), { mode: 0o600 });
+  await writeFile(path.join(directory, `baseline-effects-${area}.json`), JSON.stringify({ trialLedgerInserts: ledger, heroPoolInserts: pools, heroPoolDeletes: deletes }), { mode: 0o600 });
   console.log(JSON.stringify(result));
 }
 const report = { baselineSha, nodeEngineSha: metadata.engineInfo.backendSha, builtAt: metadata.now, proseMode: metadata.proseMode ?? "live", ok: !diagnosisArea && missing.length === 0 && results.every(row => row.equal && row.effectsEqual), fixtureCount: fixtures.size, usedFixtures: used.size, missing, areas: results };

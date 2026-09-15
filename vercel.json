@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/readout-specialty-publish",
+      "schedule": "0 0,1,8,9 * * *"
+    },
+    {
       "path": "/api/readout-specialty-shadow",
       "schedule": "0 9 * * *"
     },
