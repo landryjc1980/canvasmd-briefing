@@ -145,6 +145,27 @@ test("attention-only updates preserve the entire morning order and narration rev
   assert.equal(regenerated.selectionVersion, morning.selectionVersion);
 });
 
+test("a newly observed episode cannot mutate the frozen Listen selection or narration revision", async () => {
+  const now = new Date("2026-09-11T20:00:00Z");
+  const morning = await withReadoutSelectionVersion({
+    ...buildReadoutEditionSnapshot("All", payload({ cards: [card("morning")] }), new Date("2026-09-11T09:00:00Z"), [], date),
+    listen: [{
+      item: { id: "saved-listen", area: "Lung", areas: ["Lung"], subAreas: ["Lung"], hook: "Saved episode", show: "Lung Cancer Considered", title: "Saved episode", url: "https://example.org/saved-listen", match: "Saved episode" },
+      episode: { episodeId: "saved-listen", show: "Lung Cancer Considered", areas: ["Lung"], title: "Saved episode", showArt: null, audioUrl: "https://example.org/saved-listen.mp3", sourceUrl: "https://example.org/saved-listen", description: null, publishedAt: "2026-09-11T08:00:00Z", durationSeconds: 60 },
+    }],
+  });
+  const liveOnly = payload({ episodes: [{
+    episodeId: "18c29cfc-278b-4417-9338-d29daa55a1a4", show: "Lung Cancer Considered", areas: ["Lung"],
+    title: "Live From WCLC 2026: Sunday Highlights", showArt: null, audioUrl: "https://example.org/sunday.mp3",
+    sourceUrl: "https://example.org/sunday", description: null, publishedAt: "2026-09-11T19:00:00Z", durationSeconds: 60,
+  }] });
+  const merged = mergeReadoutEditionSnapshot(morning, liveOnly, now);
+  assert.equal(merged, morning);
+  assert.deepEqual(merged.listen.map((entry) => entry.item.id), ["saved-listen"]);
+  assert.equal(merged.selectionVersion, morning.selectionVersion);
+  assert.equal((await withReadoutSelectionVersion({ ...merged, selectionVersion: undefined })).selectionVersion, morning.selectionVersion);
+});
+
 test("qualified midday additions stay labeled in the remainder without displacing morning picks", () => {
   const morning = buildReadoutEditionSnapshot("All", payload({ cards: [card("a"), card("b"), card("c")] }), new Date("2026-09-11T09:00:00Z"), [], date);
   morning.selectionVersion = "fixed-recording";

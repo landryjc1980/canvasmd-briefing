@@ -269,20 +269,10 @@ export function mergeReadoutEditionSnapshot(
     !existingRelevant.some((existing) => sameArticleDevelopment(candidate, existing)));
   const newDesignations = (payload.designationCards ?? []).filter((candidate) =>
     !snapshot.designationCards.some((existing) => existing.id === candidate.id));
-  const briefs = liveListenBriefs(payload);
-  const featured = existingDevelopments.filter(isEpisodeDevelopment);
-  const currentListen = listenForArea(briefs, snapshot.area, featured, now)
-    .map((item) => ({ item, episode: matchedEpisode(item, briefs, payload) }));
-  const existingListenKeys = new Set(
-    snapshot.listen.flatMap((entry) => editorialEpisodeIdentityKeys(entry.item, entry.episode)),
-  );
-  const newListen = currentListen.filter((entry) => {
-    const keys = editorialEpisodeIdentityKeys(entry.item, entry.episode);
-    if (keys.some((key) => existingListenKeys.has(key))) return false;
-    keys.forEach((key) => existingListenKeys.add(key));
-    return true;
-  });
-  if (!additions.length && !newDesignations.length && !newListen.length) return snapshot;
+  // Listen is a narrated morning selection. Hourly source observations may
+  // discover another episode, but they cannot change this frozen list or its
+  // selectionVersion; only editorial insertions are mergeable after morning.
+  if (!additions.length && !newDesignations.length) return snapshot;
 
   // The morning slate is the narrated edition. Hourly admissions live in the
   // remainder with explicit insertion IDs; they cannot displace or renumber it.
@@ -299,7 +289,7 @@ export function mergeReadoutEditionSnapshot(
       ...(payload.regulatoryCards ?? []).filter((candidate) => !snapshot.regulatoryCards.some((existing) => existing.id === candidate.id)),
     ],
     designationCards: [...snapshot.designationCards, ...newDesignations],
-    listen: [...newListen, ...snapshot.listen].slice(0, snapshot.area === "All" ? 3 : 2),
+    listen: snapshot.listen,
   };
 }
 
