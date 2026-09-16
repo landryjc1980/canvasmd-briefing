@@ -206,9 +206,7 @@ async function buildCanonicalEdition(
       payload.attentionWindow.editionDate !== editionDate || payload.attentionWindow.kind !== "edition") {
     throw new Error("Prepublication All source attention window is missing or mismatched.");
   }
-  const sourceReadyIds = new Set<string>((selectionAudit as { papers?: { id: string; sourcePreparation?: { leadReady?: boolean } }[] } | null)
-    ?.papers?.filter((paper) => paper.sourcePreparation?.leadReady === true).map((paper) => paper.id) ?? []);
-  const morningPayload = preparedMorningReadoutPayload(payload, previousCanonical, sourceReadyIds);
+  const morningPayload = preparedMorningReadoutPayload(payload, previousCanonical);
   const snapshots = EDITION_AREAS.map((area) => {
     const previousForArea = previousCanonical
       .map((snapshot) => readoutEditionForArea(snapshot, area))

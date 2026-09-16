@@ -724,7 +724,7 @@ function ArticleDevelopment({
     >
       {source.preview || source.full
         ? <DevelopmentFinding text={source.preview} expandedText={source.full} expanded={open} preservePreview={contentType === "FDA approval"} />
-        : <div className="er-excerpt"><p className="er-finding er-finding-missing">No summary is available from {item.journal || "the publisher"} yet.</p></div>}
+        : <div className="er-excerpt"><p className="er-finding er-finding-missing">Abstract not yet available here.</p></div>}
       {open && fullDate && <p className="er-action-date">{dateWord}: <time dateTime={item.occurredOn ?? undefined} title={`${dateWord} ${fullDate}`}>{fullDate}</time></p>}
       <CoverageLinks item={item} primaryUrl={href} expanded={open} />
       <RelatedEpisode item={item} primaryUrl={href} />

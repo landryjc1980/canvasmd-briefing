@@ -8,6 +8,20 @@ import { audioReflectsEarlierUpdate, readoutAudioDates } from "../lib/readoutAud
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const renderer = read("app/briefing-preview/EditorialReadout.tsx");
 
+test("a prominent paper with incomplete source text keeps no misleading description", () => {
+  for (const full of [
+    "Tambotatug pelitecan showed promising clinical efficacy in relapsed extensive-stag...",
+    "Results: An effect was observed (95% confidence interval",
+    "Access denied",
+    "Checking your browser",
+    "No abstract available",
+  ]) {
+    assert.deepEqual(articleSourceText("A seemingly complete preview.", full), { preview: "", full: "" });
+  }
+  const full = "Results: The trial reported its complete results (including uncertainty).";
+  assert.deepEqual(articleSourceText("Results were...", full), { preview: full, full });
+});
+
 test("a short or already-truncated publisher preview does not promise expansion", () => {
   for (const text of ["", "Short full abstract.", "Publisher preview…"]) {
     assert.equal(articleExpansion({ preview: text, full: text }, []).canExpand, false);

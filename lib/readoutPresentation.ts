@@ -7,10 +7,25 @@ export function meaningfulArticleExcerpt(value: string): string {
   return value.split(/(?<=[.!?])\s+(?=[A-Z(])/).filter((sentence) => !articleExcerptIsBoilerplate(sentence)).join(" ").trim();
 }
 
-/** Hide boilerplate-only descriptions; preserve the complete source when real text exists. */
+/** A paper may earn a lead before its full source arrives. Hide incomplete copy. */
+export function articleSourceIsIncomplete(value: string): boolean {
+  const text = value.trim();
+  if (!text || /(?:…|\.{3})\s*$/.test(text) ||
+      /^(?:abstract\s*(?:not available|unavailable)|no abstract|subscribe|sign in|access denied|checking your browser|just a moment|verify you are human)\b/i.test(text)) return true;
+  const closing = new Map([[")", "("], ["]", "["], ["}", "{"]]);
+  const stack: string[] = [];
+  for (const character of text) {
+    if (character === "(" || character === "[" || character === "{") stack.push(character);
+    else if (closing.has(character) && stack.at(-1) === closing.get(character)) stack.pop();
+  }
+  return stack.length > 0;
+}
+
+/** Hide incomplete or boilerplate-only descriptions without hiding the paper. */
 export function articleSourceText(preview: string, full: string): { preview: string; full: string } {
+  if (articleSourceIsIncomplete(full)) return { preview: "", full: "" };
   const meaningful = meaningfulArticleExcerpt(full);
-  return { preview: meaningfulArticleExcerpt(preview) || meaningful, full: meaningful ? full : "" };
+  return { preview: (articleSourceIsIncomplete(preview) ? "" : meaningfulArticleExcerpt(preview)) || meaningful, full: meaningful ? full : "" };
 }
 
 /** Keep the first FDA source paragraph intact without generating a new summary. */

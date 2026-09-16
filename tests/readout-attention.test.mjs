@@ -62,10 +62,10 @@ test("prior morning papers cannot consume lead slots before the prepared remaind
   const previous = buildReadoutEditionSnapshot("All", payload({ cards: [oldA, oldB] }), new Date("2026-09-10T10:00:00Z"), [], "2026-09-10");
   const incomplete = rankedCard("incomplete", 85), nextA = rankedCard("next-a", 80), nextB = rankedCard("next-b", 70), extra = rankedCard("extra", 60);
   const input = payload({ cards: [oldA, oldB], moreCards: [incomplete, nextA, nextB, extra] });
-  const prepared = preparedMorningReadoutPayload(input, [previous], new Set(["archive-next-a", "archive-next-b", "archive-extra"]));
+  const prepared = preparedMorningReadoutPayload(input, [previous]);
   const edition = buildReadoutEditionSnapshot("All", prepared, new Date("2026-09-11T10:00:00Z"), [previous], date);
-  assert.deepEqual(edition.developments.map(({ development }) => development.id), ["archive-next-a", "archive-next-b", "archive-extra"]);
-  assert.deepEqual(edition.relevant.map(({ article }) => article.id), ["archive-incomplete"]);
+  assert.deepEqual(edition.developments.map(({ development }) => development.id), ["archive-incomplete", "archive-next-a", "archive-next-b", "archive-extra"]);
+  assert.deepEqual(edition.relevant, []);
   assert.deepEqual(input.cards.map(({ card }) => card.id), ["old-a", "old-b"], "existing payloads are not mutated");
 });
 
@@ -75,9 +75,35 @@ test("prepared lead selection keeps preprints in the remainder and fills five gl
     item.card.rankTotal = 100 - i; return item;
   });
   pool[0].card.publicationClass = "preprint";
-  const prepared = preparedMorningReadoutPayload(payload({ moreCards: pool }), [], new Set(pool.map(({ card }) => `archive-${card.id}`)));
+  const prepared = preparedMorningReadoutPayload(payload({ moreCards: pool }), []);
   assert.deepEqual(prepared.cards.map(({ card }) => card.id), ["new-1", "new-2", "new-3", "new-4", "new-5"]);
   assert.deepEqual(prepared.moreCards.map(({ card }) => card.id), ["new-0", "new-6", "new-7"]);
+});
+
+test("a prior remainder paper can earn its first lead, then cannot repeat as a lead", () => {
+  const hot = card("hot", 25);
+  hot.card.rankTotal = 100;
+  hot.card.sourceExcerpt = "Promising clinical efficacy in relapsed extensive-stag...";
+  const previous = buildReadoutEditionSnapshot("All", payload({ moreCards: [hot] }), new Date("2026-09-10T10:00:00Z"), [], "2026-09-10");
+  assert.equal(previous.relevant.length, 1);
+  const input = payload({ moreCards: [hot] });
+  const prepared = preparedMorningReadoutPayload(input, [previous]);
+  const edition = buildReadoutEditionSnapshot("All", prepared, new Date("2026-09-11T10:00:00Z"), [previous], date);
+  assert.deepEqual(edition.developments.map(({ development }) => development.id), ["archive-hot"]);
+  assert.deepEqual(preparedMorningReadoutPayload(input, [previous, edition]).cards, []);
+  assert.equal(previous.relevant[0].article.sourceExcerpt, hot.card.sourceExcerpt, "historical source and position are not rewritten");
+});
+
+test("previous remainder papers outside the lead slots do not repeat in the remainder", () => {
+  const old = card("old-remainder");
+  const previous = buildReadoutEditionSnapshot("All", payload({ moreCards: [old] }), new Date("2026-09-10T10:00:00Z"), [], "2026-09-10");
+  const newLeads = Array.from({ length: 5 }, (_, i) => {
+    const next = card(`new-lead-${i}`); next.card.rankTotal = 100 - i; return next;
+  });
+  const prepared = preparedMorningReadoutPayload(payload({ cards: newLeads, moreCards: [old] }), [previous]);
+  const edition = buildReadoutEditionSnapshot("All", prepared, new Date("2026-09-11T10:00:00Z"), [previous], date);
+  assert.equal(edition.developments.length, 5);
+  assert.deepEqual(edition.relevant, []);
 });
 
 test("5 AM preparation and 6 AM publication share one immutable preceding-day start", () => {

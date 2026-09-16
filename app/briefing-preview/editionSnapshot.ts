@@ -140,6 +140,7 @@ function uniqueRelevant(items: EditorialArticle[], developments: EditorialDevelo
     !all.slice(0, index).some((existing) => sameArticleDevelopment(item, existing)));
 }
 
+/** A remainder appearance does not consume a paper's first morning lead. */
 export function appearedInMorningEdition(item: EditorialArticle, history: ReadoutEditionSnapshot[]): boolean {
   const priorEditionDate = history.reduce(
     (latest, snapshot) => snapshot.editionDate > latest ? snapshot.editionDate : latest,
@@ -152,8 +153,6 @@ export function appearedInMorningEdition(item: EditorialArticle, history: Readou
         !isEpisodeDevelopment(entry.development) && sameMorningStory(item, entry.development)
           ? [{ id: entry.development.id }]
           : []),
-      ...snapshot.relevant.flatMap((entry) =>
-        sameMorningStory(item, entry.article) ? [{ id: entry.article.id }] : []),
     ];
     for (const match of matches) {
       if (snapshot.editionDate === priorEditionDate && middayIds.has(match.id)) {
@@ -172,25 +171,18 @@ function appearedInAnyEarlierEdition(item: EditorialArticle, history: ReadoutEdi
     snapshot.relevant.some((entry) => sameMorningStory(item, entry.article)));
 }
 
-/** Seat the prepared morning pool after history exclusions, before applying caps. */
+/** Seat admitted papers by attention, independently of abstract availability. */
 export function preparedMorningReadoutPayload(
   payload: ReadoutWindowPayload,
   previousEditions: ReadoutEditionSnapshot[],
-  sourceReadyIds: ReadonlySet<string>,
 ): ReadoutWindowPayload {
-  const alreadyReady = new Set((payload.cards ?? []).map(({ card }) => `archive-${card.id}`));
   const seen = new Set<string>();
   const ranked = [...(payload.cards ?? []), ...(payload.moreCards ?? [])]
     .filter(({ card }) => !seen.has(card.id) && !!seen.add(card.id))
     .filter((item) => !appearedInMorningEdition(archivedEditorialArticle(item), previousEditions))
     .sort((a, b) => (b.card.rankTotal ?? 0) - (a.card.rankTotal ?? 0)
       || b.firstSeen.localeCompare(a.firstSeen) || a.card.id.localeCompare(b.card.id));
-  const cards = ranked.filter((item) => {
-    const id = `archive-${item.card.id}`;
-    if ((!alreadyReady.has(id) && !sourceReadyIds.has(id)) ||
-        isPreprintEditorialArticle(archivedEditorialArticle(item))) return false;
-    return true;
-  }).slice(0, 5);
+  const cards = ranked.filter((item) => !isPreprintEditorialArticle(archivedEditorialArticle(item))).slice(0, 5);
   const selected = new Set(cards.map(({ card }) => card.id));
   return { ...payload, cards, moreCards: ranked.filter(({ card }) => !selected.has(card.id)) };
 }
@@ -216,7 +208,7 @@ export function buildReadoutEditionSnapshot(
       .map(archivedEditorialArticle)
       .filter(renderableArticle)
       .filter((item) => !appearedInMorningEdition(item, previousEditions)),
-  ], developments);
+  ].filter((item) => !appearedInAnyEarlierEdition(item, previousEditions)), developments);
 
   const briefs = liveListenBriefs(payload);
   const featured = developments.filter(isEpisodeDevelopment);
