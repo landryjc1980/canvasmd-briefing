@@ -1,16 +1,24 @@
 {
-  "backendSha": "5839dca9c376b958c96fd14a171bf0d91ad9e51f",
+  "backendSha": "4098a417220a1f807f289e28808dcb1e65ac24ea",
   "dirty": false,
-  "engineSha256": "63816feab18611a5b6ae19d47e39d08283a9ca6e93578780f228032a1adbd4a8",
-  "bundleSha256": "23fe31228662511c64f9607a8d946e2f79d774c9169d9663370f336eb17513dd",
+  "engineSha256": "a75bc7e1fbb7f9b47f7fe862977eaea14679102bea204c220e26f89586e340a9",
+  "bundleSha256": "996edd66a03ada4a6f5ea97dd3bb8fbb324a61cfc31ea758cbd9af589fcfe141",
   "inputs": [
     {
       "path": "supabase/functions/_shared/anchoredDevelopments.ts",
       "sha256": "c7210fbbe6c9235454193f57a2357d23158c3267375a91a4124eb66c11998268"
     },
     {
+      "path": "supabase/functions/_shared/articleAttention.ts",
+      "sha256": "2d21e85425368489db732620ae925d55430c7260da86bd14a81be1bcc46940a3"
+    },
+    {
       "path": "supabase/functions/_shared/articleExcerptQuality.ts",
       "sha256": "e9efd945a1729362df265f1411081f16088556839a5332a9474df79f8e8c1cf7"
+    },
+    {
+      "path": "supabase/functions/_shared/bibliographicAbstract.ts",
+      "sha256": "060ba9b600a69e50c103fc2bbf3282a3751b5fb64986cf7754cbb1794e1d7162"
     },
     {
       "path": "supabase/functions/_shared/briefingCore.ts",
@@ -34,7 +42,7 @@
     },
     {
       "path": "supabase/functions/_shared/publisherAbstract.ts",
-      "sha256": "fa5980e32050179bfb1b4158061edbc0071f16c139fdf6e63588a01405a8ff56"
+      "sha256": "fe13d3c54b2ef8256c311784b02deb81205d2b01927ef96757c20e77bd2b1f3a"
     },
     {
       "path": "supabase/functions/_shared/readoutAudioAdmission.ts",
@@ -54,7 +62,7 @@
     },
     {
       "path": "supabase/functions/_shared/specialtyBriefingBuilder.ts",
-      "sha256": "e11a11b698e9f78237beae2a74dd675bdc4465d75fa487c5e7caa1ca91496cfc"
+      "sha256": "b071320b2287936f4985c03241e911fcb42fa78fb119c04aa93c5349c2442eb6"
     },
     {
       "path": "supabase/functions/_shared/storySupport.ts",
@@ -66,7 +74,7 @@
     },
     {
       "path": "supabase/functions/_shared/urlIdentity.ts",
-      "sha256": "3f79d57436d012b8c387f099b24f538717980e83ff685e9f308e97b2bac47eb8"
+      "sha256": "bface779ab9b963124a9231efac4a504efcd9209cd7b72a58657c3ccba16851f"
     },
     {
       "path": "supabase/functions/_shared/xEvidence.ts",
