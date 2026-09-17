@@ -42,6 +42,53 @@ test("a lost commit response reconciles exact durable success without rerunning 
   assert.equal(calls(), 1);
 });
 
+test("a slow final commit that returns success does not perform a reconciliation RPC", async () => {
+  let calls = 0, reads = 0;
+  const client = {
+    rpc: async () => { calls++; await new Promise(resolve => setTimeout(resolve, 15)); return { data: { published: true, sourceRunId: "scheduled-2026091606" } }; },
+    from: () => { reads++; assert.fail("a confirmed RPC must not read back or retry"); },
+  };
+  const result = await finishSpecialtyPublication(client, "run", {}, { readbackDeadlineAt: Date.now() + 50 });
+  assert.equal(result.published, true);
+  assert.equal(calls, 1);
+  assert.equal(reads, 0);
+});
+
+test("uncertain final commits poll only the exact run until its bounded readback succeeds", async () => {
+  let calls = 0, reads = 0;
+  const client = {
+    rpc: async () => { calls++; return { error: { message: "response lost" } }; },
+    from: name => {
+      assert.equal(name, "readout_specialty_source_runs");
+      const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: ++reads < 2 ? { status: "running", summary: {} } : { status: "succeeded", summary: { published: true } } }) };
+      return query;
+    },
+  };
+  const result = await finishSpecialtyPublication(client, "exact-run", {}, { readbackDeadlineAt: Date.now() + 100, readbackIntervalMs: 1 });
+  assert.equal(result.publicationReceiptRecovered, true);
+  assert.equal(calls, 1);
+  assert.equal(reads, 2);
+});
+
+test("a slow failed commit still receives its reserved post-response readback window", async () => {
+  let reads = 0;
+  const startedAt = Date.now();
+  const client = {
+    rpc: async () => { await new Promise(resolve => setTimeout(resolve, 20)); return { error: { message: "response lost" } }; },
+    from: () => {
+      const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: ++reads < 2 ? { status: "running", summary: {} } : { status: "succeeded", summary: { published: true } } }) };
+      return query;
+    },
+  };
+  const result = await finishSpecialtyPublication(client, "exact-run", {}, {
+    readbackDeadlineAt: startedAt + 30,
+    readbackBudgetMs: 5,
+    readbackIntervalMs: 1,
+  });
+  assert.equal(result.publicationReceiptRecovered, true);
+  assert.equal(reads, 2);
+});
+
 test("an unconfirmed or failed commit stays a failure, not a partial publication", async () => {
   for (const stored of [null, { status: "failed", summary: { published: false } }, { status: "succeeded", summary: { published: false } }]) {
     const { client } = receiptClient({ error: { message: "transaction rejected" } }, stored);

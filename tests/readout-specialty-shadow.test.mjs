@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { SPECIALTY_AREAS, assertCompleteSpecialtyBatch, compareSpecialtyOutput, specialtyComparisonStatus, stableJson } from "../lib/readoutSpecialtyComparison.mjs";
 import { createSpecialtyTransport } from "../lib/readoutSpecialtyTransport.mjs";
-import { specialtyClock, specialtyShadowInvocation } from "../lib/readoutSpecialtyShadow.mjs";
+import { boundedReceiptFetch, mapSpecialtyAreas, runSpecialtyBatch, SPECIALTY_BUILD_BUDGET_MS, SPECIALTY_COMMIT_TIMEOUT_MS, SPECIALTY_FINALIZATION_RESERVE_MS, SPECIALTY_MAX_CONCURRENT_BUILDS, SPECIALTY_READBACK_RESERVE_MS, SPECIALTY_READBACK_TIMEOUT_MS, SPECIALTY_RECEIPT_TIMEOUT_MS, SPECIALTY_SOURCE_DEADLINE_MS, specialtyBatchDeadlinePlan, specialtyClock, specialtyReceiptBudget, specialtyShadowInvocation } from "../lib/readoutSpecialtyShadow.mjs";
 
 const expected = { sourceRunId: "scheduled-2026091306", engineSha: "abc", builtAt: "2026-09-13T08:20:00.000Z" };
 const batch = () => SPECIALTY_AREAS.map(area => ({ area, data: { area, generatedAt: expected.builtAt, build: { sha: expected.engineSha, sourceRunId: expected.sourceRunId, dirty: false } } }));
@@ -80,6 +80,27 @@ test("recap requests are not cached and failed reads cannot poison the cache", a
   assert.doesNotThrow(() => transport.assertHealthy(), "a successful exact retry resolves its own failure");
 });
 
+test("concurrent identical reads and recap requests coalesce without caching a paid recap", async () => {
+  let calls = 0;
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => {
+    calls++;
+    await new Promise(resolve => setTimeout(resolve, 3));
+    return new Response('{"recap":"Recap","headline":"Headline","storyWhys":{}}');
+  } });
+  const read = "https://db.test/rest/v1/x_posts?select=id";
+  await Promise.all([transport.fetch(read), transport.fetch(read)]);
+  assert.equal(calls, 1);
+  const recap = { method: "POST", body: '{"area":"GU","movers":[],"stories":[]}' };
+  await Promise.all([
+    transport.fetch("https://db.test/functions/v1/briefing-recap", recap),
+    transport.fetch("https://db.test/functions/v1/briefing-recap", recap),
+  ]);
+  assert.equal(calls, 2);
+  await transport.fetch("https://db.test/functions/v1/briefing-recap", recap);
+  assert.equal(calls, 3, "a completed recap is never cached or replayed");
+  assert.equal(transport.stats().coalescedRequests, 2);
+});
+
 test("HEAD count queries remain read-only and preserve Content-Range", async () => {
   let calls = 0;
   const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async (_url, init) => { calls++; assert.equal(init.method, "HEAD"); return new Response(null, { headers: { "content-range": "0-0/42" } }); } });
@@ -113,4 +134,107 @@ test("capture-only recap fixtures require explicit diagnostic mode", async () =>
     else assert.throws(() => transport.assertHealthy(), /capture_only/);
     assert.equal(transport.stats().recaps[0].complete, false);
   }
+});
+
+test("specialty deadlines reserve finalization before the 270 second source deadline", () => {
+  const startedAt = 1_000_000, plan = specialtyBatchDeadlinePlan(startedAt, startedAt + 60_000);
+  assert.equal(SPECIALTY_BUILD_BUDGET_MS, 240_000);
+  assert.equal(SPECIALTY_FINALIZATION_RESERVE_MS, 30_000);
+  assert.equal(plan.buildDeadlineAt - startedAt, SPECIALTY_BUILD_BUDGET_MS);
+  assert.equal(plan.sourceDeadlineAt - startedAt, SPECIALTY_SOURCE_DEADLINE_MS);
+  assert.equal(plan.jobDeadlineAt - plan.sourceDeadlineAt, 5_000);
+  assert.equal(plan.buildRemainingMs, 180_000);
+  assert.equal(plan.finalizationRemainingMs, 210_000);
+});
+
+test("bounded area mapping keeps at most two concurrent builds and returns source order", async () => {
+  let active = 0, peak = 0;
+  const values = await mapSpecialtyAreas(SPECIALTY_AREAS, SPECIALTY_MAX_CONCURRENT_BUILDS, async (area, index) => {
+    active++; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, (SPECIALTY_AREAS.length - index) % 3));
+    active--;
+    return area;
+  });
+  assert.equal(peak, 2);
+  assert.deepEqual(values, SPECIALTY_AREAS);
+});
+
+test("a failed area aborts promptly, drains its sibling, and starts no additional area", async () => {
+  const started = [], settled = [], errors = [];
+  await assert.rejects(mapSpecialtyAreas(["fail", "sibling", "never"], 2, async area => {
+    started.push(area);
+    if (area === "fail") { await new Promise(resolve => setTimeout(resolve, 1)); throw new Error("build failed"); }
+    await new Promise(resolve => setTimeout(resolve, 5));
+    settled.push(area);
+    return area;
+  }, { onError: error => errors.push(error.message) }), /build failed/);
+  assert.deepEqual(started, ["fail", "sibling"]);
+  assert.deepEqual(settled, ["sibling"]);
+  assert.deepEqual(errors, ["build failed"]);
+});
+
+test("receipt fetches use their actual remaining-time signal and per-request caps", async () => {
+  assert.equal(specialtyReceiptBudget(50_000), SPECIALTY_RECEIPT_TIMEOUT_MS);
+  assert.equal(specialtyReceiptBudget(50_000, SPECIALTY_COMMIT_TIMEOUT_MS), SPECIALTY_COMMIT_TIMEOUT_MS);
+  assert.equal(specialtyReceiptBudget(2_000, SPECIALTY_READBACK_TIMEOUT_MS), 2_000);
+  assert.equal(SPECIALTY_COMMIT_TIMEOUT_MS + SPECIALTY_READBACK_RESERVE_MS, SPECIALTY_FINALIZATION_RESERVE_MS);
+  let aborted = false;
+  const fetchWithBudget = boundedReceiptFetch(async (_input, init) => new Promise((_, reject) => {
+    init.signal.addEventListener("abort", () => { aborted = true; reject(init.signal.reason); }, { once: true });
+  }), undefined, () => 8, "test receipt", 3);
+  await assert.rejects(fetchWithBudget("https://db.test/receipt"));
+  assert.equal(aborted, true);
+});
+
+function publicationControl(engine) {
+  return { enabled: true, approved_engine_sha: engine.backendSha, approved_engine_input_sha256: engine.engineSha256,
+    review_evidence: [{ kind: "fixture", artifact: "/private/test.json", sha256: "c".repeat(64), acceptedAt: "2026-09-16T12:00:00Z", acceptedBy: "test fixture" }] };
+}
+function fakeJob(stages) {
+  return { id: "run", stage: async (name, work, options) => { stages.push({ name, options }); return work(new AbortController().signal); } };
+}
+function batchFetch({ outputs, commits, failures }) {
+  return async (input, init = {}) => {
+    const url = new URL(String(input)), method = String(init.method ?? "GET").toUpperCase();
+    if (method === "GET" && url.pathname.endsWith("/briefing_snapshots")) return new Response("[]");
+    if (method === "GET" && url.pathname.endsWith("/briefing_build_state")) return new Response(JSON.stringify(SPECIALTY_AREAS.map(area => ({ area, window_days: 7 }))));
+    if (method === "POST" && url.pathname.endsWith("/readout_specialty_source_outputs")) { outputs.push(JSON.parse(String(init.body)).area); return new Response("[]"); }
+    if (method === "PATCH" && url.pathname.endsWith("/readout_specialty_source_runs")) { failures.push(JSON.parse(String(init.body))); return new Response(""); }
+    if (method === "POST" && url.pathname.endsWith("/rpc/finish_readout_specialty_publish")) { commits.count++; return new Response(JSON.stringify({ published: true })); }
+    if (method === "POST" && url.pathname.endsWith("/readout_specialty_source_runs")) return new Response("[]");
+    assert.fail(`${method} ${url.pathname}`);
+  };
+}
+
+test("publish batch builds and records every area exactly once before one explicit finalization", async () => {
+  const engine = { dirty: false, backendSha: "a".repeat(40), engineSha256: "b".repeat(64) };
+  const now = new Date(), stages = [], outputs = [], commits = { count: 0 }, failures = [];
+  let active = 0, peak = 0;
+  const summary = await runSpecialtyBatch({
+    url: "https://db.test", key: "test", engineInfo: engine, sourceRunId: "scheduled-2026091606", now, mode: "publish", publicationControl: publicationControl(engine), job: fakeJob(stages), fetchImpl: batchFetch({ outputs, commits, failures }), recapFactory: () => ({}),
+    builderFactory: () => ({ buildSpecialtyArea: async (area, options) => {
+      active++; peak = Math.max(peak, active); await new Promise(resolve => setTimeout(resolve, 2)); active--;
+      return { data: { area, generatedAt: now.toISOString(), build: { sha: engine.backendSha, sourceRunId: options.sourceRunId, dirty: false } }, effects: {} };
+    } }),
+  });
+  assert.equal(summary.published, true);
+  assert.equal(peak, 2);
+  assert.deepEqual(outputs.sort(), [...SPECIALTY_AREAS].sort());
+  assert.equal(new Set(outputs).size, SPECIALTY_AREAS.length);
+  assert.equal(commits.count, 1);
+  assert.deepEqual(stages.map(stage => stage.name), ["load-specialty-inputs", "build-specialty-areas", "finalize-publication"]);
+  assert.equal(stages[1].options.details.maxConcurrentBuilds, 2);
+  assert.equal(failures.length, 0);
+});
+
+test("a failed area aborts the batch and cannot reach the atomic publish RPC", async () => {
+  const engine = { dirty: false, backendSha: "a".repeat(40), engineSha256: "b".repeat(64) };
+  const now = new Date(), stages = [], outputs = [], commits = { count: 0 }, failures = [];
+  await assert.rejects(runSpecialtyBatch({
+    url: "https://db.test", key: "test", engineInfo: engine, sourceRunId: "scheduled-2026091606", now, mode: "publish", publicationControl: publicationControl(engine), job: fakeJob(stages), fetchImpl: batchFetch({ outputs, commits, failures }), recapFactory: () => null,
+    builderFactory: () => ({ buildSpecialtyArea: async area => { if (area === "Breast") throw new Error("simulated area failure"); await new Promise(resolve => setTimeout(resolve, 3)); return { data: { area, generatedAt: now.toISOString(), build: { sha: engine.backendSha, sourceRunId: "scheduled-2026091606", dirty: false } }, effects: {} }; } }),
+  }), /simulated area failure/);
+  assert.equal(commits.count, 0);
+  assert.ok(failures.some(row => row.status === "failed"));
+  assert.ok(!stages.some(stage => stage.name === "finalize-publication"));
 });

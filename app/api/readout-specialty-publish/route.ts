@@ -44,8 +44,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, runId: job.id, ...summary });
   } catch (error: any) {
     if (job) {
-      // A response may be lost after the atomic transaction committed. Never
-      // replace that successful database receipt with an adapter error.
+      // A stage-log or adapter response can fail after the atomic transaction
+      // committed. Re-read only this run before recording failure, so a
+      // durable reader publication cannot be relabeled as a failed attempt.
+      try {
+        const durable = await db.from("readout_specialty_source_runs").select("status,summary")
+          .eq("id", job.id).eq("mode", "publish").maybeSingle();
+        if (!durable.error && durable.data?.status === "succeeded" && durable.data.summary?.published === true) {
+          const summary = { ...durable.data.summary, publicationReceiptRecovered: true };
+          const repaired = await db.from("pipeline_job_runs").update({ status: "succeeded", current_stage: "complete", finished_at: new Date().toISOString(), details: summary }).eq("id", job.id).eq("status", "running");
+          if (repaired.error) console.error("Specialty publication recovery logging failed", repaired.error.message);
+          return NextResponse.json({ ok: true, runId: job.id, ...summary });
+        }
+      } catch (reconciliationError) { console.error("Specialty publication recovery readback failed", reconciliationError); }
       const recorded = await db.from("pipeline_job_runs").update({ status: "failed", finished_at: new Date().toISOString(), error: String(error?.message ?? error).slice(0, 2000) }).eq("id", job.id).eq("status", "running");
       if (recorded.error) console.error("Specialty publication failure receipt could not be saved", recorded.error.message);
     }

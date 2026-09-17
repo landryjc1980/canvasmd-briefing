@@ -11,12 +11,12 @@ async function exercise(options = {}) {
   const names = ["CRON_SECRET", "VERCEL_ENV", "READOUT_SPECIALTY_PUBLISH_ENABLED", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
   const before = Object.fromEntries(names.map(name => [name, process.env[name]]));
   Object.assign(process.env, { CRON_SECRET: "test-only", VERCEL_ENV: "production", READOUT_SPECIALTY_PUBLISH_ENABLED: "1", SUPABASE_URL: "https://db.test", SUPABASE_SERVICE_ROLE_KEY: "test-only", ...options.env });
-  const calls = [], query = {};
+  const calls = [], query = {}; let activeTable = "", sourceReads = 0;
   for (const method of ["select", "eq", "order", "limit", "update"]) query[method] = (...args) => { calls.push([method, ...args]); return query; };
-  query.maybeSingle = async () => ({ data: options.existing ?? null });
+  query.maybeSingle = async () => ({ data: activeTable === "readout_specialty_source_runs" && ++sourceReads > 1 ? options.durable ?? null : options.existing ?? null });
   query.then = resolve => resolve({ error: null });
   const db = {
-    from: table => { calls.push(["from", table]); return query; },
+    from: table => { activeTable = table; calls.push(["from", table]); return query; },
     rpc: async name => { calls.push(["rpc", name]); return { data: name === "readout_specialty_publication_preflight" ? options.preflight ?? { ready: true, control: approved } : name === "acquire_ops_job_lease" ? options.lease !== false : true }; },
   };
   const deps = {
@@ -73,4 +73,13 @@ test("adapter errors only mark still-running jobs failed and release the lease",
   assert.equal(result.response.status, 500);
   assert.ok(result.calls.some(call => call[0] === "eq" && call[1] === "status" && call[2] === "running"));
   assert.ok(result.calls.some(call => call[1] === "release_ops_job_lease"));
+});
+
+test("a durable publish receipt wins over a post-commit adapter error", async () => {
+  const result = await exercise({ buildError: true, durable: { status: "succeeded", summary: { published: true, sourceRunId: "scheduled-2026091606" } } });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.response.body.published, true);
+  assert.equal(result.response.body.publicationReceiptRecovered, true);
+  assert.ok(result.calls.some(call => call[0] === "update" && call[1]?.status === "succeeded"));
+  assert.ok(!result.calls.some(call => call[0] === "update" && call[1]?.status === "failed"));
 });
