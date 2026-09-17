@@ -1,8 +1,8 @@
 {
-  "backendSha": "4098a417220a1f807f289e28808dcb1e65ac24ea",
+  "backendSha": "e8e365af5573d507da5b39839e6504eae4ae011c",
   "dirty": false,
-  "engineSha256": "a75bc7e1fbb7f9b47f7fe862977eaea14679102bea204c220e26f89586e340a9",
-  "bundleSha256": "996edd66a03ada4a6f5ea97dd3bb8fbb324a61cfc31ea758cbd9af589fcfe141",
+  "engineSha256": "0f032111c3daf117afb1b58a5f91f504b3a6af73d6cfa1bc437f1a0a390dd273",
+  "bundleSha256": "1782e1dd3036b2cea211a407d607c569ee360426ee02663acc48138b5e7d3371",
   "inputs": [
     {
       "path": "supabase/functions/_shared/anchoredDevelopments.ts",
@@ -45,6 +45,10 @@
       "sha256": "fe13d3c54b2ef8256c311784b02deb81205d2b01927ef96757c20e77bd2b1f3a"
     },
     {
+      "path": "supabase/functions/_shared/readoutArticleIdentity.ts",
+      "sha256": "be62d52dfe51e8559c85f63f88a9b77557e77326aaeae285eea9f5deb91b4d24"
+    },
+    {
       "path": "supabase/functions/_shared/readoutAudioAdmission.ts",
       "sha256": "a6f2f91b68131b7a0b41628b5a570af2be86b4093281df2c87aaba93501cc12b"
     },
@@ -62,7 +66,7 @@
     },
     {
       "path": "supabase/functions/_shared/specialtyBriefingBuilder.ts",
-      "sha256": "b071320b2287936f4985c03241e911fcb42fa78fb119c04aa93c5349c2442eb6"
+      "sha256": "15b15482e6fcccc29845e39937ad120fca8bcb10c078ce69932b78aeacec39f1"
     },
     {
       "path": "supabase/functions/_shared/storySupport.ts",
