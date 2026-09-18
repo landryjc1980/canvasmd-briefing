@@ -1,8 +1,8 @@
 {
-  "backendSha": "205e8e217797e362aaad33833d00233f4a5377ed",
+  "backendSha": "f0bd6c868e7f069453603a6626df6cf71f7dbd81",
   "dirty": false,
-  "engineSha256": "0a0f47c546291e76b5fbee69c02fe9669af11592fa80219294cbb7ea599516d3",
-  "bundleSha256": "8143cd8d0194a96d272f97f8f208473e08975843c7a67e1656fa93fe4d17896e",
+  "engineSha256": "651c78ae5aa09592b1468687f473f22089dd5ffae5244e1e18ced30067cf0833",
+  "bundleSha256": "1c5d4ad323c28d7eb5fabfa35ed8fd221f2c1cdea69250f12bf6a1b193f7e60e",
   "inputs": [
     {
       "path": "supabase/functions/_shared/anchoredDevelopments.ts",
@@ -38,7 +38,7 @@
     },
     {
       "path": "supabase/functions/_shared/heroCards.ts",
-      "sha256": "36fe691022eab4054420d6b86fbb372a131c0ea682009627d409874614ce1f9c"
+      "sha256": "e67001dc7b2c3030db9b8821739eb530685efb44de19ca682cfb9385c451d1f1"
     },
     {
       "path": "supabase/functions/_shared/publisherAbstract.ts",
@@ -62,7 +62,7 @@
     },
     {
       "path": "supabase/functions/_shared/specialtyBriefingBuilder.ts",
-      "sha256": "c064c94ebb2b40953ad523107ebf8bf5347fe80b75f0196ced103335d7a78df0"
+      "sha256": "19a469e242e4a82cd84891184f5574215a94a0c6e8e00172bf5a775e7ba370c3"
     },
     {
       "path": "supabase/functions/_shared/storySupport.ts",

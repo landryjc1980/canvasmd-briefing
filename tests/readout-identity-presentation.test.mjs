@@ -13,11 +13,11 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier, context);
 } });
 
-const { ARCHIVED_LISTEN_MEDIA, listenCardTitle, sameEditorialArticle } = await import("../app/briefing-preview/edition.ts");
+const { ARCHIVED_LISTEN_MEDIA, archivedEditorialArticle, listenCardTitle, sameEditorialArticle } = await import("../app/briefing-preview/edition.ts");
 const { sevenDayEditionDevelopments, sevenDayEditionListen } = await import("../app/briefing-preview/editionSnapshot.ts");
 const { readoutRegulatoryIdentity } = await import("../lib/readoutRegulatoryIdentity.ts");
 
-const article = (id, { doi, pmid, url = `https://example.test/${id}`, title = "A source-identified oncology article" } = {}) => ({
+const article = (id, { doi, pmid, canonicalArticleId, articleIds, url = `https://example.test/${id}`, title = "A source-identified oncology article" } = {}) => ({
   id,
   area: "Breast",
   site: "Breast",
@@ -31,6 +31,8 @@ const article = (id, { doi, pmid, url = `https://example.test/${id}`, title = "A
   evidence: "Research",
   sharedBy: 1,
   match: { doi, pmid },
+  ...(canonicalArticleId ? { canonicalArticleId } : {}),
+  ...(articleIds ? { articleIds } : {}),
 });
 
 const snapshot = (editionDate, { developments = [], relevant = [], listen = [] } = {}) => ({
@@ -98,5 +100,83 @@ test("conflicting explicit DOI or PMID identities fail closed before URL or titl
   assert.equal(
     sameEditorialArticle(article("matching", { doi: "10.1000/ONE", pmid: "111" }), article("normalized", { doi: "https://doi.org/10.1000/one", pmid: "111" })),
     true,
+  );
+});
+
+test("explicit canonical IDs govern live editorial identity without identifier inference", () => {
+  const canonicalId = "11111111-1111-1111-1111-111111111111";
+  assert.equal(
+    sameEditorialArticle(
+      article("alias", { canonicalArticleId: canonicalId, doi: "10.1000/one", pmid: "111" }),
+      article("keeper", { canonicalArticleId: canonicalId, doi: "10.1000/two", pmid: "222" }),
+    ),
+    true,
+  );
+  assert.equal(
+    sameEditorialArticle(
+      article("first", { canonicalArticleId: canonicalId, doi: "10.1000/same", pmid: "111" }),
+      article("second", { canonicalArticleId: "22222222-2222-2222-2222-222222222222", doi: "10.1000/same", pmid: "111" }),
+    ),
+    false,
+  );
+  assert.equal(
+    sameEditorialArticle(
+      article("live", { canonicalArticleId: canonicalId, doi: "10.1000/same", pmid: "111" }),
+      article("frozen", { doi: "10.1000/same", pmid: "111" }),
+    ),
+    false,
+  );
+  assert.equal(
+    sameEditorialArticle(
+      article("unresolved-first", { articleIds: ["11111111-1111-1111-1111-111111111111"], doi: "10.1000/same", pmid: "111" }),
+      article("unresolved-second", { articleIds: ["22222222-2222-2222-2222-222222222222"], doi: "10.1000/same", pmid: "111" }),
+    ),
+    false,
+  );
+  assert.equal(
+    sameEditorialArticle(
+      article("explicit-empty", { articleIds: [], doi: "10.1000/same", pmid: "111" }),
+      article("legacy", { doi: "10.1000/same", pmid: "111" }),
+    ),
+    false,
+  );
+});
+
+test("archived evidence-member arrays remain unchanged and are not treated as scalar identity", () => {
+  const articleIds = [
+    "11111111-1111-1111-1111-111111111111",
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222",
+  ];
+  const archived = archivedEditorialArticle({
+    area: "Breast",
+    firstSeen: "2026-09-18T12:00:00.000Z",
+    lastSeen: "2026-09-18T12:00:00.000Z",
+    card: {
+      id: "paper:frozen",
+      kind: "paper",
+      anchorId: "https://example.test/frozen",
+      headline: "Frozen source",
+      why: "",
+      sourceLabel: "Journal",
+      url: "https://example.test/frozen",
+      excerpt: null,
+      drugTags: [],
+      nct: null,
+      doi: null,
+      eventId: null,
+      siblings: [],
+      rankTrace: [],
+      rankTotal: 0,
+      counts: {},
+      articleIds,
+      canonicalArticleId: "33333333-3333-3333-3333-333333333333",
+    },
+  });
+  assert.deepEqual(archived.articleIds, articleIds);
+  assert.equal(archived.canonicalArticleId, "33333333-3333-3333-3333-333333333333");
+  assert.equal(
+    sameEditorialArticle(archived, article("same-members-different-paper", { articleIds })),
+    false,
   );
 });

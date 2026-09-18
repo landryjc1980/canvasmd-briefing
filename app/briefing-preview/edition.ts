@@ -30,7 +30,12 @@ export type EditorialArticle = {
   evidence: string;
   sharedBy: number;
   match: { doi?: string; pmid?: string; titleIncludes?: string };
+  /** Explicit engine-provided identity. Frozen cards may intentionally lack it. */
+  canonicalArticleId?: string;
+  /** Frozen evidence membership, distinct from canonical article identity. */
   articleIds?: string[];
+  /** Whether articleIds came from an explicit saved membership field, not a legacy support fallback. */
+  hasExplicitArticleIds?: boolean;
   sourceAction?: string;
   primarySources?: HeroSupportLink[];
   supportingEvidence?: HeroSupportLink[];
@@ -480,6 +485,19 @@ export function relatedCoverageLinks(
 }
 
 export function sameEditorialArticle(left: EditorialArticle, right: EditorialArticle): boolean {
+  const leftCanonicalArticleId = left.canonicalArticleId?.trim().toLowerCase() ?? "";
+  const rightCanonicalArticleId = right.canonicalArticleId?.trim().toLowerCase() ?? "";
+  const leftHasIdentityReceipt = left.hasExplicitArticleIds === true ||
+    (left.hasExplicitArticleIds !== false && Object.prototype.hasOwnProperty.call(left, "articleIds"));
+  const rightHasIdentityReceipt = right.hasExplicitArticleIds === true ||
+    (right.hasExplicitArticleIds !== false && Object.prototype.hasOwnProperty.call(right, "articleIds"));
+  // New live records carry the identity decided at the engine boundary. Do not
+  // let a legacy DOI/PMID/URL/title comparison join a scalar-bearing record to
+  // a frozen record that lacks that proof. The same is true for an explicit
+  // retained-source receipt whose resolution deliberately failed closed.
+  if (leftCanonicalArticleId || rightCanonicalArticleId || leftHasIdentityReceipt || rightHasIdentityReceipt) {
+    return !!leftCanonicalArticleId && leftCanonicalArticleId === rightCanonicalArticleId;
+  }
   const leftDoi = norm(left.match.doi);
   const rightDoi = norm(right.match.doi);
   const leftPmid = norm(left.match.pmid);
@@ -591,6 +609,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   const clinicianRank = card.rankTrace?.find((entry) => entry.input === "clinicianSharers")?.value ?? 0;
   const supportLinks = card.support?.links ?? [];
   const cardWithArticleIds = card as unknown as { articleIds?: unknown };
+  const cardWithCanonicalArticleId = card as unknown as { canonicalArticleId?: unknown };
   const cardHasArticleIds = Object.prototype.hasOwnProperty.call(card, "articleIds");
   const explicitArticleIds = Array.isArray(cardWithArticleIds.articleIds)
     ? cardWithArticleIds.articleIds
@@ -599,7 +618,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
   // Grouped cards carry their full evidence set explicitly. Legacy cards did not, so retain
   // the support-link reconstruction only when the property is absent; explicit [] is authoritative.
   const articleIds = cardHasArticleIds
-    ? [...new Set(explicitArticleIds)]
+    ? explicitArticleIds
     : supportLinks
       .filter((link) => link.kind === "article" || link.kind === "paper")
       .map((link) => link.id)
@@ -640,7 +659,11 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     evidence: card.kind === "event" ? "Regulatory action" : card.kind === "readout" ? "Trial readout" : "Published evidence",
     sharedBy: Math.max(card.conversation?.authoredClinicians ?? 0, clinicianRank),
     match: { doi: card.doi ?? undefined, titleIncludes: sourceTitle },
+    ...(typeof cardWithCanonicalArticleId.canonicalArticleId === "string" && cardWithCanonicalArticleId.canonicalArticleId.trim()
+      ? { canonicalArticleId: cardWithCanonicalArticleId.canonicalArticleId }
+      : {}),
     articleIds,
+    hasExplicitArticleIds: cardHasArticleIds,
     primarySources: supportLinks.filter((link) => link.relationshipType === "primary_source"),
     relatedCoverage: supportLinks,
     // Papers carry their date on the primary-source link (archiveCardForArticle stamps
@@ -713,7 +736,9 @@ export function regulatoryEditorialArticle(candidate: ReadoutRegulatoryCandidate
     evidence: candidate.eligibleLabel,
     sharedBy: candidate.metrics.totalSharers,
     match: { titleIncludes: candidate.headline },
+    ...(candidate.canonicalArticleId ? { canonicalArticleId: candidate.canonicalArticleId } : {}),
     articleIds: candidate.articleIds,
+    hasExplicitArticleIds: true,
     sourceAction: "View FDA source",
     primarySources,
     supportingEvidence,
@@ -746,7 +771,9 @@ export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate): E
       : candidate.publicationClass === "preprint" ? "Preprint — not peer reviewed" : "Article",
     sharedBy: candidate.metrics.totalSharers,
     match: { doi: candidate.doi ?? undefined, pmid: candidate.pmid ?? undefined, titleIncludes: candidate.headline },
+    ...(candidate.canonicalArticleId ? { canonicalArticleId: candidate.canonicalArticleId } : {}),
     articleIds: candidate.articleIds,
+    hasExplicitArticleIds: true,
     occurredOn: candidate.pubDate,
   };
 }
