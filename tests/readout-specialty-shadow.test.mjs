@@ -252,3 +252,9 @@ test("a failed area aborts the batch and cannot reach the atomic publish RPC", a
   assert.ok(failures.some(row => row.status === "failed"));
   assert.ok(!stages.some(stage => stage.name === "finalize-publication"));
 });
+
+ test("unused recap is optional while visible headline and story evidence remain required", async () => {
+  const transport = createSpecialtyTransport({baseUrl:"https://db.test", fetchImpl: async () => new Response(JSON.stringify({headline: "Grounded headline", recap: null, storyWhys:{s1:"Grounded takeaway"}}))});
+  await transport.fetch("https://db.test/functions/v1/briefing-recap", {method:"POST",body:JSON.stringify({area:"GU",movers:[{drug:"Example"}],stories:[{id:"s1"}]})});
+  assert.doesNotThrow(() => transport.assertHealthy());
+});

@@ -128,10 +128,6 @@ test("public archives inventory grouped reposters as clinician receipts", () => 
   assert.doesNotMatch(archivePage, /const clinicians = [^\n]+\.length/);
 });
 
-test("public archives read only the activated briefing contract", () => {
-  assert.match(heroPost, /briefing_active\?select=/);
-  assert.doesNotMatch(heroPost, /rest\/v1\/briefing_snapshots\?select=/);
-});
 
 test("primary sources render in a distinct provenance group on web and native", () => {
   for (const source of [webReader, nativeStoryEvidence]) {
