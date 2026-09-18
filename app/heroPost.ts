@@ -3,10 +3,10 @@
 // A "post" IS a weekly hero card (app/HeroCards.tsx) — the same source-anchored card the reader
 // shows on the home/area pages, and where ALL the social evidence lives (facepile of who's
 // discussing it, clinician + publisher posts, amplifiers, and directional take classifications).
-// That evidence is resolved from the activated WEEKLY brief (briefing_active.data: topStories /
+// That evidence is resolved from the activated WEEKLY brief (briefing_snapshots.data: topStories /
 // topArticles / movers / heroCandidates), NOT from the daily edition — which is why the old thin
 // daily page had nothing to show. We resolve a URL token back to {area, card, brief} by scanning
-// the current promoted build (one row per area) and rendering the card standalone.
+// the current specialty snapshots (one row per area) and rendering the card standalone.
 //
 // LINK LIFETIME: a card is in the brief only while its source sits inside the ~14-day window, so a
 // shared /r link is live for ~2 weeks, then resolves to null (graceful "moved on" page, never a
@@ -52,13 +52,11 @@ async function latestSnapshots(): Promise<SnapRow[]> {
   if (hit && Date.now() - hit.at < TTL_MS) return hit.rows;
   if (!inflight) {
     inflight = (async () => {
-      // `briefing_active` is the database's single activation contract: promoted frozen build,
-      // or legacy snapshots only when no build has ever been activated. Missing active rows fail
-      // closed instead of leaking mutable staging content into public links or the archive.
+      // The retired promotion pointer is null; read the same live snapshot rows directly.
       let rows: SnapRow[] = [];
       try {
         const res = await fetch(
-          `${URL_}/rest/v1/briefing_active?select=area,data,generated_at`,
+          `${URL_}/rest/v1/briefing_snapshots?select=area,data,generated_at`,
           { headers: supabaseApiKeyHeaders(SERVICE_KEY!), cache: "no-store" },
         );
         if (res.ok) rows = (await res.json()) as SnapRow[];
