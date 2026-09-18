@@ -322,11 +322,6 @@ export async function fetchFreshReadoutWindowForInsertions(area: EditionArea): P
   return fetchFreshReadoutWindow(area, "today", "[]", JSON.stringify({ editionDate, attentionAnchor }));
 }
 
-function mergeEvidenceOverlays(...payloads: ReadoutWindowPayload[]) {
-  return [...new Map(payloads.flatMap((payload) =>
-    (payload.overlays ?? []).map((overlay) => [overlay.id, overlay] as const))).values()];
-}
-
 // A fresh source response is allowed to repair source-facing copy, but it is
 // never an alternate edition. In particular, it cannot change area routing,
 // order, selection revision, or the set of published cards.
@@ -455,11 +450,11 @@ async function buildFinishedReadoutWindow(
   // published edition, history, or Regulatory Watch membership.
   // The All raw window already includes every canonical story's evidence.
   // Specialty source rebuilds cannot add evidence for a different publication.
-  const rawToday = window === "today" ? payload : await raw("All", "today");
-  const rawAllToday = rawToday;
-  const rawAllWeek = window === "7d" ? payload : null;
+  // The weekly source already contains today's saved edition and its evidence
+  // at the seven-day scope. Rebuilding the daily candidate pool adds no selected
+  // stories and must not make a successful weekly refresh stale.
   const canonicalCurrent = await withReadoutSelectionVersion(durableCanonical);
-  const sourceSnapshots = canonicalSourceSnapshots(rawAllToday, rawAllWeek ?? rawAllToday);
+  const sourceSnapshots = canonicalSourceSnapshots(payload);
   const hydratedCanonicalCurrent = hydrateCanonicalDisplayFields(canonicalCurrent, sourceSnapshots);
   const currentEdition = readoutEditionForArea(hydratedCanonicalCurrent, area) ?? hydratedCanonicalCurrent;
   const canonicalHistory = window === "7d" ? await readDurableCanonicalHistory(canonicalCurrent) : [canonicalCurrent];
@@ -483,8 +478,7 @@ async function buildFinishedReadoutWindow(
     editionHistory: [],
     regulatoryCards,
     designationCards,
-    overlays: mergeEvidenceOverlays(payload, rawAllToday),
-    stale: payload.stale === true || rawAllToday.stale === true,
+    stale: payload.stale === true,
   });
   return compactWindowPayload({
     ...payload,
@@ -493,8 +487,7 @@ async function buildFinishedReadoutWindow(
     historyDays: new Set(editionHistory.map((snapshot) => snapshot.editionDate)).size,
     regulatoryCards,
     designationCards,
-    overlays: mergeEvidenceOverlays(rawToday, payload, rawAllWeek ?? payload),
-    stale: payload.stale === true || rawToday.stale === true || rawAllWeek?.stale === true,
+    stale: payload.stale === true,
   });
 }
 

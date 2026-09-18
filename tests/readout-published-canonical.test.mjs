@@ -115,10 +115,14 @@ test("published Today and 7d windows project only durable canonical editions", a
   process.env.SUPABASE_URL = "https://canonical.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
   const rawRequests = [];
+  let weeklyOnly = false;
   globalThis.fetch = async (url, init = {}) => {
     const value = decodeURIComponent(String(url));
     if (value.includes("/functions/v1/briefing")) {
       rawRequests.push(JSON.parse(init.body));
+      if (weeklyOnly && JSON.parse(init.body).days === 1) {
+        throw new Error("Daily candidate building is unavailable");
+      }
       return Response.json({ ...raw, windowDays: JSON.parse(init.body).days });
     }
     if ((init.method ?? "GET") === "GET") {
@@ -132,9 +136,14 @@ test("published Today and 7d windows project only durable canonical editions", a
     const today = await getCachedReadoutWindow("GU", "today");
     assert.deepEqual(today.currentEdition.developments.map((entry) => entry.development.id), ["breaking:nectin"]);
     assert.deepEqual(today.regulatoryCards.map((item) => item.id), ["regulatory:official-gu"]);
+    weeklyOnly = true;
+    rawRequests.length = 0;
     const weekly = await getCachedReadoutWindow("GU", "7d");
     assert.deepEqual(weekly.editionHistory.map((snapshot) => snapshot.editionDate), [editionDate, priorDate]);
     assert.deepEqual(weekly.regulatoryCards.map((item) => item.id), ["regulatory:official-gu", "regulatory:prior-gu"]);
+    assert.equal(weekly.stale, false, "a weekly refresh does not depend on daily candidate building");
+    assert.deepEqual(rawRequests.map(request => [request.area, request.days]), [["All", 7]]);
+    weeklyOnly = false;
     rawRequests.length = 0;
     const warmed = await warmReadoutWindowCache({ freshSource: true });
     assert.equal(warmed.length, 16);
