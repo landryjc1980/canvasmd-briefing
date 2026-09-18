@@ -764,6 +764,8 @@ export type ReadoutRegulatoryCandidate = {
   url: string;
   occurredOn: string | null;
   areas: string[];
+  /** Canonical identity of the regulatory notice, never its supporting study. */
+  canonicalArticleId?: string;
   articleIds: string[];
   drugTags?: string[];
   finding?: string | null;
@@ -800,6 +802,7 @@ export type ReadoutBreakingCandidate = {
   pmid: string | null;
   pubDate: string | null;
   areas: string[];
+  canonicalArticleId?: string;
   articleIds: string[];
   excerpt: string | null;
   excerptSourceLabel: string;
@@ -820,6 +823,7 @@ export type ReadoutDesignationCandidate = {
   occurredOn: string | null;
   dateLabel?: "Published" | "First shared";
   areas: string[];
+  canonicalArticleId?: string;
   articleIds: string[];
   description?: string | null;
   metrics: ReadoutRegulatoryCandidate["metrics"];
@@ -1160,6 +1164,10 @@ export type HeroCard = {
   congress?: boolean;
   nct?: string | null;
   doi?: string | null;
+  /** Reader identity supplied by the engine only after exact retained-source resolution. */
+  canonicalArticleId?: string;
+  /** Frozen evidence membership; it is not a paper-identity key. */
+  articleIds?: string[];
   // CANONICAL ACTION DATE (YYYY-MM-DD) on `event` / `readout` cards — the day the regulator acted,
   // server-authored from the anchor's own occurred_on. This is the ONLY date any surface may show
   // for the development: the All rail's absolute stamp and the card's "Nd ago" both derive from it.

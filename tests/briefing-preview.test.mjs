@@ -437,8 +437,9 @@ test("archived grouped cards preserve their explicit evidence IDs", () => {
   const archived = archivedEditorialArticle({
     area: "GU", card, evidence: {}, firstSeen: "2026-09-12T12:00:00Z", lastSeen: "2026-09-12T12:00:00Z",
   });
-  assert.deepEqual(archived.articleIds, groupedIds.slice(0, 2),
-    "explicit grouped IDs are validated and deduplicated without rebuilding from support links");
+  assert.deepEqual(archived.articleIds, groupedIds.slice(0, 3),
+    "explicit grouped IDs retain their saved sequence without rebuilding from support links");
+  assert.equal(archived.hasExplicitArticleIds, true);
 
   const snapshot = buildReadoutEditionSnapshot("All", {
     generatedAt: "2026-09-12T12:00:00Z", windowDays: 1, area: "All", cards: [], moreCards: [{
@@ -447,7 +448,7 @@ test("archived grouped cards preserve their explicit evidence IDs", () => {
   }, new Date("2026-09-12T12:00:00Z"));
   const canonical = canonicalReadoutEditionSnapshot([snapshot]);
   const canonicalArticle = canonical?.relevant.find(({ article }) => article.id === archived.id)?.article;
-  assert.deepEqual(canonicalArticle?.articleIds, groupedIds.slice(0, 2),
+  assert.deepEqual(canonicalArticle?.articleIds, groupedIds.slice(0, 3),
     "canonical edition assembly retains every grouped evidence ID");
   assert.match(preview, /articleIds: item\.articleIds \?\? \[\],[\s\S]*?cards: \[card\]/,
     "the evidence-overlay request forwards every canonical article ID");
@@ -463,6 +464,7 @@ test("archived grouped cards preserve their explicit evidence IDs", () => {
     firstSeen: "2026-09-12T12:00:00Z", lastSeen: "2026-09-12T12:00:00Z",
   });
   assert.deepEqual(legacy.articleIds, [supportId], "legacy cards still derive valid article IDs from support links");
+  assert.equal(legacy.hasExplicitArticleIds, false, "legacy fallback receipts do not become identity receipts");
 });
 
 test("seven-day edition history dedupes exact cards while preserving frozen daily position", () => {
