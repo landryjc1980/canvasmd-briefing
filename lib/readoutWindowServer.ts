@@ -21,7 +21,7 @@ import { sameReadoutRegulatoryIdentity } from "@/lib/readoutRegulatoryIdentity";
 
 // Bump this whenever reader-side cache acceptance changes. It prevents an old
 // finished selection from being served before the new durable-edition check runs.
-export const READOUT_WINDOW_CACHE_TAG = "readout-window-v24";
+export const READOUT_WINDOW_CACHE_TAG = "readout-window-v25";
 export const READOUT_WINDOW_REVALIDATE_SECONDS = 60 * 60;
 
 export function supabaseApiKeyHeaders(key: string): Record<string, string> {
@@ -38,11 +38,11 @@ function supabaseServiceEnvironment() {
 }
 
 function windowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:v6:${area}:${window}`;
+  return `readout-window:v7:${area}:${window}`;
 }
 
 function finishedWindowCacheToken(area: EditionArea, window: ReadoutWindow) {
-  return `readout-window:finished:v7:${area}:${window}`;
+  return `readout-window:finished:v8:${area}:${window}`;
 }
 
 function compactWindowPayload(payload: ReadoutWindowPayload): ReadoutWindowPayload {
@@ -326,12 +326,12 @@ export async function fetchFreshReadoutWindowForInsertions(area: EditionArea): P
 // never an alternate edition. In particular, it cannot change area routing,
 // order, selection revision, or the set of published cards.
 const PAPER_DISPLAY_FIELDS = [
-  "title", "url", "sourceExcerpt", "finding", "publicationClass", "studySetting", "sourceAction",
+  "title", "url", "sourceExcerpt", "finding", "publicationClass", "studySetting", "sourceAction", "canonicalArticleId",
 ] as const;
 const REGULATORY_DISPLAY_FIELDS = [
-  "headline", "url", "finding", "sourceExcerpt", "sourceAction", "sourceLabel", "eligibleLabel",
+  "headline", "url", "finding", "sourceExcerpt", "sourceAction", "sourceLabel", "eligibleLabel", "canonicalArticleId",
 ] as const;
-const DESIGNATION_DISPLAY_FIELDS = ["headline", "url", "description", "sourceAction", "sourceLabel", "label"] as const;
+const DESIGNATION_DISPLAY_FIELDS = ["headline", "url", "description", "sourceAction", "sourceLabel", "label", "canonicalArticleId"] as const;
 
 function sourceDisplayRepair<T extends { id: string; evidence?: string; url?: string | null }>(
   frozen: T,
@@ -342,8 +342,22 @@ function sourceDisplayRepair<T extends { id: string; evidence?: string; url?: st
     !sameReadoutRegulatoryIdentity(frozen, source as { evidence?: string; url?: string }))) return frozen;
   const repaired: Record<string, unknown> = {};
   for (const field of fields) {
+    if (field === "canonicalArticleId") continue;
     const value = (source as Record<string, unknown>)[field];
     if (value !== undefined) repaired[field] = value;
+  }
+  // Canonical identity is display-only here, but it is a proof-bearing value:
+  // a current source without a valid scalar must clear a stale frozen scalar
+  // rather than leave a reader-side match enabled after its proof disappeared.
+  if (fields.includes("canonicalArticleId")) {
+    const canonicalArticleId = (source as { canonicalArticleId?: unknown }).canonicalArticleId;
+    if (typeof canonicalArticleId === "string" && canonicalArticleId.trim()) {
+      repaired.canonicalArticleId = canonicalArticleId;
+    } else {
+      const { canonicalArticleId: _staleCanonicalArticleId, ...withoutStaleCanonicalArticleId } =
+        frozen as T & { canonicalArticleId?: unknown };
+      return { ...withoutStaleCanonicalArticleId, ...repaired } as T;
+    }
   }
   return Object.keys(repaired).length ? { ...frozen, ...repaired } : frozen;
 }

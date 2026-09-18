@@ -87,8 +87,9 @@ function edition(editionDate, developments, regulatoryCards = []) {
 
 test("finished cache rejects specialty rebuild and fallback selection paths", () => {
   const source = readFileSync(path.join(root, "lib/readoutWindowServer.ts"), "utf8");
-  assert.match(source, /READOUT_WINDOW_CACHE_TAG = "readout-window-v24"/);
-  assert.match(source, /readout-window:finished:v7:/);
+  assert.match(source, /READOUT_WINDOW_CACHE_TAG = "readout-window-v25"/);
+  assert.match(source, /readout-window:v7:/);
+  assert.match(source, /readout-window:finished:v8:/);
   assert.match(source, /fetchFreshReadoutWindowForInsertions/);
   assert.doesNotMatch(source, /isEpisodeOnlyFallback/);
   assert.doesNotMatch(source, /resolveReadoutTodayEdition/);
@@ -199,6 +200,61 @@ test("reviewed FDA aliases hydrate to one source URL without changing saved IDs 
     assert.deepEqual(result.currentEdition.developments.map(e => e.development.url), [detailed.url, detailed.url]);
     assert.deepEqual(result.currentEdition.developments.map(e => e.development.areas), [["Breast"], ["Breast"]]);
     assert.equal(result.currentEdition.selectionVersion, canonical.selectionVersion);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  }
+});
+
+test("source display repair refreshes or clears canonical IDs without changing the frozen selection", async () => {
+  const date = activeReadoutEditionDate();
+  const paper = { id: "paper:refresh", area: "All", areas: ["GU"], site: "Oncology", nickname: "", takeaway: "", finding: "",
+    remember: "", journal: "Journal", title: "Paper", url: "https://example.test/paper", evidence: "Published research", sharedBy: 1,
+    match: {}, articleIds: ["frozen-paper-receipt"], canonicalArticleId: "stale-paper" };
+  const unresolvedPaper = { ...paper, id: "paper:clear", articleIds: ["unresolved-paper-receipt"], canonicalArticleId: "stale-unresolved" };
+  const regulatory = { id: "regulatory:refresh", areas: ["GU"], headline: "Action", canonicalArticleId: "stale-action", articleIds: ["frozen-action-receipt"] };
+  const designation = { id: "designation:clear", areas: ["GU"], headline: "Designation", canonicalArticleId: "stale-designation", articleIds: ["unresolved-designation-receipt"] };
+  const canonical = await withReadoutSelectionVersion({
+    ...edition(date, [paper], [regulatory]),
+    relevant: [{ article: unresolvedPaper, position: 0 }],
+    designationCards: [designation],
+  });
+  const { canonicalArticleId: _oldUnresolvedPaper, ...sourceUnresolvedPaper } = unresolvedPaper;
+  const { canonicalArticleId: _oldDesignation, ...sourceDesignation } = designation;
+  const repaired = {
+    ...canonical,
+    developments: [{ development: { ...paper, canonicalArticleId: "fresh-paper" }, episode: null, position: 0 }],
+    relevant: [{ article: sourceUnresolvedPaper, position: 0 }],
+    regulatoryCards: [{ ...regulatory, canonicalArticleId: "fresh-action" }],
+    designationCards: [{ ...sourceDesignation, canonicalArticleId: null }],
+  };
+  const originalFetch = globalThis.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = "https://display-repair.test";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).includes("/functions/v1/briefing")) return Response.json({
+      area: "All", windowDays: 1, generatedAt: new Date().toISOString(), currentEdition: repaired,
+      cards: [], moreCards: [], episodes: [], overlays: [], regulatoryCards: repaired.regulatoryCards,
+      breakingCards: [], designationCards: repaired.designationCards,
+    });
+    if ((init.method ?? "GET") !== "GET") return new Response(null, { status: 201 });
+    return Response.json(decodeURIComponent(String(url)).includes("edition:v2:") ? [{ card: canonical }] : []);
+  };
+  try {
+    const result = await getCachedReadoutWindow("All", "today");
+    const [currentPaper] = result.currentEdition.developments.map((entry) => entry.development);
+    const [currentUnresolved] = result.currentEdition.relevant.map((entry) => entry.article);
+    assert.equal(currentPaper.canonicalArticleId, "fresh-paper");
+    assert.deepEqual(currentPaper.articleIds, paper.articleIds, "source display repair never replaces frozen evidence receipts");
+    assert.equal(currentUnresolved.canonicalArticleId, undefined, "an unresolved current source clears a stale scalar");
+    assert.equal(result.currentEdition.regulatoryCards[0].canonicalArticleId, "fresh-action");
+    assert.equal(result.currentEdition.designationCards[0].canonicalArticleId, undefined);
+    assert.equal(result.currentEdition.selectionVersion, canonical.selectionVersion);
+    assert.deepEqual(result.currentEdition.developments.map((entry) => entry.development.id), canonical.developments.map((entry) => entry.development.id));
+    assert.deepEqual(result.currentEdition.relevant.map((entry) => entry.article.id), canonical.relevant.map((entry) => entry.article.id));
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;
