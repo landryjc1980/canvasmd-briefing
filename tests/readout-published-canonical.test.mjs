@@ -106,7 +106,10 @@ test("published Today and 7d windows project only durable canonical editions", a
     id: "breaking:prior", area: "All", areas: ["GU"], site: "Oncology", nickname: "BREAKING", takeaway: "", finding: "",
     remember: "", journal: "Journal", title: "Prior GU", url: "https://example.test/prior", evidence: "Published research", sharedBy: 0, match: {},
   }], [{ id: "regulatory:prior-gu", areas: ["GU"], headline: "Prior official action" }]));
-  const raw = { generatedAt: new Date().toISOString(), windowDays: 1, area: "GU", cards: [], moreCards: [], episodes: [], overlays: [],
+  const raw = { generatedAt: new Date().toISOString(), windowDays: 1, area: "GU", cards: [], moreCards: [], episodes: [], overlays: [
+    { id: "regulatory:official-gu", articleIds: ["regulatory-paper-current"], windowClinicianCount: 2, kolSharers: 2, windowSharerPeople: [] },
+    { id: "regulatory:prior-gu", articleIds: ["regulatory-paper-prior"], windowClinicianCount: 0, kolSharers: 0, windowSharerPeople: [] },
+  ],
     currentEdition: edition(editionDate, [{ id: "raw:wrong", area: "GU", site: "GU", nickname: "", takeaway: "", finding: "", remember: "", journal: "", title: "Raw", url: "https://example.test/raw", evidence: "", sharedBy: 0, match: {} }]),
     regulatoryCards: [{ id: "regulatory:raw", areas: ["GU"], headline: "Raw candidate" }], breakingCards: [], designationCards: [] };
   const originalFetch = globalThis.fetch;
@@ -115,15 +118,25 @@ test("published Today and 7d windows project only durable canonical editions", a
   process.env.SUPABASE_URL = "https://canonical.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
   const rawRequests = [];
+  let activeRawReads = 0;
+  let maxConcurrentRawReads = 0;
   let weeklyOnly = false;
   globalThis.fetch = async (url, init = {}) => {
     const value = decodeURIComponent(String(url));
     if (value.includes("/functions/v1/briefing")) {
-      rawRequests.push(JSON.parse(init.body));
-      if (weeklyOnly && JSON.parse(init.body).days === 1) {
-        throw new Error("Daily candidate building is unavailable");
+      const request = JSON.parse(init.body);
+      rawRequests.push(request);
+      activeRawReads += 1;
+      maxConcurrentRawReads = Math.max(maxConcurrentRawReads, activeRawReads);
+      await new Promise((resolve) => setImmediate(resolve));
+      try {
+        if (weeklyOnly && request.days === 1) {
+          throw new Error("Daily candidate building is unavailable");
+        }
+        return Response.json({ ...raw, windowDays: request.days });
+      } finally {
+        activeRawReads -= 1;
       }
-      return Response.json({ ...raw, windowDays: JSON.parse(init.body).days });
     }
     if ((init.method ?? "GET") === "GET") {
       if (value.includes("edition:v2:")) return Response.json([{ card: canonical }]);
@@ -141,6 +154,9 @@ test("published Today and 7d windows project only durable canonical editions", a
     const weekly = await getCachedReadoutWindow("GU", "7d");
     assert.deepEqual(weekly.editionHistory.map((snapshot) => snapshot.editionDate), [editionDate, priorDate]);
     assert.deepEqual(weekly.regulatoryCards.map((item) => item.id), ["regulatory:official-gu", "regulatory:prior-gu"]);
+    assert.deepEqual(weekly.overlays.filter((item) => item.id.startsWith("regulatory:")).map((item) => [item.id, item.windowClinicianCount, item.kolSharers]), [
+      ["regulatory:official-gu", 2, 2], ["regulatory:prior-gu", 0, 0],
+    ]);
     assert.equal(weekly.stale, false, "a weekly refresh does not depend on daily candidate building");
     assert.deepEqual(rawRequests.map(request => [request.area, request.days]), [["All", 7]]);
     weeklyOnly = false;
@@ -150,6 +166,7 @@ test("published Today and 7d windows project only durable canonical editions", a
     assert.equal(warmed.filter(item => item.error || item.stale).length, 0);
     assert.deepEqual(rawRequests.map(request => [request.area, request.days]).sort(), [["All", 1], ["All", 7]],
       "all specialty projections share exactly two raw observations");
+    assert.equal(maxConcurrentRawReads, 1, "warming finishes Today before the weekly raw source starts");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = originalUrl;

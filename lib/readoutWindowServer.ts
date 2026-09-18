@@ -525,7 +525,10 @@ export async function warmReadoutWindow(
 export async function warmReadoutWindowCache(options: { freshSource?: boolean; signal?: AbortSignal } = {}) {
   // Share one observation per window across all eight specialty projections.
   const sourceCache = new Map<string, Promise<ReadoutWindowPayload>>();
-  const requests = EDITION_AREAS.flatMap((area) => (["today", "7d"] as const).map((window) => ({ area, window })));
+  // Each window shares one source read across its area projections. Complete
+  // Today before starting the weekly read so two heavy Edge builds do not
+  // compete while the cheap area projections can still run together.
+  const requests = (["today", "7d"] as const).flatMap((window) => EDITION_AREAS.map((area) => ({ area, window })));
   const warmed: Array<{ area: EditionArea; window: ReadoutWindow; generatedAt: string | null; stale: boolean; error?: string }> = [];
 
   for (let index = 0; index < requests.length; index += 4) {
