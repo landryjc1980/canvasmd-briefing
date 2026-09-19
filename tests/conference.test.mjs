@@ -18,6 +18,27 @@ const runtime = await import(`data:text/javascript;base64,${Buffer.from(ts.trans
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText).toString("base64")}`);
 
+test("the rendered teaser is absent without ongoing meetings and links live coverage", () => {
+  const now = new Date("2026-09-19T16:00:00Z");
+  const compiled = ts.transpileModule(teaser, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+    fileName: "ConferenceTeaser.tsx",
+  }).outputText;
+  const module = { exports: {} };
+  new Function("require", "module", "exports", compiled)((id) => id === "@/lib/conference"
+    ? { ...runtime, selectConferenceTeasers: (meetings, area) => runtime.selectConferenceTeasers(meetings, area, now) }
+    : require(id), module, module.exports);
+  const render = (meetings) => require("react-dom/server").renderToStaticMarkup(
+    require("react").createElement(module.exports.default, { meetings, area: "All" }),
+  );
+  const meeting = { key: "meeting", shortName: "Meeting", startDate: "2026-09-12", endDate: "2026-09-15", tumorFocus: "General", year: 2026 };
+  assert.equal(render([]), "");
+  assert.equal(render([meeting, { ...meeting, startDate: "2026-09-20", endDate: "2026-09-23" }]), "");
+  const live = render([{ ...meeting, startDate: "2026-09-19", endDate: "2026-09-21" }]);
+  assert.match(live, /aria-label="Conference coverage"/);
+  assert.match(live, /href="\/conference\/meeting\?year=2026"/);
+});
+
 test("conference teaser selection retains every eligible matching live meeting", () => {
   assert.match(source, /export function selectConferenceTeasers/);
   assert.match(source, /return ranked\.map\(\(\{ meeting \}\) => meeting\)/);
