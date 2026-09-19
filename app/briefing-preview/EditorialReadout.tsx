@@ -1283,7 +1283,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
           <article key={designation.id}>
             <span>{designation.label.replace(/^FDA\s+/i, "").toUpperCase()}</span>
             <div>
-              <b>{designation.headline}</b>
+              <a className="er-regulatory-headline" href={designation.url} target="_blank" rel="noreferrer"><b>{designation.headline}</b></a>
               <p className="er-regulatory-date">{designation.dateLabel ?? "First shared"}: {editionDateLabel(designation.occurredOn)
                 ? <time dateTime={designation.occurredOn ?? undefined}>{editionDateLabel(designation.occurredOn)}</time>
                 : "Unavailable"}</p>

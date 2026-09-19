@@ -291,9 +291,11 @@ body { margin: 0; background: var(--er-paper); color: var(--er-ink); font-family
   .er-mornings-editions { gap: 8px; }
 }
 
-.er-regulatory article { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 20px; padding: 18px; border: 1px solid var(--er-line); border-radius: 7px; background: var(--er-surface); }
-.er-regulatory article > span { width: max-content; max-width: 100%; height: max-content; padding: 8px 11px; border-radius: 4px; background: #46546a; color: white; font-size: 11px; font-weight: 850; letter-spacing: 1.3px; overflow-wrap: anywhere; }
+.er-regulatory article { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; padding: 18px; border: 1px solid var(--er-line); border-radius: 7px; background: var(--er-surface); }
+.er-regulatory article > span { width: max-content; max-width: 100%; height: max-content; padding: 8px 11px; border-radius: 4px; background: #46546a; color: white; font-size: 11px; font-weight: 850; letter-spacing: 1.3px; overflow-wrap: normal; word-break: keep-all; }
 .er-regulatory b { font: 700 18px/1.35 system-ui, sans-serif; }
+.er-regulatory a.er-regulatory-headline { display: block; color: var(--er-ink); font-weight: 700; text-decoration: none; }
+.er-regulatory a.er-regulatory-headline:hover, .er-regulatory a.er-regulatory-headline:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .er-regulatory article p { color: var(--er-muted); margin: 5px 0 4px; }
 .er-regulatory article .er-regulatory-date { color: var(--er-faint); font-size: 12px; }
 .er-regulatory-empty, .er-empty, .er-window-loading { color: var(--er-muted); font-size: 15px; font-weight: 400; line-height: 1.5; }
