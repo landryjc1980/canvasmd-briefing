@@ -109,6 +109,7 @@ test("Regulatory Watch shows in-window specialty actions once and keeps main-car
     url: "https://www.fda.gov/drugs/camizestrant",
     occurredOn: "2026-09-04",
     areas: ["Breast"],
+    canonicalArticleId: "fda:camizestrant-approval",
     articleIds: [],
     finding: "FDA approved camizestrant for ESR1-mutated breast cancer.",
     primarySources: [
@@ -139,6 +140,7 @@ test("Regulatory Watch shows in-window specialty actions once and keeps main-car
     url: candidate.url,
     evidence: "Regulatory action",
     sharedBy: 1,
+    canonicalArticleId: candidate.canonicalArticleId,
     match: { titleIncludes: candidate.headline },
   };
   assert.equal(regulatoryWatchArticles([candidate], "All", [{ ...alreadyPublished, kind: "event" }]).length, 0);

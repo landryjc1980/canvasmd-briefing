@@ -269,8 +269,8 @@ test("a stale current edition cannot displace a durable three-by-three daily sel
     ["new-1", "new-2", "new-3", "new-4", "new-5", "new-6"],
   );
   assert.equal(selected.editionDate === oldCurrent.editionDate, false);
-  assert.match(readoutServer, /const sourceSnapshots = canonicalSourceSnapshots\(rawAllToday, rawAllWeek \?\? rawAllToday\)/,
-    "fresh source snapshots are isolated from the durable canonical selection");
+  assert.match(readoutServer, /const sourceSnapshots = canonicalSourceSnapshots\(payload\)/,
+    "the current raw payload can repair display fields without supplying a replacement selection");
   assert.match(readoutServer, /hydrateCanonicalDisplayFields\(canonicalCurrent, sourceSnapshots\)/,
     "fresh source copy may repair display fields without replacing the saved selection");
 });
@@ -584,8 +584,8 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(preview, /visibilitychange/);
   assert.match(readoutServer, /unstable_cache/);
   assert.match(readoutServer, /READOUT_WINDOW_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v24"/);
-  assert.match(readoutServer, /readout-window:finished:v7:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /READOUT_WINDOW_CACHE_TAG = "readout-window-v25"/);
+  assert.match(readoutServer, /readout-window:finished:v8:\$\{area\}:\$\{window\}/,
     "each reader selection resolves to one finished prebuilt payload");
   assert.doesNotMatch(readoutServer, /fetchFinishedReadoutWindow/,
     "durable-edition validation runs outside the framework data cache on every reader request");
@@ -596,7 +596,7 @@ test("the browser receives one server-cached payload and never refreshes evidenc
     "the scheduled warmer writes all finished views before readers request them");
   assert.doesNotMatch(readoutServer, /posts: overlay\.posts\.slice\(0, 1\)/,
     "published comments remain available to guests in the bounded saved edition");
-  assert.match(readoutServer, /readout-window:v6:\$\{area\}:\$\{window\}/,
+  assert.match(readoutServer, /readout-window:v7:\$\{area\}:\$\{window\}/,
     "a new atomic payload schema cannot reuse a legacy last-good window");
   assert.match(readoutServer, /kind=eq\.edition&area=eq\.All&order=last_seen\.desc/,
     "the seven-day reader window is reconstructed from persisted canonical All history");
