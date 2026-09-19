@@ -139,12 +139,12 @@ export function conferencePhase(meeting: ConferenceMeeting, now = new Date()): C
   return "past";
 }
 
-/** Home promotion begins two calendar days before opening and ends seven after close. */
+/** Home promotion is shown only while the meeting is live on its Eastern calendar dates. */
 export function conferenceIsEligible(meeting: ConferenceMeeting, now = new Date()): boolean {
   const start = dateAtNoon(meeting.startDate);
   const end = dateAtNoon(meeting.endDate);
   const today = easternDayAtNoon(now);
-  return start !== null && end !== null && today >= start - 2 * DAY_MS && today <= end + 7 * DAY_MS;
+  return start !== null && end !== null && today >= start && today <= end;
 }
 
 export function conferenceHref(meeting: Pick<ConferenceMeeting, "key" | "year">): string {
@@ -166,7 +166,7 @@ function compareConferenceMeetings(left: ConferenceMeeting, right: ConferenceMee
   return left.startDate.localeCompare(right.startDate);
 }
 
-/** Home promotion retains the existing two-days-before/seven-after window for every matching meeting. */
+/** Home promotion retains every matching meeting that is live today. */
 export function selectConferenceTeasers(meetings: ConferenceMeeting[], area: string, now = new Date()): ConferenceMeeting[] {
   const ranked = meetings
     .filter((meeting) => conferenceAppliesToArea(meeting, area))

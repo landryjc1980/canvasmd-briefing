@@ -18,23 +18,21 @@ const runtime = await import(`data:text/javascript;base64,${Buffer.from(ts.trans
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText).toString("base64")}`);
 
-test("conference teaser selection retains every eligible matching meeting in the existing home window", () => {
+test("conference teaser selection retains every eligible matching live meeting", () => {
   assert.match(source, /export function selectConferenceTeasers/);
   assert.match(source, /return ranked\.map\(\(\{ meeting \}\) => meeting\)/);
   assert.doesNotMatch(source, /nonLive\.slice/);
   assert.match(source, /conferenceAppliesToArea\(meeting, area\)/);
-  assert.match(source, /start - 2 \* DAY_MS/);
-  assert.match(source, /end \+ 7 \* DAY_MS/);
 });
 
-test("conference selection picks live SOHO for All and Heme while Lung receives WCLC", () => {
+test("conference selection picks only live meetings for its matching area", () => {
   const now = new Date("2026-09-10T16:00:00Z");
   const soho = { key: "soho", name: "SOHO", shortName: "SOHO 2026", society: null, location: "Houston", startDate: "2026-09-09", endDate: "2026-09-12", tumorFocus: "Heme", sourceUrl: null, year: 2026 };
   const wclc = { key: "wclc", name: "WCLC", shortName: "WCLC 2026", society: null, location: "Seoul", startDate: "2026-09-12", endDate: "2026-09-15", tumorFocus: ["Lung"], sourceUrl: null, year: 2026 };
   assert.equal(runtime.selectConference([wclc, soho], "All", now)?.key, "soho");
   assert.equal(runtime.selectConference([wclc, soho], "Heme", now)?.key, "soho");
-  assert.equal(runtime.selectConference([soho, wclc], "Lung", now)?.key, "wclc");
-  assert.equal(runtime.selectConference([soho, wclc], "All", new Date("2026-09-16T16:00:00Z"))?.key, "wclc");
+  assert.equal(runtime.selectConference([soho, wclc], "Lung", now), null);
+  assert.equal(runtime.selectConference([soho, wclc], "All", new Date("2026-09-16T16:00:00Z")), null);
   assert.equal(runtime.conferenceHref(soho), "/conference/soho?year=2026");
 });
 
@@ -44,8 +42,8 @@ test("conference teaser selection shows overlapping live SOHO and WCLC rows for 
   const wclc = { key: "wclc", name: "WCLC", shortName: "WCLC 2026", society: null, location: "Seoul", startDate: "2026-09-12", endDate: "2026-09-15", tumorFocus: ["Lung"], sourceUrl: null, year: 2026 };
   const upcoming = { ...wclc, key: "esmo", shortName: "ESMO 2026", startDate: "2026-09-13", endDate: "2026-09-16", tumorFocus: "Lung" };
   const secondUpcoming = { ...upcoming, key: "asco", shortName: "ASCO 2026", startDate: "2026-09-14", endDate: "2026-09-17" };
-  assert.deepEqual(runtime.selectConferenceTeasers([secondUpcoming, upcoming, wclc, soho], "All", now).map((meeting) => meeting.key), ["soho", "wclc", "esmo", "asco"]);
-  assert.deepEqual(runtime.selectConferenceTeasers([upcoming, wclc, soho], "Lung", now).map((meeting) => meeting.key), ["wclc", "esmo"]);
+  assert.deepEqual(runtime.selectConferenceTeasers([secondUpcoming, upcoming, wclc, soho], "All", now).map((meeting) => meeting.key), ["soho", "wclc"]);
+  assert.deepEqual(runtime.selectConferenceTeasers([upcoming, wclc, soho], "Lung", now).map((meeting) => meeting.key), ["wclc"]);
   assert.deepEqual(runtime.selectConferenceTeasers([upcoming, wclc, soho], "Heme", now).map((meeting) => meeting.key), ["soho"]);
 });
 
@@ -66,14 +64,18 @@ test("conference directory groups live, upcoming, and older coverage without the
   assert.match(directory, /conference-directory-row-specialty/);
 });
 
-test("conference promotion starts two Eastern calendar days before opening and includes the full final day", () => {
+test("home promotion is limited to the inclusive live dates in Eastern time", () => {
   const meeting = { key: "meeting", name: "Meeting", shortName: "Meeting", society: null, location: null, startDate: "2026-09-09", endDate: "2026-09-12", tumorFocus: "General", sourceUrl: null, year: 2026 };
   const at = (date) => new Date(`${date}T16:00:00Z`);
   assert.equal(runtime.conferencePhase(meeting, at("2026-09-07")), "upcoming");
-  assert.equal(runtime.conferenceIsEligible(meeting, at("2026-09-07")), true);
+  assert.equal(runtime.conferenceIsEligible(meeting, at("2026-09-07")), false);
   assert.equal(runtime.conferenceIsEligible(meeting, at("2026-09-06")), false);
   assert.equal(runtime.conferencePhase(meeting, at("2026-09-09")), "live");
   assert.equal(runtime.conferencePhase(meeting, at("2026-09-12")), "live");
+  assert.equal(runtime.conferenceIsEligible(meeting, new Date("2026-09-09T03:59:59Z")), false);
+  assert.equal(runtime.conferenceIsEligible(meeting, new Date("2026-09-09T04:00:00Z")), true);
+  assert.equal(runtime.conferenceIsEligible(meeting, new Date("2026-09-13T03:59:59Z")), true);
+  assert.equal(runtime.conferenceIsEligible(meeting, new Date("2026-09-13T04:00:00Z")), false);
   assert.equal(runtime.selectConference([meeting], "Lung", at("2026-09-09"))?.key, "meeting");
   const distant = { ...meeting, key: "future", startDate: "2026-11-01", endDate: "2026-11-04" };
   assert.equal(runtime.selectConference([distant], "All", at("2026-09-10")), null);
