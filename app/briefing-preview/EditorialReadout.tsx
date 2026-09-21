@@ -517,7 +517,9 @@ function DevelopmentFinding({
 function articleContentType(item: EditorialArticle): string {
   // NEJM encodes the article form in the DOI suffix: NEJMc is Correspondence.
   if (/10\.1056\/NEJMc\d/i.test(item.url)) return "Correspondence";
-  if (item.publicationClass && item.publicationClass !== "research") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline", unknown: "Article" }[item.publicationClass];
+  // "unknown" means the classifier has not looked; fall through to the ordinary
+  // label rather than announce it (parity with native readout-display.ts).
+  if (item.publicationClass && item.publicationClass !== "research" && item.publicationClass !== "unknown") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline" }[item.publicationClass];
   const hay = `${item.evidence} ${item.sourceAction ?? ""} ${item.journal}`;
   if (/approval/i.test(hay)) return "FDA approval";
   if (/safety|warning/i.test(hay)) return "FDA safety";
