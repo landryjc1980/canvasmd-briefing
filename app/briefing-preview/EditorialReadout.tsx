@@ -1,7 +1,7 @@
 "use client";
 import { activeReadoutEditionDate, READOUT_WINDOWS, readoutWindowKeyboardTarget } from "./readoutRequest";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { BriefingArticle, BriefingData, BriefingEvidenceOverlay, BriefingEvidenceOverlayItem, BriefingSharer, HeroSupportLink, ReadoutWindowPayload } from "@/lib/types";
 import type { ReadoutDiscussion, ReadoutDiscussionArticle, ReadoutOriginalPost, ReadoutPublisherPost } from "@/lib/types";
 import {
@@ -336,9 +336,14 @@ function usesEditionWindow(overlay: BriefingEvidenceOverlayItem | undefined, win
   return (window === "today" || window === "7d") && (overlay?.windowClinicianCount ?? 0) > 0;
 }
 
-/** The period printed beside the count. Never "this week" on an all-time count. */
-function attentionPeriodFor(overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow): string | null {
-  if (!usesEditionWindow(overlay, window)) return null;
+/** True while the reader shows a previous edition because today's is not available. */
+const PreviousEditionContext = createContext(false);
+
+/** The period printed beside the count. Never "this week" on an all-time count, and
+ * none on a previous edition: it keeps its own window count, but "since yesterday
+ * morning" / "this week" would be false for it. */
+function attentionPeriodFor(overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow, previousEdition = false): string | null {
+  if (previousEdition || !usesEditionWindow(overlay, window)) return null;
   return window === "7d" ? "this week" : "since yesterday morning";
 }
 
@@ -661,7 +666,8 @@ function ArticleDevelopment({
     return () => { cancelled = true; };
   }, [discussionKey]);
   const article = withDiscussion(articleWithLiveEvidence(item, briefs, overlay, window), discussion);
-  const attentionPeriod = attentionPeriodFor(overlay, window);
+  const previousEdition = useContext(PreviousEditionContext);
+  const attentionPeriod = attentionPeriodFor(overlay, window, previousEdition);
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
@@ -1090,13 +1096,9 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
     () => new Map((windowPayload?.overlays ?? []).map((overlay) => [overlay.id, overlay])),
     [windowPayload],
   );
-  // A previous edition's window began before yesterday morning, so its window
-  // count must not be labelled "since yesterday morning". Show the all-time
-  // count with no period instead.
+  // A previous edition keeps its own counts; PreviousEditionContext drops only the period.
   const previousEdition = windowPayload?.previousEdition === true;
-  const activeEvidenceOverlays = useMemo(() => previousEdition && readoutWindow === "today"
-    ? new Map([...payloadEvidenceOverlays].map(([id, overlay]) => [id, { ...overlay, windowClinicianCount: 0 }]))
-    : payloadEvidenceOverlays, [payloadEvidenceOverlays, previousEdition, readoutWindow]);
+  const activeEvidenceOverlays = payloadEvidenceOverlays;
   const worth = currentWorth;
   const pageReady = !!windowPayload;
   const publishedDevelopments = [...worth, ...addedSinceMorning, ...relevant, ...moreFromSevenDays];
@@ -1163,6 +1165,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
   };
 
   return (
+    <PreviousEditionContext.Provider value={previousEdition}>
     <main className={`er-page er-area-${area.toLowerCase()}`}>
       <header className="er-header">
         <div className="er-brand">
@@ -1321,5 +1324,6 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         </div>
       </div>
       </main>
+    </PreviousEditionContext.Provider>
   );
 }

@@ -111,7 +111,7 @@ test("the reader resolves a previous-edition payload to that saved edition, neve
   assert.deepEqual(resolved.developments.map((entry) => entry.development.id), [story.id]);
 });
 
-test("the page labels the fallback as the latest edition with its real date and no 'since yesterday' period", () => {
+test("the page labels the fallback as the latest edition with its real date, keeps its counts and drops the period", () => {
   const { default: EditorialReadout } = load("app/briefing-preview/EditorialReadout.tsx");
   const html = renderToStaticMarkup(React.createElement(EditorialReadout, { initialPayload: { ...finishedPrior, previousEdition: true } }));
   const label = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "long", day: "numeric", year: "numeric" })
@@ -119,6 +119,8 @@ test("the page labels the fallback as the latest edition with its real date and 
   assert.match(html, new RegExp(`Latest edition: ${label}`));
   assert.match(html, new RegExp(`Today’s edition isn’t available yet\\. Showing the latest edition, ${label}\\.`));
   assert.doesNotMatch(html, /Edition: /, "the old edition is never labelled as the current Edition");
-  assert.doesNotMatch(html, /since yesterday morning/);
-  assert.match(html, /Shared by 9 clinicians/, "the all-time count is shown with no period");
+  assert.doesNotMatch(html, /since yesterday morning|this week/);
+  assert.match(html, /Shared by 4 clinicians/, "the edition keeps its own window count");
+  assert.doesNotMatch(html, /Shared by 9 clinicians/, "never swapped for the all-time count");
+  assert.doesNotMatch(html, /class="er-since"/, "no period on a previous edition");
 });
