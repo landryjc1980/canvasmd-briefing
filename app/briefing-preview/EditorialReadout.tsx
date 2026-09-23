@@ -1205,7 +1205,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         <ConferenceTeaser meetings={conferenceMeetings} area={area} />
         <div id="readout-window-panel" role="tabpanel" aria-labelledby={`readout-window-tab-${requestedWindow}`} aria-busy={loadingWindow} tabIndex={-1}>
         {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
-        {previousEdition && latestEditionDate && <p className="er-window-note" role="status">Today’s edition isn’t available yet. Showing the latest edition, {latestEditionDate}.</p>}
+        {previousEdition && latestEditionDate && <p className="er-window-note" role="status">Showing the latest available edition: {latestEditionDate}.</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">Specialty lead selected from the 72-hour Listen window.</p>}

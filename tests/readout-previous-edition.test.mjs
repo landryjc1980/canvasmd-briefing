@@ -117,7 +117,9 @@ test("the page labels the fallback as the latest edition with its real date, kee
   const label = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "long", day: "numeric", year: "numeric" })
     .format(new Date(`${priorDate}T12:00:00-04:00`));
   assert.match(html, new RegExp(`Latest edition: ${label}`));
-  assert.match(html, new RegExp(`Today’s edition isn’t available yet\\. Showing the latest edition, ${label}\\.`));
+  // Not "Today's edition isn't available": it may be published with its reader cache delayed.
+  assert.match(html, new RegExp(`Showing the latest available edition: ${label}\\.`));
+  assert.doesNotMatch(html, /isn’t available yet/);
   assert.doesNotMatch(html, /Edition: /, "the old edition is never labelled as the current Edition");
   assert.doesNotMatch(html, /since yesterday morning|this week/);
   assert.match(html, /Shared by 4 clinicians/, "the edition keeps its own window count");
