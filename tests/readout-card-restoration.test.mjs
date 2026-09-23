@@ -44,8 +44,8 @@ const overlay = {
   sharerPeople: [{ name: "Alex Rivera", handle: "arivera", avatar: "https://example.org/clinician-avatar.jpg", tweetUrl: "https://x.com/arivera/status/123" }],
   posts: [{ name: "Alex Rivera", handle: "arivera", avatar: "https://example.org/clinician-avatar.jpg", text: "A useful discussion of the regression fixture's methods, its limitations, and what it changes for practice.", sourceLane: "clinician", tweetUrl: "https://x.com/arivera/status/123" }],
 };
-export function restoredCardHtml(observation = overlay) {
-  return renderToStaticMarkup(React.createElement(ArticleDevelopment, { item, briefs: [], overlays: new Map([[item.id, observation]]), numbered: true }));
+export function restoredCardHtml(observation = overlay, window = "today") {
+  return renderToStaticMarkup(React.createElement(ArticleDevelopment, { item, briefs: [], overlays: new Map([[item.id, observation]]), numbered: true, window }));
 }
 
 test("actual collapsed research card retains avatars and clinician voices without attention metadata", () => {
@@ -59,12 +59,28 @@ test("actual collapsed research card retains avatars and clinician voices withou
   assert.doesNotMatch(html, /Edition attention|er-overall-evidence|Clinician evidence|published Sep/);
 });
 
-test("an empty edition window falls back to the seven-day count with no period", () => {
+test("an empty edition window falls back to the all-time count with no period", () => {
   const html = restoredCardHtml({ ...overlay, windowClinicianCount: 0, windowFaces: [], windowPosts: [], windowSharerPeople: [] });
   assert.match(html, /Shared by 3 clinicians/);
   assert.match(html, /class="er-faces"/);
   assert.match(html, /What clinicians are saying/);
   assert.doesNotMatch(html, /since yesterday|since .*morning/);
+});
+
+test("the 7-day view counts clinicians from the seven-day window, never the all-time count, as this week", () => {
+  // Audit 2026-09-22: a card printed the all-time 39 as "this week" while 17 shared it in the window.
+  const weekly = { ...overlay, kolSharers: 39, windowClinicianCount: 17, windowAuthoredClinicianCount: 1,
+    windowFaces: ["https://example.org/window-avatar.jpg"], windowSharerPeople: overlay.sharerPeople };
+  const html = restoredCardHtml(weekly, "7d");
+  assert.match(html, /Shared by 17 clinicians<span class="er-since"> this week<\/span>/);
+  assert.doesNotMatch(html, /Shared by 39/);
+  assert.doesNotMatch(html, /since yesterday/);
+});
+
+test("with no seven-day window count the 7-day card shows the all-time count with no period", () => {
+  const html = restoredCardHtml({ ...overlay, kolSharers: 39, windowClinicianCount: 0, windowFaces: [], windowPosts: [], windowSharerPeople: [] }, "7d");
+  assert.match(html, /Shared by 39 clinicians/);
+  assert.doesNotMatch(html, /this week/);
 });
 
 test("the edition window count leads the card on Today, with its period and the breakdown", () => {

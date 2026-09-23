@@ -329,10 +329,17 @@ function articleFromEditorial(item: EditorialArticle): BriefingArticle {
   };
 }
 
-/** The edition window (since yesterday morning) is the count that earned the slot; use it on Today
- * whenever the overlay carries it. Comments still come from the whole seven-day pool. */
+/** The overlay's window count matches the view: the edition window (since yesterday morning) on
+ * Today, the seven-day window on 7d. `kolSharers` is the all-time count as of now, so it is shown
+ * only without a period label. Comments still come from the whole pool. */
 function usesEditionWindow(overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow): boolean {
-  return window === "today" && (overlay?.windowClinicianCount ?? 0) > 0;
+  return (window === "today" || window === "7d") && (overlay?.windowClinicianCount ?? 0) > 0;
+}
+
+/** The period printed beside the count. Never "this week" on an all-time count. */
+function attentionPeriodFor(overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow): string | null {
+  if (!usesEditionWindow(overlay, window)) return null;
+  return window === "7d" ? "this week" : "since yesterday morning";
 }
 
 function applyEvidenceOverlay(article: BriefingArticle | null, overlay: BriefingEvidenceOverlayItem | undefined, window: ReadoutWindow = "today"): BriefingArticle | null {
@@ -654,7 +661,7 @@ function ArticleDevelopment({
     return () => { cancelled = true; };
   }, [discussionKey]);
   const article = withDiscussion(articleWithLiveEvidence(item, briefs, overlay, window), discussion);
-  const attentionPeriod = usesEditionWindow(overlay, window) ? "since yesterday morning" : window === "7d" ? "this week" : null;
+  const attentionPeriod = attentionPeriodFor(overlay, window);
   const href = article?.url || item.url;
   const sharedBy = article?.kolSharers ?? item.sharedBy;
   const contentType = articleContentType(item);
