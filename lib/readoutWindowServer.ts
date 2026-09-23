@@ -167,7 +167,7 @@ async function readDurableCanonicalHistory(current: ReadoutEditionSnapshot): Pro
   );
 }
 
-function validFinishedEdition(
+export function validFinishedEdition(
   area: EditionArea,
   edition: unknown,
   durableCanonical: ReadoutEditionSnapshot | null,
