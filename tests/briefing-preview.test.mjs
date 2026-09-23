@@ -1078,7 +1078,7 @@ test("the briefing is editorial rather than a repackaged catalog", () => {
   assert.match(preview, /Regulatory Watch/);
   assert.match(preview, /No development cleared the bar/);
   assert.match(preview, /readoutWindow === "today" && area !== "All"/);
-  assert.match(preview, /Nothing new cleared the bar in \{AREA_LABELS\[area\]\} today\./);
+  assert.match(preview, /Nothing new cleared the bar in \{AREA_LABELS\[area\]\} \{previousEdition \? "in this edition" : "today"\}\./);
   assert.match(preview, /onClick=\{\(\) => chooseWindow\("7d"\)\}>See the last 7 days/);
   assert.match(previewCss, /\.er-empty-history \{[^}]*min-height: 44px/);
   assert.doesNotMatch(preview, />Papers<|>Trials<|>People<|>Drugs</);
@@ -1104,7 +1104,7 @@ test("specialty filters are lenses on the same earned briefing", () => {
   // A quiet specialty day stays quiet (72h rescue removed 2026-08-29): the honest empty
   // state names the area and routes to the 7-day view rather than widening the window.
   assert.doesNotMatch(preview, /Showing the strongest qualifying development from the past 72 hours/);
-  assert.match(preview, /Nothing new cleared the bar in \{AREA_LABELS\[area\]\} today\./);
+  assert.match(preview, /Nothing new cleared the bar in \{AREA_LABELS\[area\]\} \{previousEdition \? "in this edition" : "today"\}\./);
   assert.match(preview, /See the last 7 days/);
 });
 

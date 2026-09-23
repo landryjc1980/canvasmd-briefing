@@ -1090,7 +1090,13 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
     () => new Map((windowPayload?.overlays ?? []).map((overlay) => [overlay.id, overlay])),
     [windowPayload],
   );
-  const activeEvidenceOverlays = payloadEvidenceOverlays;
+  // A previous edition's window began before yesterday morning, so its window
+  // count must not be labelled "since yesterday morning". Show the all-time
+  // count with no period instead.
+  const previousEdition = windowPayload?.previousEdition === true;
+  const activeEvidenceOverlays = useMemo(() => previousEdition && readoutWindow === "today"
+    ? new Map([...payloadEvidenceOverlays].map(([id, overlay]) => [id, { ...overlay, windowClinicianCount: 0 }]))
+    : payloadEvidenceOverlays, [payloadEvidenceOverlays, previousEdition, readoutWindow]);
   const worth = currentWorth;
   const pageReady = !!windowPayload;
   const publishedDevelopments = [...worth, ...addedSinceMorning, ...relevant, ...moreFromSevenDays];
@@ -1121,6 +1127,9 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
   const briefs = listenBriefs;
   const displayedEditionDate = readoutWindow === "today"
     ? editionDateLabel(todayEdition?.editionDate)
+    : null;
+  const latestEditionDate = previousEdition
+    ? editionDateLabel((windowPayload?.currentEdition as { editionDate?: string } | undefined)?.editionDate)
     : null;
 
   const chooseArea = (candidate: EditionArea) => {
@@ -1172,7 +1181,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
               </select></span>
             </div>
             <p className="er-readout-dek">The papers, approvals, and episodes oncology clinicians are sharing.</p>
-            {displayedEditionDate && <p className="er-edition-date">Edition: {displayedEditionDate}</p>}
+            {displayedEditionDate && <p className="er-edition-date">{previousEdition ? "Latest edition" : "Edition"}: {displayedEditionDate}</p>}
           </div>
           <div className="er-window-tabs" role="tablist" aria-label="Readout window" aria-busy={loadingWindow}>
             {READOUT_WINDOWS.map((candidate) => <button
@@ -1193,6 +1202,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         <ConferenceTeaser meetings={conferenceMeetings} area={area} />
         <div id="readout-window-panel" role="tabpanel" aria-labelledby={`readout-window-tab-${requestedWindow}`} aria-busy={loadingWindow} tabIndex={-1}>
         {loadingWindow && pageReady && <p className="er-window-note er-window-progress" role="status">Loading the selected view...</p>}
+        {previousEdition && latestEditionDate && <p className="er-window-note" role="status">Today’s edition isn’t available yet. Showing the latest edition, {latestEditionDate}.</p>}
         {windowPayload?.stale && <p className="er-window-note" role="status">Showing the last saved edition while live evidence refreshes.</p>}
         {pageReady && readoutWindow === "7d" && historyDays < 7 && <p className="er-window-note">Showing {historyDays} daily edition{historyDays === 1 ? "" : "s"} so far. This view will fill as new editions publish.</p>}
         {pageReady && readoutWindow === "today" && todayEdition?.fallbackWindowHours === 72 && <p className="er-window-note">Specialty lead selected from the 72-hour Listen window.</p>}
@@ -1200,15 +1210,15 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
         {pageReady && <DailyReadoutAudio dates={audioDates} expectedVersions={audioVersions} />}
         {!pageReady ? <ReadoutLoading /> : worth.length > 0 ? worth.map((item, index) => <NumberedDevelopment item={item} briefs={briefs} overlays={activeEvidenceOverlays} position={index + 1} window={readoutWindow} key={item.id} />) : readoutWindow === "today" && area !== "All" ? (
           <div className="er-empty">
-            <p>Nothing new cleared the bar in {AREA_LABELS[area]} today.</p>
+            <p>Nothing new cleared the bar in {AREA_LABELS[area]} {previousEdition ? "in this edition" : "today"}.</p>
             <button className="er-empty-history" type="button" onClick={() => chooseWindow("7d")}>See the last 7 days</button>
           </div>
         ) : (
           <p className="er-empty">No development cleared the bar in this area {readoutWindow === "7d" ? "in these saved editions" : "for this edition"}.</p>
         )}
       {pageReady && addedSinceMorning.length > 0 && (
-        <section className="er-added-since-morning" aria-label="Added since this morning">
-          <h2>Added since this morning</h2>
+        <section className="er-added-since-morning" aria-label={previousEdition ? "Added after the morning edition" : "Added since this morning"}>
+          <h2>{previousEdition ? "Added after the morning edition" : "Added since this morning"}</h2>
           <div className="er-compact-list">{addedSinceMorning.map((item) => (
             <CompactDevelopment key={item.id} item={item} overlays={activeEvidenceOverlays} window={readoutWindow} />
           ))}</div>

@@ -136,9 +136,8 @@ export async function fetchFreshReadoutWindowForPrepublication(
 }
 
 /** The dated canonical edition is the authority for every paper-facing Today lens. */
-async function readDurableCanonicalEdition(): Promise<ReadoutEditionSnapshot | null> {
+async function readDurableCanonicalEdition(editionDate = activeReadoutEditionDate()): Promise<ReadoutEditionSnapshot | null> {
   const { url, key } = supabaseServiceEnvironment();
-  const editionDate = activeReadoutEditionDate();
   const tok = encodeURIComponent(`edition:v2:${editionDate}:All`);
   const response = await fetch(`${url}/rest/v1/readout_posts?select=card&tok=eq.${tok}&limit=1`, {
     headers: supabaseApiKeyHeaders(key),
@@ -258,6 +257,26 @@ async function readFinishedWindow(area: EditionArea, window: ReadoutWindow): Pro
   if (payload?.area !== area || payload.windowDays !== readoutWindowDays(window) || !currentFinishedWindow(payload)) return null;
   const durableCanonical = await readDurableCanonicalEdition();
   return validFinishedEdition(area, payload.currentEdition, durableCanonical) ? payload : null;
+}
+
+/** The last finished window of an EARLIER edition, still proven against that
+ * date's own durable canonical edition. It keeps its own edition, date and
+ * generatedAt and is marked previousEdition; it is never persisted as today's. */
+async function readPreviousFinishedWindow(area: EditionArea, window: ReadoutWindow): Promise<ReadoutWindowPayload | null> {
+  const { url, key } = supabaseServiceEnvironment();
+  const tok = encodeURIComponent(finishedWindowCacheToken(area, window));
+  const response = await fetch(`${url}/rest/v1/readout_posts?select=card&tok=eq.${tok}&limit=1`, {
+    headers: supabaseApiKeyHeaders(key),
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const rows = await response.json() as Array<{ card?: ReadoutWindowPayload }>;
+  const payload = rows[0]?.card;
+  const edition = payload?.currentEdition;
+  if (!payload || payload.area !== area || payload.windowDays !== readoutWindowDays(window) ||
+      !isReadoutEditionSnapshot(edition) || !(edition.editionDate < activeReadoutEditionDate())) return null;
+  const durableCanonical = await readDurableCanonicalEdition(edition.editionDate);
+  return validFinishedEdition(area, edition, durableCanonical) ? { ...payload, previousEdition: true } : null;
 }
 
 async function fetchFreshReadoutWindow(
@@ -514,7 +533,18 @@ export async function getCachedReadoutWindow(
   const finished = await readFinishedWindow(area, window);
   if (finished && currentFinishedWindow(finished)) return finished;
 
-  const rebuilt = await buildFinishedReadoutWindow(area, window);
+  let rebuilt: ReadoutWindowPayload;
+  try {
+    rebuilt = await buildFinishedReadoutWindow(area, window);
+  } catch (error) {
+    // Today's canonical edition is missing (09-12, 06:00-07:45 ET: an error page).
+    // Serve the most recent good edition under its own real date instead; the
+    // reader labels it "Latest edition". Nothing is persisted from this path.
+    const previous = await readPreviousFinishedWindow(area, window).catch(() => null);
+    if (!previous) throw error;
+    console.error("Today's Readout edition is unavailable; serving the latest good edition.", error);
+    return previous;
+  }
   await persistFinishedWindow(area, window, rebuilt);
   return rebuilt;
 }

@@ -98,7 +98,7 @@ test("reader surfaces describe each payload's rolling window consistently", () =
   assert.match(editorial, /aria-label="Readout window"/);
   assert.match(editorial, /READOUT_WINDOWS\.map/);
   assert.match(editorial, /aria-selected=\{requestedWindow === candidate\}/);
-  assert.match(editorial, /Edition: \{displayedEditionDate\}/);
+  assert.match(editorial, /\{previousEdition \? "Latest edition" : "Edition"\}: \{displayedEditionDate\}/);
 });
 
 test("web receipts preserve quoted context and primary event provenance", () => {

@@ -852,6 +852,9 @@ export type ReadoutWindowPayload = {
   designationCards: ReadoutDesignationCandidate[];
   candidateGeneratedAt: string | null;
   stale?: boolean;
+  /** Set only when today's edition is not available and the reader is served the
+   * most recent good edition instead. currentEdition keeps its own real date. */
+  previousEdition?: boolean;
 };
 // A clinical trial the field is TALKING ABOUT this week — matched by acronym against
 // podcast conversations, KOL tweets and shared-article title/abstracts (not the raw

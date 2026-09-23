@@ -240,8 +240,11 @@ export function resolveReadoutTodayEdition(
   const generatedAt = new Date(payload.generatedAt);
   const now = Number.isFinite(generatedAt.getTime()) ? generatedAt : new Date();
   const editionDate = activeReadoutEditionDate(now);
+  // A previous-edition fallback is shown as saved, under its own date; it is
+  // never rebuilt into a snapshot for today's date.
   const saved = isReadoutEditionSnapshot(payload.currentEdition) &&
-      payload.currentEdition.area === area && payload.currentEdition.editionDate === editionDate
+      payload.currentEdition.area === area &&
+      (payload.currentEdition.editionDate === editionDate || payload.previousEdition === true)
     ? payload.currentEdition
     : null;
   return saved ?? buildReadoutEditionSnapshot(area, payload, now, previousEditions);
