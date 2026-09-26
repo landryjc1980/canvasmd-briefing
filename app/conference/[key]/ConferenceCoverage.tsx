@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import ReadoutArticleCard from "@/components/ReadoutArticleCard";
+import { DevelopmentFinding, Disclose } from "@/components/ReadoutFinding";
 import ReadoutVoice, { type ReadoutVoicePost } from "@/components/ReadoutVoice";
 import type { ConferenceClinicianShare, ConferencePublisherComment, ConferenceWindowPayload } from "@/lib/conference";
 import { conferenceDateRange, conferenceStatusLabel, parseConferencePublisherComments, publicationDateLabel } from "@/lib/conference";
-import { cleanClinicianText } from "@/app/briefing-preview/edition";
+import { cleanClinicianText, cleanReadoutExcerpt } from "@/app/briefing-preview/edition";
 import { articleContentType } from "@/lib/articleLabel";
+import { articleExpansion } from "@/lib/readoutPresentation";
 
 type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[]; publisherComments: ConferencePublisherComment[] };
 
@@ -81,7 +83,6 @@ export function coverageItem(value: unknown, section: "cards" | "articles" | "ep
     title,
     url: externalUrl(source.url) ?? externalUrl(source.sourceUrl),
     source: text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal) ?? text(source.domain),
-    // The compact page links to primary papers rather than reproducing full abstracts.
     excerpt: text(source.excerpt) ?? text(source.description),
     publishedAt: text(source.pubDate) ?? text(source.published) ?? text(source.publishedAt) ?? text(source.occurredOn),
     clinicianShares: section === "reports" ? clinicianShares(source.clinicianShares) : [],
@@ -163,10 +164,15 @@ function PublisherComments({ comments }: { comments: ConferencePublisherComment[
   </div>;
 }
 
-function ConferenceReportCard({ item }: { item: CoverageItem }) {
+function ConferenceCard({ item }: { item: CoverageItem }) {
+  const [open, setOpen] = useState(false);
+  const text = cleanReadoutExcerpt(item.excerpt ?? "");
+  const expansion = articleExpansion({ preview: text, full: text }, [], 0);
+  const canDisclose = expansion.canExpand;
+  const published = publicationDateLabel(item.publishedAt);
   return (
     <ReadoutArticleCard
-      className="conference-readout-card has-kicker-source"
+      className={`conference-readout-card has-kicker-source is-collapsible ${open ? "is-open" : ""}`}
       href={item.url}
       source={item.source ?? "Source"}
       title={item.title}
@@ -176,24 +182,19 @@ function ConferenceReportCard({ item }: { item: CoverageItem }) {
           <span className="er-kicker-source">{item.source ?? "Source"}</span>
         </div>
       }
+      footer={canDisclose ? (
+        <div className="er-foot">
+          <span />
+          <Disclose open={open} label={expansion.label} onToggle={() => setOpen((current) => !current)} />
+        </div>
+      ) : undefined}
     >
-      {item.excerpt && <div className="er-excerpt"><p className="er-finding">{item.excerpt}</p></div>}
+      {/* The collapsed preview is the same cut the disclosure measures, so the button always reveals more. */}
+      {text && <DevelopmentFinding text={expansion.preview} expandedText={text} expanded={open} />}
+      {open && published && <p className="er-action-date">Published: <time dateTime={item.publishedAt ?? undefined} title={`Published ${published}`}>{published}</time></p>}
       <PublisherComments comments={item.publisherComments} />
       <ClinicianReceipts shares={item.clinicianShares} />
     </ReadoutArticleCard>
-  );
-}
-
-function CoverageCard({ item }: { item: CoverageItem }) {
-  const published = publicationDateLabel(item.publishedAt);
-  return (
-    <article className="conference-report-card">
-      <p className="conference-report-type">{item.label}</p>
-      <h2>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a> : item.title}</h2>
-      {(item.source || published) && <p className="conference-report-source">{item.source}{item.source && published ? <> <span aria-hidden="true">·</span> </> : null}{published ? <time dateTime={item.publishedAt ?? undefined}>{published}</time> : null}</p>}
-      {item.excerpt && <p className="conference-report-excerpt">{item.excerpt}</p>}
-      {item.url && <a className="conference-source-link" href={item.url} target="_blank" rel="noreferrer">Read source</a>}
-    </article>
   );
 }
 
@@ -201,7 +202,7 @@ function CoverageSection({ title, eyebrow, items }: { title: string; eyebrow: st
   if (!items.length) return null;
   return <section className="conference-reports" aria-label={title}>
     <div className="conference-section-heading"><div><p className="conference-eyebrow">{eyebrow}</p><h2>{title}</h2></div><span>{items.length} {items.length === 1 ? "item" : "items"}</span></div>
-    <div className="conference-report-list">{items.map((item) => <CoverageCard item={item} key={item.id} />)}</div>
+    <div className="conference-report-list">{items.map((item) => <ConferenceCard item={item} key={item.id} />)}</div>
   </section>;
 }
 
@@ -250,7 +251,7 @@ export default function ConferenceCoverage({ payload, requestedKey }: { payload:
           <div><p className="conference-eyebrow">From the meeting</p><h2 id="conference-reports-title">Source coverage</h2></div>
           {reports.length > 0 && <span>{reports.length} {reports.length === 1 ? "report" : "reports"}</span>}
         </div>
-        {reports.length > 0 ? <div className="conference-report-list">{reports.map((item) => <ConferenceReportCard item={item} key={item.id} />)}</div> : !hasCoverage && (
+        {reports.length > 0 ? <div className="conference-report-list">{reports.map((item) => <ConferenceCard item={item} key={item.id} />)}</div> : !hasCoverage && (
           <div className="conference-empty conference-empty-inline">
             <p>No source reports have been published here yet. Please check back as coverage is added.</p>
             <button type="button" onClick={retry}>Refresh coverage</button>

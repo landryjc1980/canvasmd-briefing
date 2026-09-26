@@ -25,6 +25,7 @@ const { buildReadoutEditionSnapshot } = await import("../app/briefing-preview/ed
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const preview = read("app/briefing-preview/EditorialReadout.tsx");
+const readoutFinding = read("components/ReadoutFinding.tsx");
 const readoutVoice = read("components/ReadoutVoice.tsx");
 const readoutArticleCard = read("components/ReadoutArticleCard.tsx");
 const readoutSourceHeadline = read("components/ReadoutSourceHeadline.tsx");
@@ -696,7 +697,7 @@ test("cards use source-backed excerpts and visually separate the source from the
 });
 
 test("expanding a paper replaces the concise finding with the full source abstract", () => {
-  assert.match(preview, /expanded\s*\? cleanReadoutExcerpt\(expandedText \|\| text\)/);
+  assert.match(readoutFinding, /expanded\s*\? cleanReadoutExcerpt\(expandedText \|\| text\)/);
   assert.match(preview, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
   assert.match(preview, /: articleSourceText\(readoutFindingExcerpt\(item\.finding \|\| rawSourceText\), cleanReadoutExcerpt\(rawSourceText\)\)/);
   assert.match(preview, /expandedText=\{source\.full\}/);
@@ -945,7 +946,7 @@ test("a development already leading a section is removed from Also Relevant by s
 });
 
 test("cards use explicit previews and meaningful disclosure at every viewport", () => {
-  assert.match(preview, /articleTextPreview\(cleanReadoutExcerpt\(text\), LEAD_SENTENCE_CHARS\)/);
+  assert.match(readoutFinding, /articleTextPreview\(cleanReadoutExcerpt\(text\), LEAD_SENTENCE_CHARS\)/);
   assert.match(preview, /expansion\.canExpand \|\| hasMoreLinks/);
   assert.match(preview, /Full source excerpt/);
   // SourceHeadline lives in the shared ReadoutArticleCard/ReadoutSourceHeadline components now.
@@ -996,7 +997,7 @@ test("archived cards do not render boilerplate as an editorial takeaway", () => 
   assert.match(preview, /No additional \$\{area === "All" \? "oncology" : AREA_LABELS\[area\]\.toLowerCase\(\)\} approval/);
   assert.match(preview, /\]\.filter\(Boolean\)\.join\(" · "\) \|\| regulatoryCoverage\.status/);
   assert.match(preview, /className="er-regulatory-empty">\{regulatoryCoverage\.hasPublished/);
-  assert.match(preview, /if \(!finding\) return null/);
+  assert.match(readoutFinding, /if \(!finding\) return null/);
 });
 
 test("source excerpts drop PDF labels without adding editorial judgment", () => {
@@ -1005,7 +1006,7 @@ test("source excerpts drop PDF labels without adding editorial judgment", () => 
     "High risk. Median OS was 90 months.",
   );
   assert.doesNotMatch(edition, /It belongs in the briefing as context|not a practice-changing comparison/);
-  assert.match(preview, /cleanReadoutExcerpt\(text\)/);
+  assert.match(readoutFinding, /cleanReadoutExcerpt\(text\)/);
 });
 
 test("web Readout uses the native-parity clinician cleaner", () => {

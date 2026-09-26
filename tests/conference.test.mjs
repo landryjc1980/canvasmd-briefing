@@ -111,7 +111,12 @@ test("conference links preserve the requested meeting year while the page accept
 test("conference reports use the Readout source-card anatomy without a report taxonomy", () => {
   assert.match(coverage, /ReadoutArticleCard/);
   assert.match(readoutCard, /className=\{`er-development \$\{className\}`\.trim\(\)\}/);
-  assert.match(coverage, /className="er-excerpt"/);
+  assert.match(coverage, /DevelopmentFinding/);
+  assert.match(coverage, /Disclose/);
+  assert.match(coverage, /articleExpansion/);
+  assert.doesNotMatch(coverage, /conference-report-excerpt/);
+  assert.doesNotMatch(coverage, /Read source/);
+  assert.doesNotMatch(coverageCss, /conference-report-card/);
   assert.doesNotMatch(coverage, /reportLabel\(/);
   assert.doesNotMatch(coverage, />Source report</);
   assert.match(coverage, /item\.excerpt/);
@@ -175,7 +180,6 @@ test("conference page preserves existing cards, articles, and episode coverage w
   assert.match(coverage, /source\.pubDate/);
   assert.match(coverage, /source\.published/);
   assert.match(coverage, /source\.episodeId/);
-  assert.match(coverageCss, /\.conference-source-link \{[^}]*min-height: 44px/);
   assert.match(server, /CONFERENCE_TIMEOUT_MS = 5_000/);
   assert.match(server, /meeting\.key !== seriesKey/);
 });
