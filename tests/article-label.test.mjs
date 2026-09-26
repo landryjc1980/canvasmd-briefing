@@ -35,6 +35,10 @@ test("conference report cards never fall through to a placeholder label", () => 
   const report = coverageItem({ title: "ESMO highlights", url: "https://myopenmedicine.com/2026/09/esmo-highlights", sourceName: "myopenmedicine.com" }, "reports", 0);
   assert.notEqual(report.label, "Source update");
   assert.equal(report.label, "Web page");
+  const news = coverageItem({ title: "OncLive at ESMO", url: "https://www.onclive.com/view/esmo-2026-highlights", sourceName: "OncLive", domain: "onclive.com" }, "reports", 2);
+  assert.equal(news.label, "Web page");
+  assert.equal(news.source, "OncLive");
+  assert.equal(coverageItem({ title: "Blood paper", url: "https://pubmed.ncbi.nlm.nih.gov/41234567/", sourceName: "Blood Cancer Discovery", journal: "Blood Cancer Discovery" }, "reports", 3).label, "Paper");
   const event = coverageItem({ title: "Late-breaking session", kind: "event", url: "https://example.org/session" }, "reports", 1);
   assert.equal(event.label, "Meeting update");
 });

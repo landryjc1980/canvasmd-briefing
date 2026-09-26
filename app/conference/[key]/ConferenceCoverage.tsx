@@ -71,7 +71,7 @@ export function coverageItem(value: unknown, section: "cards" | "articles" | "ep
         url: externalUrl(source.url) ?? externalUrl(source.sourceUrl) ?? "",
         publicationClass: text(source.publicationClass) ?? text(metadata.publicationClass),
         journal: text(source.journal) ?? text(metadata.journal),
-        sourceName: text(source.sourceName),
+        sourceName: text(source.domain) ?? text(source.sourceName),
         evidence: text(source.evidence),
       });
   return {
