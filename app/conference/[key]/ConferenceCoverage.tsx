@@ -8,6 +8,7 @@ import ReadoutVoice, { type ReadoutVoicePost } from "@/components/ReadoutVoice";
 import type { ConferenceClinicianShare, ConferencePublisherComment, ConferenceWindowPayload } from "@/lib/conference";
 import { conferenceDateRange, conferenceStatusLabel, parseConferencePublisherComments, publicationDateLabel } from "@/lib/conference";
 import { cleanClinicianText } from "@/app/briefing-preview/edition";
+import { articleContentType } from "@/lib/articleLabel";
 
 type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[]; publisherComments: ConferencePublisherComment[] };
 
@@ -58,14 +59,21 @@ function clinicianShares(value: unknown): ConferenceClinicianShare[] {
   });
 }
 
-function coverageItem(value: unknown, section: "cards" | "articles" | "episodes" | "reports", index: number): CoverageItem | null {
+export function coverageItem(value: unknown, section: "cards" | "articles" | "episodes" | "reports", index: number): CoverageItem | null {
   if (!value || typeof value !== "object") return null;
   const source = value as Record<string, unknown>;
   const title = text(source.headline) ?? text(source.title) ?? text(source.episodeTitle);
   if (!title) return null;
+  const metadata = source.sourceMetadata && typeof source.sourceMetadata === "object" ? source.sourceMetadata as Record<string, unknown> : {};
   const label = section === "episodes" || source.kind === "episode" ? "Podcast episode"
-      : section === "articles" ? "Source article"
-        : source.kind === "event" ? "Meeting update" : "Source update";
+    : source.kind === "event" ? "Meeting update"
+      : articleContentType({
+        url: externalUrl(source.url) ?? externalUrl(source.sourceUrl) ?? "",
+        publicationClass: text(source.publicationClass) ?? text(metadata.publicationClass),
+        journal: text(source.journal) ?? text(metadata.journal),
+        sourceName: text(source.sourceName),
+        evidence: text(source.evidence),
+      });
   return {
     id: text(source.id) ?? `${section}-${index}-${title}`,
     episodeId: text(source.episodeId) ?? (source.kind === "episode" ? text(source.anchorId) : null),

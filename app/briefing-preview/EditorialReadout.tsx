@@ -44,6 +44,7 @@ import {
   readoutFindingExcerpt,
 } from "./edition";
 import ConferenceTeaser from "./ConferenceTeaser";
+import { articleContentType as classifyArticle } from "@/lib/articleLabel";
 import type { ConferenceMeeting } from "@/lib/conference";
 
 const AREA_LABELS: Record<EditionArea, string> = {
@@ -527,17 +528,7 @@ function DevelopmentFinding({
 }
 
 function articleContentType(item: EditorialArticle): string {
-  // NEJM encodes the article form in the DOI suffix: NEJMc is Correspondence.
-  if (/10\.1056\/NEJMc\d/i.test(item.url)) return "Correspondence";
-  // "unknown" means the classifier has not looked; fall through to the ordinary
-  // label rather than announce it (parity with native readout-display.ts).
-  if (item.publicationClass && item.publicationClass !== "research" && item.publicationClass !== "unknown") return { review: "Review", commentary: "Commentary", preprint: "Preprint", guideline: "Guideline" }[item.publicationClass];
-  const hay = `${item.evidence} ${item.sourceAction ?? ""} ${item.journal}`;
-  if (/approval/i.test(hay)) return "FDA approval";
-  if (/safety|warning/i.test(hay)) return "FDA safety";
-  if (/label|regulatory|fast track|priority review|breakthrough/i.test(hay)) return "Regulatory";
-  if (/preprint|biorxiv|medrxiv|research\s*square|ssrn/i.test(hay)) return "Preprint";
-  return "Paper";
+  return classifyArticle({ url: item.url, publicationClass: item.publicationClass, journal: item.journal, evidence: item.evidence, sourceAction: item.sourceAction });
 }
 
 function validSupportLinks(links: HeroSupportLink[] | undefined, primaryUrl: string): HeroSupportLink[] {
