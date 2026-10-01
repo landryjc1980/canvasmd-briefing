@@ -1,8 +1,8 @@
 {
-  "backendSha": "5267ef28962f2e34f0490cf07e9d495028a6cd72",
+  "backendSha": "13c3d8523dfe58f88933624e1697f0457d8ad46e",
   "dirty": false,
-  "engineSha256": "09e1bffda4005a917e1c24dac65fbdf68419359027b9e87c82f23ccf2e4734ce",
-  "bundleSha256": "32241f47e00520b85486124b0cec728f24714337e5d1e7127adc98ca002c8862",
+  "engineSha256": "fb486c5549455dc3ac3a66894d7998b8194aeb4438932b3150ba9adcbfa32fc5",
+  "bundleSha256": "6552c3b313171c77604bc9d0906279e7e926c0a7805a2bd6159dac8c28d6d274",
   "inputs": [
     {
       "path": "supabase/functions/_shared/anchoredDevelopments.ts",
@@ -18,7 +18,7 @@
     },
     {
       "path": "supabase/functions/_shared/bibliographicAbstract.ts",
-      "sha256": "060ba9b600a69e50c103fc2bbf3282a3751b5fb64986cf7754cbb1794e1d7162"
+      "sha256": "c00f78409ec58c6edd1a9487a85e4a5875e08c3657b630c14463ada92b169da7"
     },
     {
       "path": "supabase/functions/_shared/briefingCore.ts",
@@ -38,11 +38,11 @@
     },
     {
       "path": "supabase/functions/_shared/heroCards.ts",
-      "sha256": "e67001dc7b2c3030db9b8821739eb530685efb44de19ca682cfb9385c451d1f1"
+      "sha256": "5f7ed2e933a51223b1cbe440c6ed194061abfe285ab4be2c254449d54f553b9e"
     },
     {
       "path": "supabase/functions/_shared/publisherAbstract.ts",
-      "sha256": "fe13d3c54b2ef8256c311784b02deb81205d2b01927ef96757c20e77bd2b1f3a"
+      "sha256": "ce3977b704361c8a7a26db7629f611f99e78701a94127f91c7271efee497110c"
     },
     {
       "path": "supabase/functions/_shared/readoutAudioAdmission.ts",
@@ -62,7 +62,7 @@
     },
     {
       "path": "supabase/functions/_shared/specialtyBriefingBuilder.ts",
-      "sha256": "ad58ff12c043e37eb2246433f5f603ce31229ee6b1d893425abc98cca2ea9c99"
+      "sha256": "5dfb3600c5943299cb1d08b5ad6d2d0864ecf02b66b993bd77d44696985ffff8"
     },
     {
       "path": "supabase/functions/_shared/storySupport.ts",

@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-01",
+  "authorizedBy": "John Landry",
+  "authorization": "Go ahead and apply (Option B, publication registry step 2b; release today, Codex stream quiet)",
+  "engineSha": "13c3d8523dfe58f88933624e1697f0457d8ad46e",
+  "engineSha256": "fb486c5549455dc3ac3a66894d7998b8194aeb4438932b3150ba9adcbfa32fc5",
+  "bundleSha256": "6552c3b313171c77604bc9d0906279e7e926c0a7805a2bd6159dac8c28d6d274",
+  "priorEngineSha": "5267ef28962f2e34f0490cf07e9d495028a6cd72",
+  "priorEngineSha256": "09e1bffda4005a917e1c24dac65fbdf68419359027b9e87c82f23ccf2e4734ce",
+  "scope": [
+    "Append article_id (the x_shared_articles id of the object's own displayed row) to mover, litPaper, trial and paperStory papers, topArticles, KOL article items, paper HeroCards and article/paper HeroSupportLinks",
+    "No new database reads, RPCs or network calls; no existing field changed"
+  ],
+  "verification": {
+    "fixtureAdditivity": "Fixture build output byte-identical to db31ec15 after stripping article_id (data, effects, proseFp); identical 42-call database list; recap body unchanged",
+    "ownRow": "Every tagged object's title, url, journal, domain and sourceLabel come from the row its article_id names, including the publisher-side litPaper path",
+    "backendTests": "canvasmd npm test 2,523 run, 13 failing, all on the pre-existing baseline list",
+    "bundleDiff": "Only the 8 article_id additions; bibliographicAbstract.ts and publisherAbstract.ts (from 59364dbd) change the engine hash but not the bundle bytes",
+    "independentReview": "Claude break-it review: no code issue; Astra (gpt-6-astra) round 1: no code fix identified; release runbook rounds 2-4 ended VERDICT: APPROVE"
+  },
+  "preserved": [
+    "source selection, ranking and payload values",
+    "recap requests and prose fingerprints",
+    "complete seven-area publication gate"
+  ],
+  "limits": "Fixture and mocked regression evidence; no clinical-quality claim. Clients do not read article_id until publication registry step 3."
+}
