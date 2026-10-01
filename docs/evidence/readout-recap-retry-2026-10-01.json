@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-01",
+  "authorizedBy": "John Landry",
+  "authorization": "Go after the reviewed retry repair and separate same-day recovery plan",
+  "engineSha": "5267ef28962f2e34f0490cf07e9d495028a6cd72",
+  "priorEngineSha": "a84f5797afdb684ba35aa94238ff7bda238b9943",
+  "scope": [
+    "Wait for every concurrent specialty attempt before judging shared transport",
+    "Retry incomplete required prose within the existing two-attempt budget",
+    "Retain area, attempt, elapsed time and transport failure diagnostics"
+  ],
+  "verification": {
+    "backendTests": 14,
+    "webFocusedTests": 33,
+    "productionBuild": "passed",
+    "independentReview": "Astra: no blocking findings",
+    "generatedInputChanges": [
+      "supabase/functions/_shared/specialtyBriefingBuilder.ts"
+    ]
+  },
+  "preserved": [
+    "source selection and payloads",
+    "35/55 second attempt budgets",
+    "240 second build budget",
+    "complete seven-area publication gate",
+    "atomic publication and retention"
+  ],
+  "limits": "Mocked regression evidence; no new clinical quality or on-time morning claim. Same-day recovery is a separately receipted operation."
+}

@@ -1,8 +1,8 @@
 {
-  "backendSha": "a84f5797afdb684ba35aa94238ff7bda238b9943",
+  "backendSha": "5267ef28962f2e34f0490cf07e9d495028a6cd72",
   "dirty": false,
-  "engineSha256": "3c9e66587e7f10c596058f170a7a02e42a247b3af170f5c51da45c8f87a69e92",
-  "bundleSha256": "ebc8fbac59662edbe4bb2e96946e41aa287c0ef877806bde27f58f8b7eaa3c40",
+  "engineSha256": "09e1bffda4005a917e1c24dac65fbdf68419359027b9e87c82f23ccf2e4734ce",
+  "bundleSha256": "32241f47e00520b85486124b0cec728f24714337e5d1e7127adc98ca002c8862",
   "inputs": [
     {
       "path": "supabase/functions/_shared/anchoredDevelopments.ts",
@@ -62,7 +62,7 @@
     },
     {
       "path": "supabase/functions/_shared/specialtyBriefingBuilder.ts",
-      "sha256": "08d650f5e20c543f9a8923cc05360cb13aca420663b22376d1e8c420af730f0b"
+      "sha256": "ad58ff12c043e37eb2246433f5f603ce31229ee6b1d893425abc98cca2ea9c99"
     },
     {
       "path": "supabase/functions/_shared/storySupport.ts",
