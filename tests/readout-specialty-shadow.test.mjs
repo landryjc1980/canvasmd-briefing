@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { SPECIALTY_AREAS, assertCompleteSpecialtyBatch, compareSpecialtyOutput, specialtyComparisonStatus, stableJson } from "../lib/readoutSpecialtyComparison.mjs";
 import { createSpecialtyTransport } from "../lib/readoutSpecialtyTransport.mjs";
+import { createSpecialtyRecap } from "../lib/generated/specialtyBriefingBuilder.mjs";
 import { boundedReceiptFetch, mapSpecialtyAreas, runSpecialtyBatch, SPECIALTY_BUILD_BUDGET_MS, SPECIALTY_COMMIT_TIMEOUT_MS, SPECIALTY_FINALIZATION_RESERVE_MS, SPECIALTY_MAX_CONCURRENT_BUILDS, SPECIALTY_READBACK_RESERVE_MS, SPECIALTY_READBACK_TIMEOUT_MS, SPECIALTY_RECEIPT_TIMEOUT_MS, SPECIALTY_SOURCE_DEADLINE_MS, specialtyBatchDeadlinePlan, specialtyClock, specialtyReceiptBudget, specialtyShadowInvocation } from "../lib/readoutSpecialtyShadow.mjs";
 
 const expected = { sourceRunId: "scheduled-2026091306", engineSha: "abc", builtAt: "2026-09-13T08:20:00.000Z" };
@@ -219,6 +220,73 @@ function batchFetch({ outputs, commits, failures }) {
     assert.fail(`${method} ${url.pathname}`);
   };
 }
+
+for (const terminal of [false, true]) test(`a sibling completing during recap retry ${terminal ? "still rejects a terminal failure" : "does not cancel recovery"}`, async () => {
+  const engine = { dirty: false, backendSha: "a".repeat(40), engineSha256: "b".repeat(64) };
+  const now = new Date(), stages = [], outputs = [], commits = { count: 0 }, failures = [];
+  const receipts = batchFetch({ outputs, commits, failures });
+  let attempts = 0, releaseRetry, retryStarted;
+  const gate = new Promise(resolve => { releaseRetry = resolve; });
+  const started = new Promise(resolve => { retryStarted = resolve; });
+  const fetchImpl = async (input, init = {}) => {
+    const path = new URL(String(input)).pathname;
+    if (path.endsWith("/briefing-recap")) {
+      const { area } = JSON.parse(init.body);
+      if (area === "GU") {
+        attempts++;
+        if (attempts === 1) throw new Error("first attempt timed out");
+        retryStarted();
+        await Promise.race([gate, new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true }))]);
+        if (terminal) throw new Error("second attempt failed");
+      }
+      return Response.json({ headline: "Grounded headline", storyWhys: {} });
+    }
+    const result = await receipts(input, init);
+    if (path.endsWith("/readout_specialty_source_outputs") && JSON.parse(init.body).area === "Breast") releaseRetry();
+    return result;
+  };
+  const run = runSpecialtyBatch({ url: "https://db.test", key: "test", engineInfo: engine, sourceRunId: "scheduled-2026100106", now, mode: "publish", publicationControl: publicationControl(engine), job: fakeJob(stages), fetchImpl,
+    builderFactory: ({ recap }) => ({ buildSpecialtyArea: async (area, options) => {
+      if (area === "Breast") await started;
+      if (["GU", "Breast"].includes(area)) await recap({ area, movers: [{ drug: "fixture" }], events: [], stories: [] });
+      return { data: { area, generatedAt: now.toISOString(), build: { sha: engine.backendSha, sourceRunId: options.sourceRunId, dirty: false } }, effects: {} };
+    } }),
+  });
+  if (terminal) { await assert.rejects(run, /transport_error/); assert.equal(commits.count, 0); }
+  else { assert.equal((await run).published, true); assert.equal(commits.count, 1); assert.equal(outputs.length, 7); }
+  assert.equal(attempts, 2);
+});
+
+test("recap diagnostics retain the area and original failure after a successful retry", async () => {
+  let calls = 0;
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => {
+    if (++calls === 1) throw new DOMException("mock timeout", "TimeoutError");
+    return Response.json({ headline: "Grounded headline", storyWhys: {} });
+  } });
+  const recap = createSpecialtyRecap({ url: "https://db.test", key: "test", fetch: transport.fetch });
+  await recap({ area: "GU", movers: [{ drug: "fixture" }], events: [], stories: [] });
+  transport.assertHealthy();
+  const result = transport.stats().recaps[0];
+  assert.equal(result.area, "GU");
+  assert.equal(result.status, "complete");
+  assert.equal(result.attempts.length, 2);
+  assert.equal(result.attempts[0].errorName, "TimeoutError");
+  assert.equal(result.attempts[0].cause, "mock timeout");
+  assert.ok(result.attempts.every(attempt => attempt.elapsedMs >= 0));
+});
+
+for (const terminal of [false, true]) test(`incomplete HTTP-200 story prose ${terminal ? "still fails the final gate after two attempts" : "recovers within the existing retry"}`, async () => {
+  let attempts = 0;
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => {
+    attempts++;
+    return Response.json({ headline: "Grounded headline", storyWhys: !terminal && attempts === 2 ? { s1: "Grounded takeaway" } : {} });
+  } });
+  const recap = createSpecialtyRecap({ url: "https://db.test", key: "test", fetch: transport.fetch });
+  await recap({ area: "Heme", movers: [], events: [], stories: [{ id: "s1", kind: "paper", headline: "Fixture" }] });
+  assert.equal(attempts, 2);
+  if (terminal) assert.throws(() => transport.assertHealthy(), /incomplete_prose/);
+  else transport.assertHealthy();
+});
 
 test("publish batch builds and records every area exactly once before one explicit finalization", async () => {
   const engine = { dirty: false, backendSha: "a".repeat(40), engineSha256: "b".repeat(64) };
