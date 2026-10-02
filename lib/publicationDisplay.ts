@@ -111,7 +111,7 @@ export function overlayArticleIdsFor(overlays: unknown, item: unknown): unknown 
 }
 
 /** The picked id, or null when the pick is undecided or none. */
-export const pickId =(pick: OwnArticlePick): string | null => (pick.kind === "id" ? pick.id : null);
+export const pickId = (pick: OwnArticlePick): string | null => (pick.kind === "id" ? pick.id : null);
 
 /**
  * The source name for one card. `entries` is the registry lookup (null when it
