@@ -12,6 +12,7 @@ import { paperClinicianMeta, pickConversationPreview, representedClinicianCount,
 import { scopedHeroCards } from "./heroContract";
 import { logSignal, logStorySeen, type BriefSignalKind } from "./gateClient";
 import { unrepresentedPublishers } from "./clientEvidence";
+import { articleKey } from "@/lib/publicationDisplay";
 
 // "The Reader" — the Weekly Brief. 2026-07-21 depth pass (previous single-column design
 // preserved at ?design=flat / git tag design-2026-07-21-flat-reader):
@@ -400,7 +401,7 @@ export function EpisodeXReceipts({ announcements, amplifiers, accent }: { announ
 }
 // Abstract and source receipts disclose independently, matching the main paper rail
 // and native. The source link remains a separate direct action.
-export function PaperCard({ title, journal, domain, meta, url, abstract, description, posts, publishers, accent, peerReviewed, showSources = true }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; description?: string | null; posts?: BriefingSharer[]; publishers?: string[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean; showSources?: boolean }) {
+export function PaperCard({ title, journal, domain, meta, url, abstract, description, posts, publishers, accent, peerReviewed, showSources = true, sourceName }: { title: string; journal: string | null; domain?: string | null; meta?: string; url?: string; abstract?: string | null; description?: string | null; posts?: BriefingSharer[]; publishers?: string[]; accent?: string; sharedTotal?: number | null; peerReviewed?: boolean; showSources?: boolean; /** Registry name; null = no source; undefined = the computed label. */ sourceName?: string | null }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const hasAbs = !!(abstract && abstract.trim());
@@ -409,7 +410,7 @@ export function PaperCard({ title, journal, domain, meta, url, abstract, descrip
   const hasPosts = showSources && !!(posts && posts.length);
   const hasPublishers = showSources && !!publishers?.length;
   const hasSources = hasPosts || hasPublishers;
-  const src = articleSource(journal, domain);
+  const src = sourceName !== undefined ? sourceName : articleSource(journal, domain);
   const isNews = isNewsItem({ peerReviewed, journal, domain });
   return (
     <div style={cardBox}>
@@ -629,7 +630,7 @@ function SupportLinkRow({ link, accent }: { link: HeroSupportLink; accent: strin
   );
 }
 
-export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSource; accent: string; paperLabel: string }) {
+export function StoryEvidence({ story, accent, paperLabel, sourceNames }: { story: EvidenceSource; accent: string; paperLabel: string; sourceNames?: Record<string, string | null> }) {
   const clinicianPosts = mergeReceiptPosts(
     story.posts,
     ...story.papers.map((paper) => paper.posts?.length ? paper.posts : paper.sharers),
@@ -652,7 +653,9 @@ export function StoryEvidence({ story, accent, paperLabel }: { story: EvidenceSo
       {story.papers.length > 0 && <div><div style={evLabel(accent)}>{paperLabel}</div>{(() => { const pubs = unrepresentedPublishers(story.papers.flatMap((pp) => pp.publishers ?? []), publisherPosts); return pubs.length ? <div style={{ font: "400 12px system-ui", color: "var(--rv-muted, rgba(233,237,246,.55))", margin: "2px 0 8px" }}>Also shared by: {pubs.join(" · ")}</div> : null; })()}<Capped items={story.papers} cap={2} accent={accent} render={(p, j) => {
         const total = (story.kind === "paper" && j === 0 ? story.clinicianCount : undefined) ?? p.sharerCount;
         const posts = p.posts?.length ? p.posts : p.sharers;
-        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCountAcrossLanes(posts, publisherPosts, otherPosts), total)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={accent} sharedTotal={total} showSources={false} />;
+        const registryId = articleKey((p as { article_id?: unknown }).article_id);
+        const sourceName = registryId && sourceNames && Object.prototype.hasOwnProperty.call(sourceNames, registryId) ? sourceNames[registryId] : undefined;
+        return <PaperCard key={j} title={p.title} journal={p.journal} domain={p.domain} peerReviewed={p.peerReviewed} publishers={p.publishers} meta={paperClinicianMeta(representedClinicianCountAcrossLanes(posts, publisherPosts, otherPosts), total)} url={p.url} abstract={p.abstract} description={p.description} posts={posts} accent={accent} sharedTotal={total} showSources={false} sourceName={sourceName} />;
       }} /></div>}
     </>
   );
@@ -675,7 +678,7 @@ export function FacePile({ faces, extra, ring }: { faces: (Face | string)[]; ext
   );
 }
 
-export function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured, contextLabel }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean; contextLabel?: string }) {
+export function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured, contextLabel, sourceName }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean; contextLabel?: string; /** Registry name; null = no source; undefined = the computed label. */ sourceName?: string | null }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const abstract = paper.abstract?.replace(/\s+/g, " ").trim() || null;
   const sourceContext = !abstract ? paper.description?.replace(/\s+/g, " ").trim() || null : null;
@@ -690,7 +693,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const revealableClinicians = Math.min(paper.kolSharers, paper.revealableClinicianCount ?? 0);
   const authoredClinicians = Math.min(paper.kolSharers, paper.authoredClinicianCount ?? authoredClinicianCount(paper.posts));
   const sourcesTruncated = revealableClinicians > 0 && paper.kolSharers > revealableClinicians;
-  const source = articleSource(paper.journal, paper.domain);
+  const source = sourceName !== undefined ? sourceName : articleSource(paper.journal, paper.domain);
   const resurfaced = paper.circulationState === "resurfaced";
 
   return (

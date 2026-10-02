@@ -35,7 +35,9 @@ const ALL_ACCENT = "#475569";
 
 // Verbatim replica of app/AllView.tsx heroEvidenceFor (see file header). Maps the resolved
 // evidence DATA to the reader's JSX; re-ranks/re-selects nothing.
-function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): HeroEvidence {
+// sourceNames (publication registry step 4): article id -> registry source name for the
+// evidence papers (null = no source); papers without an entry keep their computed label.
+function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string, sourceNames?: Record<string, string | null>): HeroEvidence {
   const resolved = resolveHeroEvidence(card, brief);
   if (!resolved) return null;
   if (resolved.kind === "paper") {
@@ -48,7 +50,7 @@ function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): Hero
       context,
       contextLabel: paper?.abstract ? "Abstract" : "Source context",
       preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
-      drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
+      drawer: <StoryEvidence story={{ ...story, publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" sourceNames={sourceNames} />,
     };
   }
   if (resolved.kind === "article") {
@@ -60,7 +62,7 @@ function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): Hero
       context,
       contextLabel: paper.abstract ? "Abstract" : "Source context",
       preview: firstPost ? <TweetCard t={firstPost} compact /> : null,
-      drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" />,
+      drawer: <StoryEvidence story={{ podcast: [], posts: resolved.posts, papers: [paper], kind: "paper", publisherPosts: resolved.publisherPosts, otherPosts: resolved.otherPosts, supportLinks: resolved.supportLinks }} accent={accent} paperLabel="The paper" sourceNames={sourceNames} />,
     };
   }
   if (resolved.kind === "episode") return { faces: resolved.faces, playback: resolved.playback, drawer: (
@@ -73,7 +75,15 @@ function heroEvidenceFor(card: HeroCard, brief: CardBrief, accent: string): Hero
   return { faces: resolved.faces, drawer: <StoryEvidence story={{ podcast: [], posts: [resolved.post], papers: [], kind: "thread" }} accent={accent} paperLabel="Papers" /> };
 }
 
-export default function PostCard({ card, brief, area, memberHome }: { card: HeroCard; brief: CardBrief; area: string; memberHome: string }) {
+export default function PostCard({ card, brief, area, memberHome, cardSource, sourceNames }: {
+  card: HeroCard;
+  brief: CardBrief;
+  area: string;
+  memberHome: string;
+  /** Registry source name for the card (null = no source); undefined keeps card.sourceLabel. */
+  cardSource?: string | null;
+  sourceNames?: Record<string, string | null>;
+}) {
   const accent = AREA_ACCENTS[area] ?? ALL_ACCENT;
   const areaFull = AREA_FULL[area] ?? area;
   // Render the reader card CLIENT-ONLY (like the reader itself, which is a "use client" page):
@@ -126,7 +136,8 @@ export default function PostCard({ card, brief, area, memberHome }: { card: Hero
             accent={accent}
             defaultOpenId={card.id}
             ink={{ soft: INK_2, softer: LIGHT_MUT, line: LINE, ring: PAPER, surface: SURFACE }}
-            evidenceOf={(c) => heroEvidenceFor(c, brief, accent)}
+            evidenceOf={(c) => heroEvidenceFor(c, brief, accent, sourceNames)}
+            sourceOverride={cardSource !== undefined ? { [card.id]: cardSource } : undefined}
           />
         ) : (
           <div aria-hidden style={{ minHeight: 420 }} />

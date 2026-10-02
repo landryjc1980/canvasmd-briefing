@@ -41,7 +41,7 @@ const INK = { soft: "rgba(233,237,246,.75)", softer: "rgba(233,237,246,.45)", li
 // THEY SAID — counts without receipts are exactly what this product refuses to be.
 export type HeroEvidence = { faces: string[]; drawer: ReactNode; context?: string | null; contextLabel?: "Abstract" | "Source context"; preview?: ReactNode; playback?: import("@/lib/types").BriefingPod } | null;
 
-export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf, openId: openIdProp, onOpenChange, seenIds, unseenDot }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string; openId?: string | null; onOpenChange?: (id: string | null) => void; seenIds?: ReadonlySet<string>; unseenDot?: string }) {
+export default function HeroCards({ cards, accent, ink = INK, evidenceOf, variant = "full", idPrefix = "", defaultOpenId, shareUrlOf, openId: openIdProp, onOpenChange, seenIds, unseenDot, sourceOverride }: { cards: HeroCard[]; accent: string; ink?: { soft: string; softer: string; line: string; ring?: string; surface?: string }; evidenceOf?: (c: HeroCard) => HeroEvidence; variant?: "full" | "compact"; idPrefix?: string; defaultOpenId?: string; shareUrlOf?: (c: HeroCard) => string; openId?: string | null; onOpenChange?: (id: string | null) => void; seenIds?: ReadonlySet<string>; unseenDot?: string; sourceOverride?: Record<string, string | null> }) {
   // defaultOpenId opens one card's evidence drawer on mount — the standalone /r/<slug> post page
   // passes the card's own id so a shared link lands on the FULL expanded card, evidence and all.
   // Passing `openId` switches the drawer to CONTROLLED mode (the All page owns one open card
@@ -76,6 +76,8 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
         // The open card returns to full ink: its drawer renders inside this <article>, and faded
         // evidence is exactly what someone who just clicked "show me the sources" must not get.
         const dimmed = !!seenIds?.has(c.id) && openId !== c.id;
+        // Publication registry: an override (null = no source) replaces the frozen label.
+        const sourceLabel = sourceOverride && Object.prototype.hasOwnProperty.call(sourceOverride, c.id) ? sourceOverride[c.id] : c.sourceLabel;
         return (
           <article key={c.id} className={`readout-hero-card${lead ? " is-lead" : ""}${compact ? " is-compact" : ""}`} data-sid={c.id} data-stitle={c.headline} data-skind={c.kind} style={{ ...(compact ? { padding: "12px 2px", borderTop: i ? `1px solid ${ink.line}` : "none" } : {}), ...(seenIds ? { opacity: dimmed ? SEEN_DIM : 1, transition: "opacity .35s ease" } : {}) }}>
           <div className="hero-row" style={{ alignItems: "baseline" }}>
@@ -85,7 +87,7 @@ export default function HeroCards({ cards, accent, ink = INK, evidenceOf, varian
                 {KIND_KICKER[c.kind] ?? c.kind}
                 {(c.drugTags ?? []).length > 0 && <span style={{ opacity: .72, textTransform: "none", letterSpacing: 0, marginLeft: 8, font: `600 ${compact ? 9.5 : 11}px system-ui` }}>· {(c.drugTags ?? [])[0]}</span>}
               </div>
-              <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{c.sourceLabel}</div>
+              {sourceLabel && <div className="readout-hero-source" style={compact ? { font: "500 12px system-ui", color: ink.soft, marginTop: 3 } : { color: ink.soft }}>{sourceLabel}</div>}
               <h3 className="readout-hero-title" style={compact ? { font: "500 16px/1.4 'Newsreader',Georgia,serif", margin: "4px 0" } : undefined}>
                 {c.url ? <a href={c.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "inherit", textDecoration: "none" }}>{c.headline}</a> : c.headline}
               </h3>

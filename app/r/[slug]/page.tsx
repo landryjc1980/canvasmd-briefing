@@ -20,6 +20,8 @@ import { representedClinicianCount, resolveHeroEvidence } from "@/app/heroEviden
 import { evidenceBackedHeroWhy } from "@/app/clientEvidence";
 import { readSession, SESSION_COOKIE } from "@/lib/gate";
 import { activeContactId } from "@/lib/gateServer";
+import { ownArticlePick, publicationName, type SavedPublication } from "@/lib/publicationDisplay";
+import { resolvePublicationNames } from "@/lib/publicationServer";
 import PostCard from "./PostCard";
 import PublicCard, { type PublicViewData } from "./PublicCard";
 import "@/app/briefing.css";
@@ -81,12 +83,38 @@ export default async function PostPage({ params }: { params: { slug: string } })
   const accent = accentOf(area);
   const memberHome = `/?area=${area}`;
 
+  // Thread headlines are verbatim clinician posts — never list them publicly either.
+  const otherCards = (brief.heroCandidates?.cards ?? [])
+    .filter((c) => c.id !== card.id && isPublicSafeCard(c.kind))
+    .slice(0, 3);
+
+  // Publication registry (step 4): one live lookup for the card, the "also" cards and the
+  // evidence papers. Only paper cards follow the registry; episodes, FDA events, readouts and
+  // threads keep their labels. undefined = the legacy label (no id and no saved status).
+  const topArticles = (brief.topArticles ?? []) as Array<{ article_id?: unknown } & SavedPublication>;
+  const registryCards = [card, ...otherCards].filter((c) => c.kind === "paper");
+  const publications = await resolvePublicationNames([
+    ...registryCards.map((c) => { const pick = ownArticlePick(c); return pick.kind === "id" ? pick.id : null; }),
+    ...topArticles.map((a) => a.article_id),
+  ]);
+  const cardSourceOf = (c: typeof card): string | null | undefined => c.kind === "paper"
+    ? publicationName({ pick: ownArticlePick(c), entries: publications, saved: c as unknown as SavedPublication })
+    : undefined;
+  const cardSource = cardSourceOf(card);
+  const sourceNames: Record<string, string | null> = {};
+  for (const article of topArticles) {
+    const pick = ownArticlePick(article);
+    if (pick.kind !== "id") continue;
+    const name = publicationName({ pick, entries: publications, saved: article });
+    if (name !== undefined) sourceNames[pick.id] = name;
+  }
+
   // MEMBER → the full expanded card (the fix: the page BE the reader's card, evidence and all).
   // Pass only the four arrays resolveHeroEvidence reads (not the whole ~0.5MB brief) so the page
   // that gets serialized to the client stays lean on a shared-link cold open.
   if (contactId) {
     const briefForCard = { topStories: brief.topStories, topArticles: brief.topArticles, movers: brief.movers, heroCandidates: brief.heroCandidates };
-    return <PostCard card={card} brief={briefForCard} area={area} memberHome={memberHome} />;
+    return <PostCard card={card} brief={briefForCard} area={area} memberHome={memberHome} cardSource={cardSource} sourceNames={sourceNames} />;
   }
 
   // PUBLIC → the site's own reader chrome + a GLIMPSE of what the gate holds.
@@ -117,16 +145,13 @@ export default async function PostPage({ params }: { params: { slug: string } })
   // A verbatim clinician quote stays behind the gate (safety invariant: teaser ≠ someone's words).
   const safeExcerpt = card.excerpt && !card.excerptVerbatim && card.kind !== "thread" ? card.excerpt : null;
 
-  // Thread headlines are verbatim clinician posts — never list them publicly either.
-  const otherCards = (brief.heroCandidates?.cards ?? [])
-    .filter((c) => c.id !== card.id && isPublicSafeCard(c.kind))
-    .slice(0, 3);
   const safe = isPublicSafeCard(card.kind);
   const v: PublicViewData = {
     headline: publicTitleOf(card.kind, card.headline, area),
     kicker: KICKERS[card.kind] ?? card.kind,
     // For a thread the "source" is the clinician themselves — withhold the name.
-    sourceLabel: safe ? (card.sourceLabel ?? null) : null,
+    // The registry name when the rule decides (null = no source), else the frozen label.
+    sourceLabel: safe ? (cardSource !== undefined ? cardSource : card.sourceLabel ?? null) : null,
     // Episodes get NO source link (card.url is the raw audio enclosure — the reader gives members a
     // seeking player instead of ever linking it, HeroCards `kind !== "episode"`), and neither do
     // threads (the x.com status URL carries the clinician's handle).
@@ -145,7 +170,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
     also: otherCards.map((c) => ({
       headline: c.headline,
       kicker: KICKERS[c.kind] ?? c.kind,
-      sourceLabel: c.sourceLabel ?? null,
+      sourceLabel: (() => { const name = cardSourceOf(c); return name !== undefined ? name : c.sourceLabel ?? null; })(),
       href: `/r/${heroSlugFor(c.kind, c.headline, c.id)}`,
     })),
   };
