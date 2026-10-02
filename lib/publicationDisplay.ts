@@ -80,8 +80,38 @@ export function ownArticlePick(item: unknown): OwnArticlePick {
   return ids.length ? { kind: "undecided" } : { kind: "none" };
 }
 
+/**
+ * A Readout edition item's pick, as the physician app makes it (lib/publication-core.ts
+ * readoutArticlePick): the item's own id (ownArticlePick) when it has one; else the
+ * single UUID among its evidence overlay's article ids. Several ids and no single pick
+ * are "undecided" (no source name); no UUID ids at all is "none".
+ */
+export function readoutArticlePick(item: unknown, overlayArticleIds?: unknown): OwnArticlePick {
+  const own = ownArticlePick(item);
+  if (own.kind === "id") return own;
+  const overlay = uuids(overlayArticleIds);
+  if (overlay.length === 1) return { kind: "id", id: overlay[0] };
+  return own.kind === "undecided" || overlay.length ? { kind: "undecided" } : { kind: "none" };
+}
+
+/**
+ * The evidence overlay's article ids for an edition item: the overlay with the item's
+ * id, else one whose id ends the other's (the physician app's lib/readout-edition.ts
+ * overlayForItem).
+ */
+export function overlayArticleIdsFor(overlays: unknown, item: unknown): unknown {
+  if (!Array.isArray(overlays) || !item || typeof item !== "object") return undefined;
+  const id = (item as { id?: unknown }).id;
+  if (typeof id !== "string") return undefined;
+  const list = overlays.filter((overlay): overlay is { id: string; articleIds?: unknown } =>
+    !!overlay && typeof overlay === "object" && typeof (overlay as { id?: unknown }).id === "string");
+  const overlay = list.find((candidate) => candidate.id === id)
+    ?? list.find((candidate) => id.endsWith(candidate.id) || candidate.id.endsWith(id));
+  return overlay?.articleIds;
+}
+
 /** The picked id, or null when the pick is undecided or none. */
-export const pickId = (pick: OwnArticlePick): string | null => (pick.kind === "id" ? pick.id : null);
+export const pickId =(pick: OwnArticlePick): string | null => (pick.kind === "id" ? pick.id : null);
 
 /**
  * The source name for one card. `entries` is the registry lookup (null when it

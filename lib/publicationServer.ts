@@ -2,9 +2,11 @@ import "server-only";
 import { supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
 import {
   articleKey,
+  overlayArticleIdsFor,
   ownArticlePick,
   publicationName,
   publicationStatusOf,
+  readoutArticlePick,
   type OwnArticlePick,
   type PublicationEntry,
   type SavedPublication,
@@ -170,19 +172,23 @@ function decorateSnapshot(snapshot: unknown, name: (item: unknown) => string | n
 export async function withPublicationNames<T extends ReadoutWindowPayload>(payload: T): Promise<T> {
   try {
     const snapshots: SnapshotLike[] = [payload.currentEdition, ...(payload.editionHistory ?? [])].filter(isObject);
-    const items = [
-      ...snapshots.flatMap((snapshot) => [...developmentsOf(snapshot), ...relevantOf(snapshot)]),
-      ...(payload.designationCards ?? []),
-    ].filter((item) => isObject(item) && !skipsRegistry(item));
-    const ids = pickIds(items.map(ownArticlePick));
+    const editionItems = snapshots.flatMap((snapshot) => [...developmentsOf(snapshot), ...relevantOf(snapshot)])
+      .filter((item) => isObject(item) && !skipsRegistry(item));
+    const designations = (payload.designationCards ?? []).filter((item) => isObject(item) && !skipsRegistry(item));
+    // Edition items also take their evidence overlay's single id, as the app does
+    // (lib/briefing.ts warmReadoutPublications); designation cards use their own id only.
+    const editionPick = (item: unknown) => readoutArticlePick(item, overlayArticleIdsFor(payload.overlays, item));
+    const ids = pickIds([...editionItems.map(editionPick), ...designations.map(ownArticlePick)]);
     const entries = ids.length ? await fetchArticlePublications(ids) : new Map<string, PublicationEntry>();
-    const name = (item: unknown) => publicationName({ pick: ownArticlePick(item), entries, saved: item as SavedPublication });
+    const nameBy = (pickOf: (item: unknown) => OwnArticlePick) => (item: unknown) =>
+      publicationName({ pick: pickOf(item), entries, saved: item as SavedPublication });
+    const editionName = nameBy(editionPick);
     return {
       ...payload,
-      ...(payload.currentEdition !== undefined ? { currentEdition: decorateSnapshot(payload.currentEdition, name) } : {}),
-      ...(Array.isArray(payload.editionHistory) ? { editionHistory: payload.editionHistory.map((snapshot) => decorateSnapshot(snapshot, name)) } : {}),
+      ...(payload.currentEdition !== undefined ? { currentEdition: decorateSnapshot(payload.currentEdition, editionName) } : {}),
+      ...(Array.isArray(payload.editionHistory) ? { editionHistory: payload.editionHistory.map((snapshot) => decorateSnapshot(snapshot, editionName)) } : {}),
       ...(Array.isArray(payload.designationCards)
-        ? { designationCards: payload.designationCards.map((card) => decorate(card, name(card), "sourceName")) }
+        ? { designationCards: payload.designationCards.map((card) => decorate(card, nameBy(ownArticlePick)(card), "sourceName")) }
         : {}),
     };
   } catch (error) {

@@ -128,6 +128,48 @@ test("withPublicationNames decorates rule-1/2 items only and never mutates the i
   assert.equal("sourceName" in out.designationCards[1], false);
 }));
 
+test("edition items take their evidence overlay's single id, as the app does; own id wins", withEnv(async () => {
+  const api = load();
+  const calls = [];
+  globalThis.fetch = registryFetch(calls);
+  const input = windowPayload();
+  input.currentEdition.relevant = [
+    { article: article("o1"), position: 0 },
+    { article: article("o2"), position: 1 },
+    { article: article("o3"), position: 2 },
+    { article: article("o4", { articleId: B }), position: 3 },
+    { article: article("archive-paper:o5"), position: 4 },
+  ];
+  input.editionHistory = [];
+  input.designationCards = [{ id: "des-o", sourceLabel: "Legacy" }];
+  input.overlays = [
+    { id: "o1", articleIds: [A, "paper:x"] },
+    { id: "o2", articleIds: [] },
+    { id: "o3", articleIds: [A, D] },
+    { id: "o4", articleIds: [A] },
+    { id: "o5", articleIds: [A] },
+    { id: "des-o", articleIds: [A] },
+  ];
+  const out = await api.withPublicationNames(input);
+  const [one, none, several, own, suffix] = out.currentEdition.relevant.map((entry) => entry.article);
+  assert.equal(one.sourceName, "The Breast", "the single overlay id is used");
+  assert.equal("sourceName" in none, false, "no overlay ids: unchanged, the stored journal shows");
+  assert.equal(several.sourceName, null, "several overlay ids and no single pick show nothing (app: undecided)");
+  assert.equal(own.sourceName, null, "the item's own id wins over the overlay");
+  assert.equal(suffix.sourceName, "The Breast", "an overlay whose id ends the item's id matches, as the app's overlayForItem");
+  assert.equal("sourceName" in out.designationCards[0], false, "designation cards do not read overlays");
+}));
+
+test("readoutArticlePick mirrors the app: own id, else a single overlay id", () => {
+  assert.deepEqual(display.readoutArticlePick({ articleId: A }, [B]), { kind: "id", id: A });
+  assert.deepEqual(display.readoutArticlePick({}, [B, "paper:x"]), { kind: "id", id: B });
+  assert.deepEqual(display.readoutArticlePick({ articleIds: [A, D] }, [B]), { kind: "id", id: B });
+  assert.deepEqual(display.readoutArticlePick({}, [A, D]), { kind: "undecided" });
+  assert.deepEqual(display.readoutArticlePick({ articleIds: [A, D] }, []), { kind: "undecided" });
+  assert.deepEqual(display.readoutArticlePick({}, undefined), { kind: "none" });
+  assert.deepEqual(display.readoutArticlePick({}, ["paper:x"]), { kind: "none" });
+});
+
 test("a failed lookup keeps saved names and shows nothing for ids", withEnv(async () => {
   const api = load();
   globalThis.fetch = async () => new Response("down", { status: 503 });
