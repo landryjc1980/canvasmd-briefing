@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentContactId } from "@/lib/gateServer";
 import { getCachedReadoutWindow, supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
+import { withPublicationNames } from "@/lib/publicationServer";
 import type { EditionArea } from "@/app/briefing-preview/edition";
 
 export const dynamic = "force-dynamic";
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
 
   if (mode === "readout-window") {
     try {
-      const payload = await getCachedReadoutWindow(area, days === 7 ? "7d" : "today");
+      const payload = await withPublicationNames(await getCachedReadoutWindow(area, days === 7 ? "7d" : "today"));
       return NextResponse.json(payload, { headers: { "x-readout-cache": "hourly" } });
     } catch (err: any) {
       return NextResponse.json(

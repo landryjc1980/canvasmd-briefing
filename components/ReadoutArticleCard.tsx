@@ -14,7 +14,8 @@ export default function ReadoutArticleCard({
   children,
 }: {
   href: string | null;
-  source: string;
+  /** null or empty: no source line (a registry card with no publication name). */
+  source: string | null;
   title: string;
   date?: ReactNode;
   beforeSource?: ReactNode;
@@ -29,7 +30,7 @@ export default function ReadoutArticleCard({
       {beforeSource}
       {href
         ? <ReadoutSourceHeadline href={href} source={source} title={title} compact={compact} />
-        : <div className="er-source-headline"><span className="er-source">{source}</span><h3 className="er-source-title">{title}</h3></div>}
+        : <div className="er-source-headline">{source && <span className="er-source">{source}</span>}<h3 className="er-source-title">{title}</h3></div>}
       {date}
       {children}
       {footer}

@@ -51,3 +51,15 @@ test("web-built archive cards carry the article's own id when it is a UUID", () 
   assert.equal("article_id" in archiveCardForArticle({ ...base, article_id: "nope" }), false);
   assert.equal("article_id" in archiveCardForArticle(base), false);
 });
+
+test("the Readout renders the registry-aware source, not the bare frozen journal", async () => {
+  const { readFileSync } = await import("node:fs");
+  const renderer = readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(renderer, /source=\{item\.journal\}/);
+  assert.doesNotMatch(renderer, /\{item\.journal\}/);
+  assert.match(renderer, /shownSource\(item, item\.journal\)/);
+  assert.match(renderer, /shownSource\(designation, designation\.sourceLabel\)/);
+  for (const file of ["app/page.tsx", "app/api/briefing/route.ts"]) {
+    assert.match(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"), /withPublicationNames\(await getCachedReadoutWindow\(/, file);
+  }
+});

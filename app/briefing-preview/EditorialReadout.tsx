@@ -21,6 +21,7 @@ import ReadoutArticleCard from "@/components/ReadoutArticleCard";
 import { DevelopmentFinding, Disclose } from "@/components/ReadoutFinding";
 import ReadoutVoice from "@/components/ReadoutVoice";
 import { articleExpansion, articleSourceText, readoutRegulatoryCoverage, regulatoryApprovalSourceText, sourceLinkKey, sourceLinkLabel } from "@/lib/readoutPresentation";
+import { shownSource } from "@/lib/publicationDisplay";
 import {
   readoutWindowDays,
   type ReadoutWindow,
@@ -658,6 +659,8 @@ function ArticleDevelopment({
   const links = attachedSources(item, href);
   const hasMoreLinks = links.primarySources.length + links.supportingEvidence.length + links.related.length + links.trials.length > 0;
   const canDisclose = expansion.canExpand || hasMoreLinks;
+  // Publication registry (step 4): the registry name, nothing, or the legacy journal label.
+  const shownJournal = shownSource(item, item.journal);
   const sourceLabel = item.sourceExcerpt || item.findingSource === "source" ? "Full source excerpt" : "Full summary";
   const disclosureLabel = [expansion.canExpand ? expansion.label.replace("Full source excerpt", sourceLabel) : null, hasMoreLinks ? "Sources and related coverage" : null].filter(Boolean).join(" · ");
   const toggleDisclosure = () => {
@@ -677,13 +680,13 @@ function ArticleDevelopment({
       articleRef={cardRef}
       className={`has-kicker-source is-collapsible ${compact ? "is-compact" : ""} ${open ? "is-open" : ""}`}
       href={href}
-      source={item.journal}
+      source={shownJournal}
       title={displayReadoutTitle(article?.title || item.title)}
       compact={compact}
       beforeSource={
         <div className="er-kicker-row">
           <div className="er-kicker">{editorialScopeLabel(item)}{item.studySetting === "preclinical" ? " · PRECLINICAL" : ""}{numbered ? "" : ` · ${contentType}`}</div>
-          <span className="er-kicker-source">{item.journal}</span>
+          {shownJournal && <span className="er-kicker-source">{shownJournal}</span>}
         </div>
       }
       footer={canDisclose ? (
@@ -1266,7 +1269,7 @@ export default function EditorialReadout({ initialPayload, conferenceMeetings = 
                 ? <time dateTime={designation.occurredOn ?? undefined}>{editionDateLabel(designation.occurredOn)}</time>
                 : "Unavailable"}</p>
               <p>{designation.description ? `${designation.description} ` : ""}This is not an approval.</p>
-              <a href={designation.url} target="_blank" rel="noreferrer">{designation.sourceLabel}</a>
+              <a href={designation.url} target="_blank" rel="noreferrer">{shownSource(designation, designation.sourceLabel) ?? "Source"}</a>
             </div>
           </article>
         ))}
