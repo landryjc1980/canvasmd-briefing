@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, BriefingStory, BriefingTrial, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
-import { AREA_FULL, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
+import { AREA_FULL, cleanArticleTitle, cleanTweetText, storedJournal, storiesOf } from "../briefVM";
 import { heroDeckOf, scopedHeroCards } from "../heroContract";
 import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
@@ -368,7 +368,7 @@ function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts 
         <div className="dl-editorial-evidence-label">Original papers</div>
         {publisherNames.length > 0 && <div className="dl-editorial-publishers">Also shared by {publisherNames.join(" · ")}</div>}
         {papers.slice(0, 3).map((paper, index) => <a className="dl-editorial-evidence-paper" href={paper.url} target="_blank" rel="noreferrer" key={`${paper.url}-${index}`}>
-          <span>{paper.journal ?? paper.domain ?? "Publication"}</span>
+          <span>{storedJournal(paper.journal) ?? "Publication"}</span>
           <strong>{cleanArticleTitle(paper.title, paper.journal)}</strong>
           <i aria-hidden="true">↗</i>
         </a>)}
@@ -517,7 +517,7 @@ function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; med
           const showFallbackMark = !accent;
           const hasVisual = hasImage || showFallbackMark;
           const visualClass = hasImage ? " has-image" : hasVisual ? "" : " no-visual";
-          const source = paper.journal?.trim() || null;
+          const source = storedJournal(paper.journal);
           return (
             <article className={`dl-paper-item${visualClass}`} key={`${paper.url}-${index}`}>
               <a className={`dl-paper${visualClass}`} href={paper.url} target="_blank" rel="noreferrer">

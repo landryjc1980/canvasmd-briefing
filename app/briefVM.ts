@@ -56,6 +56,15 @@ export function cleanTweetText(s: string | null | undefined): string {
 export const isNewsItem = (x: { peerReviewed?: boolean } | null | undefined): boolean =>
   x?.peerReviewed === false;
 
+// A card's stored journal as its fallback source: whitespace collapsed; null when empty or a web
+// address (shared-paper cards save the domain as "journal"). Same rule as the physician app's
+// storedJournal (lib/publication-core.ts).
+const HOSTNAME = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/.*)?$/i;
+export function storedJournal(journal: string | null | undefined): string | null {
+  const value = typeof journal === "string" ? journal.replace(/\s+/g, " ").trim() : "";
+  return value && !HOSTNAME.test(value) ? value : null;
+}
+
 // Drop a trailing " | Source" / " - Source" from a title. Same rule as the physician app's
 // cleanPublisherTitle (lib/publisher.ts): whitespace collapsed, the suffix must follow a space
 // and a "|", "-", "–" or "—", case-insensitive.

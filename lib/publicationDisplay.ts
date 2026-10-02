@@ -95,9 +95,9 @@ export function readoutArticlePick(item: unknown, overlayArticleIds?: unknown): 
 }
 
 /**
- * The evidence overlay's article ids for an edition item: the overlay with the item's
- * id, else one whose id ends the other's (the physician app's lib/readout-edition.ts
- * overlayForItem).
+ * The evidence overlay's article ids for an edition item: the overlay with exactly the
+ * item's id (every live item matches exactly; the app's looser id-suffix match is not
+ * copied, since it could pick another story's overlay).
  */
 export function overlayArticleIdsFor(overlays: unknown, item: unknown): unknown {
   if (!Array.isArray(overlays) || !item || typeof item !== "object") return undefined;
@@ -105,8 +105,7 @@ export function overlayArticleIdsFor(overlays: unknown, item: unknown): unknown 
   if (typeof id !== "string") return undefined;
   const list = overlays.filter((overlay): overlay is { id: string; articleIds?: unknown } =>
     !!overlay && typeof overlay === "object" && typeof (overlay as { id?: unknown }).id === "string");
-  const overlay = list.find((candidate) => candidate.id === id)
-    ?? list.find((candidate) => id.endsWith(candidate.id) || candidate.id.endsWith(id));
+  const overlay = list.find((candidate) => candidate.id === id);
   return overlay?.articleIds;
 }
 

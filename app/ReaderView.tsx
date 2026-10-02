@@ -4,7 +4,7 @@ import { Fragment, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { BriefingSharer, BriefingPod, BriefingPaper, BriefingEpisode, HeroSupportLink } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
-import { isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, type Face } from "./briefVM";
+import { isNewsItem, cleanArticleTitle, cleanTweetText, rtOriginal, storedJournal, type Face } from "./briefVM";
 import { paperClinicianMeta, representedClinicianCountAcrossLanes, supportLinkGroups } from "./heroEvidence";
 import { unrepresentedPublishers } from "./clientEvidence";
 import { articleKey } from "@/lib/publicationDisplay";
@@ -315,7 +315,7 @@ export function PaperCard({ title, journal, meta, url, abstract, description, po
   const hasPosts = showSources && !!(posts && posts.length);
   const hasPublishers = showSources && !!publishers?.length;
   const hasSources = hasPosts || hasPublishers;
-  const src = sourceName !== undefined ? sourceName : journal?.trim() || null;
+  const src = sourceName !== undefined ? sourceName : storedJournal(journal);
   const isNews = isNewsItem({ peerReviewed });
   const shownTitle = cleanArticleTitle(title, journal, src);
   return (
@@ -323,7 +323,7 @@ export function PaperCard({ title, journal, meta, url, abstract, description, po
       {url
         ? <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)", textDecoration: "none" }}>{shownTitle}</a>
         : <div style={{ font: "500 15px/1.35 'Newsreader',Georgia,serif", color: "var(--rv-ink, #eef1f8)" }}>{shownTitle}</div>}
-      {(src || meta) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
+      {(src || meta || isNews) && <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 7 }}>
         <span style={{ font: "400 12px system-ui", color: MUT }}>{[src, meta].filter(Boolean).join(" · ")}</span>
         {isNews && <span style={{ font: "700 8.5px system-ui", letterSpacing: ".08em", color: "var(--rv-muted, rgba(255,255,255,.55))", background: "var(--rv-surface, rgba(255,255,255,.07))", border: "1px solid var(--rv-line, rgba(255,255,255,.13))", borderRadius: 5, padding: "1.5px 6px" }}>News</span>}
       </div>}

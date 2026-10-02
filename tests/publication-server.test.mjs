@@ -156,7 +156,7 @@ test("edition items take their evidence overlay's single id, as the app does; ow
   assert.equal("sourceName" in none, false, "no overlay ids: unchanged, the stored journal shows");
   assert.equal(several.sourceName, null, "several overlay ids and no single pick show nothing (app: undecided)");
   assert.equal(own.sourceName, null, "the item's own id wins over the overlay");
-  assert.equal(suffix.sourceName, "The Breast", "an overlay whose id ends the item's id matches, as the app's overlayForItem");
+  assert.equal("sourceName" in suffix, false, "only an exact overlay id matches: a suffix-only match could be another story");
   assert.equal("sourceName" in out.designationCards[0], false, "designation cards do not read overlays");
 }));
 
