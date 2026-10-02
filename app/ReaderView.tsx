@@ -678,7 +678,7 @@ export function FacePile({ faces, extra, ring }: { faces: (Face | string)[]; ext
   );
 }
 
-export function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured, contextLabel, sourceName }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean; contextLabel?: string; /** Registry name; null = no source; undefined = the computed label. */ sourceName?: string | null }) {
+export function PaperShareRow({ paper, id, open, onToggle, accent, ring, featured, contextLabel }: { paper: BriefingArticle; id: string; open: boolean; onToggle: () => void; accent: string; ring: string; featured: boolean; contextLabel?: string }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const abstract = paper.abstract?.replace(/\s+/g, " ").trim() || null;
   const sourceContext = !abstract ? paper.description?.replace(/\s+/g, " ").trim() || null : null;
@@ -693,7 +693,7 @@ export function PaperShareRow({ paper, id, open, onToggle, accent, ring, feature
   const revealableClinicians = Math.min(paper.kolSharers, paper.revealableClinicianCount ?? 0);
   const authoredClinicians = Math.min(paper.kolSharers, paper.authoredClinicianCount ?? authoredClinicianCount(paper.posts));
   const sourcesTruncated = revealableClinicians > 0 && paper.kolSharers > revealableClinicians;
-  const source = sourceName !== undefined ? sourceName : articleSource(paper.journal, paper.domain);
+  const source = articleSource(paper.journal, paper.domain);
   const resurfaced = paper.circulationState === "resurfaced";
 
   return (

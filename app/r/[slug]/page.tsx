@@ -88,16 +88,18 @@ export default async function PostPage({ params }: { params: { slug: string } })
     .filter((c) => c.id !== card.id && isPublicSafeCard(c.kind))
     .slice(0, 3);
 
-  // Publication registry (step 4): one live lookup for the card, the "also" cards and the
-  // evidence papers. Only paper cards follow the registry; episodes, FDA events, readouts and
-  // threads keep their labels. undefined = the legacy label (no id and no saved status).
-  const topArticles = (brief.topArticles ?? []) as Array<{ article_id?: unknown } & SavedPublication>;
-  const registryCards = [card, ...otherCards].filter((c) => c.kind === "paper");
+  // Publication registry (step 4): one live lookup for the card, the "also" cards and, for a
+  // member, the evidence papers (the public view never renders them, so it never pays for them).
+  // Paper and trial-readout cards follow the registry (resolveHeroEvidence treats both as papers);
+  // episodes, FDA events and threads keep their labels. undefined = the legacy label.
+  const isPaperCard = (c: typeof card) => c.kind === "paper" || c.kind === "readout";
+  const topArticles = (contactId ? brief.topArticles ?? [] : []) as Array<{ article_id?: unknown } & SavedPublication>;
+  const registryCards = [card, ...otherCards].filter(isPaperCard);
   const publications = await resolvePublicationNames([
     ...registryCards.map((c) => { const pick = ownArticlePick(c); return pick.kind === "id" ? pick.id : null; }),
     ...topArticles.map((a) => a.article_id),
   ]);
-  const cardSourceOf = (c: typeof card): string | null | undefined => c.kind === "paper"
+  const cardSourceOf = (c: typeof card): string | null | undefined => isPaperCard(c)
     ? publicationName({ pick: ownArticlePick(c), entries: publications, saved: c as unknown as SavedPublication })
     : undefined;
   const cardSource = cardSourceOf(card);
