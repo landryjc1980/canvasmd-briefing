@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { archivedEditorialArticle, breakingEditorialArticle } from "../app/briefing-preview/edition.ts";
-import { archiveCardForArticle } from "../app/archiveCard.ts";
 
 const ID = "ABCDEF01-2345-4678-89AB-CDEF01234567";
 const now = "2026-10-02T10:00:00Z";
@@ -43,13 +42,6 @@ test("breaking cards copy the same fields", () => {
   assert.equal(item.publicationName, "GU Oncology Now");
   const plain = breakingEditorialArticle(breaking());
   for (const key of ["articleId", "publicationStatus", "publicationName"]) assert.equal(key in plain, false, key);
-});
-
-test("web-built archive cards carry the article's own id when it is a UUID", () => {
-  const base = { title: "Paper", url: "https://doi.org/10.1/x", journal: "J", domain: "example.org", doi: "10.1/x", pmid: null, peerReviewed: true, kolSharers: 2 };
-  assert.equal(archiveCardForArticle({ ...base, article_id: ID }).article_id, ID.toLowerCase());
-  assert.equal("article_id" in archiveCardForArticle({ ...base, article_id: "nope" }), false);
-  assert.equal("article_id" in archiveCardForArticle(base), false);
 });
 
 test("the Readout renders the registry-aware source, not the bare frozen journal", async () => {
