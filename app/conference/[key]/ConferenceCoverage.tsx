@@ -79,13 +79,13 @@ export function coverageItem(value: unknown, section: "cards" | "articles" | "ep
       });
   // Publication registry: registrySource (null = no source) when rule 1 or 2 decided; else the
   // stored label, never a web address. The title loses a trailing " | <source>", as on other cards.
-  const legacy = storedJournal(text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal));
-  const shown = "registrySource" in source ? text(source.registrySource) : legacy;
+  const stored = text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal);
+  const shown = "registrySource" in source ? text(source.registrySource) : storedJournal(stored);
   return {
     id: text(source.id) ?? `${section}-${index}-${title}`,
     episodeId: text(source.episodeId) ?? (source.kind === "episode" ? text(source.anchorId) : null),
     label,
-    title: cleanArticleTitle(title, legacy, shown),
+    title: cleanArticleTitle(title, stored, shown),
     url: externalUrl(source.url) ?? externalUrl(source.sourceUrl),
     source: shown,
     excerpt: text(source.excerpt) ?? text(source.description),

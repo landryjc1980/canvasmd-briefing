@@ -43,6 +43,9 @@ test("conference report cards never fall through to a placeholder label", () => 
   const named = coverageItem({ title: "Myeloma data | Blood Cancers Today", url: "https://bloodcancerstoday.com/x", sourceName: "bloodcancerstoday.com", registrySource: "Blood Cancers Today" }, "reports", 4);
   assert.equal(named.source, "Blood Cancers Today");
   assert.equal(named.title, "Myeloma data", "the title loses the trailing source name, as on other cards");
+  const hosted = coverageItem({ title: "Myeloma data | bloodcancerstoday.com", url: "https://bloodcancerstoday.com/x", sourceName: "bloodcancerstoday.com" }, "reports", 5);
+  assert.equal(hosted.title, "Myeloma data", "a trailing stored web address is trimmed too");
+  assert.equal(hosted.source, null);
   assert.equal(coverageItem({ title: "Blood paper", url: "https://pubmed.ncbi.nlm.nih.gov/41234567/", sourceName: "Blood Cancer Discovery", journal: "Blood Cancer Discovery" }, "reports", 3).label, "Paper");
   const event = coverageItem({ title: "Late-breaking session", kind: "event", url: "https://example.org/session" }, "reports", 1);
   assert.equal(event.label, "Meeting update");
