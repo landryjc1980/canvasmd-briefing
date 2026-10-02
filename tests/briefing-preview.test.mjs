@@ -126,7 +126,7 @@ test("live evidence overlay cannot rewrite frozen editorial prose", () => {
   // SourceHeadline is now the shared ReadoutArticleCard/ReadoutSourceHeadline pair; every
   // development renders its frozen title and source through that path, not an inline h3.
   assert.match(readoutArticleCard, /function ReadoutArticleCard/);
-  assert.match(preview, /<ReadoutArticleCard[\s\S]{0,200}href=\{href\}\s+source=\{item\.journal\}\s+title=\{displayReadoutTitle\(article\?\.title \|\| item\.title\)\}\s+compact=\{compact\}/);
+  assert.match(preview, /<ReadoutArticleCard[\s\S]{0,200}href=\{href\}\s+source=\{shownJournal\}\s+title=\{displayReadoutTitle\(article\?\.title \|\| item\.title\)\}\s+compact=\{compact\}/);
   assert.match(readoutSourceHeadline, /<a href=\{href\}[^>]*>\{title\}<\/a>/);
   assert.match(preview, /const rawSourceText = item\.sourceExcerpt \|\| item\.finding/);
   assert.match(preview, /<DevelopmentFinding text=\{source\.preview\} expandedText=\{source\.full\} expanded=\{open\}/);
