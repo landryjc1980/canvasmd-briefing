@@ -9,7 +9,7 @@ import {
   readoutEditionHistoryIncludingCurrent,
 } from "../app/briefing-preview/editionHistory.ts";
 import { archiveCardForArticle } from "../app/archiveCard.ts";
-import { activeReadoutEditionDate, hasFrozenPrepublishedEdition, hasScheduledReadoutSourceRun, prepublicationEditionDate, readoutWindowKeyboardTarget, scheduledReadoutSourceRunId } from "../app/briefing-preview/readoutRequest.ts";
+import { activeReadoutEditionDate, hasFrozenPrepublishedEdition, prepublicationEditionDate, readoutWindowKeyboardTarget } from "../app/briefing-preview/readoutRequest.ts";
 
 // editionSnapshot uses extensionless local imports that Node's TypeScript runner does not resolve.
 registerHooks({ resolve(specifier, context, nextResolve) {
@@ -548,21 +548,17 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
     "the hourly merge keeps updating yesterday's frozen edition until the 6am replacement exists");
 });
 
-test("pre-6am preparation uses today's explicit edition date and only today's promoted source", () => {
+test("pre-6am preparation uses today's explicit edition date and does not wait for the specialty build", () => {
   const now = new Date("2026-08-27T09:05:00Z"); // 05:05 ET
   assert.equal(activeReadoutEditionDate(now), "2026-08-26");
   assert.equal(prepublicationEditionDate(now), "2026-08-27",
     "prepublication must not inherit the public pre-6am date");
-  assert.equal(scheduledReadoutSourceRunId(now), "scheduled-2026082706");
-  assert.equal(hasScheduledReadoutSourceRun("scheduled-2026082706", now), true);
-  assert.equal(hasScheduledReadoutSourceRun("scheduled-2026082606", now), false);
-  assert.equal(hasScheduledReadoutSourceRun(null, now), false, "missing source provenance fails closed");
   const frozen = { schemaVersion: 2, area: "All", editionDate: "2026-08-27", selectionVersion: `readout-v1-${"a".repeat(64)}` };
   assert.equal(hasFrozenPrepublishedEdition(frozen, "2026-08-27"), true);
   assert.equal(hasFrozenPrepublishedEdition({ ...frozen, selectionVersion: null }, "2026-08-27"), false);
-  assert.match(readoutEditionArchive, /MORNING_SOURCE_AREAS = EDITION_AREAS\.filter\(\(area\) => area !== "All"\)/,
-    "source provenance is checked against the seven persisted specialty snapshots, not a nonexistent All row");
-  assert.match(readoutEditionArchive, /const existing = await readEditionRow\(editionDate\);[\s\S]*?if \(validPrepublishedEdition\(existing, editionDate\)\)[\s\S]*?already-prepublished[\s\S]*?await assertScheduledMorningSource\(now\)/,
+  assert.doesNotMatch(readoutEditionArchive, /briefing_snapshots|assertScheduledMorningSource|MORNING_SOURCE_AREAS/,
+    "the 5am Readout selects from the candidate pool alone; the per-specialty snapshots are not a precondition");
+  assert.match(readoutEditionArchive, /const existing = await readEditionRow\(editionDate\);[\s\S]*?if \(validPrepublishedEdition\(existing, editionDate\)\)[\s\S]*?already-prepublished[\s\S]*?await buildCanonicalEdition\(now, \{ editionDate, prepublication: true/,
     "a retry returns the frozen canonical selection before reading fresh source data");
   assert.match(readoutEditionArchive, /if \(validPrepublishedEdition\(existing, editionDate\)\)[\s\S]*?skipped: "prepublished"/,
     "the 6am archive respects a valid prepublished canonical row");

@@ -14,9 +14,7 @@ import {
   etEditionDate,
   etEditionHour,
   hasFrozenPrepublishedEdition,
-  hasScheduledReadoutSourceRun,
   prepublicationEditionDate,
-  scheduledReadoutSourceRunId,
 } from "@/app/briefing-preview/readoutRequest";
 import {
   canonicalReadoutEditionSnapshot,
@@ -100,27 +98,6 @@ async function readEditionRow(editionDate: string): Promise<ReadoutEditionSnapsh
 
 function validPrepublishedEdition(snapshot: ReadoutEditionSnapshot | null, editionDate: string): snapshot is ReadoutEditionSnapshot {
   return hasFrozenPrepublishedEdition(snapshot, editionDate);
-}
-
-type SourceSnapshotRow = { area?: unknown; data?: { build?: { sourceRunId?: unknown } }; generated_at?: unknown };
-const MORNING_SOURCE_AREAS = EDITION_AREAS.filter((area) => area !== "All");
-
-/** The pre-6am edition may only derive from all seven frozen specialty source sets. */
-async function assertScheduledMorningSource(now: Date) {
-  const { url, key } = supabaseServiceEnvironment();
-  const response = await fetch(
-    `${url}/rest/v1/briefing_snapshots?select=area,data,generated_at&area=in.(${MORNING_SOURCE_AREAS.join(",")})`,
-    { headers: supabaseApiKeyHeaders(key), cache: "no-store" },
-  );
-  if (!response.ok) throw new Error(`Morning source lookup returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
-  const rows = await response.json() as SourceSnapshotRow[];
-  const expected = scheduledReadoutSourceRunId(now);
-  const missing = MORNING_SOURCE_AREAS.filter((area) => {
-    const row = rows.find((candidate) => candidate.area === area);
-    return !row || !hasScheduledReadoutSourceRun(row.data?.build?.sourceRunId, now) ||
-      typeof row.generated_at !== "string" || !Number.isFinite(Date.parse(row.generated_at));
-  });
-  if (missing.length) throw new Error(`Morning source is incomplete for ${missing.join(", ")}; expected ${expected}.`);
 }
 
 async function readEditionRows(): Promise<ReadoutEditionSnapshot[]> {
@@ -297,7 +274,6 @@ export async function prepublishCurrentReadoutEdition(now = new Date(), signal?:
     return { editionDate, prepublished: ["All"], selectionVersion: existing.selectionVersion, skipped: "already-prepublished" as const };
   }
   if (existing) throw new Error(`Existing ${editionDate} canonical edition is not a valid prepublication.`);
-  await assertScheduledMorningSource(now);
   const snapshot = await buildCanonicalEdition(now, { editionDate, prepublication: true, signal });
   await writeEditionRow(snapshot, signal);
   return { editionDate, prepublished: ["All"], selectionVersion: snapshot.selectionVersion ?? null, skipped: null };

@@ -37,11 +37,6 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
     }
     calls.push(["db", method, String(url)]);
     if (String(url).includes("readout_posts?select=card&tok=")) return Response.json(existing ? [{ card: existing }] : []);
-    if (String(url).includes("briefing_snapshots?select=area,data,generated_at")) {
-      return Response.json(AREAS.filter((area) => area !== "All").map((area) => ({
-        area, data: { build: { sourceRunId: "scheduled-test" } }, generated_at: "2026-09-11T09:30:00.000Z",
-      })));
-    }
     if (String(url).includes("readout_posts?select=card")) return Response.json([]);
     if (method === "POST") {
       writes.push(JSON.parse(init.body));
@@ -69,8 +64,6 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
       etEditionHour: (now) => now.getTime() === fiveAm.getTime() ? 5 : 6,
       prepublicationEditionDate: () => "2026-09-11",
       hasFrozenPrepublishedEdition: (value, date) => value?.schemaVersion === 2 && value?.area === "All" && value?.editionDate === date && typeof value?.selectionVersion === "string",
-      hasScheduledReadoutSourceRun: () => true,
-      scheduledReadoutSourceRunId: () => "scheduled-test",
     },
     "@/app/briefing-preview/editionHistory": {
       canonicalReadoutEditionSnapshot: (snapshots) => snapshots.find((snapshot) => snapshot.area === "All") ?? null,
@@ -149,19 +142,19 @@ test("valid prepublished retries return before any candidate or source dependenc
   assert.deepEqual(h.calls.filter(([kind]) => kind === "candidate-refresh" || kind === "fresh" || kind === "cached"), []);
 });
 
-test("a new 5am prepublication validates all scheduled sources, then persists the verified candidate build", async () => {
+test("a new 5am prepublication refreshes the candidate build and persists it without waiting on the specialty snapshots", async () => {
   const h = harness();
   const result = await h.prepublishCurrentReadoutEdition(fiveAm);
   assert.deepEqual(result, {
     editionDate: "2026-09-11", prepublished: ["All"], selectionVersion: "readout-v1-test", skipped: null,
   });
-  const scheduledSource = h.calls.findIndex(([kind, _method, url]) =>
-    kind === "db" && url.includes("briefing_snapshots?select=area,data,generated_at"));
+  assert.equal(h.calls.some(([kind, _method, url]) => kind === "db" && String(url).includes("briefing_snapshots")), false,
+    "the 5am Readout does not read or wait for the per-specialty build");
   const refresh = h.calls.findIndex(([kind]) => kind === "candidate-refresh");
   const firstFresh = h.calls.findIndex(([kind]) => kind === "fresh");
   const candidateAssert = h.calls.findIndex(([kind]) => kind === "candidate-assert");
   const write = h.calls.findIndex(([kind, method]) => kind === "db" && method === "POST");
-  assert.ok(scheduledSource >= 0 && refresh > scheduledSource);
+  assert.ok(refresh >= 0);
   assert.ok(firstFresh > refresh, "fresh reads must observe the awaited candidate build");
   assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
   assert.ok(candidateAssert > firstFresh && write > candidateAssert);
