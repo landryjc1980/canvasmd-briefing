@@ -197,3 +197,10 @@ test("the Readout teaser follows the selected specialty, exposes all conferences
   assert.doesNotMatch(teaser, /From the meeting floor/);
   assert.match(teaser, /href=\{conferenceHref\(meeting\)\}/);
 });
+
+test("conference cards follow the registry source and title rules of other article cards", () => {
+  assert.match(coverage, /const shown = "registrySource" in source \? text\(source\.registrySource\) : legacy;/);
+  assert.match(coverage, /title: cleanArticleTitle\(title, legacy, shown\)/);
+  assert.doesNotMatch(coverage, /text\(source\.domain\)\)?\s*,?\s*$/m, "no raw-domain source fallback");
+  assert.doesNotMatch(coverage, /item\.source \?\? "Source"/, "no placeholder source name");
+});

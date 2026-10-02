@@ -10,6 +10,7 @@ import type { ConferenceClinicianShare, ConferencePublisherComment, ConferenceWi
 import { conferenceDateRange, conferenceStatusLabel, parseConferencePublisherComments, publicationDateLabel } from "@/lib/conference";
 import { cleanClinicianText, cleanReadoutExcerpt } from "@/app/briefing-preview/edition";
 import { articleContentType } from "@/lib/articleLabel";
+import { cleanArticleTitle, storedJournal } from "@/app/briefVM";
 import { articleExpansion } from "@/lib/readoutPresentation";
 
 type CoverageItem = { id: string; episodeId: string | null; label: string; title: string; url: string | null; source: string | null; excerpt: string | null; publishedAt: string | null; clinicianShares: ConferenceClinicianShare[]; publisherComments: ConferencePublisherComment[] };
@@ -76,16 +77,17 @@ export function coverageItem(value: unknown, section: "cards" | "articles" | "ep
         sourceName: text(source.domain) ?? text(source.sourceName),
         evidence: text(source.evidence),
       });
+  // Publication registry: registrySource (null = no source) when rule 1 or 2 decided; else the
+  // stored label, never a web address. The title loses a trailing " | <source>", as on other cards.
+  const legacy = storedJournal(text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal));
+  const shown = "registrySource" in source ? text(source.registrySource) : legacy;
   return {
     id: text(source.id) ?? `${section}-${index}-${title}`,
     episodeId: text(source.episodeId) ?? (source.kind === "episode" ? text(source.anchorId) : null),
     label,
-    title,
+    title: cleanArticleTitle(title, legacy, shown),
     url: externalUrl(source.url) ?? externalUrl(source.sourceUrl),
-    // Publication registry: registrySource (null = no source) when rule 1 or 2 decided; else today's chain.
-    source: "registrySource" in source
-      ? text(source.registrySource)
-      : text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal) ?? text(source.domain),
+    source: shown,
     excerpt: text(source.excerpt) ?? text(source.description),
     publishedAt: text(source.pubDate) ?? text(source.published) ?? text(source.publishedAt) ?? text(source.occurredOn),
     clinicianShares: section === "reports" ? clinicianShares(source.clinicianShares) : [],
@@ -177,12 +179,12 @@ function ConferenceCard({ item }: { item: CoverageItem }) {
     <ReadoutArticleCard
       className={`conference-readout-card has-kicker-source is-collapsible ${open ? "is-open" : ""}`}
       href={item.url}
-      source={item.source ?? "Source"}
+      source={item.source}
       title={item.title}
       beforeSource={
         <div className="er-kicker-row">
           <div className="er-kicker">{item.label}</div>
-          <span className="er-kicker-source">{item.source ?? "Source"}</span>
+          {item.source && <span className="er-kicker-source">{item.source}</span>}
         </div>
       }
       footer={canDisclose ? (
