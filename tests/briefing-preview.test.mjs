@@ -643,10 +643,11 @@ test("the browser receives one server-cached payload and never refreshes evidenc
   assert.match(vercelConfig, /"50 \* \* \* \*"/);
 });
 
-test("the live archive includes independently identified top articles, not company releases", () => {
-  assert.match(heroPost, /for \(const article of r\.data\?\.topArticles \?\? \[\]\)/);
-  assert.match(archiveCard, /article\.peerReviewed !== true && !article\.doi && !article\.pmid/);
-  assert.match(heroPost, /archiveCardForArticle\(article\)/);
+test("the specialty build and its card copy are retired; maintenance only expires share cards", () => {
+  assert.doesNotMatch(heroPost, /archiveAllLive|archiveCardForArticle\(article\)/,
+    "no job copies specialty-build cards into readout_posts; the Readout selects from the hourly paper list");
+  assert.doesNotMatch(vercelConfig, /readout-specialty/, "no scheduled specialty publish or shadow run");
+  assert.match(vercelConfig, /"\/api\/readout-maintenance"/, "the 30-day share-card cleanup still runs");
 });
 
 test("the daily archive reads every prior canonical edition before deduplicating", () => {

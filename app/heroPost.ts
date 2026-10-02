@@ -16,7 +16,6 @@ import type { BriefingData, HeroCard } from "@/lib/types";
 import { heroTok } from "@/lib/postId";
 import { sliceBriefForCard, type CardBrief } from "@/app/heroEvidence";
 import { supabaseApiKeyHeaders } from "@/lib/readoutWindowServer";
-import { archiveCardForArticle } from "./archiveCard";
 
 export { archiveCardForArticle } from "./archiveCard";
 
@@ -113,29 +112,6 @@ async function fromArchive(tok: string): Promise<HeroPost | null> {
   // The archived slice IS a BriefingData for every read path that matters here (the four arrays
   // resolveHeroEvidence touches); nothing downstream reads the rest.
   return { area: r.area, card: r.card, brief: r.evidence as BriefingData };
-}
-
-// Archive every card that is live right now (the cron's breadth pass).
-export async function archiveAllLive(): Promise<number> {
-  const rows = await latestSnapshots();
-  let n = 0;
-  for (const r of rows) {
-    const cards: HeroCard[] = [...(r.data?.heroCandidates?.cards ?? [])];
-    const seen = new Set(cards.map((card) => `${card.doi || ""}|${card.url || ""}|${card.headline.toLowerCase()}`));
-    for (const article of r.data?.topArticles ?? []) {
-      const card = archiveCardForArticle(article);
-      if (!card) continue;
-      const key = `${card.doi || ""}|${card.url || ""}|${card.headline.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      cards.push(card);
-    }
-    for (const card of cards) {
-      await archiveCard(r.area, card, r.data).catch(() => {});
-      n++;
-    }
-  }
-  return n;
 }
 
 // Drop anything not seen live for RETENTION_DAYS — that is the link lifetime we promise.
