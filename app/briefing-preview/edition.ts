@@ -1,6 +1,8 @@
 import type { BriefingArticle, BriefingData, BriefingEpisode, BriefingPaper, HeroSupportLink, ReadoutArchivedCard, ReadoutArchivedCardSummary, ReadoutBreakingCandidate, ReadoutRegulatoryCandidate } from "@/lib/types";
 import { editorialBelongsToArea, editorialStoryAreas, isSpecialtyArea } from "./storyMembership.js";
 import { readoutLeadFinding } from "../../lib/readoutLeadFinding.js";
+// @ts-expect-error Node's native TypeScript test runner requires the explicit extension.
+import { articleKey as publicationArticleKey, publicationStatusOf, type PublicationStatus } from "../../lib/publicationDisplay.ts";
 
 export const EDITION_AREAS = ["All", "GU", "Breast", "Lung", "GI", "Heme", "Skin", "Gyn"] as const;
 export type EditionArea = (typeof EDITION_AREAS)[number];
@@ -41,7 +43,30 @@ export type EditorialArticle = {
   supportingEvidence?: HeroSupportLink[];
   relatedCoverage?: HeroSupportLink[];
   occurredOn?: string | null;
+  /** The card's own x_shared_articles id (engine `article_id`), for the publication registry. */
+  articleId?: string;
+  /** Saved publication-registry fields (step 2a) that rode along on the card. */
+  publicationStatus?: PublicationStatus;
+  publicationName?: string | null;
+  /** Render time only: the registry source name added by withPublicationNames (null = show
+   * no source). The edition builders never write it, so it is never frozen into an edition. */
+  sourceName?: string | null;
 };
+
+/** The own article id and saved registry fields of a raw card, when well-formed; omitted otherwise. */
+function editorialPublicationFields(source: unknown): Pick<EditorialArticle, "articleId" | "publicationStatus" | "publicationName"> {
+  const value = (source ?? {}) as { article_id?: unknown; publication_status?: unknown; publication_name?: unknown };
+  const articleId = publicationArticleKey(value.article_id);
+  const publicationStatus = publicationStatusOf(value.publication_status);
+  const publicationName = publicationStatus === "resolved" && typeof value.publication_name === "string" && value.publication_name.trim()
+    ? value.publication_name.trim()
+    : null;
+  return {
+    ...(articleId ? { articleId } : {}),
+    ...(publicationStatus ? { publicationStatus } : {}),
+    ...(publicationName ? { publicationName } : {}),
+  };
+}
 
 export type EditorialEpisode = {
   id: string;
@@ -670,6 +695,7 @@ export function archivedEditorialArticle(item: ReadoutArchivedCard | ReadoutArch
     // occurredAt = publishedAt); events carry it on the card. Either way it is a REAL source
     // date or null — never derived, so the UI can promise "only show a date we actually have".
     occurredOn: card.occurredOn ?? primarySource?.occurredAt ?? null,
+    ...editorialPublicationFields(card),
   };
 }
 
@@ -775,6 +801,7 @@ export function breakingEditorialArticle(candidate: ReadoutBreakingCandidate): E
     articleIds: candidate.articleIds,
     hasExplicitArticleIds: true,
     occurredOn: candidate.pubDate,
+    ...editorialPublicationFields(candidate),
   };
 }
 

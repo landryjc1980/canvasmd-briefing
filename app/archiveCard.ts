@@ -1,4 +1,6 @@
 import type { BriefingArticle, BriefingSharer, HeroCard, HeroSupportPost } from "../lib/types.ts";
+// @ts-expect-error Node's native TypeScript test runner requires the explicit extension.
+import { articleKey } from "../lib/publicationDisplay.ts";
 
 type RankedHeroCard = HeroCard & {
   rankTotal: number;
@@ -31,6 +33,7 @@ export function archiveCardForArticle(article: BriefingArticle): RankedHeroCard 
   const clinicianPosts = (article.posts ?? []).map((post) => supportPost(post, "clinician"));
   const publisherPosts = (article.publisherPosts ?? []).map((post) => supportPost(post, "publisher"));
   const otherPosts = (article.otherPosts ?? []).map((post) => supportPost(post, "other"));
+  const articleId = articleKey((article as { article_id?: unknown }).article_id);
   return {
     id: `paper:${anchor}`,
     kind: "paper",
@@ -68,5 +71,6 @@ export function archiveCardForArticle(article: BriefingArticle): RankedHeroCard 
     // ranking channel is copied so independently archived paper rows can never gain extra credit.
     rankTotal: article.kolSharers * 10,
     rankTrace: [{ input: "clinicianSharers", value: article.kolSharers, weight: 10, contribution: article.kolSharers * 10 }],
+    ...(articleId ? { article_id: articleId } : {}),
   };
 }
