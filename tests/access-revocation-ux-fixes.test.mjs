@@ -5,7 +5,6 @@ import { canvasmdFile } from "./paired-repo.mjs";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const reader = read("app/ReaderView.tsx");
-const flat = read("app/ReaderViewFlat.tsx");
 const stance = read("app/StanceBlock.tsx");
 const hero = read("app/HeroCards.tsx");
 const css = read("app/globals.css");
@@ -51,13 +50,10 @@ test("embedded paper clinician receipts are hoisted into the containing drawer o
     assert.match(source, /Capped items=\{clinicianPosts\}/);
     assert.match(source, /showSources=\{false\}/);
   }
-  assert.match(flat, /mergeReceiptPosts\(s\.posts, \.\.\.s\.papers\.map/);
-  assert.match(flat, /mergeReceiptPosts\(s\.publisherPosts, \.\.\.s\.papers\.map/);
-  assert.match(flat, /mergeReceiptPosts\(s\.otherPosts, \.\.\.s\.papers\.map/);
 });
 
 test("unusable podcast evidence is labeled without a dead timestamp promise", () => {
-  for (const source of [reader, flat, nativeCards]) {
+  for (const source of [reader, nativeCards]) {
     assert.match(source, /Audio unavailable/);
     assert.doesNotMatch(source, />clip \{clipTs\(p\.startMs\)\}</);
   }
@@ -69,7 +65,6 @@ test("web evidence controls meet target and contrast contracts", () => {
   assert.match(hero, /c\.url[\s\S]{0,260}minHeight: 44/);
   assert.match(hero, /sb\.url[\s\S]{0,240}minHeight: 44/);
   assert.match(reader, /hasSources &&[\s\S]{0,520}minHeight: 44/);
-  assert.match(reader, /\[\[`\$\{data\.windowDays\}-day brief`, false\][\s\S]{0,420}minHeight: 44/);
   assert.match(editorialCss, /\.er-window-tabs button \{[^}]*min-height: 44px/);
   assert.match(editorialCss, /\.er-disclose \{[^}]*min-height: 44px/);
   assert.match(editorialCss, /--er-link: #9b451f/);
@@ -79,19 +74,6 @@ test("web evidence controls meet target and contrast contracts", () => {
 });
 
 test("reader surfaces describe each payload's rolling window consistently", () => {
-  assert.match(reader, /Recent guests/);
-  assert.match(reader, /\{g\.thisWeek\}[\s\S]{0,180}>\{data\.windowDays\}-day</);
-  assert.match(flat, /\{g\.thisWeek\}[\s\S]{0,280}>14-day</);
-  assert.doesNotMatch(reader, />This wk</);
-  assert.doesNotMatch(flat, />This wk/);
-  assert.match(reader, /Podcasts from the past \{data\.windowDays\} days/);
-  assert.match(flat, /Podcasts from the past 14 days/);
-  const story = read("app/StoryView.tsx");
-  assert.match(story, /Past \{data\.windowDays\} days in/);
-  assert.match(story, /Guests from the past \$\{data\.windowDays\} days/);
-  assert.match(story, /Podcasts from the past \$\{data\.windowDays\} days/);
-  assert.doesNotMatch(story, />Wk</);
-  assert.match(read("app/AllView.tsx"), /current rolling brief/);
   assert.match(read("app/heroPost.ts"), /current 14-day/);
   assert.match(sharePage, /current contact[\s\S]+activeContactId/);
   assert.match(nativeSections, /Podcasts from the past \{windowDays\} days/);
@@ -102,18 +84,6 @@ test("reader surfaces describe each payload's rolling window consistently", () =
 });
 
 test("web receipts preserve quoted context and primary event provenance", () => {
-  const story = read("app/StoryView.tsx");
   assert.match(reader, /t\.quotedContext/);
-  assert.match(story, /t\.quotedContext/);
-  assert.match(reader, /event\.sourceUrl/);
-  assert.match(reader, /Clinical field updates/);
-  assert.doesNotMatch(reader, /data\.events\.slice\(0, ?8\)/);
   assert.match(reader, /Publisher provenance/);
-});
-
-test("flat zero receipts and no-rail desktop measure stay honest", () => {
-  assert.match(flat, /meta=\{paperClinicianMeta\(revealableClinicians, a\.kolSharers\)\}/);
-  assert.doesNotMatch(flat, /revealableClinicians\} shown in sources/);
-  assert.match(reader, /className="rv-editorial-column"[\s\S]{0,180}maxWidth: EDITORIAL_MEASURE/);
-  assert.match(reader, /margin: railHasContent \? 0 : "0 auto"/);
 });

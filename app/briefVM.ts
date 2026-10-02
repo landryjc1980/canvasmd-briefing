@@ -1,34 +1,8 @@
-// Shared view-model helpers for the new "story / reader" Weekly Brief designs
-// (StoryView.tsx + ReaderView.tsx). Maps our real BriefingData onto the shapes the
-// design mocks expect, and holds the dark jewel-tone per-area palette.
+// Shared view-model helpers for the Readout web's evidence renderers (app/ReaderView.tsx
+// named exports, /r and /design-lab).
 
-import type { BriefingMover, BriefingData, BriefingSharer, BriefingStory, BriefingPod, BriefingStance, BriefingTrial } from "@/lib/types";
-import { clipSecond } from "./clientEvidence";
-export { clipSecond, dailyAccentOf, DAILY_MUTED } from "./clientEvidence";
-
-// Dark jewel-tone palette, one color per tumor area (from the design handoff).
-export type Pal = { bg: string; accent: string; soft: string };
-export const PALETTE: Record<string, Pal> = {
-  GU: { bg: "#14336B", accent: "#9FC0FF", soft: "#5A7FC4" },
-  Breast: { bg: "#4A1836", accent: "#FFB0D4", soft: "#B46A8F" },
-  Lung: { bg: "#22384F", accent: "#A9C4E6", soft: "#5F7D9E" },
-  GI: { bg: "#463107", accent: "#F3CD8A", soft: "#B08B45" },
-  Heme: { bg: "#4A1414", accent: "#FF9F95", soft: "#B05A52" },
-  Gyn: { bg: "#0F3F39", accent: "#8FE8D8", soft: "#4F9A8F" },
-  Skin: { bg: "#2E1065", accent: "#C4B5FD", soft: "#8B7BC4" },
-};
-export const palOf = (area: string): Pal => PALETTE[area] ?? PALETTE.GU;
-
-// ---- Ink editorial treatment -----------------------------------------------------
-// Every edition shares one near-black publication canvas. Tumor-area color is an
-// interaction accent only: links, selected controls, audio progress, labels, and
-// the masthead rule. PALETTE stays intact for the frozen ?design=flat fallback.
-export const INK_BG = "#0D1017";
-export type InkPal = { bg: string; accent: string };
-export const inkOf = (area: string): InkPal => {
-  const p = palOf(area);
-  return { bg: INK_BG, accent: p.accent };
-};
+import type { BriefingMover, BriefingData, BriefingStory, BriefingStance } from "@/lib/types";
+export { clipSecond } from "./clientEvidence";
 
 // Full tumor-area names for the header switcher (the compact "GU" codes are for chips).
 export const AREA_FULL: Record<string, string> = {
@@ -46,130 +20,9 @@ export const AREA_FULL: Record<string, string> = {
 export const UP = { fg: "#74E6A8", bg: "rgba(116,230,168,.16)" };
 export const DOWN = { fg: "#FF9B8F", bg: "rgba(255,155,143,.18)" };
 
-// The 3-segment monochrome signal bar: accent at opacities [1, .5, .24] sized by
-// the podcast / X / paper split. Returns segment descriptors (flex + opacity).
-export function barSegments(m: BriefingMover): { flex: number; opacity: number }[] {
-  const raw = [m.podPct, m.xPct, m.articlePct];
-  const ops = [1, 0.5, 0.24];
-  return raw.map((f, i) => ({ flex: Math.max(f, 0), opacity: ops[i] })).filter((s) => s.flex > 0);
-}
-
-// A "conversation" = one episode's discussion of the drug. Five clips of one Oncology
-// Brothers episode are ONE conversation (a deep dive), not five — so the caption counts
-// distinct EPISODES, and flags a single richly-clipped episode as "in-depth" rather than
-// inflating the number. Falls back to deriving episodes from the pod evidence when an older
-// snapshot predates the podEpisodes field.
-export function podEpisodeCount(x: { podEpisodes?: number; podcast?: BriefingPod[] }): number {
-  if (typeof x.podEpisodes === "number") return x.podEpisodes;
-  return new Set((x.podcast ?? []).map((p) => p.episodeId).filter(Boolean)).size;
-}
-export function podConvLabel(episodes: number, segments: number): string | null {
-  if (!episodes) return null;
-  if (episodes === 1) return segments >= 3 ? "1 in-depth conversation" : "1 conversation";
-  return `${episodes} conversations`;
-}
-
-type XEvidenceLanes = { posts?: BriefingSharer[]; publisherPosts?: unknown[]; otherPosts?: unknown[] };
-
-// One source card may carry several classic reposts beneath it. Count the cards
-// readers can inspect instead of presenting raw activity as a card count.
-export const xEvidenceSourceCount = (value: XEvidenceLanes): number =>
-  (value.posts?.length ?? 0) + (value.publisherPosts?.length ?? 0) + (value.otherPosts?.length ?? 0);
-
-export function authoredClinicianCount(posts: BriefingSharer[] | null | undefined): number {
-  const hasAuthoredText = (post: BriefingSharer): boolean => {
-    const text = post.textEn?.trim() || post.text || "";
-    if (/^\s*RT\s+@/i.test(text)) return false;
-    const hasWords = (value: string) => value
-      .replace(/https?:\/\/\S+/g, " ")
-      .replace(/@[A-Za-z0-9_]+/g, " ")
-      .replace(/#[A-Za-z0-9_]+/g, " ")
-      .replace(/^[ \t]*(?:Article|Paper|Link):[ \t]*$/gim, " ")
-      .replace(/[^\p{L}\p{N}]+/gu, " ")
-      .trim().length > 0;
-    return hasWords(text) || (post.thread ?? []).some((part) => hasWords(part.text));
-  };
-  const identities = new Set<string>();
-  for (const post of posts ?? []) {
-    if (!hasAuthoredText(post)) continue;
-    identities.add(post.handle?.replace(/^@/, "").trim().toLowerCase() ||
-      post.name?.replace(/\s+/g, " ").trim().toLowerCase() || post.tweetUrl || "");
-  }
-  identities.delete("");
-  return identities.size;
-}
-
-export function trialEvidenceCounts(trial: Pick<BriefingTrial, "pods" | "posts" | "publisherPosts" | "otherPosts" | "articles">) {
-  const episodeKeys = new Set(trial.pods.map((pod, index) =>
-    pod.episodeId || pod.audioUrl || pod.episodeTitle || `__episode${index}`));
-  return {
-    episodes: episodeKeys.size,
-    clinicianMentions: authoredClinicianCount(trial.posts),
-    hasXSharing: xEvidenceSourceCount(trial) > 0,
-    papers: trial.articles.length,
-  };
-}
-
-export function trialEvidenceLine(trial: Pick<BriefingTrial, "pods" | "posts" | "publisherPosts" | "otherPosts" | "articles">): string {
-  const counts = trialEvidenceCounts(trial);
-  return [
-    counts.episodes ? `${counts.episodes} episode${counts.episodes === 1 ? "" : "s"}` : "",
-    counts.clinicianMentions ? `${counts.clinicianMentions} clinician mention${counts.clinicianMentions === 1 ? "" : "s"} on X` : "",
-    !counts.clinicianMentions && counts.hasXSharing ? "X sharing evidence" : "",
-    counts.papers ? `${counts.papers} paper${counts.papers === 1 ? "" : "s"}` : "",
-  ].filter(Boolean).join(" · ");
-}
-
-// The "who's discussing this" face-pile for a story/drug card: X-sharer avatars first (human
-// faces), then podcast show art (fills in when X is sparse). Movers carry precomputed `avatars`/
-// `showArt`; stories derive them from their podcast/posts evidence. Deduped, capped at 4.
-export function pileFaces(x: {
-  avatars?: string[]; showArt?: string[];
-  posts?: { avatar: string | null }[]; podcast?: { showArt: string | null }[];
-}): string[] {
-  const xs = x.avatars ?? (x.posts ?? []).map((p) => p.avatar).filter((a): a is string => !!a);
-  const pods = x.showArt ?? (x.podcast ?? []).map((p) => p.showArt).filter((a): a is string => !!a);
-  return [...new Set([...xs, ...pods])].slice(0, 4);
-}
-
-// Labeled variant: keeps the person/show NAME beside each image URL so the renderer can fall
-// back to tinted initials when the avatar is missing OR its pbs.twimg URL has gone stale (X
-// rotates profile-image URLs on photo change, so a baked snapshot can hold a 404). A sharer
-// with no avatar at all (deactivated X account, podcast-only voice) now KEEPS their coin as
-// initials instead of silently dropping out of "who's discussing this". Movers carry URL-only
-// `avatars`/`showArt` arrays, so their faces are unlabeled and fall back to a blank tinted coin.
+// A face-pile coin: the image URL plus the person/show name, so the renderer can fall back to
+// tinted initials when the avatar is missing or stale.
 export type Face = { src: string | null; label?: string };
-export function pileFacesL(x: {
-  avatars?: string[]; showArt?: string[];
-  posts?: { avatar: string | null; name?: string | null }[]; podcast?: { showArt: string | null; show?: string | null }[];
-}): Face[] {
-  const xs: Face[] = x.avatars
-    ? x.avatars.map((src) => ({ src }))
-    : (x.posts ?? []).map((p) => ({ src: p.avatar, label: p.name ?? undefined }));
-  const pods: Face[] = x.showArt
-    ? x.showArt.map((src) => ({ src }))
-    : (x.podcast ?? []).map((p) => ({ src: p.showArt, label: p.show ?? undefined }));
-  const seen = new Set<string>();
-  const out: Face[] = [];
-  for (const f of [...xs, ...pods]) {
-    const key = f.src ?? (f.label ? `label:${f.label}` : "");
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(f);
-  }
-  return out.slice(0, 4);
-}
-
-// "4 conversations · 2 on X · 3 papers · ♥ 214" — zeros omitted.
-export function metricsLine(m: BriefingMover): string {
-  const parts: string[] = [];
-  const conv = podConvLabel(podEpisodeCount(m), m.podcast?.length ?? m.podConvs);
-  if (conv) parts.push(conv);
-  if (m.xSharers) parts.push(`${m.xSharers} clinician${m.xSharers === 1 ? "" : "s"} on X`);
-  if (m.articleCount) parts.push(`${m.articleCount} paper${m.articleCount === 1 ? "" : "s"}`);
-  if (m.topLikes) parts.push(`♥ ${m.topLikes}`);
-  return parts.join(" · ");
-}
 
 // A classic retweet carries the ORIGINAL author's words. Stripping the "RT @handle:" prefix
 // (below) leaves those words sitting under the retweeter's name and face, which reads as their
@@ -197,87 +50,41 @@ export function cleanTweetText(s: string | null | undefined): string {
     .trim();
 }
 
-// "5:30" clip timestamp from a start offset in ms.
-export function clipTs(ms: number | null): string {
-  const s = clipSecond(ms);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-
-// Split the recap into a serif "lead" line + the remainder paragraph for the hero.
-export function heroSplit(recap: string | null): { lead: string; rest: string } {
-  const t = (recap ?? "").trim();
-  if (!t) return { lead: "", rest: "" };
-  const m = t.match(/^(.+?[.?!])\s+(.*)$/s);
-  return m ? { lead: m[1], rest: m[2] } : { lead: t, rest: "" };
-}
-
-// Aggregate stats for the hero row.
-export function heroStats(data: BriefingData) {
-  const talkCount = data.movers.reduce((n, m) => n + podEpisodeCount(m), 0);
-  const postCount = data.topKols.reduce((n, k) => n + k.tweets, 0);
-  return { moverCount: data.movers.length, postCount, talkCount };
-}
-
-// ---- Top Stories (atom-agnostic) view-model --------------------------------
-// The same 3-segment monochrome bar, but from a story's explicit [pod%, x%, article%].
-export function barSegmentsRaw(bar: [number, number, number] | null): { flex: number; opacity: number }[] {
-  if (!bar) return [];
-  const ops = [1, 0.5, 0.24];
-  return bar.map((f, i) => ({ flex: Math.max(f, 0), opacity: ops[i] })).filter((s) => s.flex > 0);
-}
-
-// The metric line adapts by atom: drug = the 3-way count line; paper = "N clinicians shared ·
-// ♥"; topic = "N papers · M doctors".
-export function storyMetricLine(s: BriefingStory): string {
-  if (s.kind === "drug") {
-    const parts: string[] = [];
-    const conv = podConvLabel(podEpisodeCount(s), s.podcast?.length ?? s.podConvs);
-    if (conv) parts.push(conv);
-    if (s.xSharers) parts.push(`${s.xSharers} clinician${s.xSharers === 1 ? "" : "s"} on X`);
-    if (s.articleCount) parts.push(`${s.articleCount} paper${s.articleCount === 1 ? "" : "s"}`);
-    if (s.topLikes) parts.push(`♥ ${s.topLikes}`);
-    return parts.join(" · ");
-  }
-  if (s.kind === "paper") {
-    return `shared by ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"}`;
-  }
-  if (s.kind === "trial") {
-    return trialEvidenceLine({
-      pods: s.podcast ?? [], posts: s.posts ?? [], publisherPosts: s.publisherPosts,
-      otherPosts: s.otherPosts, articles: s.papers ?? [],
-    }) || "discussed recently";
-  }
-  // topic (legacy snapshots only) — "clinicians" (engaged = sharers ∪ commenters)
-  return `${s.articleCount} paper${s.articleCount === 1 ? "" : "s"} · ${s.clinicianCount} clinician${s.clinicianCount === 1 ? "" : "s"} engaged`;
-}
-
 // Is this article/paper trade-media journalism (OncLive, UroToday…) rather than a peer-reviewed
-// paper? Prefer the producer's authoritative flag (peerReviewed = the row has a journal name, a
-// PMID, or a DOI); fall back to the domain heuristic only for old snapshots that predate it. This
-// is the ONE predicate the whole reader should use — it catches trade outlets the domain map misses.
-export const isNewsItem = (x: { peerReviewed?: boolean; journal?: string | null; domain?: string | null } | null | undefined): boolean =>
-  x == null ? false
-  : x.peerReviewed === true ? false
-  : x.peerReviewed === false ? true
-  : isNewsDomain(x.domain) && !x.journal; // legacy fallback
+// paper? The producer's flag decides (peerReviewed = the row has a journal name, a PMID, or a
+// DOI). A row without the flag is not badged: there is no domain list to guess from.
+export const isNewsItem = (x: { peerReviewed?: boolean } | null | undefined): boolean =>
+  x?.peerReviewed === false;
 
-// Small uppercase kicker naming the atom kind on the story card. Trade/news coverage stays
-// distinct from peer-reviewed papers in legacy payloads.
-export const storyKicker = (s: BriefingStory): string =>
-  s.kind === "drug" ? "Trending drug"
-    : s.kind === "paper" ? (isNewsItem(s.papers?.[0]) ? "News" : "Paper")
-    : s.kind === "trial" ? "Trial in discussion" : "In focus";
+// Drop a trailing " | Source" / " - Source" from a title. Same rule as the physician app's
+// cleanPublisherTitle (lib/publisher.ts): whitespace collapsed, the suffix must follow a space
+// and a "|", "-", "–" or "—", case-insensitive.
+function cleanSourceSuffix(title: string, source: string | null | undefined): string {
+  const clean = title.replace(/\s+/g, " ").trim();
+  const suffix = source?.replace(/\s+/g, " ").trim();
+  if (!suffix) return clean;
+  const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return clean.replace(new RegExp(`\\s+(?:\\||[-–—])\\s*${escaped}$`, "i"), "").trim();
+}
 
-// Header for a story's evidence block ("The paper" / "The read" / "Papers"), honest about trade vs peer-reviewed.
-export const paperBlockLabel = (s: BriefingStory): string =>
-  s.kind === "paper" ? (isNewsItem(s.papers?.[0]) ? "The read" : "The paper") : "Papers";
+// The card title, cleaned of entities and of a trailing source suffix: by the stored journal,
+// then also by the shown (registry) source name when that differs. Mirrors the physician app's
+// publicationTitle (lib/publication-core.ts), with the stored journal as the legacy label.
+export function cleanArticleTitle(title?: string | null, journal?: string | null, shown?: string | null): string {
+  const t = (title || "")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s*[\u2605\u2606]\s*$/u, "")
+    .replace(/\s+([,;:.])/g, "$1")
+    .replace(/([,;:])(?=\S)/g, "$1 ")
+    .trim();
+  const clean = cleanSourceSuffix(t, journal);
+  return shown && shown !== journal ? cleanSourceSuffix(clean, shown) : clean;
+}
 
 // Map a drug mover onto the story shape — the fallback so the hero always renders even when
 // an old snapshot (or the native/pharma callers) hasn't got topStories yet.
-
-export { heroDeckOf } from "./heroContract";
-
 export function moverToStory(m: BriefingMover): BriefingStory {
   return {
     kind: "drug", id: m.drugId, headline: m.drug,
@@ -287,68 +94,6 @@ export function moverToStory(m: BriefingMover): BriefingStory {
     podcast: m.podcast, posts: m.posts, papers: m.papers, drugId: m.drugId, stance: m.stance ?? null,
     subAreas: m.subAreas, // carry sub-tumor tags so the Focus filter works even on the movers-as-stories fallback
   };
-}
-
-// ---- article source labeling -------------------------------------------------------------
-// Trade-media articles (OncLive, Healio, …) have no journal, so the card showed a raw domain
-// (or nothing). Map the domain to a clean publication name, flag it as News (vs a peer-reviewed
-// journal), and strip the redundant "… | OncLive" suffix these outlets put in their titles.
-const MEDIA_SOURCE: Record<string, string> = {
-  "onclive.com": "OncLive", "targetedonc.com": "Targeted Oncology", "cancernetwork.com": "Cancer Network",
-  "healio.com": "Healio", "oncodaily.com": "OncoDaily", "urotoday.com": "UroToday", "ascopost.com": "The ASCO Post",
-  "cancertherapyadvisor.com": "Cancer Therapy Advisor", "medscape.com": "Medscape", "medpagetoday.com": "MedPage Today",
-  "vjoncology.com": "VJOncology", "guoncologynow.com": "GU Oncology Now", "oncologynexus.com": "Oncology Nexus",
-  "bloodcancerstoday.com": "Blood Cancers Today", "lungcancerstoday.com": "Lung Cancers Today", "cancerletter.com": "The Cancer Letter",
-};
-const baseDomain = (d?: string | null) => (d || "").toLowerCase().replace(/^www\./, "");
-const mediaName = (domain?: string | null): string | null => {
-  const d = baseDomain(domain); if (!d) return null;
-  const k = Object.keys(MEDIA_SOURCE).find((m) => d === m || d.endsWith("." + m));
-  return k ? MEDIA_SOURCE[k] : null;
-};
-export const isNewsDomain = (domain?: string | null): boolean => !!mediaName(domain);
-// Peer-reviewed journal / publisher domains — used ONLY to prettify the source label when we
-// couldn't attach a journal name (so "euoncology.europeanurology.com" reads "European Urology",
-// not a raw host). These are NOT news, so they never get a "News" badge (isNewsDomain stays
-// media-only). Suffix-matched, so subdomains resolve.
-const JOURNAL_DOMAIN: Record<string, string> = {
-  "europeanurology.com": "European Urology", "ascopubs.org": "ASCO Journals", "nejm.org": "NEJM",
-  "thelancet.com": "The Lancet", "jamanetwork.com": "JAMA", "nature.com": "Nature", "annalsofoncology.org": "Annals of Oncology",
-  "aacrjournals.org": "AACR Journals", "cell.com": "Cell Press", "bmj.com": "BMJ", "sciencedirect.com": "ScienceDirect",
-  "academic.oup.com": "Oxford Academic", "oup.com": "Oxford Academic", "wiley.com": "Wiley", "onlinelibrary.wiley.com": "Wiley",
-  "springer.com": "Springer", "link.springer.com": "Springer", "tandfonline.com": "Taylor & Francis", "nature.nature.com": "Nature",
-};
-const journalDomainName = (domain?: string | null): string | null => {
-  const d = baseDomain(domain); if (!d) return null;
-  const k = Object.keys(JOURNAL_DOMAIN).find((m) => d === m || d.endsWith("." + m));
-  return k ? JOURNAL_DOMAIN[k] : null;
-};
-// Last-resort prettifier: strip a leading subdomain and the TLD so an unknown host at least reads
-// as its registrable name ("euoncology.europeanurology.com" → "europeanurology") rather than a URL.
-const prettyDomain = (domain?: string | null): string | null => {
-  const d = baseDomain(domain); if (!d) return null;
-  const parts = d.split(".").filter(Boolean);
-  return parts.length >= 2 ? parts[parts.length - 2] : d;
-};
-// The source shown on an article card: the journal if we have one, else a clean media name, else a
-// known journal-publisher name, else the registrable host. News outlets never masquerade as a journal.
-export function articleSource(journal?: string | null, domain?: string | null): string | null {
-  if (journal) return journal;
-  return mediaName(domain) ?? journalDomainName(domain) ?? prettyDomain(domain);
-}
-// Strip a trailing "… | OncLive" / "… - Healio" ONLY when the suffix is a known media name — safe
-// against clipping a real subtitle ("… - A Review"), which we never touch.
-const MEDIA_SUFFIX_RE = new RegExp(`\\s*[|\\u2013\\u2014-]\\s*(${Object.values(MEDIA_SOURCE).map((n) => n.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")).join("|")})\\s*$`, "i");
-export function cleanArticleTitle(title?: string | null): string {
-  const t = (title || "")
-    .replace(/&amp;/gi, "&")
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&quot;/gi, '"')
-    .replace(/\s*[\u2605\u2606]\s*$/u, "")
-    .replace(/\s+([,;:.])/g, "$1")
-    .replace(/([,;:])(?=\S)/g, "$1 ")
-    .trim();
-  return t.replace(MEDIA_SUFFIX_RE, "").trim() || t;
 }
 
 // "Directional takes detected" — the counts line for a drug's stance. Honest split, never a
@@ -362,37 +107,4 @@ export function stanceParts(s: BriefingStance | null | undefined):
 // The Top Stories to render: the real topStories if present, else drug movers as stories.
 export function storiesOf(data: BriefingData): BriefingStory[] {
   return data.topStories && data.topStories.length ? data.topStories : data.movers.map(moverToStory);
-}
-
-// ---- "Since your last read" partition ------------------------------------------------------
-// Honest-repeat handling for the 14-day window: a returning reader sees NEW/UPDATED stories
-// first, then a "you're caught up" divider, then the ones they've already read. Rules:
-//  • NEW      = story id the reader has never viewed
-//  • UPDATED  = viewed before, but the evidence fingerprint changed since (facts developed)
-//  • seen     = viewed AND fingerprint unchanged — cosmetic drift (likes/counts) is NOT news
-//  • order INSIDE each partition stays editorial (importance), never chronological
-//  • the frame is SUPPRESSED (mode "plain") when it wouldn't partition anything: signed-out /
-//    first visit / everything-new (long absence) — no header over a full deck of NEW chips.
-//  • everything seen+unchanged → mode "caughtup": normal order + a slim caught-up note only.
-export type StoryStatus = "new" | "updated" | "seen";
-export type StoryPartition = {
-  mode: "plain" | "split" | "caughtup";
-  ordered: BriefingStory[];               // the deck order to render
-  status: Map<string, StoryStatus>;       // story.id -> chip
-  freshCount: number;                     // NEW + UPDATED (0 in plain/caughtup)
-};
-export function partitionStories(stories: BriefingStory[], seen: Record<string, string> | null | undefined): StoryPartition {
-  const status = new Map<string, StoryStatus>();
-  const plain: StoryPartition = { mode: "plain", ordered: stories, status, freshCount: 0 };
-  if (!seen || Object.keys(seen).length === 0) return plain;           // signed-out / first visit
-  if (stories.some((s) => !s.fp)) return plain;                        // old snapshot without fps — can't be honest, so don't pretend
-  for (const s of stories) {
-    const prior = seen[s.id];
-    status.set(s.id, prior === undefined ? "new" : prior === s.fp ? "seen" : "updated");
-  }
-  const fresh = stories.filter((s) => status.get(s.id) !== "seen");
-  const old = stories.filter((s) => status.get(s.id) === "seen");
-  if (old.length === 0) return plain;                                  // everything new (long absence) — no frame
-  if (fresh.length === 0) return { mode: "caughtup", ordered: stories, status, freshCount: 0 };
-  return { mode: "split", ordered: [...fresh, ...old], status, freshCount: fresh.length };
 }

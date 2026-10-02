@@ -6,11 +6,8 @@ import { canvasmdFile } from "./paired-repo.mjs";
 import { paperClinicianMeta, representedClinicianCount, representedClinicianCountAcrossLanes } from "../app/heroEvidence.ts";
 
 const webReader = fs.readFileSync(new URL("../app/ReaderView.tsx", import.meta.url), "utf8");
-const webVm = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
-const webFlat = fs.readFileSync(new URL("../app/ReaderViewFlat.tsx", import.meta.url), "utf8");
 const webHero = fs.readFileSync(new URL("../app/HeroCards.tsx", import.meta.url), "utf8");
 const webAudio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
-const webAll = fs.readFileSync(new URL("../app/AllView.tsx", import.meta.url), "utf8");
 const nativeCards = fs.readFileSync(canvasmdFile("components/readout/cards.tsx"), "utf8");
 const nativeSections = fs.readFileSync(canvasmdFile("components/readout/sections.tsx"), "utf8");
 const nativeTypes = fs.readFileSync(canvasmdFile("lib/briefing.ts"), "utf8");
@@ -69,8 +66,6 @@ test("rendered paper evidence discloses receipts without inflating the authorita
   assert.equal(paperClinicianMeta(9, 2), "shared by 2 clinicians");
   assert.equal(paperClinicianMeta(1, 8), "shared by 8 clinicians · 1 shown in sources");
   assert.equal(paperClinicianMeta(2), undefined);
-  assert.match(webReader, /Math\.min\(paper\.kolSharers, paper\.revealableClinicianCount \?\? 0\)/);
-  assert.match(webFlat, /Math\.min\(a\.kolSharers, a\.revealableClinicianCount \?\? 0\)/);
   assert.match(nativeSections, /Math\.min\(a\.kolSharers \?\? 0, a\.revealableClinicianCount \?\? 0\)/);
   assert.match(webReader, /representedClinicianCountAcrossLanes\(posts, publisherPosts, otherPosts\)/);
   assert.match(nativeStoryEvidence, /representedClinicianCountAcrossLanes\(posts, publisherPosts, otherPosts\)/);
@@ -97,21 +92,7 @@ test("native labels and paper commentary copy match mobile web", () => {
   assert.doesNotMatch(nativeSections, /commented/);
 });
 
-test("All Oncology counts one podcast episode once when role extraction disagrees", () => {
-  assert.match(webAll, /const micEpisodes =/);
-  assert.match(webAll, /const epCount = \(m: MicEntry\) => micEpisodes\(m\)\.length/);
-  assert.match(webAll, /!m\.guestEps\.has\(key\)/);
-});
-
 test("authored commentary excludes classic reposts, link-only shares, and nested reposters", () => {
-  const authoredClinicianCount = loadExportedFunction(webVm, "authoredClinicianCount");
-  assert.equal(authoredClinicianCount([
-    { name: "A", handle: "a", text: "RT @journal: Paper https://t.co/a" },
-    { name: "B", handle: "b", text: "https://t.co/b", repostedBy: [{ name: "C", handle: "c" }] },
-    { name: "D", handle: "d", text: "These results may change how we sequence therapy." },
-    { name: "E", handle: "e", text: "Paper: https://t.co/e", thread: [{ id: "e2", text: "This continuation contains a substantive clinical interpretation.", tweetUrl: null }] },
-    { name: "F", handle: "f", text: "この結果は今後の治療選択を大きく変える可能性があります。" },
-  ]), 3);
   const nativeVm = fs.readFileSync(canvasmdFile("components/readout/vm.ts"), "utf8");
   const nativeAuthoredClinicianCount = loadExportedFunction(nativeVm, "authoredClinicianCount");
   assert.equal(nativeAuthoredClinicianCount([
@@ -162,11 +143,9 @@ test("exact receipt links meet the web and native target-size contracts", () => 
 });
 
 test("paper renderers keep source and classification parity", () => {
-  assert.match(webReader, /href=\{paper\.url\}/);
   assert.match(webReader, /abstractOpen/);
   assert.match(webReader, /sourcesOpen/);
   assert.match(nativeTypes, /peerReviewed\?: boolean/);
-  assert.match(webReader, /paper\.circulationState === "resurfaced"/);
   assert.match(nativeSections, /a\.circulationState === "resurfaced"/);
   assert.match(nativeTypes, /circulationState\?: "newly_published" \| "resurfaced"/);
   assert.match(nativeCards, /isNewsItem\(\{ peerReviewed, journal, domain \}\)/);
@@ -190,30 +169,24 @@ test("paper renderers keep source and classification parity", () => {
   assert.doesNotMatch(webReader, /hasSources = [^\n]+\|\| !!paper\.url/);
   assert.doesNotMatch(nativeSections, /hasSources = [^\n]+\|\| !!a\.url/);
   assert.doesNotMatch(nativeStoryEvidence, /publishers=\{p\.publishers\}/);
-  assert.match(webReader, /shown in sources/);
   assert.match(nativeSections, /shown in sources/);
   assert.doesNotMatch(nativeSections, /\{i \+ 1\}/);
 });
 
 test("trial paper receipts render once from the merged top-level evidence", () => {
-  for (const source of [webReader, nativeSections]) {
+  for (const source of [nativeSections]) {
     assert.match(source, /posts=\{\[\]\}/);
   }
 });
 
 test("podcast moments render one timestamp and legacy Open links meet the 44px target", () => {
   assert.doesNotMatch(webHero, /label=\{`Listen @/);
-  assert.doesNotMatch(webFlat, /label=\{`clip /);
   assert.match(webAudio, /labelAlreadyIncludesMoment/);
   assert.match(webAudio, /moment && !labelAlreadyIncludesMoment/);
-  assert.match(webFlat, /display: "inline-flex", alignItems: "center", minHeight: 44[^\n]+>Open ↗<\/a>/);
 });
 
 test("reference status does not affect visible People ranking", () => {
-  assert.match(webReader, /\.filter\(\(k\) => \(k\.amp \?\? 0\) > 0\)/);
   for (const source of [webReader, nativeReadout, nativeEdition, editorial]) {
     assert.doesNotMatch(source, /Number\(b\.referenceKol === true\) - Number\(a\.referenceKol === true\)/);
   }
-  assert.doesNotMatch(webAll, /referenceKol/);
-  assert.doesNotMatch(webAll, /Number\(y\.referenceKol\) - Number\(x\.referenceKol\)/);
 });

@@ -4,11 +4,6 @@ import fs from "node:fs";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("the retained legacy reader still clears stale browser-only area state", () => {
-  const source = read("app/LegacyBriefingPage.tsx");
-  assert.match(source, /else if \(!urlArea\) \{[\s\S]*localStorage\.removeItem\("readout_area"\)[\s\S]*setArea\("GU"\)/);
-});
-
 test("public story mastheads preserve the story specialty", () => {
   const source = read("app/r/[slug]/PublicCard.tsx");
   assert.match(source, /href=\{`\/\?area=\$\{encodeURIComponent\(v\.area\)\}`\}/);

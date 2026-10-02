@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import type { BriefingArticle, BriefingData, BriefingPaper, BriefingSharer, BriefingStory, BriefingTrial, HeroCard } from "@/lib/types";
 import AudioQuote from "@/components/AudioQuote";
 import { AmplifierReceipts, StoryEvidence, TweetCard } from "../ReaderView";
-import { AREA_FULL, articleSource, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
+import { AREA_FULL, cleanArticleTitle, cleanTweetText, storiesOf } from "../briefVM";
 import { heroDeckOf, scopedHeroCards } from "../heroContract";
 import { resolveHeroEvidence } from "../heroEvidence";
 import "../brief.css";
@@ -369,7 +369,7 @@ function EditorialEvidence({ posts = [], pods = [], papers = [], publisherPosts 
         {publisherNames.length > 0 && <div className="dl-editorial-publishers">Also shared by {publisherNames.join(" · ")}</div>}
         {papers.slice(0, 3).map((paper, index) => <a className="dl-editorial-evidence-paper" href={paper.url} target="_blank" rel="noreferrer" key={`${paper.url}-${index}`}>
           <span>{paper.journal ?? paper.domain ?? "Publication"}</span>
-          <strong>{cleanArticleTitle(paper.title)}</strong>
+          <strong>{cleanArticleTitle(paper.title, paper.journal)}</strong>
           <i aria-hidden="true">↗</i>
         </a>)}
       </section>}
@@ -517,19 +517,20 @@ function PaperRail({ data, media, limit = 5, accent }: { data: BriefingData; med
           const showFallbackMark = !accent;
           const hasVisual = hasImage || showFallbackMark;
           const visualClass = hasImage ? " has-image" : hasVisual ? "" : " no-visual";
+          const source = paper.journal?.trim() || null;
           return (
             <article className={`dl-paper-item${visualClass}`} key={`${paper.url}-${index}`}>
               <a className={`dl-paper${visualClass}`} href={paper.url} target="_blank" rel="noreferrer">
                 {hasVisual && <ArticleVisual
                   media={media.get(paper.url)}
                   alt=""
-                  fallback={showFallbackMark ? <SourceMark name={articleSource(paper.journal, paper.domain) ?? "Publication"} domain={paper.domain} /> : null}
+                  fallback={showFallbackMark ? <SourceMark name={source ?? "Publication"} domain={paper.domain} /> : null}
                 />}
                 <span className="dl-paper-copy">
-                  <strong>{cleanArticleTitle(paper.title)}</strong>
+                  <strong>{cleanArticleTitle(paper.title, paper.journal)}</strong>
                   <small>
                     {!accent && <Faces urls={paper.faces} />}
-                    <span className="dl-paper-journal">{articleSource(paper.journal, paper.domain) ?? "Publication"}</span>
+                    <span className="dl-paper-journal">{source ?? "Publication"}</span>
                     <span className="dl-paper-activity">· shared by {paper.kolSharers} clinician{paper.kolSharers === 1 ? "" : "s"}</span>
                   </small>
                 </span>

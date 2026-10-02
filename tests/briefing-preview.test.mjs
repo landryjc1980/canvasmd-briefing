@@ -48,7 +48,6 @@ const archiveCard = read("app/archiveCard.ts");
 const editionSnapshot = read("app/briefing-preview/editionSnapshot.ts");
 const middleware = read("middleware.ts");
 const rootPage = read("app/page.tsx");
-const legacyPage = read("app/LegacyBriefingPage.tsx");
 const readoutNextPage = read("app/readout-next/page.tsx");
 const vercelConfig = read("vercel.json");
 
@@ -1053,8 +1052,6 @@ test("the canonical Readout owns the root while the retired canary redirects", (
   assert.match(rootPage, /robots: \{ index: true, follow: true \}/);
   assert.match(readoutNextPage, /permanentRedirect\("\/"\)/);
   assert.doesNotMatch(readoutNextPage, /EditorialReadout|getCachedReadoutWindow/);
-  assert.match(legacyPage, /export default function LegacyBriefingPage/);
-  assert.match(legacyPage, /ReaderView/);
   assert.doesNotMatch(rootPage, /LegacyBriefingPage|ReaderView/);
   assert.doesNotMatch(middleware, /readout-next/);
 });

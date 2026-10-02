@@ -7,14 +7,12 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 test("web reader never fetches or renders The Daily surface", () => {
   const page = read("app/page.tsx");
   const reader = read("app/ReaderView.tsx");
-  const all = read("app/AllView.tsx");
 
   assert.doesNotMatch(page, /\/api\/daily/);
   assert.doesNotMatch(page, /setDaily/);
   assert.doesNotMatch(reader, /<DailyConversationEvidence/);
   assert.doesNotMatch(reader, /The Daily ·/);
   assert.doesNotMatch(reader, /daily_readout/);
-  assert.doesNotMatch(all, /The Daily</);
 });
 
 test("web Daily API and sender are disabled without reading historical rows", () => {
@@ -36,14 +34,4 @@ test("web onboarding no longer offers Daily opt-in", () => {
   }
   assert.doesNotMatch(read("app/api/brief-request/route.ts"), /setDailyOptIn|dailyOptIn/);
   assert.doesNotMatch(read("app/api/brief-invite/route.ts"), /setDailyOptIn|dailyOptIn/);
-});
-
-test("standard Readout sections remain available on web", () => {
-  const reader = read("app/ReaderView.tsx");
-  assert.match(reader, /Top stories/);
-  assert.match(reader, /episodesSection/);
-  assert.match(reader, /papersSection/);
-  assert.match(reader, /peopleSection/);
-  assert.match(reader, /trialsSection/);
-  assert.match(reader, /drugsSection/);
 });

@@ -5,8 +5,6 @@ import fs from "node:fs";
 import { clipSecond, dailyAccentOf, DAILY_MUTED, distinctSourceAnchorCount, evidenceBackedHeroWhy, unrepresentedPublishers } from "../app/clientEvidence.ts";
 
 const audio = fs.readFileSync(new URL("../components/AudioQuote.tsx", import.meta.url), "utf8");
-const storyView = fs.readFileSync(new URL("../app/StoryView.tsx", import.meta.url), "utf8");
-const briefVM = fs.readFileSync(new URL("../app/briefVM.ts", import.meta.url), "utf8");
 
 const luminance = (hex) => {
   const values = hex.match(/[0-9a-f]{2}/gi).map((part) => parseInt(part, 16) / 255)
@@ -22,10 +20,8 @@ const contrast = (foreground, background) => {
 
 test("fractional podcast offsets use one rounded second for labels and seeks", () => {
   assert.equal(clipSecond(59_600), 60);
-  assert.match(briefVM, /const s = clipSecond\(ms\)/);
   assert.match(audio, /const atSec = clipSecond\(startMs\)/);
   assert.doesNotMatch(audio, /Math\.floor\(startMs \/ 1000\)/);
-  assert.doesNotMatch(storyView, /Math\.floor\(startMs \/ 1000\)/);
 });
 
 test("GI Daily small text clears normal-text contrast on its tinted surface", () => {

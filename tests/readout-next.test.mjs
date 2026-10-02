@@ -21,12 +21,6 @@ test("Readout Next keeps one story-title size and a bounded editorial measure", 
   assert.match(css, /\.dl-next main\s*\{[^}]*width:\s*min\(980px/);
 });
 
-test("podcast and paper sections share the Top Stories desktop measure", () => {
-  assert.match(reader, /const EDITORIAL_MEASURE = 850/);
-  assert.equal((reader.match(/className="rv-editorial-measure"/g) ?? []).length, 2);
-  assert.match(reader, /maxWidth: wide \? EDITORIAL_MEASURE : undefined/);
-});
-
 test("the weekly story view does not lead with the generated recap", () => {
   const nextBlock = page.slice(page.indexOf("function ReadoutNext"), page.indexOf("function Essential"));
   assert.doesNotMatch(nextBlock, /data\.recap/);
