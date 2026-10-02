@@ -84,7 +84,8 @@ test("the compact briefing keeps the physician evidence layer intact", () => {
   assert.match(preview, /\$\{rest\} reposted or shared the link/);
   // Same commit (373cfb4) moved this from a template literal to inline JSX so the row
   // could also show the period the count covers ("since yesterday morning", "this week").
-  assert.match(preview, /Shared by \{sharedBy\} clinician\{sharedBy === 1 \? "" : "s"\}\{period &&/);
+  assert.match(preview, /attentionProofLabel\(sharedBy, article\?\.publicReposts\)\}\{period &&/);
+  assert.match(preview, /windowPublicReposts/);
   assert.match(preview, /function clinicianSharers/);
   assert.match(preview, /post\.repostedBy/);
   assert.match(preview, /engagementScore/);

@@ -35,7 +35,7 @@ function loader(overrides = {}) {
 }
 
 const load = loader({ "next/cache": { unstable_cache: (fn) => fn } });
-const { attentionWindowForPayload, attentionOverlayMatches, attentionSinceLabel, attentionExactStart, publicationSourceLabel } = load("lib/readoutAttentionPresentation.ts");
+const { attentionWindowForPayload, attentionOverlayMatches, attentionSinceLabel, attentionExactStart, publicationSourceLabel, publicRepostLabel, attentionProofLabel } = load("lib/readoutAttentionPresentation.ts");
 const { activeReadoutEditionDate } = load("app/briefing-preview/readoutRequest.ts");
 const { buildReadoutEditionSnapshot, preparedMorningReadoutPayload, mergeReadoutEditionSnapshot, sevenDayEditionDevelopments } = load("app/briefing-preview/editionSnapshot.ts");
 const { readoutEditionForArea, readoutEditionHistoryIncludingCurrent } = load("app/briefing-preview/editionHistory.ts");
@@ -55,6 +55,15 @@ const card = (id, count = 3) => ({ area: "GU", firstSeen: "2026-09-11T09:00:00Z"
 const breaking = (id) => ({ id: `breaking:${id}`, kind: "paper", publicationClass: "research", headline: `Oncology source ${id}`,
   sourceLabel: "Journal", url: `https://example.org/${id}`, doi: null, pmid: null, pubDate: null, areas: ["GU"], articleIds: [id],
   excerpt: null, metrics: { totalSharers: 6, clinicians: 0, recentClinicians: 6, previousClinicians: 0 } });
+
+test("public repost reach is displayed separately from identified clinician counts", () => {
+  assert.equal(publicRepostLabel(1), "1 repost on X");
+  assert.equal(publicRepostLabel(47), "47 reposts on X");
+  assert.equal(publicRepostLabel(0), null);
+  assert.equal(publicRepostLabel(-1), null);
+  assert.equal(attentionProofLabel(3, 47), "3 clinicians · 47 reposts on X");
+  assert.equal(attentionProofLabel(1, null), "Shared by 1 clinician");
+});
 
 test("prior morning papers cannot consume lead slots before the prepared remainder is considered", () => {
   const rankedCard = (id, rank) => { const item = card(id); item.card.rankTotal = rank; return item; };

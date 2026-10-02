@@ -639,6 +639,8 @@ export type BriefingArticle = {
   sharerPeople?: BriefingEvidenceSharer[]; // person-deduped identities for the compact Readout proof row
   revealableClinicianCount?: number; // identities represented by serialized clinician receipts
   authoredClinicianCount?: number; // uncapped distinct clinicians who added their own words
+  /** Public X repost events across this story's canonical aliases; distinct from clinician identities. */
+  publicReposts?: number;
   peerReviewed?: boolean; // producer's authoritative journal-vs-trade flag (has journal/PMID/DOI). Optional: absent on pre-2026-07-28 snapshots → fall back to the domain heuristic.
   subAreas?: string[];
   congress?: boolean;
@@ -662,11 +664,15 @@ export type BriefingEvidenceOverlayItem = {
   windowPosts?: BriefingSharer[];
   windowSharerPeople?: BriefingEvidenceSharer[];
   windowAuthoredClinicianCount?: number;
+  /** Public X repost events within windowStartAt/windowAsOf, not identified-person count. */
+  windowPublicReposts?: number;
   kolSharers: number;
   faces: string[];
   posts: BriefingSharer[];
   sharerPeople: BriefingEvidenceSharer[];
   authoredClinicianCount?: number;
+  /** Public X repost events across the rolling overlay, not identified-person count. */
+  publicReposts?: number;
 };
 
 export type BriefingEvidenceOverlay = {

@@ -49,6 +49,16 @@ export function attentionExactStart(scope: ReadoutAttentionWindow): string {
   return `5 AM ET on ${date}`;
 }
 
+/** Public repost reach is an X event count, deliberately separate from identified clinicians. */
+export function publicRepostLabel(value: number | null | undefined): string | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? `${value} repost${value === 1 ? "" : "s"} on X` : null;
+}
+
+export function attentionProofLabel(clinicians: number, publicReposts: number | null | undefined): string {
+  const reach = publicRepostLabel(publicReposts);
+  return reach ? `${clinicians} clinician${clinicians === 1 ? "" : "s"} · ${reach}` : `Shared by ${clinicians} clinician${clinicians === 1 ? "" : "s"}`;
+}
+
 export function publicationSourceLabel(journal: string, date: string | null | undefined): string {
   if (!date || !/^\d{4}-\d{2}-\d{2}/.test(date)) return journal;
   const parsed = new Date(`${date.slice(0, 10)}T12:00:00Z`);

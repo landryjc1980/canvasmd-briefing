@@ -67,10 +67,10 @@ test("an empty edition window falls back to the seven-day count with no period",
   assert.doesNotMatch(html, /since yesterday|since .*morning/);
 });
 
-test("the edition window count leads the card on Today, with its period and the breakdown", () => {
-  const html = restoredCardHtml({ ...overlay, windowClinicianCount: 2, windowAuthoredClinicianCount: 1, windowFaces: ["https://example.org/window-avatar.jpg"], windowSharerPeople: overlay.sharerPeople });
-  assert.match(html, /Shared by 2 clinicians<span class="er-since"> since yesterday morning<\/span>/);
+test("the edition window count and public repost reach lead the card on Today", () => {
+  const html = restoredCardHtml({ ...overlay, publicReposts: 47, windowClinicianCount: 2, windowPublicReposts: 5, windowAuthoredClinicianCount: 1, windowFaces: ["https://example.org/window-avatar.jpg"], windowSharerPeople: overlay.sharerPeople });
+  assert.match(html, /2 clinicians · 5 reposts on X<span class="er-since"> since yesterday morning<\/span>/);
   assert.match(html, /1 wrote about it · 1 reposted or shared the link/);
   assert.match(html, /src="https:\/\/example.org\/window-avatar.jpg"/);
-  assert.doesNotMatch(html, /Shared by 3 clinicians/);
+  assert.doesNotMatch(html, /3 clinicians · 47 reposts on X/);
 });

@@ -66,6 +66,20 @@ test("shadow transport blocks mutations and caches only exact reads including ra
   assert.equal(calls, 2);
   assert.throws(() => transport.assertHealthy(), /database requests failed/);
 });
+test("shared article attention RPCs are explicitly read-only and cacheable", async () => {
+  let calls = 0;
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => {
+    calls++;
+    return new Response('[{"article_id":"paper","clinician_count":1}]');
+  } });
+  for (const rpc of ["article_attention", "article_attention_people"]) {
+    const request = { method: "POST", body: '{"p_article_ids":["paper"]}' };
+    await transport.fetch(`https://db.test/rest/v1/rpc/${rpc}`, request);
+    await transport.fetch(`https://db.test/rest/v1/rpc/${rpc}`, request);
+  }
+  assert.equal(calls, 2);
+  assert.doesNotThrow(() => transport.assertHealthy());
+});
 test("recap requests are not cached and failed reads cannot poison the cache", async () => {
   let calls = 0;
   const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => { calls++; return new Response('{}', { status: calls === 1 ? 500 : 200 }); } });

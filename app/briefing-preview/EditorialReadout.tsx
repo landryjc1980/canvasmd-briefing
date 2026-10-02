@@ -45,6 +45,7 @@ import {
 } from "./edition";
 import ConferenceTeaser from "./ConferenceTeaser";
 import type { ConferenceMeeting } from "@/lib/conference";
+import { attentionProofLabel } from "@/lib/readoutAttentionPresentation";
 
 const AREA_LABELS: Record<EditionArea, string> = {
   All: "All oncology",
@@ -345,6 +346,7 @@ function applyEvidenceOverlay(article: BriefingArticle | null, overlay: Briefing
     posts: overlay.posts,
     sharerPeople: windowed && overlay.windowSharerPeople?.length ? overlay.windowSharerPeople : overlay.sharerPeople,
     authoredClinicianCount: (windowed ? overlay.windowAuthoredClinicianCount : undefined) ?? overlay.authoredClinicianCount ?? article.authoredClinicianCount,
+    publicReposts: windowed ? overlay.windowPublicReposts : overlay.publicReposts ?? article.publicReposts,
   };
 }
 
@@ -405,7 +407,7 @@ function PeerRow({ article, sharedBy, period = null, replies = 0, clinicianRepli
     <div className="er-peers">
       <FacePile article={article} count={sharedBy} />
       <div className="er-peer-copy">
-        <p className="er-proof-count">Shared by {sharedBy} clinician{sharedBy === 1 ? "" : "s"}{period && <span className="er-since"> {period}</span>}</p>
+        <p className="er-proof-count">{attentionProofLabel(sharedBy, article?.publicReposts)}{period && <span className="er-since"> {period}</span>}</p>
         {breakdown && <p className="er-breakdown">{breakdown}</p>}
         {named.length > 0 && (
           <p className="er-peers-who">
