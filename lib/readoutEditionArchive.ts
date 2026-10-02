@@ -66,6 +66,24 @@ async function writeEditionRow(snapshot: ReadoutEditionSnapshot, signal?: AbortS
     signal,
   });
   if (!response.ok) throw new Error(`Edition archive returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  await startReadoutAudio(snapshot.editionDate);
+}
+
+/** Starts morning audio for a newly saved edition. Never throws: saving the Readout must not fail because of audio. */
+async function startReadoutAudio(editionDate: string) {
+  try {
+    const { url, key } = supabaseServiceEnvironment();
+    const response = await fetch(`${url}/rest/v1/rpc/start_readout_audio`, {
+      method: "POST",
+      headers: { ...supabaseApiKeyHeaders(key), "content-type": "application/json" },
+      body: JSON.stringify({ p_date: editionDate }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) console.error(`start_readout_audio ${editionDate} returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  } catch (error) {
+    console.error(`start_readout_audio ${editionDate} failed: ${String(error instanceof Error ? error.message : error).slice(0, 200)}`);
+  }
 }
 
 async function readEditionRow(editionDate: string): Promise<ReadoutEditionSnapshot | null> {

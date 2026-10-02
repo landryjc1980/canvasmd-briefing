@@ -23,13 +23,18 @@ function savedEdition(date = "2026-09-11") {
   };
 }
 
-function harness({ existing = null, refreshError = null, changedAfterRead = false, attentionMismatch = false } = {}) {
+function harness({ existing = null, refreshError = null, changedAfterRead = false, attentionMismatch = false, audioStart = () => new Response(null, { status: 204 }) } = {}) {
   const calls = [];
   const writes = [];
+  const audioStarts = [];
   let refreshed = false;
   const freshPayload = { stale: false, cards: [], episodes: [], regulatoryCards: [], designationCards: [] };
   const fetch = async (url, init = {}) => {
     const method = init.method ?? "GET";
+    if (String(url).endsWith("/rest/v1/rpc/start_readout_audio")) {
+      audioStarts.push({ method, body: JSON.parse(init.body) });
+      return audioStart();
+    }
     calls.push(["db", method, String(url)]);
     if (String(url).includes("readout_posts?select=card&tok=")) return Response.json(existing ? [{ card: existing }] : []);
     if (String(url).includes("briefing_snapshots?select=area,data,generated_at")) {
@@ -107,7 +112,7 @@ function harness({ existing = null, refreshError = null, changedAfterRead = fals
     assert.ok(name in mocks, `Unexpected archive dependency: ${name}`);
     return mocks[name];
   }, module, module.exports, fetch);
-  return { calls, writes, candidateBuild, ...module.exports };
+  return { calls, writes, audioStarts, candidateBuild, ...module.exports };
 }
 
 test("new 6am canonical editions await candidates before every fresh source read and never use cached reads", async () => {
@@ -189,4 +194,41 @@ test("the no-edition fallback used outside the scheduled archive path still requ
   assert.equal(result.changed, true);
   assert.ok(h.calls.some(([kind]) => kind === "candidate-refresh"));
   assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
+});
+
+test("creating a new edition row starts the morning audio exactly once for that date", async () => {
+  const h = harness();
+  await h.prepublishCurrentReadoutEdition(fiveAm);
+  assert.deepEqual(h.audioStarts, [{ method: "POST", body: { p_date: "2026-09-11" } }]);
+});
+
+test("updating an existing edition row does not start the morning audio", async () => {
+  const h = harness({ existing: savedEdition() });
+  await h.rebuildCurrentReadoutEdition(sixAm);
+  assert.ok(h.calls.some(([kind, method]) => kind === "db" && method === "PATCH"));
+  assert.deepEqual(h.audioStarts, []);
+});
+
+for (const failure of ["status", "throw"]) test(`a failed audio start (${failure}) is logged and does not fail the saved edition`, async () => {
+  const h = harness({ audioStart: () => {
+    if (failure === "throw") throw new Error("network down");
+    return new Response("x".repeat(500), { status: 500 });
+  } });
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args.join(" "));
+  try {
+    const result = await h.prepublishCurrentReadoutEdition(fiveAm);
+    assert.equal(result.skipped, null);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(h.audioStarts.length, 1);
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /start_readout_audio 2026-09-11/);
+  if (failure === "status") {
+    assert.match(logged[0], /returned 500: x{200}$/);
+  } else {
+    assert.match(logged[0], /network down/);
+  }
 });
