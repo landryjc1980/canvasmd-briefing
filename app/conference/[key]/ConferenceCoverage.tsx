@@ -82,7 +82,10 @@ export function coverageItem(value: unknown, section: "cards" | "articles" | "ep
     label,
     title,
     url: externalUrl(source.url) ?? externalUrl(source.sourceUrl),
-    source: text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal) ?? text(source.domain),
+    // Publication registry: registrySource (null = no source) when rule 1 or 2 decided; else today's chain.
+    source: "registrySource" in source
+      ? text(source.registrySource)
+      : text(source.sourceName) ?? text(source.sourceLabel) ?? text(source.show) ?? text(source.journal) ?? text(source.domain),
     excerpt: text(source.excerpt) ?? text(source.description),
     publishedAt: text(source.pubDate) ?? text(source.published) ?? text(source.publishedAt) ?? text(source.occurredOn),
     clinicianShares: section === "reports" ? clinicianShares(source.clinicianShares) : [],
