@@ -321,8 +321,28 @@ test("a failed area aborts the batch and cannot reach the atomic publish RPC", a
   assert.ok(!stages.some(stage => stage.name === "finalize-publication"));
 });
 
- test("unused recap is optional while visible headline and story evidence remain required", async () => {
+ test("unused recap is optional while story evidence remains required", async () => {
   const transport = createSpecialtyTransport({baseUrl:"https://db.test", fetchImpl: async () => new Response(JSON.stringify({headline: "Grounded headline", recap: null, storyWhys:{s1:"Grounded takeaway"}}))});
   await transport.fetch("https://db.test/functions/v1/briefing-recap", {method:"POST",body:JSON.stringify({area:"GU",movers:[{drug:"Example"}],stories:[{id:"s1"}]})});
+  assert.doesNotThrow(() => transport.assertHealthy());
+});
+
+test("a story-only area with no movers, headline or recap is complete when every story has its explanation", async () => {
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => Response.json({ storyWhys: { s1: "Grounded takeaway", s2: "Second takeaway" } }) });
+  await transport.fetch("https://db.test/functions/v1/briefing-recap", { method: "POST", body: JSON.stringify({ area: "Skin", movers: [], stories: [{ id: "s1" }, { id: "s2" }] }) });
+  assert.doesNotThrow(() => transport.assertHealthy());
+  assert.equal(transport.stats().recaps[0].status, "complete");
+});
+
+test("an area with movers but no headline or recap is still incomplete when a story explanation is missing", async () => {
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => Response.json({ storyWhys: { s1: "Grounded takeaway" } }) });
+  await transport.fetch("https://db.test/functions/v1/briefing-recap", { method: "POST", body: JSON.stringify({ area: "GU", movers: [{ drug: "Example" }], stories: [{ id: "s1" }, { id: "s2" }] }) });
+  assert.throws(() => transport.assertHealthy(), /incomplete_prose/);
+  assert.deepEqual(transport.stats().recaps[0].missingStoryIds, ["s2"]);
+});
+
+test("movers no longer require an area headline or recap when every story has its explanation", async () => {
+  const transport = createSpecialtyTransport({ baseUrl: "https://db.test", fetchImpl: async () => Response.json({ headline: "", recap: null, storyWhys: { s1: "Grounded takeaway" } }) });
+  await transport.fetch("https://db.test/functions/v1/briefing-recap", { method: "POST", body: JSON.stringify({ area: "GU", movers: [{ drug: "Example" }], stories: [{ id: "s1" }] }) });
   assert.doesNotThrow(() => transport.assertHealthy());
 });
