@@ -6,6 +6,14 @@ const hasReaderText = (value: string | null | undefined): boolean => (value ?? "
   .replace(/^[ \t]*(?:Article|Paper|Link):[ \t]*$/gim, "")
   .trim().length > 0;
 
+
+// The paper's own article id (publication registry step 4) rides along with the projection so
+// the evidence row can show the registry name; absent when the source row has none.
+const articleIdOf = (a: unknown): { article_id?: string } => {
+  const id = (a as { article_id?: unknown })?.article_id;
+  return typeof id === "string" && id ? { article_id: id } : {};
+};
+
 export function pickConversationPreview(...groups: (BriefingSharer[] | null | undefined)[]): BriefingSharer | null {
   for (const post of groups.flatMap((group) => group ?? [])) {
     const isClassicRepost = /^\s*RT @[A-Za-z0-9_]+:\s*/.test(post.text ?? "");
@@ -206,7 +214,7 @@ export function resolveHeroEvidence(
     const faces = paperEvidenceFaces(reading?.faces, posts, publisherPosts, otherPosts);
     if (st) return { kind: "paper", story: { ...st, posts }, faces, publisherPosts, otherPosts, supportLinks };
     const a = reading;
-    if (a) return { kind: "article", posts, faces, publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, description: a.description, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed }, supportLinks };
+    if (a) return { kind: "article", posts, faces, publishers: a.publishers ?? [], publisherPosts, otherPosts, paper: { title: a.title, url: a.url, journal: a.journal, domain: a.domain, abstract: a.abstract, description: a.description, sharers: [], topLikes: a.topLikes, publishers: a.publishers, peerReviewed: a.peerReviewed, ...articleIdOf(a) }, supportLinks };
     return null;
   }
   if (c.kind === "episode") {

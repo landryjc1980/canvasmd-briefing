@@ -55,3 +55,14 @@ test("the Readout renders the registry-aware source, not the bare frozen journal
     assert.match(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"), /withPublicationNames\(await getCachedReadoutWindow\(/, file);
   }
 });
+
+test("the /r/ evidence projection keeps the paper's own article id", async () => {
+  const { resolveHeroEvidence } = await import("../app/heroEvidence.ts");
+  const card = { id: "paper:x", kind: "paper", anchorId: "https://x/1", headline: "A paper", why: "", sourceLabel: "Breast", url: "https://x/1" };
+  const article = { title: "A paper", url: "https://x/1", journal: "Breast", domain: "x", abstract: null, sharers: 1, kolSharers: 1, publishers: [], faces: [], topLikes: 0, posts: [], article_id: ID };
+  const resolved = resolveHeroEvidence(card, { topStories: [], topArticles: [article], movers: [], heroCandidates: { cards: [] } });
+  assert.equal(resolved?.kind, "article");
+  assert.equal(resolved?.paper.article_id, ID);
+  const without = resolveHeroEvidence(card, { topStories: [], topArticles: [{ ...article, article_id: undefined }], movers: [], heroCandidates: { cards: [] } });
+  assert.equal("article_id" in without.paper, false);
+});

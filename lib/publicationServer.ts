@@ -106,6 +106,8 @@ export async function fetchArticlePublications(
     }
     return publications;
   } catch (error) {
+    // One failed batch fails the lookup; stop the sibling requests still in flight.
+    controller.abort();
     console.error("[publications] registry lookup failed:", error instanceof Error ? error.message : String(error));
     return null;
   } finally {
@@ -127,6 +129,14 @@ function decorate<T>(item: T, name: string | null | undefined, key: string): T {
 const isEpisodeItem = (item: unknown): boolean =>
   isObject(item) && (item.kind === "episode" || "episodeId" in item);
 
+// FDA cards keep their label (plan: "Episodes, regulatory (FDA) cards and X threads are not
+// articles"). An archived event card carries nickname "REGULATORY"; a regulatory candidate
+// carries sourceAction "View FDA source". Their ids point at coverage, not at a publication.
+const isRegulatoryItem = (item: unknown): boolean =>
+  isObject(item) && (item.nickname === "REGULATORY" || item.sourceAction === "View FDA source" || item.kind === "event");
+
+const skipsRegistry = (item: unknown): boolean => isEpisodeItem(item) || isRegulatoryItem(item);
+
 const pickIds = (picks: OwnArticlePick[]): string[] => picks.flatMap((pick) => (pick.kind === "id" ? [pick.id] : []));
 
 type SnapshotLike = { developments?: unknown; relevant?: unknown };
@@ -139,12 +149,12 @@ function decorateSnapshot(snapshot: unknown, name: (item: unknown) => string | n
   if (!isObject(snapshot)) return snapshot;
   const out: Json = { ...snapshot };
   if (Array.isArray(snapshot.developments)) {
-    out.developments = snapshot.developments.map((entry) => isObject(entry) && !isEpisodeItem(entry.development)
+    out.developments = snapshot.developments.map((entry) => isObject(entry) && !skipsRegistry(entry.development)
       ? { ...entry, development: decorate(entry.development, name(entry.development), "sourceName") }
       : entry);
   }
   if (Array.isArray(snapshot.relevant)) {
-    out.relevant = snapshot.relevant.map((entry) => isObject(entry) && !isEpisodeItem(entry.article)
+    out.relevant = snapshot.relevant.map((entry) => isObject(entry) && !skipsRegistry(entry.article)
       ? { ...entry, article: decorate(entry.article, name(entry.article), "sourceName") }
       : entry);
   }
@@ -163,7 +173,7 @@ export async function withPublicationNames<T extends ReadoutWindowPayload>(paylo
     const items = [
       ...snapshots.flatMap((snapshot) => [...developmentsOf(snapshot), ...relevantOf(snapshot)]),
       ...(payload.designationCards ?? []),
-    ].filter((item) => isObject(item) && !isEpisodeItem(item));
+    ].filter((item) => isObject(item) && !skipsRegistry(item));
     const ids = pickIds(items.map(ownArticlePick));
     const entries = ids.length ? await fetchArticlePublications(ids) : new Map<string, PublicationEntry>();
     const name = (item: unknown) => publicationName({ pick: ownArticlePick(item), entries, saved: item as SavedPublication });

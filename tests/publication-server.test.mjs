@@ -157,3 +157,37 @@ test("conference reports, cards and articles gain registrySource; episodes do no
   assert.equal("registrySource" in out.coverage.episodes[0], false);
   assert.equal("registrySource" in payload.coverage.reports[0], false);
 }));
+
+test("FDA cards in an edition keep their label: regulatory items are never decorated", withEnv(async () => {
+  const api = load();
+  const calls = [];
+  globalThis.fetch = registryFetch(calls);
+  const fda = (extra) => ({ id: "fda-1", kind: "event", nickname: "REGULATORY", journal: "FDA", title: "Approval", url: "https://fda.gov/x", canonicalArticleId: B, articleIds: [B], ...extra });
+  const payload = {
+    generatedAt: "2026-10-02T10:00:00Z", windowDays: 1, area: "All", cards: [], overlays: [], episodes: [], regulatoryCards: [], designationCards: [], candidateGeneratedAt: null,
+    currentEdition: { schemaVersion: 2, editionDate: "2026-10-02", generatedAt: "2026-10-02T10:00:00Z", area: "All", listen: [], regulatoryCards: [], designationCards: [],
+      developments: [{ development: fda({}), position: 1 }, { development: fda({ id: "fda-2", nickname: "", sourceAction: "View FDA source", kind: "paper" }), position: 2 }],
+      relevant: [{ article: { id: "p-1", kind: "paper", nickname: "", journal: "Breast (Edinburgh, Scotland)", title: "Paper", url: "https://x", articleId: A }, position: 1 }] },
+    editionHistory: [],
+  };
+  const out = await api.withPublicationNames(payload);
+  assert.equal("sourceName" in out.currentEdition.developments[0].development, false, "an archived event card is left alone");
+  assert.equal("sourceName" in out.currentEdition.developments[1].development, false, "a regulatory candidate is left alone");
+  assert.equal(out.currentEdition.relevant[0].article.sourceName, "The Breast");
+  const looked = decodeURIComponent(calls.find((u) => u.includes("/v_article_publication?")));
+  assert.ok(!looked.includes(B), "the FDA card's coverage id is not even looked up");
+}));
+
+test("one failed batch aborts the sibling requests still in flight", withEnv(async () => {
+  const api = load();
+  let aborted = false;
+  let first = true;
+  globalThis.fetch = (url, init) => {
+    if (first) { first = false; return Promise.resolve(new Response("down", { status: 503 })); }
+    return new Promise((_, reject) => init.signal.addEventListener("abort", () => { aborted = true; reject(new Error("aborted")); }));
+  };
+  const ids = Array.from({ length: 101 }, (_, i) => uuid(i + 10));
+  assert.equal(await api.fetchArticlePublications(ids), null);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(aborted, true);
+}));
