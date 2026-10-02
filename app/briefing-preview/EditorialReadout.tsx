@@ -549,10 +549,6 @@ function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle;
   const { primarySources, supportingEvidence, related, trials } = attachedSources(item, primaryUrl);
   if (!primarySources.length && !supportingEvidence.length && !related.length && !trials.length) return null;
   if (!expanded) return null;
-  // The Anchor row is the card's own source, so it follows the registry decision when there is
-  // one (publication registry step 4): the registry name, or "Source" when the rule shows no
-  // name (never the frozen label or a domain). Other rows name other articles and keep their labels.
-  const anchorLabel = (link: HeroSupportLink) => "sourceName" in item ? item.sourceName ?? "Source" : sourceLinkLabel(link);
   const rows = [
     ...trials.map((link) => ({ role: "Trial registry", link })),
     ...primarySources.map((link) => ({ role: "Anchor", link })),
@@ -564,7 +560,7 @@ function CoverageLinks({ item, primaryUrl, expanded }: { item: EditorialArticle;
       {rows.map(({ role, link }) => (
         <div className="er-source-row" key={sourceLinkKey(role, link.url)}>
           <span className="er-role">{role}</span>
-          <a href={link.url} target="_blank" rel="noreferrer">{role === "Anchor" ? anchorLabel(link) : sourceLinkLabel(link)}</a>
+          <a href={link.url} target="_blank" rel="noreferrer">{sourceLinkLabel(link)}</a>
         </div>
       ))}
     </div>

@@ -67,11 +67,8 @@ test("the /r/ evidence projection keeps the paper's own article id", async () =>
   assert.equal("article_id" in without.paper, false);
 });
 
-test("the expanded card's Anchor row and the preview route follow the registry decision", async () => {
+test("the preview route serves the same registry-decorated payload as the home page", async () => {
   const { readFileSync } = await import("node:fs");
-  const renderer = readFileSync(new URL("../app/briefing-preview/EditorialReadout.tsx", import.meta.url), "utf8");
-  assert.match(renderer, /const anchorLabel = \(link: HeroSupportLink\) => "sourceName" in item \? item\.sourceName \?\? "Source" : sourceLinkLabel\(link\)/);
-  assert.match(renderer, /\{role === "Anchor" \? anchorLabel\(link\) : sourceLinkLabel\(link\)\}/);
   const preview = readFileSync(new URL("../app/briefing-preview/page.tsx", import.meta.url), "utf8");
   assert.match(preview, /getCachedReadoutWindow\("All", "today"\)\.then\(withPublicationNames\)/);
 });
