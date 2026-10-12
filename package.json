@@ -5,11 +5,10 @@
   "description": "Gated web edition of the CanvasMD Readout, backed by canonical cached editions from the briefing pipeline.",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/verify-specialty-builder.mjs && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --no-warnings \"tests/**/*.test.mjs\"",
-    "sync:specialty-builder": "node scripts/sync-specialty-builder.mjs"
+    "test": "node --test --no-warnings \"tests/**/*.test.mjs\""
   },
   "dependencies": {
     "@supabase/supabase-js": "2.106.0",
@@ -22,7 +21,6 @@
     "@types/node": "20.14.10",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
-    "esbuild": "0.25.9",
     "typescript": "5.5.4"
   }
 }
