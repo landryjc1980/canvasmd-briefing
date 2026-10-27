@@ -114,10 +114,11 @@ async function fromArchive(tok: string): Promise<HeroPost | null> {
   return { area: r.area, card: r.card, brief: r.evidence as BriefingData };
 }
 
-// Drop anything not seen live for RETENTION_DAYS — that is the link lifetime we promise.
+// Shared card links live RETENTION_DAYS after they were last seen live; drop cards older than that.
+// Editions (kind = 'edition') are permanent and never pruned, so the archive keeps every past Readout.
 export async function pruneArchive(): Promise<number> {
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400_000).toISOString();
-  const res = await rest(`readout_posts?last_seen=lt.${encodeURIComponent(cutoff)}`, {
+  const res = await rest(`readout_posts?last_seen=lt.${encodeURIComponent(cutoff)}&or=(kind.is.null,kind.neq.edition)`, {
     method: "DELETE",
     headers: { prefer: "return=representation" },
   });
