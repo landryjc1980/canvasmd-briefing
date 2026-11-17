@@ -281,6 +281,10 @@ export async function prepublishCurrentReadoutEdition(now = new Date(), signal?:
 
 export async function mergeCurrentReadoutEditionInsertions(now = new Date(), signal?: AbortSignal) {
   const editionDate = activeReadoutEditionDate(now);
+  // 05:00-05:59 ET: Oncology Mornings is narrating this row, and its publication
+  // gate withholds the recording if the row's selection changes. Insertions wait
+  // until 06:00, as they did before the public rollover moved to 05:00.
+  if (etEditionHour(now) === 5) return { editionDate, results: [], changed: false, skipped: "morning-audio-hour" as const };
   const snapshot = await readEditionRow(editionDate);
   if (!snapshot) {
     if (etEditionHour(now) < 6) return { editionDate, results: [], changed: false, skipped: "no-morning-edition" as const };

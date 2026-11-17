@@ -15,7 +15,8 @@ Since 2026-11-17 `activeReadoutEditionDate()` rolls over at 05:00 ET, so this
 row is the public reader edition from 05:00. Prepublication itself never writes a
 `readout-window:finished:*` row; `/api/readout-cache` rebuilds the finished
 windows from it at 05:10 ET (09:10/10:10 UTC, one of which is 05:10 in each DST
-state), and web reads rebuild on demand.
+state), and web reads rebuild on demand. Hourly insertions into the new row wait
+until 06:00 ET, while Oncology Mornings is narrating it.
 
 The audio publisher may use the row only when all conditions hold:
 
