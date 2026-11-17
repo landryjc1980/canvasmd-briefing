@@ -106,8 +106,8 @@ export async function withReadoutSelectionVersion(snapshot: ReadoutEditionSnapsh
   return { ...snapshot, selectionVersion };
 }
 
-/** Service-only source read for the pre-6am canonical edition. It never writes a
- * finished reader-window token, so yesterday remains the public edition until rollover. */
+/** Service-only source read for the 5am canonical edition. It never writes a
+ * finished reader-window token; reader windows are built from the saved row. */
 export async function fetchFreshReadoutWindowForPrepublication(
   area: EditionArea,
   editionDate: string,

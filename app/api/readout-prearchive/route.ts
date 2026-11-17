@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 // Service-only preparation for Oncology Mornings. It deliberately does not warm
-// or write the public finished-window cache: the reader remains on yesterday's
-// edition until the existing 06:00 ET archive route rolls over.
+// or write the public finished-window cache: readers switch to this edition at
+// 05:00 ET and the reader windows are rebuilt from it by /api/readout-cache.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {

@@ -189,6 +189,14 @@ test("the no-edition fallback used outside the scheduled archive path still requ
   assert.equal(h.calls.filter(([kind]) => kind === "fresh").length, 1);
 });
 
+test("the hourly merge leaves today's row untouched during the 05:00 ET audio hour", async () => {
+  const h = harness({ existing: savedEdition() });
+  const result = await h.mergeCurrentReadoutEditionInsertions(fiveAm);
+  assert.equal(result.changed, false);
+  assert.equal(result.skipped, "morning-audio-hour");
+  assert.deepEqual(h.calls, [], "no row read, source read or write happens at 05:xx");
+});
+
 test("creating a new edition row starts the morning audio exactly once for that date", async () => {
   const h = harness();
   await h.prepublishCurrentReadoutEdition(fiveAm);

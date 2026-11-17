@@ -257,11 +257,11 @@ export async function archiveCurrentReadoutEdition(now = new Date(), signal?: Ab
 }
 
 /**
- * Build the next public day without changing the public rollover. This writes only
- * `edition:v2:<today ET>:All`; all browser/current-window reads remain pinned to
- * yesterday until `activeReadoutEditionDate()` switches at 06:00 ET. The audio
- * publisher may read this exact service-role row before 06:00, but must require
- * schemaVersion 2, area All, the requested ET date, and selectionVersion.
+ * Build the next public day. This writes only `edition:v2:<today ET>:All`; it
+ * becomes the reader edition because `activeReadoutEditionDate()` switches at
+ * 05:00 ET, and the next reader read or cache refresh picks it up. The audio
+ * publisher reads this exact service-role row and must require schemaVersion 2,
+ * area All, the requested ET date, and selectionVersion.
  */
 export async function prepublishCurrentReadoutEdition(now = new Date(), signal?: AbortSignal) {
   const editionDate = prepublicationEditionDate(now);
@@ -281,6 +281,10 @@ export async function prepublishCurrentReadoutEdition(now = new Date(), signal?:
 
 export async function mergeCurrentReadoutEditionInsertions(now = new Date(), signal?: AbortSignal) {
   const editionDate = activeReadoutEditionDate(now);
+  // 05:00-05:59 ET: Oncology Mornings is narrating this row, and its publication
+  // gate withholds the recording if the row's selection changes. Insertions wait
+  // until 06:00, as they did before the public rollover moved to 05:00.
+  if (etEditionHour(now) === 5) return { editionDate, results: [], changed: false, skipped: "morning-audio-hour" as const };
   const snapshot = await readEditionRow(editionDate);
   if (!snapshot) {
     if (etEditionHour(now) < 6) return { editionDate, results: [], changed: false, skipped: "no-morning-edition" as const };
