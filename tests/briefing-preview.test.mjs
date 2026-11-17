@@ -532,10 +532,15 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
   assert.match(vercelConfig, /"0 11 \* \* \*"/);
   assert.match(vercelConfig, /"5 10 \* \* \*"/);
   assert.match(vercelConfig, /"5 11 \* \* \*"/);
-  assert.equal(activeReadoutEditionDate(new Date("2026-08-27T09:59:00Z")), "2026-08-26");
-  assert.equal(activeReadoutEditionDate(new Date("2026-08-27T10:00:00Z")), "2026-08-27");
-  assert.equal(activeReadoutEditionDate(new Date("2026-12-15T10:59:00Z")), "2026-12-14");
-  assert.equal(activeReadoutEditionDate(new Date("2026-12-15T11:00:00Z")), "2026-12-15");
+  // The public edition rolls at 5 a.m. ET: EDT (UTC-4) and EST (UTC-5).
+  assert.equal(activeReadoutEditionDate(new Date("2026-08-27T08:59:00Z")), "2026-08-26");
+  assert.equal(activeReadoutEditionDate(new Date("2026-08-27T09:00:00Z")), "2026-08-27");
+  assert.equal(activeReadoutEditionDate(new Date("2026-12-15T09:59:00Z")), "2026-12-14");
+  assert.equal(activeReadoutEditionDate(new Date("2026-12-15T10:00:00Z")), "2026-12-15");
+  // The cache refresh lands at 05:10 ET in both DST states; :50 stays hourly.
+  const cacheSchedules = JSON.parse(vercelConfig).crons
+    .filter((cron) => cron.path === "/api/readout-cache").map((cron) => cron.schedule);
+  assert.deepEqual(cacheSchedules, ["50 * * * *", "10 9 * * *", "10 10 * * *"]);
   assert.equal(readoutWindowKeyboardTarget("today", "ArrowRight"), "7d");
   assert.equal(readoutWindowKeyboardTarget("today", "ArrowDown"), "7d");
   assert.equal(readoutWindowKeyboardTarget("7d", "ArrowLeft"), "today");
@@ -544,14 +549,15 @@ test("the canonical daily edition is DST-safe, idempotent, and service-only", ()
   assert.equal(readoutWindowKeyboardTarget("today", "End"), "7d");
   assert.equal(readoutWindowKeyboardTarget("today", "Enter"), null);
   assert.match(readoutEditionArchive, /const editionDate = activeReadoutEditionDate\(now\)/,
-    "the hourly merge keeps updating yesterday's frozen edition until the 6am replacement exists");
+    "the hourly merge keeps updating yesterday's frozen edition until the 5am replacement exists");
 });
 
-test("pre-6am preparation uses today's explicit edition date and does not wait for the specialty build", () => {
+test("5am preparation uses today's explicit edition date and does not wait for the specialty build", () => {
   const now = new Date("2026-08-27T09:05:00Z"); // 05:05 ET
-  assert.equal(activeReadoutEditionDate(now), "2026-08-26");
-  assert.equal(prepublicationEditionDate(now), "2026-08-27",
-    "prepublication must not inherit the public pre-6am date");
+  assert.equal(activeReadoutEditionDate(now), "2026-08-27");
+  assert.equal(prepublicationEditionDate(now), "2026-08-27");
+  assert.equal(prepublicationEditionDate(new Date("2026-08-27T08:59:00Z")), "2026-08-27",
+    "prepublication uses today's ET date even before the public 5am rollover");
   const frozen = { schemaVersion: 2, area: "All", editionDate: "2026-08-27", selectionVersion: `readout-v1-${"a".repeat(64)}` };
   assert.equal(hasFrozenPrepublishedEdition(frozen, "2026-08-27"), true);
   assert.equal(hasFrozenPrepublishedEdition({ ...frozen, selectionVersion: null }, "2026-08-27"), false);

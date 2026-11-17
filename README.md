@@ -16,8 +16,8 @@ serves the same canonical edition through every specialty lens.
 - The root server render starts with the finished `All / Today` payload from
   `getCachedReadoutWindow`, then the client switches specialty and Today/7 days views
   through the authenticated `/api/briefing` proxy.
-- Vercel warms all finished Readout windows hourly. The morning canonical is prepared
-  at 5 a.m. ET and becomes public at 6 a.m.; the archive preserves that exact edition.
+- Vercel warms all finished Readout windows hourly and at 5:10 a.m. ET. The morning
+  canonical is prepared and becomes public at 5 a.m. ET; the archive preserves that exact edition.
 - Every new canonical build first requests a fresh candidate lane and waits for its
   exact persisted run receipt. Only then does it read fresh specialty windows. Failed,
   stale, timed-out, or concurrently replaced candidate builds cannot save an edition.

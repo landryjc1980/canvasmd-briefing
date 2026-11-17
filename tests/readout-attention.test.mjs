@@ -106,13 +106,13 @@ test("previous remainder papers outside the lead slots do not repeat in the rema
   assert.deepEqual(edition.relevant, []);
 });
 
-test("5 AM preparation and 6 AM publication share one immutable preceding-day start", () => {
+test("5 AM preparation and 5 AM publication share one immutable preceding-day start", () => {
   assert.deepEqual(anchor, { version: 1, timeZone: "America/New_York", startAt: "2026-09-10T09:00:00.000Z", sevenDayStartAt: "2026-09-04T09:00:00.000Z" });
-  assert.equal(activeReadoutEditionDate(new Date("2026-09-11T09:59:59Z")), "2026-09-10");
-  for (const instant of ["2026-09-11T10:00:00Z", "2026-09-11T15:00:00Z", "2026-09-11T21:00:00Z", "2026-09-12T09:59:59Z"]) {
+  assert.equal(activeReadoutEditionDate(new Date("2026-09-11T08:59:59Z")), "2026-09-10");
+  for (const instant of ["2026-09-11T09:00:00Z", "2026-09-11T15:00:00Z", "2026-09-11T21:00:00Z", "2026-09-12T08:59:59Z"]) {
     assert.deepEqual(readoutAttentionAnchor(activeReadoutEditionDate(new Date(instant))), anchor);
   }
-  assert.notDeepEqual(readoutAttentionAnchor(activeReadoutEditionDate(new Date("2026-09-12T10:00:00Z"))), anchor);
+  assert.notDeepEqual(readoutAttentionAnchor(activeReadoutEditionDate(new Date("2026-09-12T09:00:00Z"))), anchor);
 });
 
 test("anchors use New York calendar dates across DST, month, and year boundaries", () => {

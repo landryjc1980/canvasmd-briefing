@@ -29,12 +29,13 @@ export function etEditionHour(now = new Date()): number {
   }).format(now));
 }
 
+/** The published edition rolls over at 5 a.m. Eastern, including across DST. */
 export function activeReadoutEditionDate(now = new Date()): string {
-  if (etEditionHour(now) >= 6) return etEditionDate(now);
+  if (etEditionHour(now) >= 5) return etEditionDate(now);
   return etEditionDate(new Date(now.getTime() - 12 * 60 * 60 * 1000));
 }
 
-/** The canonical morning being prepared is today, even while public readers show yesterday. */
+/** The canonical morning being prepared is today's ET date, independent of the public rollover. */
 export function prepublicationEditionDate(now = new Date()): string {
   return etEditionDate(now);
 }

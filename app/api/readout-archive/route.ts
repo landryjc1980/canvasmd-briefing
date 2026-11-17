@@ -1,4 +1,5 @@
-// GET /api/readout-archive — the 06:00 ET canonical rollover only.
+// GET /api/readout-archive — the 06:00 ET fallback build (if 05:00 prepublication
+// failed) and All/today reader check. Readers roll over at 05:00 ET.
 // Share-card breadth/archive retention runs independently in readout-maintenance.
 
 import { NextRequest, NextResponse } from "next/server";
